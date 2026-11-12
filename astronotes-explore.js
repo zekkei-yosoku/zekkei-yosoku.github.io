@@ -223,7 +223,7 @@ function promote(){
 function routeChanged(){render();}
 function sceneDraw(host,at){
  if(host!==look||!active()||mode!=='scene'||!intent||plan.pendingKey||!plan.frameKey)return;
- try{const s=snapshot();if(stamp(s)===plan.frameKey&&Math.abs(s.at-at)>.5)SkyMapUI.setTime(at);}catch{}
+ try{const s=snapshot();if(stamp(s)===plan.frameKey&&Math.abs(s.at-at)>.5)SkyMapUI.setTime(at);}catch{/* 構図の時刻合わせだけを省く。計画の保存や表示は続ける */}
 }
 for(const type of ['click','keydown'])aimView.addEventListener(type,()=>{intent=true;setTimeout(()=>{intent=false;},0);},true);
 function assertScene(){SkyMapUI.shareState();const s=snapshot();if(!active()||mode!=='scene'||!canFrame(s)||plan.frameKey!==stamp(s)||Math.abs(look._lookAt-s.at)>.5)throw Error('見え方の更新が終わってから共有してください');}
@@ -267,7 +267,7 @@ const style=node('style');style.textContent=
 'main:has(>#skyMapView.explore-mounted){max-width:1000px}';
 document.head.append(style);
 globalThis.TrialExplore={active,ownsScene,render,routeChanged,preferMap:()=>{transferMode='map';if(active())choose('map');},sync,invalidate:()=>{plan.forgetFrame();SkyMapUI.render();sync(true);},sceneDraw,assertScene,
- camera:()=>{let timelapse=null;try{if(plan.frameKey===stamp(snapshot())&&AstroNotesTimelapse.settings(look._timelapseConfig))timelapse={...look._timelapseConfig};}catch{}return {l:{...aimLens,focal:Number(look.querySelector('[data-lens-focal]')?.value)||aimLens.focal||50},pan:[...(look._lensOffset||[0,0])],timelapse};}};
+ camera:()=>{let timelapse=null;try{if(plan.frameKey===stamp(snapshot())&&AstroNotesTimelapse.settings(look._timelapseConfig))timelapse={...look._timelapseConfig};}catch{/* 設定が壊れていればタイムラプスなしの計画として扱う */}return {l:{...aimLens,focal:Number(look.querySelector('[data-lens-focal]')?.value)||aimLens.focal||50},pan:[...(look._lensOffset||[0,0])],timelapse};}};
 document.addEventListener('visibilitychange',()=>{if(document.hidden)invalidate();else sync();});
 window.addEventListener('resize',()=>{if(active())sync();});
 routeChanged();

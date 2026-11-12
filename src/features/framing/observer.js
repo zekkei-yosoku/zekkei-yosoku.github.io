@@ -194,7 +194,8 @@ function aimCalGridHtml(year, month, events, selected, today, plan = aim, observ
     // 候補日はその時刻、他の日はJST正午の月の形。既存の月相判定を使う。
     const phase = moonObserver ? AstroNotesMoon.phaseOf(AstroNotesBodies.state("moon", rows[0]?.at ?? at + 12 * 3600000, { ...moonObserver, elevation: 0 })) : null;
     const label = `${year}年${month + 1}月${d}日${phase ? "、" + phase.name : ""}${rows.length ? (solid ? "、重なる日、" : "、近くを通る日、") + rows.map((e) => `${plan === aim ? aimSideName(e.side) : aimSideName(e.side, plan.body)} ${S.JstCal.hhmm(e.at)}${!AstroNotesBodies.definition(plan.body).limbs ? " " + AstroNotesBodies.sky(e.sunAltitude) : ""}`).join("、") : ""}`;
-    html += `<button type="button" data-cal-day="${at}"${rows.length ? ' class="has-event"' : ""} aria-label="${esc(label)}" aria-pressed="${on}"${now ? ' aria-current="date"' : ""}><span>${d}</span><span class="aim-cal-mark"${phase ? " data-moon-phase" : ""} aria-hidden="true">${phase ? '<canvas class="aim-cal-moon" width="40" height="40" data-cal-moon="'+(rows[0]?.at ?? at + 12 * 3600000)+'"></canvas> ' : ""}${rows.length ? (solid ? "●" : "○") : ""}</span>${rows.length ? `<span class="aim-cal-time">${S.JstCal.hhmm(rows[0].at)}</span><span class="aim-cal-sky">${!AstroNotesBodies.definition(plan.body).limbs ? AstroNotesBodies.sky(rows[0].sunAltitude) : ""}</span>` : ""}</button>`;
+    html += `<button type="button" data-cal-day="${at}"${rows.length ? ' class="has-event"' : ""} aria-label="${esc(label)}" aria-pressed="${on}"${now ? ' aria-current="date"' : ""}><span>${d}</span>\
+<span class="aim-cal-mark"${phase ? " data-moon-phase" : ""} aria-hidden="true">${phase ? '<canvas class="aim-cal-moon" width="40" height="40" data-cal-moon="'+(rows[0]?.at ?? at + 12 * 3600000)+'"></canvas> ' : ""}${rows.length ? (solid ? "●" : "○") : ""}</span>${rows.length ? `<span class="aim-cal-time">${S.JstCal.hhmm(rows[0].at)}</span><span class="aim-cal-sky">${!AstroNotesBodies.definition(plan.body).limbs ? AstroNotesBodies.sky(rows[0].sunAltitude) : ""}</span>` : ""}</button>`;
   }
   return html;
 }
@@ -821,7 +822,8 @@ function aimIndexedCap(obs,eye,target){
   const note=cap=>{if(cap&&shared)shared.used.set(sharedKey,{ridge:cap.ridge,base:cap.base});return cap;};
   if(aimIndexedCaps.has(key)){const hit=aimIndexedCaps.get(key);aimIndexedCaps.delete(key);aimIndexedCaps.set(key,hit);return hit.then(note);}
   const known=shared?.known.get(sharedKey);
-  const pending=(async()=>{if(Array.isArray(known?.ridge)&&Number.isFinite(known?.base))return known;const saved=await aimCapStore?.get(key);if(saved)return saved;const cap=await trialSearchRidge(obs,eye,target);if(cap)void aimCapStore?.put(key,cap);return cap;})().then(cap=>{if(!cap&&aimIndexedCaps.get(key)===pending)aimIndexedCaps.delete(key);return cap;},error=>{if(aimIndexedCaps.get(key)===pending)aimIndexedCaps.delete(key);throw error;});
+  const pending=(async()=>{if(Array.isArray(known?.ridge)&&Number.isFinite(known?.base))return known;const saved=await aimCapStore?.get(key);if(saved)return saved;const cap=await trialSearchRidge(obs,eye,target);if(cap)void aimCapStore?.put(key,cap);return cap;
+  })().then(cap=>{if(!cap&&aimIndexedCaps.get(key)===pending)aimIndexedCaps.delete(key);return cap;},error=>{if(aimIndexedCaps.get(key)===pending)aimIndexedCaps.delete(key);throw error;});
   aimIndexedCaps.set(key,pending);while(aimIndexedCaps.size>AIM_INDEXED_CAP_LIMIT)aimIndexedCaps.delete(aimIndexedCaps.keys().next().value);
   return pending.then(note);
 }
@@ -844,7 +846,8 @@ async function aimBuildingDays(obs, target, body, partId, seq, { from = Date.now
   const saved=cache.get(cacheKey);
   if(saved&&start>=saved.from&&start<saved.until&&isCurrent()){onScanned(saved.scanned);return saved.rows.map(e=>({...e}));}
   {const viaEngine=globalThis.AstroNotesDaysEngine?await globalThis.AstroNotesDaysEngine(obs,target,body,partId,{from:start,limb,matchMode,days,limit,isCurrent,onScanned}):null;
-   if(viaEngine){if(isCurrent()){const scannedTo=viaEngine.length>=limit?S.Cal.startOfDay(viaEngine[limit-1].at)+86400000:start+days*86400000;cache.delete(cacheKey);cache.set(cacheKey,{from:start,until:start+86400000,scanned:scannedTo,rows:viaEngine.map(e=>({...e}))});while(cache.size>8)cache.delete(cache.keys().next().value);onScanned(scannedTo);}return viaEngine;}}
+   if(viaEngine){if(isCurrent()){const scannedTo=viaEngine.length>=limit?S.Cal.startOfDay(viaEngine[limit-1].at)+86400000:start+days*86400000;cache.delete(cacheKey);cache.set(cacheKey,{from:start,until:start+86400000,scanned:scannedTo,rows:viaEngine.map(e=>({...e}))});
+   while(cache.size>8)cache.delete(cache.keys().next().value);onScanned(scannedTo);}return viaEngine;}}
   let scanned=start;
   const whole = partId === "__whole", mountain = typeof aimIsMountain === "function" && aimIsMountain(target);
   // Match eventsFor/searchOptions: overlap uses the whole building, or the mountain rim.

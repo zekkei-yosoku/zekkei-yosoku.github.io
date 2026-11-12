@@ -88,7 +88,8 @@ async function openAccountSheet() {
     $("accountPasskeys").innerHTML = me.credentials.length ? me.credentials.map((c) => `<div class="fav-row">
             <div class="list-item" style="border-top:none">${esc(c.label || "名称なし")}
               <div class="tiny">登録 ${when(c.created_at)}<br>最終利用 ${when(c.last_used_at)}</div></div>
-            <button class="fav-del" data-delkey="${esc(c.id)}" aria-label="${esc(c.label || "この端末")}のパスキーを消す" style="color:var(--red)"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+            <button class="fav-del" data-delkey="${esc(c.id)}" aria-label="${esc(c.label || "この端末")}のパスキーを消す" style="color:var(--red)"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">\
+<path d="m6 6 12 12M18 6 6 18"/></svg></button>
           </div>`).join("") : `<p class="tiny account-empty">まだ登録されていません。</p>`;
     // 認証手段が1つだけだと、それを失った時点で自分のデータへ入れなくなる。
     // 起きてから言っても遅いので、そうなる前に言う。本人の画面には「薦め」も出す

@@ -19,10 +19,13 @@ const AstroNotesHistory = (() => {
   reload();
   const identity=(kind,v)=>kind==='places'?`${v.latitude},${v.longitude}`:JSON.stringify([v.t,v.o,v.body,v.part,v.limb,v.matchMode||'limb',Math.floor((v.at+32400000)/86400000)]);
   const save=next=>{if(!write(key(),next))return false;state=next;return true;};
-  function add(kind,value,{derived=false}={}){value=kind==='places'?place(value):validatePlan(value);if(!value)return false;reload();const id=identity(kind,value);if(kind==='places'&&derived){const old=state.places.find(r=>identity(kind,r.value)===id);if(old)value={...value,...old.value};}return save({...state,[kind]:[{value,usedAt:now()},...state[kind].filter(r=>identity(kind,r.value)!==id)].slice(0,limit)});}
-  function remove(kind,item){reload();const index=typeof item==='number'?item:state[kind]?.findIndex(r=>identity(kind,r.value)===identity(kind,item.value));if(!state[kind]?.[index])return true;const removed=state[kind][index],next={...state,[kind]:state[kind].filter((r,i)=>i!==index)};if(!save(next))return false;undo={kind,rows:[removed],scope:scope()};return true;}
+  function add(kind,value,{derived=false}={}){value=kind==='places'?place(value):validatePlan(value);if(!value)return false;reload();const id=identity(kind,value);if(kind==='places'&&derived){const old=state.places.find(r=>identity(kind,r.value)===id);if(old)value={...value,...old.value};
+  }return save({...state,[kind]:[{value,usedAt:now()},...state[kind].filter(r=>identity(kind,r.value)!==id)].slice(0,limit)});}
+  function remove(kind,item){reload();const index=typeof item==='number'?item:state[kind]?.findIndex(r=>identity(kind,r.value)===identity(kind,item.value));if(!state[kind]?.[index])return true;const removed=state[kind][index],next={...state,[kind]:state[kind].filter((r,i)=>i!==index)};
+  if(!save(next))return false;undo={kind,rows:[removed],scope:scope()};return true;}
   function clear(kind){reload();if(!['places','plans'].includes(kind))return false;const rows=state[kind];if(!save({...state,[kind]:[]}))return false;undo={kind,rows,scope:scope()};return true;}
-  function restore(){if(!undo||undo.scope!==scope())return false;reload();const {kind,rows}=undo,ids=new Set(rows.map(r=>identity(kind,r.value)));const list=[...rows,...state[kind].filter(r=>!ids.has(identity(kind,r.value)))].sort((a,b)=>b.usedAt-a.usedAt).slice(0,limit);if(!save({...state,[kind]:list}))return false;undo=null;return true;}
+  function restore(){if(!undo||undo.scope!==scope())return false;reload();const {kind,rows}=undo,ids=new Set(rows.map(r=>identity(kind,r.value)));const list=[...rows,...state[kind].filter(r=>!ids.has(identity(kind,r.value)))].sort((a,b)=>b.usedAt-a.usedAt).slice(0,limit);
+  if(!save({...state,[kind]:list}))return false;undo=null;return true;}
   return {add,remove,clear,restore,list(kind){reload();return state[kind].map(r=>JSON.parse(JSON.stringify(r)));},canUndo:()=>!!undo&&undo.scope===scope(),undoKind:()=>undo?.scope===scope()?undo.kind:null};
  }
  return {create,place};

@@ -52,7 +52,8 @@
               { id: "top", name: "トップデッキの上端", m: 247.55 },
               { id: "main", name: "メインデッキの上端", m: 148.389 }] },
     // 出典：PLATEAU新宿区2025。LOD2を抽出・局所座標へ加工。本体頂部と屋上付属物を区別。
-    {"id":"tocho-building","name":"東京都庁 第一本庁舎","latitude":35.6895,"longitude":139.691694,"groundM":34.63,"note":"PLATEAU LOD2。屋上付属物を含む形状。本体頂部は地上243.05m","parts":[{"id":"north","name":"北塔の頂部","m":277.68,"latitude":35.68978611899479,"longitude":139.69164621437966},{"id":"south","name":"南塔の頂部","m":277.68,"latitude":35.68921795263166,"longitude":139.6917781156376}]},
+    {"id":"tocho-building","name":"東京都庁 第一本庁舎","latitude":35.6895,"longitude":139.691694,"groundM":34.63,"note":"PLATEAU LOD2。屋上付属物を含む形状。本体頂部は地上243.05m","parts":[{"id":"north","name":"北塔の頂部","m":277.68,"latitude":35.68978611899479,"longitude":139.69164621437966},{"id":"south","name":"南塔の頂部",
+    "m":277.68,"latitude":35.68921795263166,"longitude":139.6917781156376}]},
     // PLATEAU 2025の絶対座標を保持。部分の高さは海抜で、外形の一律リサイズは行わない。
     {"id":"shibuya-sky","name":"渋谷スカイ","latitude":35.65838377760082,"longitude":139.70226592899252,"groundM":14.61,"note":"PLATEAU LOD2の標高と輪郭。屋上付属物を含み、現地との高さ・細部の差はあります。","parts":[{"id":"tip","name":"屋上（SKY STAGE）","m":243.637,"latitude":35.65838377760082,"longitude":139.70226592899252}]},
     {"id":"azabudai-hills","name":"麻布台ヒルズ 森JPタワー","latitude":35.6608543555483,"longitude":139.7406558121773,"groundM":18.74,"note":"PLATEAU LOD2の標高と輪郭。屋上付属物を含み、現地との高さ・細部の差はあります。","parts":[{"id":"tip","name":"頂部","m":349.558,"latitude":35.6608543555483,"longitude":139.7406558121773}]},
@@ -565,7 +566,8 @@
     const hasMountainRidge=!!mountainRidge;
     let centerAlt,project,polygons,hasOutline,approximate;
     {
-    const outline = mountainRidge ? {viewBaseAngle:ridgeBase,topAngle:g.angle,hitPolygons:[[...mountainRidge,[mountainRidge.at(-1)[0],ridgeBase],[mountainRidge[0][0],ridgeBase]]]} : opts.silhouette ? {viewBaseAngle:opts.silhouette.viewBaseAngle,topAngle:opts.silhouette.topAngle,approximate:!!opts.silhouette.approximate,hitPolygons:[opts.silhouette.polygon]} : towerOutline(observer, target, opts);
+    const outline = mountainRidge ? {viewBaseAngle:ridgeBase,topAngle:g.angle,hitPolygons:[[...mountainRidge,[mountainRidge.at(-1)[0],ridgeBase],[mountainRidge[0][0],ridgeBase]]]} : opts.silhouette ? {viewBaseAngle:opts.silhouette.viewBaseAngle,topAngle:opts.silhouette.topAngle,
+    approximate:!!opts.silhouette.approximate,hitPolygons:[opts.silhouette.polygon]} : towerOutline(observer, target, opts);
     centerAlt = outline ? (outline.viewBaseAngle + outline.topAngle) / 2 : g.angle;
     project = viewProjector(g.azimuth, centerAlt);
     polygons = outline ? (outline.hitPolygons || [outline.hitPoints || outline.points]).map(poly=>poly.map(([a,h])=>project(a,h)).filter(Boolean)).filter(poly=>poly.length>=3) : null;
@@ -1958,10 +1960,13 @@
   const AstroNotesAlign = { heightVertices, TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, dailyView, prepareDailyView, alignmentAt, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, rimPoints, judge, buildingBlock,
-                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, get CITY_MODELS(){return global.AstroNotesCityModels || CM || {};},get TOWER_MODELS(){return global.AstroNotesTowerModels || TM || {};}, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, outlineBounds, viewWindow, viewPath, sceneTargets };
+                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, get CITY_MODELS(){return global.AstroNotesCityModels || CM || {};},get TOWER_MODELS(){return global.AstroNotesTowerModels || TM || {};
+                        }, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, outlineBounds, viewWindow, viewPath, sceneTargets };
   global.AstroNotesAlign = AstroNotesAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = AstroNotesAlign;
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 /* Legacy global names remain aliases for cached integrations. */
-if(typeof AstroNotes!=='undefined')globalThis.Sorami=AstroNotes;if(typeof AstroNotesAlign!=='undefined')globalThis.SoramiAlign=AstroNotesAlign;if(typeof AstroNotesAstro!=='undefined')globalThis.SoramiAstro=AstroNotesAstro;if(typeof AstroNotesAtmosphere!=='undefined')globalThis.SoramiAtmosphere=AstroNotesAtmosphere;if(typeof AstroNotesBodies!=='undefined')globalThis.SoramiBodies=AstroNotesBodies;if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNotesCityModels;if(typeof AstroNotesFuji!=='undefined')globalThis.SoramiFuji=AstroNotesFuji;if(typeof AstroNotesTerrain!=='undefined')globalThis.SoramiTerrain=AstroNotesTerrain;if(typeof AstroNotesTowerModels!=='undefined')globalThis.SoramiTowerModels=AstroNotesTowerModels;
+if(typeof AstroNotes!=='undefined')globalThis.Sorami=AstroNotes;if(typeof AstroNotesAlign!=='undefined')globalThis.SoramiAlign=AstroNotesAlign;if(typeof AstroNotesAstro!=='undefined')globalThis.SoramiAstro=AstroNotesAstro;
+if(typeof AstroNotesAtmosphere!=='undefined')globalThis.SoramiAtmosphere=AstroNotesAtmosphere;if(typeof AstroNotesBodies!=='undefined')globalThis.SoramiBodies=AstroNotesBodies;if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNotesCityModels;
+if(typeof AstroNotesFuji!=='undefined')globalThis.SoramiFuji=AstroNotesFuji;if(typeof AstroNotesTerrain!=='undefined')globalThis.SoramiTerrain=AstroNotesTerrain;if(typeof AstroNotesTowerModels!=='undefined')globalThis.SoramiTowerModels=AstroNotesTowerModels;

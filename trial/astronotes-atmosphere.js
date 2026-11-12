@@ -348,7 +348,8 @@
       const out=[fallbackAir(z)];
       for(const r of sources){
         const used=r.rows.filter(v=>v.at>=msLo-HOUR*1.01&&v.at<=msHi+HOUR*1.01&&valid(v.pressureHPa,v.temperatureC));if(!used.length)continue;
-        const pLo=Math.min(...used.map(v=>v.pressureHPa)),pHi=Math.max(...used.map(v=>v.pressureHPa)),tLo=Math.min(...used.map(v=>v.temperatureC)),tHi=Math.max(...used.map(v=>v.temperatureC)),dz=z-(r.observer.elevation??0),scale=[tLo,tHi].map(t=>Math.exp(-9.80665*dz/(287.05*(t+273.15)))),lo=pLo*Math.min(...scale),hi=pHi*Math.max(...scale);
+        const pLo=Math.min(...used.map(v=>v.pressureHPa)),pHi=Math.max(...used.map(v=>v.pressureHPa)),tLo=Math.min(...used.map(v=>v.temperatureC)),tHi=Math.max(...used.map(v=>v.temperatureC)),dz=z-(r.observer.elevation??0),scale=[tLo,tHi].map(t=>Math.exp(-9.80665*dz/(287.05*(t+273.15)))),
+        lo=pLo*Math.min(...scale),hi=pHi*Math.max(...scale);
         if(hi>=200&&lo<=1100)for(const t of [tLo,tHi])for(const p of [Math.max(200,lo),Math.min(1100,hi)])out.push({pressureHPa:p,temperatureC:t});
       }
       return out;

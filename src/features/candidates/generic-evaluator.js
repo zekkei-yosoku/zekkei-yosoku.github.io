@@ -96,7 +96,8 @@ function memoOutlines(align){
  const memo=new Map(),models=()=>globalThis.AstroNotesCityModels||null,ids=new WeakMap();let nextId=0;
  const modelKey=target=>{const m=models()?.[target?.id];if(!m)return 0;if(!ids.has(m))ids.set(m,++nextId);return ids.get(m);};
  const towerOutline=(observer,target,options={})=>{
-  const key=JSON.stringify([observer?.latitude,observer?.longitude,observer?.elevation,observer?.eyeM,target?.id,target?.latitude,target?.longitude,target?.groundM,target?.parts,target?.heightM,options,modelKey(target),!!globalThis.AstroNotesTowerModels,!!globalThis.AstroNotesCityModels]),now=Date.now(),hit=memo.get(key);
+  const key=JSON.stringify([observer?.latitude,observer?.longitude,observer?.elevation,observer?.eyeM,target?.id,target?.latitude,target?.longitude,target?.groundM,target?.parts,target?.heightM,options,modelKey(target),!!globalThis.AstroNotesTowerModels,!!globalThis.AstroNotesCityModels]),
+  now=Date.now(),hit=memo.get(key);
   if(hit&&now-hit.at<3000){memo.delete(key);memo.set(key,hit);return hit.value;}
   const value=align.towerOutline(observer,target,options);memo.set(key,{at:now,value});while(memo.size>32)memo.delete(memo.keys().next().value);return value;
  };
@@ -189,7 +190,8 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
     const meta=up&&ground>obs.elevation+.3?standingMetadata({...up,elevation:ground},data,point):false;
     if(!meta)return {status:'model-blocked',recommend:false,reason:'target-line-terrain',partial:true};
     // The step stays in the same park or riverbank, which keeps the point's kind and name.
-    obs={...obs,...meta,placeKind:point.placeKind,name:point.name||meta.name,latitude:up.latitude,longitude:up.longitude,groundM:ground,elevation:ground,surfaceAglM:0,surfaceHeightM:0,surfaceId:(point.surfaceId||'ground')+':up'+(step+1),movedUpFrom:{latitude:point.latitude,longitude:point.longitude,elevation:floor}};
+    obs={...obs,...meta,placeKind:point.placeKind,name:point.name||meta.name,latitude:up.latitude,longitude:up.longitude,groundM:ground,elevation:ground,surfaceAglM:0,surfaceHeightM:0,surfaceId:(point.surfaceId||'ground')+':up'+(step+1),movedUpFrom:{latitude:point.latitude,longitude:point.longitude,
+    elevation:floor}};
    }
   }
   const solved=await Composition.opportunities(plan,obs,{align,bodies,terrain,sidewalks,groundAt:p=>terrain?.at(p,options),standingAt:p=>standingMetadata(p,data,point),isCurrent:options.isCurrent,yieldTask});
@@ -197,7 +199,8 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   for(const solution of solved.solutions||[]){
    if(options.isCurrent?.()===false)throw Error('candidate-cancelled');
    const state=bodies.state(plan.body,solution.event.at,{...solution.observer,elevation:solution.observer.elevation+solution.observer.eyeM});
-   const frame=plan.overlapAnchor?lensCheck({...plan,target:plan.overlapAnchor.target,partId:plan.overlapAnchor.partId},solution.observer,state,align.geometryFrom(solution.observer,plan.overlapAnchor.target,{eyeM:solution.observer.eyeM})||solution.geometry,align):lensCheck(plan,solution.observer,state,solution.geometry,align);if(!frame.fits){outside++;continue;}
+   const frame=plan.overlapAnchor?lensCheck({...plan,target:plan.overlapAnchor.target,partId:plan.overlapAnchor.partId},solution.observer,state,align.geometryFrom(solution.observer,plan.overlapAnchor.target,{eyeM:solution.observer.eyeM})||solution.geometry,align):lensCheck(plan,solution.observer,
+   state,solution.geometry,align);if(!frame.fits){outside++;continue;}
    const los=await visibility(plan,solution,options);if(los.status==='blocked'){blocked++;continue;}
    const at=solution.event.at,position=solution.observer,finalGround=Number.isFinite(position.groundM)?position.groundM:ground;
    const sun=bodies.state('sun',at,{...position,elevation:position.elevation+position.eyeM});
@@ -224,11 +227,18 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    const usedBuildings=[los.target?.buildings,...(los.rays||[]).filter(r=>r.status==='model-clear').map(r=>r.buildings)],buildingHeights=usedBuildings.some(b=>b?.heights==='estimated')?'estimated':usedBuildings.every(b=>b?.heights==='plateau')?'plateau':'model';
    const kind=position.placeKind||point.placeKind;
    accepted.push({id,requestKey:plan.requestKey,status:combinedClear&&frame.status!=='unknown'?'model-visible':'visible-partial',recommend:true,aligned:true,placeKind:kind==='sidewalk'?'road':kind||'unknown',surfaceId:point.surfaceId,
-    place:{id,name:position.name||point.name||'撮影候補地点',latitude:position.latitude,longitude:position.longitude,elevation:finalGround,groundManualM:finalGround,stand:'ground',standAglM:position.elevation-finalGround+position.eyeM,eyeHeightAGL:position.elevation-finalGround+position.eyeM,decks:[],surfaceId:point.surfaceId},
-    assumedObserver:{...position},event:{...solution.event,sunAltitude:sun.apparentAltitude},quality:{visibility:los.status,extraTargets:visibilityQuality,buildingHeights,targetAngleDeg:solution.geometry.angle,frame:frame.status,photographyClass:photo,geometry:solution.event.targetGeometryKind||'anchor',datum:'source-epoch-unverified'},rank:[Math.round(solution.geometry.angle*10)/10,solution.event.gapAngleDeg??0],
-    frame,extraTargets:extras,visibility:los,sourceEvidence:position.sourceEvidence||point.sourceEvidence,modelEvidence:{kind:combinedClear?'terrain-and-building-model-los':'geometry-with-partial-los',scope:'target-and-celestial-rays',actualVisibilityGuaranteed:false,treesModeled:false,terrainNumericComplete:!!los.rays?.every(r=>r.intentionalTarget||r.terrain?.status==='model-clear'),buildingRangeComplete:!!los.rays?.every(r=>r.intentionalTarget||r.buildings?.complete&&r.buildings?.evaluated),targetSelfGeometryComplete:los.shapeKnown&&los.target?.buildings?.evaluated&&!los.target?.buildings?.unresolvedTargetContacts,extraTargetsAssessed:extras.length,datumUncertainty:true}});
+    place:{id,name:position.name||point.name||'撮影候補地点',latitude:position.latitude,longitude:position.longitude,elevation:finalGround,groundManualM:finalGround,stand:'ground',standAglM:position.elevation-finalGround+position.eyeM,eyeHeightAGL:position.elevation-finalGround+position.eyeM,decks:[],
+    surfaceId:point.surfaceId},
+    assumedObserver:{...position},event:{...solution.event,sunAltitude:sun.apparentAltitude},quality:{visibility:los.status,extraTargets:visibilityQuality,buildingHeights,targetAngleDeg:solution.geometry.angle,frame:frame.status,photographyClass:photo,
+    geometry:solution.event.targetGeometryKind||'anchor',datum:'source-epoch-unverified'},rank:[Math.round(solution.geometry.angle*10)/10,solution.event.gapAngleDeg??0],
+    frame,extraTargets:extras,visibility:los,sourceEvidence:position.sourceEvidence||point.sourceEvidence,modelEvidence:{kind:combinedClear?'terrain-and-building-model-los':'geometry-with-partial-los',scope:'target-and-celestial-rays',actualVisibilityGuaranteed:false,treesModeled:false,
+    terrainNumericComplete:!!los.rays?.every(r=>r.intentionalTarget||r.terrain?.status==='model-clear'),buildingRangeComplete:!!los.rays?.every(r=>r.intentionalTarget||r.buildings?.complete&&r.buildings?.evaluated),
+    targetSelfGeometryComplete:los.shapeKnown&&los.target?.buildings?.evaluated&&!los.target?.buildings?.unresolvedTargetContacts,extraTargetsAssessed:extras.length,datumUncertainty:true}});
   }
-  return accepted.length?{...accepted[0],additionalCandidates:accepted.slice(1),partial:solved.partial}: {status:unverified?'unverified':blocked?'model-blocked':outside?'outside-frame':'no-overlap',recommend:false,heightUnknown:heightUnknown>0,obstacle:!!lastUnverified&&[lastUnverified.target?.buildings,...(lastUnverified.rays||[]).map(r=>r.buildings)].some(b=>['trees','elevated-structure'].includes(b?.reason)),unverifiedBy:lastUnverified?{target:[lastUnverified.target?.terrain?.status,lastUnverified.target?.terrain?.reason,lastUnverified.target?.buildings?.status,lastUnverified.target?.buildings?.reason],rays:(lastUnverified.rays||[]).map(r=>r.intentionalTarget?'target':[r.status,r.terrain?.reason||r.terrain?.status,r.buildings?.reason||r.buildings?.status].join('/'))}:null,partial:solved.partial,reason:solved.reason};
+  return accepted.length?{...accepted[0],additionalCandidates:accepted.slice(1),partial:solved.partial}: {status:unverified?'unverified':blocked?'model-blocked':outside?'outside-frame':'no-overlap',recommend:false,heightUnknown:heightUnknown>0,
+  obstacle:!!lastUnverified&&[lastUnverified.target?.buildings,...(lastUnverified.rays||[]).map(r=>r.buildings)].some(b=>['trees','elevated-structure'].includes(b?.reason)),unverifiedBy:lastUnverified?{target:[lastUnverified.target?.terrain?.status,lastUnverified.target?.terrain?.reason,
+  lastUnverified.target?.buildings?.status,lastUnverified.target?.buildings?.reason],rays:(lastUnverified.rays||[]).map(r=>r.intentionalTarget?'target':[r.status,r.terrain?.reason||r.terrain?.status,r.buildings?.reason||r.buildings?.status].join('/'))}:null,partial:solved.partial,
+  reason:solved.reason};
  }
  return {evaluate,visibility,clear:()=>{visibilityCache.clear();targetLines.clear();}};
 }

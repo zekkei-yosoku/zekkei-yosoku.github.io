@@ -16,7 +16,9 @@ function aimDrawGrid(ctx, x, y, w, h, mode) {
   ctx.strokeStyle = "rgba(0,0,0,.45)"; ctx.lineWidth = 3; ctx.stroke();
   ctx.strokeStyle = "rgba(255,255,255,.65)"; ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
 }
-const aimLens = (() => { try { const x = JSON.parse(localStorage.getItem("sorami.lens") || "{}"); return { on: x.mode ? !!x.on : true, mode: x.mode === "manual" ? "manual" : "auto", focal: Number.isFinite(x.focal) && x.focal >= 8 && x.focal <= 2000 ? x.focal : null, sensor: AIM_SENSOR[x.sensor] ? x.sensor : "full", portrait: !!x.portrait, grid: ["thirds", "diagonal"].includes(x.grid) ? x.grid : "none" }; } catch { return { on: true, mode: "auto", focal: null, sensor: "full", portrait: false, grid: "none" }; } })();
+const aimLens = (() => { try { const x = JSON.parse(localStorage.getItem("sorami.lens") || "{}");
+return { on: x.mode ? !!x.on : true, mode: x.mode === "manual" ? "manual" : "auto", focal: Number.isFinite(x.focal) && x.focal >= 8 && x.focal <= 2000 ? x.focal : null, sensor: AIM_SENSOR[x.sensor] ? x.sensor : "full", portrait: !!x.portrait, grid: ["thirds",
+"diagonal"].includes(x.grid) ? x.grid : "none" }; } catch { return { on: true, mode: "auto", focal: null, sensor: "full", portrait: false, grid: "none" }; } })();
 const aimLookHosts = new Set();
 const aimLookHMS = (ms) => `${S.JstCal.hhmm(ms)}:${String(new Date(ms).getUTCSeconds()).padStart(2, "0")}`;
 /// 重なる時刻からの差を短く（「重なる3分前」「重なる20秒後」）

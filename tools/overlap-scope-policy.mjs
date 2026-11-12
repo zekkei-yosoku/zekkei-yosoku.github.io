@@ -50,7 +50,8 @@ export function createOverlapPolicy(){
  const NEGATIVE=['unknown','model-blocked','outside-frame','no-overlap','excluded'];
  function mergeEvaluations(results,anchor,ids=[]){
   const positives=[],seen=new Set();let partial=false;
-  results.forEach((res,i)=>{partial=partial||!!res?.partial;for(const row of res?.recommend?[res,...(res.additionalCandidates||[])]:[]){if(!row.recommend)continue;const tagged=retag(row,i,anchor);tagged.event.overlapTargetId=ids[i]??null;delete tagged.additionalCandidates;if(seen.has(tagged.id))continue;seen.add(tagged.id);positives.push(tagged);}});
+  results.forEach((res,i)=>{partial=partial||!!res?.partial;for(const row of res?.recommend?[res,...(res.additionalCandidates||[])]:[]){if(!row.recommend)continue;const tagged=retag(row,i,anchor);tagged.event.overlapTargetId=ids[i]??null;delete tagged.additionalCandidates;
+  if(seen.has(tagged.id))continue;seen.add(tagged.id);positives.push(tagged);}});
   if(positives.length)return {...positives[0],additionalCandidates:positives.slice(1),partial};
   const statuses=results.map(r=>NEGATIVE.includes(r?.status)?r.status:'unknown'),status=NEGATIVE.find(s=>statuses.includes(s))||'unknown';
   return {status,recommend:false,partial,reason:results.find(r=>r?.status===status)?.reason||(status==='unknown'?'overlap-member-unknown':undefined)};

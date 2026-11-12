@@ -4,7 +4,8 @@
 'use strict';
 const RAD=Math.PI/180;
 function mesh(lat,lon){const my=Math.floor(lat*120),mx=Math.floor(lon*80);return ''+Math.floor(my/80)+(Math.floor(mx/80)-100)+Math.floor(my%80/10)+Math.floor(mx%80/10);}
-function meshesIn([w,s,e,n]){const out=new Set();for(let y=Math.floor(s*12)/12;y<=n+1/24;y+=1/12)for(let x=Math.floor(w*8)/8;x<=e+1/16;x+=1/8){const la=Math.min(n,Math.max(s,y+1e-9)),lo=Math.min(e,Math.max(w,x+1e-9));out.add(mesh(la,lo));}out.add(mesh(s,w));out.add(mesh(n,e));out.add(mesh(s,e));out.add(mesh(n,w));return [...out];}
+function meshesIn([w,s,e,n]){const out=new Set();for(let y=Math.floor(s*12)/12;y<=n+1/24;y+=1/12)for(let x=Math.floor(w*8)/8;x<=e+1/16;x+=1/8){const la=Math.min(n,Math.max(s,y+1e-9)),lo=Math.min(e,Math.max(w,x+1e-9));out.add(mesh(la,lo));}out.add(mesh(s,w));out.add(mesh(n,e));out.add(mesh(s,e));
+out.add(mesh(n,w));return [...out];}
 const sha=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
 const pts=g=>{const out=[];for(let i=0;i<g.length;i+=2)out.push({lat:g[i]/1e7,lon:g[i+1]/1e7});return out;};
 // The Overpass "out geom" shape the place provider already parses.

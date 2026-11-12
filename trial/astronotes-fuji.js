@@ -209,4 +209,5 @@
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 /* Legacy global names remain aliases for cached integrations. */
-if(typeof AstroNotesAlign!=='undefined')globalThis.SoramiAlign=AstroNotesAlign;if(typeof AstroNotesAstro!=='undefined')globalThis.SoramiAstro=AstroNotesAstro;if(typeof AstroNotesFuji!=='undefined')globalThis.SoramiFuji=AstroNotesFuji;if(typeof AstroNotesMountain!=='undefined')globalThis.SoramiMountain=AstroNotesMountain;if(typeof AstroNotesTerrain!=='undefined')globalThis.SoramiTerrain=AstroNotesTerrain;
+if(typeof AstroNotesAlign!=='undefined')globalThis.SoramiAlign=AstroNotesAlign;if(typeof AstroNotesAstro!=='undefined')globalThis.SoramiAstro=AstroNotesAstro;if(typeof AstroNotesFuji!=='undefined')globalThis.SoramiFuji=AstroNotesFuji;
+if(typeof AstroNotesMountain!=='undefined')globalThis.SoramiMountain=AstroNotesMountain;if(typeof AstroNotesTerrain!=='undefined')globalThis.SoramiTerrain=AstroNotesTerrain;

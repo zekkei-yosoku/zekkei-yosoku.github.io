@@ -519,9 +519,11 @@ function render() {
     const grade = unavailable ? null : p.grade(ev);
     const phrase = unavailable ? null : p.phrase(id, ev);
     const when = timing(id, ev);
-    box.innerHTML = `<div class="forecast-selection-head"><div class="ph-head"><span class="ic">${p.icon(id, ev.peak)}</span><span class="nm" id="${summaryId}Title">${e(p.name(id))}</span></div><button type="button" class="tap forecast-selection-open">詳細を見る →</button><button type="button" class="tap forecast-selection-close" aria-label="プレビューを閉じる">×</button></div>`
+    box.innerHTML = `<div class="forecast-selection-head"><div class="ph-head"><span class="ic">${p.icon(id, ev.peak)}</span><span class="nm" id="${summaryId}Title">${e(p.name(id))}</span></div><button type="button" class="tap forecast-selection-open">詳細を見る →</button>\
+<button type="button" class="tap forecast-selection-close" aria-label="プレビューを閉じる">×</button></div>`
       + `<div class="forecast-selection-overview"><span class="muted">${e(p.day(hit.dayMs, context().now))}</span>`
-      + (unavailable ? '' : `<span class="forecast-selection-verdict" style="color:${p.color(ev)}">${e(phrase.label)} <span class="forecast-selection-score">${Math.round(ev.score)} <span class="grade" title="${e(grade.caption)}" aria-label="信頼度${e(grade.key)}">${e(grade.key)}</span></span></span>`) + '</div>'
+      + (unavailable ? '' : `<span class="forecast-selection-verdict" style="color:${p.color(ev)}">${e(phrase.label)} <span class="forecast-selection-score">${Math.round(ev.score)} <span class="grade" title="${e(grade.caption)}" aria-label="信頼度${e(grade.key)}">${e(grade.key)}</span></span>\
+</span>`) + '</div>'
       + (unavailable ? `<p class="ph-out">${e(unavailable.message)}</p>` : `${when ? `<div class="forecast-selection-time">${e(when)}</div>` : ''}<p class="forecast-selection-say">${e(phrase.say)}</p>${p.bands(ev)}`);
     box.querySelector('.forecast-selection-open').onclick = () => {
       const current = entry();

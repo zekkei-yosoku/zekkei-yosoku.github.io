@@ -36,7 +36,7 @@ jobs:
         run: mkdir -p "$RUNNER_TEMP/pw" && cd "$RUNNER_TEMP/pw" && npm init -y >/dev/null && npm install --no-audit --no-fund playwright@1 && npx playwright install --with-deps webkit
       - name: 探すの実ブラウザ確認
         run: |
-          python3 -m http.server 8992 --bind 127.0.0.1 >/dev/null 2>&1 &
+          python3 tools/serve-checks.py 8992 &
           sleep 2
           NODE_PATH="$RUNNER_TEMP/pw/node_modules" OUT="$RUNNER_TEMP/checks" SKIP_UNIT=1 tools/run-trial-checks.sh
       - if: failure()

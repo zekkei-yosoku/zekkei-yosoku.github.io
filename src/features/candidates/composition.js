@@ -2,7 +2,8 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AstroNotesCandidateComposition=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
 'use strict';
 const Surface=globalThis.AstroNotesTrialSurface||(typeof require==='function'?require('./scene-surface.js'):null);
-const rad=Math.PI/180,DAY=86400000,R=6371008.8,Geo=()=>globalThis.AstroNotesTerrain||(typeof require==='function'?require('../../../astronotes-terrain.js'):null),inside=(r,p)=>{let yes=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>p.latitude)!==(r[j][1]>p.latitude)&&p.longitude<(r[j][0]-r[i][0])*(p.latitude-r[i][1])/(r[j][1]-r[i][1])+r[i][0])yes=!yes;return yes;};
+const rad=Math.PI/180,DAY=86400000,R=6371008.8,Geo=()=>globalThis.AstroNotesTerrain||(typeof require==='function'?require('../../../astronotes-terrain.js'):null),inside=(r,p)=>{let yes=false;for(let i=0,j=r.length-1;i<r.length;
+j=i++)if((r[i][1]>p.latitude)!==(r[j][1]>p.latitude)&&p.longitude<(r[j][0]-r[i][0])*(p.latitude-r[i][1])/(r[j][1]-r[i][1])+r[i][0])yes=!yes;return yes;};
 function valid(c,target){
  if(!c||![c.heightM,c.xM].every(Number.isFinite)||!['center','upper','lower'].includes(c.limb))return false;
  if(!c.basis)return c.heightM>=(target.groundM??0)&&c.heightM<=Math.max(...target.parts.map(p=>p.m));
@@ -13,32 +14,43 @@ function windowValid(w){return !w||w.kind==='none'||(['rise','set','both'].inclu
 function day(at){return Math.floor((at+32400000)/DAY)*DAY-32400000;}
 function limb(st,kind){return kind==='upper'?(st.upperAltitude??st.apparentAltitude+st.angularRadius):kind==='lower'?(st.lowerAltitude??st.apparentAltitude-st.angularRadius):st.apparentAltitude;}
 const limbKind=kind=>kind==='onTop'?'lower':kind==='behind'?'upper':['lower','upper'].includes(kind)?kind:'center';
-function anchorAt(obs,target,c){if(c.basis==='scene-surface')return Surface.anchor(target,c);const bearing=Geo().inverse(target.latitude,target.longitude,obs.latitude,obs.longitude).azimuth;return {...(c.xM?Geo().destination(target.latitude,target.longitude,bearing+(c.xM<0?90:-90),Math.abs(c.xM)/1000):target),heightM:c.heightM};}
+function anchorAt(obs,target,c){if(c.basis==='scene-surface')return Surface.anchor(target,c);const bearing=Geo().inverse(target.latitude,target.longitude,obs.latitude,obs.longitude).azimuth;
+return {...(c.xM?Geo().destination(target.latitude,target.longitude,bearing+(c.xM<0?90:-90),Math.abs(c.xM)/1000):target),heightM:c.heightM};}
 function geometry(obs,target,c,align){const anchor=anchorAt(obs,target,c),g=align.geometryFrom(obs,{...target,latitude:anchor.latitude,longitude:anchor.longitude,parts:[{id:'__surface',m:c.heightM}]},{eyeM:obs.eyeM??1.5,heightM:c.heightM});return {anchor,...g};}
 const roadCache=new WeakMap();
-function roadAt(data,p){let boxes=roadCache.get(data);if(!boxes){boxes=(data.features||[]).filter(f=>['2000','2010','2020'].includes(f.function)).map(f=>{const r=f.coordinatesLonLatHeight;return {f,box:[Math.min(...r.map(v=>v[0])),Math.min(...r.map(v=>v[1])),Math.max(...r.map(v=>v[0])),Math.max(...r.map(v=>v[1]))]};});roadCache.set(data,boxes);}let result=null;const k=Math.cos(p.latitude*rad),nearEdge=r=>r.some((a,i)=>{const b=r[(i+1)%r.length],dx=(b[0]-a[0])*k,dy=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*k*dx+(p.latitude-a[1])*dy)/(dx*dx+dy*dy||1)));return Math.hypot((p.longitude-a[0])*k-u*dx,p.latitude-a[1]-u*dy)*111195<.1;});
- for(const {f,box:b} of boxes)if(p.longitude>=b[0]&&p.longitude<=b[2]&&p.latitude>=b[1]&&p.latitude<=b[3]&&inside(f.coordinatesLonLatHeight,p)&&!(f.interiorRingsLonLatHeight||[]).some(h=>inside(h,p))){if(!f.structureClassificationKnown||f.nonTerrainStructure)return null;if(!nearEdge(f.coordinatesLonLatHeight)&&!(f.interiorRingsLonLatHeight||[]).some(nearEdge))result=f;}
+function roadAt(data,p){let boxes=roadCache.get(data);if(!boxes){boxes=(data.features||[]).filter(f=>['2000','2010','2020'].includes(f.function)).map(f=>{const r=f.coordinatesLonLatHeight;
+return {f,box:[Math.min(...r.map(v=>v[0])),Math.min(...r.map(v=>v[1])),Math.max(...r.map(v=>v[0])),Math.max(...r.map(v=>v[1]))]};});roadCache.set(data,boxes);}let result=null;
+const k=Math.cos(p.latitude*rad),nearEdge=r=>r.some((a,i)=>{const b=r[(i+1)%r.length],dx=(b[0]-a[0])*k,dy=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*k*dx+(p.latitude-a[1])*dy)/(dx*dx+dy*dy||1)));return Math.hypot((p.longitude-a[0])*k-u*dx,p.latitude-a[1]-u*dy)*111195<.1;});
+ for(const {f,box:b} of boxes)if(p.longitude>=b[0]&&p.longitude<=b[2]&&p.latitude>=b[1]&&p.latitude<=b[3]&&inside(f.coordinatesLonLatHeight,p)&&!(f.interiorRingsLonLatHeight||[]).some(h=>inside(h,p))){if(!f.structureClassificationKnown||f.nonTerrainStructure)return null;
+ if(!nearEdge(f.coordinatesLonLatHeight)&&!(f.interiorRingsLonLatHeight||[]).some(nearEdge))result=f;}
  return result;
 }
 // Upper-limb apparent altitude crossing flat 0 degrees. Not a terrain/building horizon.
-function riseSet(body,start,end,obs,bodies){const f=t=>limb(bodies.state(body,t,{...obs,elevation:obs.elevation+(obs.eyeM??1.5)}),'upper'),out=[],edge=t=>{if(Math.abs(f(t))>1e-10)return;const derivative=f(t+1000)-f(t-1000);if(Math.abs(derivative)>1e-10)out.push({at:t,kind:derivative>0?'rise':'set'});};edge(start);let at=start,previous=f(at);for(let t=Math.min(end,start+300000);at<end;t=Math.min(end,t+300000)){const v=f(t);if((previous>0)!==(v>0)){let lo=at,hi=t;for(let i=0;i<30&&hi-lo>100;i++){const mid=(lo+hi)/2;if((f(mid)>0)===(previous>0))lo=mid;else hi=mid;}out.push({at:(lo+hi)/2,kind:v>previous?'rise':'set'});}at=t;previous=v;}edge(end);return out.sort((a,b)=>a.at-b.at).filter((e,i,a)=>!i||Math.abs(e.at-a[i-1].at)>200||e.kind!==a[i-1].kind);}
+function riseSet(body,start,end,obs,bodies){const f=t=>limb(bodies.state(body,t,{...obs,elevation:obs.elevation+(obs.eyeM??1.5)}),'upper'),out=[],edge=t=>{if(Math.abs(f(t))>1e-10)return;const derivative=f(t+1000)-f(t-1000);
+if(Math.abs(derivative)>1e-10)out.push({at:t,kind:derivative>0?'rise':'set'});};edge(start);let at=start,previous=f(at);for(let t=Math.min(end,start+300000);at<end;t=Math.min(end,t+300000)){const v=f(t);if((previous>0)!==(v>0)){let lo=at,hi=t;for(let i=0;i<30&&hi-lo>100;i++){const mid=(lo+hi)/2;
+if((f(mid)>0)===(previous>0))lo=mid;else hi=mid;}out.push({at:(lo+hi)/2,kind:v>previous?'rise':'set'});}at=t;previous=v;}edge(end);return out.sort((a,b)=>a.at-b.at).filter((e,i,a)=>!i||Math.abs(e.at-a[i-1].at)>200||e.kind!==a[i-1].kind);}
 function inWindow(at,w,events){return !w||w.kind==='none'||events.some(e=>(w.kind==='both'||e.kind===w.kind)&&at>=e.at-w.beforeMin*60000&&at<=e.at+w.afterMin*60000);}
 function windowEvents(plan,obs,bodies){const w=plan.timeWindow;if(!windowValid(w))throw Error('invalid-time-window');if(!w||w.kind==='none')return [];const start=day(plan.at);return riseSet(plan.body,start-w.afterMin*60000,start+DAY+w.beforeMin*60000,obs,bodies);}
 function screenAnchor({azimuth,altitude,obs,target,align,eyeM=1.5}){
  const base=Geo().inverse(obs.latitude,obs.longitude,target.latitude,target.longitude),d=base.km*1000,k=globalThis.AstroNotesAtmosphere?.targetK?.()??7/6,diff=(a,b)=>((a-b+540)%360)-180;let xM=d*Math.tan(diff(azimuth,base.azimuth)*rad),anchor;
- for(let i=0;i<8;i++){anchor=anchorAt(obs,target,{heightM:0,xM});const g=Geo().inverse(obs.latitude,obs.longitude,anchor.latitude,anchor.longitude),error=diff(g.azimuth,azimuth);if(Math.abs(error)<1e-8)break;const shifted=anchorAt(obs,target,{heightM:0,xM:xM+1}),q=Geo().inverse(obs.latitude,obs.longitude,shifted.latitude,shifted.longitude),slope=diff(q.azimuth,g.azimuth);if(!Number.isFinite(slope)||Math.abs(slope)<1e-10)return {heightM:NaN,xM:NaN};xM-=error/slope;}
+ for(let i=0;i<8;i++){anchor=anchorAt(obs,target,{heightM:0,xM});const g=Geo().inverse(obs.latitude,obs.longitude,anchor.latitude,anchor.longitude),error=diff(g.azimuth,azimuth);if(Math.abs(error)<1e-8)break;
+ const shifted=anchorAt(obs,target,{heightM:0,xM:xM+1}),q=Geo().inverse(obs.latitude,obs.longitude,shifted.latitude,shifted.longitude),slope=diff(q.azimuth,g.azimuth);if(!Number.isFinite(slope)||Math.abs(slope)<1e-10)return {heightM:NaN,xM:NaN};xM-=error/slope;}
  anchor=anchorAt(obs,target,{heightM:0,xM});const distance=Geo().inverse(obs.latitude,obs.longitude,anchor.latitude,anchor.longitude).km*1000;const radius=R*k,theta=distance/radius;return {heightM:(radius+obs.elevation+eyeM)/(Math.cos(theta)-Math.tan(altitude*rad)*Math.sin(theta))-radius,xM};
 }
 function make({align,bodies,terrain,sidewalks,yieldTask=()=>new Promise(r=>setTimeout(r,0))}){
  const pathCache=new Map();
- function guesses(plan,seed){const start=day(plan.at),key=plan.body+','+start+','+(plan.atmosphere||'');let path=pathCache.get(key);if(!path){path=[];const ref={latitude:35.68626,longitude:139.73068,elevation:30};for(let t=start;t<start+DAY;t+=120000){const s=bodies.state(plan.body,t,ref);path.push({at:t,azimuth:s.azimuth});}pathCache.set(key,path);while(pathCache.size>4)pathCache.delete(pathCache.keys().next().value);}const bearing=Geo().inverse(seed.latitude,seed.longitude,plan.target.latitude,plan.target.longitude).azimuth,diff=a=>Math.abs(((a-bearing+540)%360)-180),ordered=path.slice().sort((a,b)=>diff(a.azimuth)-diff(b.azimuth)),out=[];for(const q of ordered){if(out.every(t=>Math.abs(t-q.at)>4*3600000))out.push(q.at);if(out.length===2)break;}return out;}
+ function guesses(plan,seed){const start=day(plan.at),key=plan.body+','+start+','+(plan.atmosphere||'');let path=pathCache.get(key);if(!path){path=[];const ref={latitude:35.68626,longitude:139.73068,elevation:30};for(let t=start;t<start+DAY;t+=120000){const s=bodies.state(plan.body,t,ref);
+ path.push({at:t,azimuth:s.azimuth});}pathCache.set(key,path);while(pathCache.size>4)pathCache.delete(pathCache.keys().next().value);
+ }const bearing=Geo().inverse(seed.latitude,seed.longitude,plan.target.latitude,plan.target.longitude).azimuth,diff=a=>Math.abs(((a-bearing+540)%360)-180),ordered=path.slice().sort((a,b)=>diff(a.azimuth)-diff(b.azimuth)),out=[];
+ for(const q of ordered){if(out.every(t=>Math.abs(t-q.at)>4*3600000))out.push(q.at);if(out.length===2)break;}return out;}
  async function solve(plan,seed){
   const c=plan.composition;if(!valid(c,plan.target)||!windowValid(plan.timeWindow))return {solutions:[],reason:'invalid-composition-or-time-window'};
   const D=Geo().inverse(plan.target.latitude,plan.target.longitude,seed.latitude,seed.longitude).km;if(!(D>.02&&D<=20))return {solutions:[],reason:'unsupported-distance'};
   const base=Geo().inverse(plan.target.latitude,plan.target.longitude,seed.latitude,seed.longitude).azimuth,start=day(plan.at),solutions=[];
   for(const at0 of guesses(plan,seed)){
    await yieldTask();let th=base,t=at0,ground=terrain.at(seed),failed=false,converged=false;if(!Number.isFinite(ground))continue;
-   const at=(bearing,time,h)=>{const pos=Geo().destination(plan.target.latitude,plan.target.longitude,bearing,D),obs={...pos,elevation:h,eyeM:1.5},g=geometry(obs,plan.target,c,align),st=bodies.state(plan.body,time,{...obs,elevation:h+1.5}),xy=align.viewProjector(g.azimuth,g.angle)(st.azimuth,limb(st,c.limb));return xy?{residual:xy,obs,g,st}:null;};
+   const at=(bearing,time,h)=>{const pos=Geo().destination(plan.target.latitude,plan.target.longitude,bearing,D),obs={...pos,elevation:h,eyeM:1.5},g=geometry(obs,plan.target,c,align),st=bodies.state(plan.body,time,{...obs,elevation:h+1.5}),xy=align.viewProjector(g.azimuth,g.angle)(st.azimuth,
+   limb(st,c.limb));return xy?{residual:xy,obs,g,st}:null;};
    for(let round=0;round<5;round++){
     converged=false;
     for(let i=0;i<40;i++){
@@ -52,7 +64,8 @@ function make({align,bodies,terrain,sidewalks,yieldTask=()=>new Promise(r=>setTi
    if(failed||!converged||t<start||t>=start+DAY)continue;const q=at(th,t,ground);if(!q)continue;const actual=terrain.at(q.obs);if(!Number.isFinite(actual)||Math.abs(actual-ground)>.02||Math.hypot(...q.residual)>.002||limb(q.st,'upper')<=0)continue;
    const road=roadAt(sidewalks,q.obs);if(!road)continue;const times=windowEvents(plan,q.obs,bodies);if(!inWindow(t,plan.timeWindow,times))continue;
    if(solutions.some(s=>Geo().distanceKm(s.observer.latitude,s.observer.longitude,q.obs.latitude,q.obs.longitude)<.001&&Math.abs(s.event.at-t)<1000))continue;
-   const next=bodies.state(plan.body,t+60000,{...q.obs,elevation:ground+1.5}),event={at:t,intersects:true,side:next.apparentAltitude<q.st.apparentAltitude?'set':'rise',matchMode:'overlap',partId:'__whole',composition:{...c},compositionResidualDeg:Math.hypot(...q.residual),sunAltitude:bodies.state('sun',t,{...q.obs,elevation:ground+1.5}).apparentAltitude};
+   const next=bodies.state(plan.body,t+60000,{...q.obs,elevation:ground+1.5}),event={at:t,intersects:true,side:next.apparentAltitude<q.st.apparentAltitude?'set':'rise',matchMode:'overlap',partId:'__whole',composition:{...c},compositionResidualDeg:Math.hypot(...q.residual),
+   sunAltitude:bodies.state('sun',t,{...q.obs,elevation:ground+1.5}).apparentAltitude};
    solutions.push({observer:{...q.obs,sourceId:road.sourceId,polygonId:road.polygonId,structureClassificationKnown:true,nonTerrainStructure:false},anchor:q.g.anchor,geometry:{...q.g,topM:c.heightM},event});
   }
   return {solutions,reason:solutions.length?'composition-solutions':'no-solved-walkway-point'};
@@ -114,7 +127,8 @@ function closestPoint(p,polygons){
 function ridgeGeometry(observer,target,align){
  const raw=target.rim?.points||align.rimPoints?.(target.rim);if(!Array.isArray(raw)||!raw.length)return null;
  const center=Geo().inverse(observer.latitude,observer.longitude,target.rim.latitude??target.latitude,target.rim.longitude??target.longitude),difference=(a,b)=>((a-b+540)%360)-180;
- const points=raw.filter(p=>[p.latitude,p.longitude,p.m??p.heightM].every(Number.isFinite)).map(p=>{const anchor={latitude:p.latitude,longitude:p.longitude,heightM:p.m??p.heightM},geometry=align.geometryFrom(observer,{...target,...anchor,rim:null,parts:[{id:'ridge',m:anchor.heightM}]},{heightM:anchor.heightM,eyeM:observer.eyeM??1.5});return {anchor,geometry,relative:difference(geometry.azimuth,center.azimuth)};}).filter(p=>Number.isFinite(p.geometry?.angle)).sort((a,b)=>a.relative-b.relative);
+ const points=raw.filter(p=>[p.latitude,p.longitude,p.m??p.heightM].every(Number.isFinite)).map(p=>{const anchor={latitude:p.latitude,longitude:p.longitude,heightM:p.m??p.heightM},geometry=align.geometryFrom(observer,{...target,...anchor,rim:null,parts:[{id:'ridge',m:anchor.heightM}]},{
+ heightM:anchor.heightM,eyeM:observer.eyeM??1.5});return {anchor,geometry,relative:difference(geometry.azimuth,center.azimuth)};}).filter(p=>Number.isFinite(p.geometry?.angle)).sort((a,b)=>a.relative-b.relative);
  if(!points.length)return null;
  const bin=Math.atan(.015/Math.max(.001,center.km))/rad;
  return {points,at(azimuth){const relative=difference(azimuth,center.azimuth);let visible=null,closest=null;
@@ -130,11 +144,13 @@ function standingDomain(point,sidewalks){
  }
  const road=sidewalks&&roadAt(sidewalks,point);
  if(!sidewalks)return null;
- const eligible=(sidewalks.features||[]).filter(f=>['2000','2010','2020'].includes(f.function)&&f.structureClassificationKnown&&!f.nonTerrainStructure),named=eligible.filter(f=>point.polygonId?f.polygonId===point.polygonId:point.sourceId&&f.sourceId===point.sourceId),roads={features:road?[road]:named.length?named:eligible};
+ const eligible=(sidewalks.features||[]).filter(f=>['2000','2010','2020'].includes(f.function)&&f.structureClassificationKnown&&!f.nonTerrainStructure),named=eligible.filter(f=>point.polygonId?f.polygonId===point.polygonId:point.sourceId&&f.sourceId===point.sourceId),roads={
+ features:road?[road]:named.length?named:eligible};
  // A legacy seed can be a distance/bearing hint outside every surveyed face.
  // Its solved point must still be on an actual surveyed face. Dynamic places
  // above always retain their individual surface instead of this legacy union.
- return {polygons:roads.features.map(f=>[f.coordinatesLonLatHeight,...(f.interiorRingsLonLatHeight||[])]),lines:[],contains:p=>!!roadAt(roads,p),metadata:{},metadataAt:p=>{const f=roadAt(roads,p);return f?{sourceId:f.sourceId,polygonId:f.polygonId,structureClassificationKnown:true,nonTerrainStructure:false}:{};}};
+ return {polygons:roads.features.map(f=>[f.coordinatesLonLatHeight,...(f.interiorRingsLonLatHeight||[])]),lines:[],contains:p=>!!roadAt(roads,p),metadata:{},metadataAt:p=>{const f=roadAt(roads,p);
+ return f?{sourceId:f.sourceId,polygonId:f.polygonId,structureClassificationKnown:true,nonTerrainStructure:false}:{};}};
 }
 // This is a constrained local inverse, not an exhaustive surface search. A
 // line has no invented width; every trial position is parameterized on it.
@@ -197,7 +213,8 @@ async function surfaceInverse(plan,seed,range,timeSeeds,deps){
   for(let i=1;i<line.length;i++){const [lon,lat]=line[i-1],[endLon,endLat]=line[i],g=Geo().inverse(lat,lon,endLat,endLon),length=g.km*1000;if(!(length>0))continue;parts.push({start:total,end:total+length,lat,lon,azimuth:g.azimuth});total+=length;vertices.push(total);}
   if(!(total>0))continue;
   const position=s=>{const p=parts.find(p=>s<=p.end)||parts.at(-1);return Geo().destination(p.lat,p.lon,p.azimuth,(bounded(s,0,total)-p.start)/1000);};
-  let nearest={s:0,d:Infinity};for(const p of parts){const v=Geo().inverse(p.lat,p.lon,seed.latitude,seed.longitude),s=bounded(v.km*1000*Math.cos((v.azimuth-p.azimuth)*rad),0,p.end-p.start)+p.start,pos=position(s),d=Geo().distanceKm(pos.latitude,pos.longitude,seed.latitude,seed.longitude);if(d<nearest.d)nearest={s,d};}
+  let nearest={s:0,d:Infinity};for(const p of parts){const v=Geo().inverse(p.lat,p.lon,seed.latitude,seed.longitude),s=bounded(v.km*1000*Math.cos((v.azimuth-p.azimuth)*rad),0,p.end-p.start)+p.start,pos=position(s),d=Geo().distanceKm(pos.latitude,pos.longitude,seed.latitude,seed.longitude);
+  if(d<nearest.d)nearest={s,d};}
   const stations=[nearest.s,...vertices,...parts.map(p=>(p.start+p.end)/2)].filter((s,i,a)=>a.indexOf(s)===i).slice(0,16);
   for(const t of timeStarts){for(const s of stations){
    if(exhausted||cancelled)break;
@@ -231,7 +248,8 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
  if(!isCurrent())return empty('cancelled',true);
  try{await bodies.ensure?.(plan.body);}catch{return empty('body-data-unavailable',true);}
  let ground;try{ground=Number.isFinite(point.groundM)?point.groundM:groundAt?await groundAt(point):await terrain?.at(point);}catch{ground=null;}
- const elevation=Number.isFinite(point.standingElevationM)?point.standingElevationM:Number.isFinite(point.surfaceElevationM)?point.surfaceElevationM:Number.isFinite(point.elevation)?point.elevation:Number.isFinite(ground)?ground+(point.surfaceAglM??point.surfaceHeightM??0):null,eyeM=point.eyeM??point.eyeHeightAGL??1.5;
+ const elevation=Number.isFinite(point.standingElevationM)?point.standingElevationM:Number.isFinite(point.surfaceElevationM)?point.surfaceElevationM:Number.isFinite(point.elevation)?point.elevation:Number.isFinite(ground)?ground+(point.surfaceAglM??point.surfaceHeightM??0):null,
+ eyeM=point.eyeM??point.eyeHeightAGL??1.5;
  if(!Number.isFinite(elevation)||!Number.isFinite(eyeM)||eyeM<0)return empty('standing-height-unknown',true);
  const observer={...point,elevation,eyeM},eye={...observer,elevation:elevation+eyeM},c=plan.composition;
  const g=c?geometry(observer,target,c,align):align.geometryFrom(observer,target,{partId:plan.partId==='__whole'?null:plan.partId,eyeM});
@@ -307,7 +325,10 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
  for(const cluster of clusters){
   const best=cluster.reduce((a,b)=>b.gap<a.gap?b:a),interval=[cluster[0].at,cluster.at(-1).at];let sunAltitude=null,side=null;
   try{sunAltitude=bodies.state('sun',best.at,eye).apparentAltitude;side=bodies.state(plan.body,best.at+1000,eye).apparentAltitude<best.state.apparentAltitude?'set':'rise';}catch{unknown=true;}
-  const contactLimb=limbKind(c?.limb||plan.limb),event={at:range.kind==='instant'?range.start:best.at,intersects:strict||best.overlaps,nearTarget:!strict,relation:strict?(contactLimb!=='center'?'edge-contact':'anchor-hit'):best.overlaps?(geometryKind==='silhouette'?'silhouette-overlap':'anchor-hit'):'near',matchMode:strict?'limb':'near',partId:plan.partId||'tip',contactLimb,gapAngleDeg:best.gap,gapAngleRad:best.gap*rad,toleranceAngleDeg:best.tolerance,toleranceAngleRad:best.tolerance*rad,radius:best.state.angularRadius,altitude:best.state.apparentAltitude,azimuth:best.state.azimuth,sunAltitude,side,targetGeometryKind:geometryKind,timeInterval:interval,timeIntervalSampled:true,visibility:'unknown',...(c?{composition:{...c},compositionResidualDeg:best.gap}:{})};
+  const contactLimb=limbKind(c?.limb||plan.limb),event={at:range.kind==='instant'?range.start:best.at,intersects:strict||best.overlaps,nearTarget:!strict,
+  relation:strict?(contactLimb!=='center'?'edge-contact':'anchor-hit'):best.overlaps?(geometryKind==='silhouette'?'silhouette-overlap':'anchor-hit'):'near',matchMode:strict?'limb':'near',partId:plan.partId||'tip',contactLimb,gapAngleDeg:best.gap,gapAngleRad:best.gap*rad,
+  toleranceAngleDeg:best.tolerance,toleranceAngleRad:best.tolerance*rad,radius:best.state.angularRadius,altitude:best.state.apparentAltitude,azimuth:best.state.azimuth,sunAltitude,side,targetGeometryKind:geometryKind,timeInterval:interval,timeIntervalSampled:true,visibility:'unknown',...(c?{
+  composition:{...c},compositionResidualDeg:best.gap}:{})};
   solutions.push({observer:{...observer},event,geometry:{...best.geometry},anchor:{...best.anchor}});
  }
  let surfaceAttempted=false;
@@ -322,7 +343,8 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
    const checked=await opportunities({...plan,timeSpec:{kind:'instant',at:range.kind==='instant'?range.start:q.at}},q.observer,{align,bodies,terrain,groundAt,isCurrent,yieldTask,budget:Math.max(1,limit-calls),_surfaceSolved:true});calls+=checked.evaluated||0;
    if(checked.reason==='cancelled')return empty('cancelled',true);
    exhausted||=checked.reason==='budget-exhausted';unknown||=checked.partial&&checked.reason==='some-calculations-unknown';
-   for(const s of checked.solutions)if(!solutions.some(p=>Math.abs(p.event.at-s.event.at)<1000&&Geo().distanceKm(p.observer.latitude,p.observer.longitude,s.observer.latitude,s.observer.longitude)<.001))solutions.push({...s,event:{...s.event,inverseSurfaceSolved:true,alignmentResidualDeg:q.loss,...(c?{compositionResidualDeg:q.loss}:{})}});
+   for(const s of checked.solutions)if(!solutions.some(p=>Math.abs(p.event.at-s.event.at)<1000&&Geo().distanceKm(p.observer.latitude,p.observer.longitude,s.observer.latitude,s.observer.longitude)<.001))solutions.push({...s,event:{...s.event,inverseSurfaceSolved:true,alignmentResidualDeg:q.loss,
+   ...(c?{compositionResidualDeg:q.loss}:{})}});
   }
  }
  const partial=range.kind!=='instant'||exhausted||riseLimited||unknown||surfaceAttempted;

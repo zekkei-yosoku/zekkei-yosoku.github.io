@@ -422,12 +422,14 @@ function commitFavorite(approvedNames = null) {
       $("favDuplicateTargets")?.remove();const panel=document.createElement('section');panel.id='favDuplicateTargets';panel.className='my-secondary';panel.setAttribute('aria-label','同じ名前の対象を確認');
       const title=document.createElement('p');title.textContent='同じ名前の対象が登録されています。場所を確認してください。';panel.append(title);
       const owner=auth.token,draft=favDraft;
-      for(const t of matches){const b=document.createElement('button');b.type='button';b.className='list-item';const n=document.createElement('strong');n.textContent=t.name;const sub=document.createElement('span');sub.className='tiny sub-line';sub.textContent=targetLocationLabel(t);const action=document.createElement('span');action.className='tiny sub-line';action.textContent='この対象を使う';b.append(n,sub,action);b.onclick=()=>{
+      for(const t of matches){const b=document.createElement('button');b.type='button';b.className='list-item';const n=document.createElement('strong');n.textContent=t.name;const sub=document.createElement('span');sub.className='tiny sub-line';sub.textContent=targetLocationLabel(t);
+      const action=document.createElement('span');action.className='tiny sub-line';action.textContent='この対象を使う';b.append(n,sub,action);b.onclick=()=>{
         if(auth?.token!==owner||favDraft!==draft)return;
         const current=matchingTargetNames($("favName").value,draft.index>=0?`fav:${draft.id}`:null).find(x=>x.id===t.id);if(!current){commitFavorite();return;}
         $("favSheet").close();if(draft.after)draft.after({...current,id:current.favId||current.id,targetKey:current.id,targetHeightM:current.parts?.[0]?.m-current.groundM});
       };panel.append(b);}
-      const separate=document.createElement('button');separate.type='button';separate.className='chip';separate.textContent='別の対象として登録する';separate.onclick=()=>{if(auth?.token===owner&&favDraft===draft)commitFavorite(signature);};panel.append(separate);$("favSave").before(panel);panel.scrollIntoView({block:'nearest'});return;
+      const separate=document.createElement('button');separate.type='button';separate.className='chip';separate.textContent='別の対象として登録する';separate.onclick=()=>{if(auth?.token===owner&&favDraft===draft)commitFavorite(signature);};panel.append(separate);$("favSave").before(panel);
+      panel.scrollIntoView({block:'nearest'});return;
     }
   }
   // **位置ではなくIDで探す。** 編集している間に同期が走ると配列が組み直され、

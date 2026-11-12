@@ -1,6 +1,6 @@
 #!/bin/bash
 # 本番と trial を公開する前の確認を1回で通す: 単体テスト、生成物の一致、探すの実ブラウザ確認。
-# 使い方: python3 -m http.server 8992 --bind 127.0.0.1 を web で動かし、
+# 使い方: python3 tools/serve-checks.py を web で動かし、
 #   NODE_PATH=<playwright のある node_modules> OUT=<ログ置き場> tools/run-trial-checks.sh
 # SKIP_UNIT=1 で単体を、SKIP_BROWSER=1 で実ブラウザ確認を飛ばす。GitHub では .github/workflows/checks.yml が push のたびに回す。
 # 失敗した確認があれば終了コード 1。ログは $OUT/<名前>.log。

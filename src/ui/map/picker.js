@@ -293,7 +293,8 @@ function createMapView(ids) {
       if (pinch) { pinch.points.delete(e.pointerId); if (pinch.points.size < 2) pinch = null; }
       if (drag && e.pointerId === drag.id) drag = null;
       if(tap&&['shapeCanvas','targetEditorCanvas','aimLineCanvas'].includes(ids.canvas)&&scrollMap()){cv.closest('.mapwrap')._mapShell?.setWide(true);return;}
-      if(tap&&onPick){const double=lastTap&&Number.isFinite(e.timeStamp)&&e.timeStamp-lastTap.at>=0&&e.timeStamp-lastTap.at<500&&Math.hypot(e.clientX-lastTap.x,e.clientY-lastTap.y)<=6;lastTap=double?null:{at:e.timeStamp,x:e.clientX,y:e.clientY};if(!double){const r=cv.getBoundingClientRect();onPick(coordinateAt(e.clientX-r.left,e.clientY-r.top),{x:e.clientX-r.left,y:e.clientY-r.top});}}
+      if(tap&&onPick){const double=lastTap&&Number.isFinite(e.timeStamp)&&e.timeStamp-lastTap.at>=0&&e.timeStamp-lastTap.at<500&&Math.hypot(e.clientX-lastTap.x,e.clientY-lastTap.y)<=6;lastTap=double?null:{at:e.timeStamp,x:e.clientX,y:e.clientY};if(!double){const r=cv.getBoundingClientRect();
+      onPick(coordinateAt(e.clientX-r.left,e.clientY-r.top),{x:e.clientX-r.left,y:e.clientY-r.top});}}
     };
     cv.onpointerup = release;
     cv.onpointercancel = release;
@@ -358,7 +359,8 @@ function createMapView(ids) {
     // dialog が開いてから測る（閉じている間は幅が 0）
     requestAnimationFrame(() => { draw(); requestAnimationFrame(draw); });
   }
-  return { open, attach, setLayer, layer: () => layer, redraw: schedule, project, coordinateAt, rotation: () => bearing, setRotation: (deg) => { bearing = ((deg % 360) + 360) % 360; schedule(); }, allowRotate: (on) => { canRotate = !!on; if (!on) bearing = 0; schedule(); }, onPick:fn=>{onPick=fn;},onDoubleTap:fn=>{onDoubleTap=fn;},
+  return { open, attach, setLayer, layer: () => layer, redraw: schedule, project, coordinateAt, rotation: () => bearing, setRotation: (deg) => { bearing = ((deg % 360) + 360) % 360; schedule(); }, allowRotate: (on) => { canRotate = !!on; if (!on) bearing = 0; schedule(); }, onPick:fn=>{onPick=fn;
+  },onDoubleTap:fn=>{onDoubleTap=fn;},
            center: () => ({ latitude: view.lat, longitude: view.lon }),
            zoom: () => view.zoom,
            setOverlay: (fn) => { overlay = fn; schedule(); },

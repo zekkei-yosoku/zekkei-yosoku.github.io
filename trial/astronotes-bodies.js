@@ -73,7 +73,8 @@
   function riseSet(id,start,end,observer){
     if(!engine) throw new Error('天体計算を読み込めませんでした');
     const site=new engine.Observer(observer.latitude,observer.longitude,observer.elevation??0),out=[];
-    for(const [direction,kind] of [[1,'rise'],[-1,'set']]){const hit=engine.SearchRiseSet(engine.Body[definition(id).engine],site,direction,new Date(start),(end-start)/86400000),at=hit?.date.getTime();if(Number.isFinite(at)&&at<end)out.push({at,kind,azimuth:state(id,at,observer,{refraction:false}).azimuth});}
+    for(const [direction,kind] of [[1,'rise'],[-1,'set']]){const hit=engine.SearchRiseSet(engine.Body[definition(id).engine],site,direction,new Date(start),(end-start)/86400000),at=hit?.date.getTime();
+    if(Number.isFinite(at)&&at<end)out.push({at,kind,azimuth:state(id,at,observer,{refraction:false}).azimuth});}
     return out.sort((a,b)=>a.at-b.at);
   }
   const api=Object.freeze({definitions,definition,ensure,ready:()=>!!engine,state,light,riseSet,siriusCatalog,sky,nearAngle:id=>definition(id)?.limbs?null:0.5});

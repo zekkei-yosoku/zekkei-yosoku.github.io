@@ -28,11 +28,13 @@ export function createServerOpportunityPreferences({api,getSession,getSettings,a
     // list remains active. Sync preferences without enabling remote reads.
     if(!state.enabled&&!state.prepare)return state;
     const migration=state.settings&&!currentModel(state.settings);
-    if(!state.settings||dirty||migration){const value=dirty||geometricOpportunitySettings(state.settings||getSettings()),revision=edit;const data=await call('POST','/overlap-preferences',{environment:'trial',settings:value,expectedPrefRev:state.prefRev||0});if(!current())throw new DOMException('cancelled','AbortError');Object.assign(state,data);if(revision===edit){dirty=null;applySettings(structuredClone(state.settings));}else return await saveLatest();}
+    if(!state.settings||dirty||migration){const value=dirty||geometricOpportunitySettings(state.settings||getSettings()),revision=edit;const data=await call('POST','/overlap-preferences',{environment:'trial',settings:value,expectedPrefRev:state.prefRev||0});
+    if(!current())throw new DOMException('cancelled','AbortError');Object.assign(state,data);if(revision===edit){dirty=null;applySettings(structuredClone(state.settings));}else return await saveLatest();}
     if(!currentModel(state.settings))throw Error('一覧の計算条件を更新できません。再試行してください。');state.error=null;return state;
    }catch(error){if(current()){state.error=error;if(error.status===409){dirty=null;loaded=false;}}throw error;}
   })().finally(()=>{if(epoch===ticketEpoch&&owner===ticket)flight=null;});return flight;
-  async function saveLatest(){while(dirty){const value=dirty,revision=edit;const data=await call('POST','/overlap-preferences',{environment:'trial',settings:value,expectedPrefRev:state.prefRev});if(!current())throw new DOMException('cancelled','AbortError');Object.assign(state,data);if(revision===edit){dirty=null;applySettings(structuredClone(state.settings));}}if(!currentModel(state.settings))throw Error('一覧の計算条件を更新できません。再試行してください。');state.error=null;return state;}
+  async function saveLatest(){while(dirty){const value=dirty,revision=edit;const data=await call('POST','/overlap-preferences',{environment:'trial',settings:value,expectedPrefRev:state.prefRev});if(!current())throw new DOMException('cancelled','AbortError');Object.assign(state,data);
+  if(revision===edit){dirty=null;applySettings(structuredClone(state.settings));}}if(!currentModel(state.settings))throw Error('一覧の計算条件を更新できません。再試行してください。');state.error=null;return state;}
  }
  async function ready(){await prepare();if(!state.enabled)return state;const ticket=key();await sync();if(ticket!==key()||!canUse())throw new DOMException('cancelled','AbortError');return prepare({refresh:true});}
  function cancel(){reset();}

@@ -29,7 +29,8 @@ const list=document.createElement('button');list.type='button';list.className='c
 let shown=null,cardKey='',dismissed='';
 const owner=()=>auth?.token&&toolAllowed('records')?{loginId:auth.loginId,generation:accessState.generation}:null;
 let cachedOwner='',cachedRaw=null,cachedRows=[];
-const rows=()=>{const who=owner();if(!who){cachedOwner='';cachedRaw=null;cachedRows=[];return cachedRows;}const key=JSON.stringify(who);let raw;try{raw=localStorage.getItem(AstroNotesSchedule.KEY+encodeURIComponent(who.loginId));}catch{raw=null;}if(key!==cachedOwner||raw!==cachedRaw){cachedRows=schedule().list();cachedRaw=raw;cachedOwner=key;}return cachedRows;};
+const rows=()=>{const who=owner();if(!who){cachedOwner='';cachedRaw=null;cachedRows=[];return cachedRows;}const key=JSON.stringify(who);let raw;try{raw=localStorage.getItem(AstroNotesSchedule.KEY+encodeURIComponent(who.loginId));}catch{raw=null;
+}if(key!==cachedOwner||raw!==cachedRaw){cachedRows=schedule().list();cachedRaw=raw;cachedOwner=key;}return cachedRows;};
 const notice=document.createElement('p');notice.id='journeyNotice';notice.className='warn';notice.hidden=true;notice.setAttribute('role','status');
 api.notice=text=>{notice.textContent=text;notice.hidden=!text;const parent=$('exploreConditions');if(parent&&notice.nextSibling!==parent)parent.before(notice);};
 api.forget=state.forget;
@@ -62,7 +63,8 @@ new MutationObserver(records=>{if(records.every(r=>card.contains(r.target)||noti
 const style=document.createElement('style');style.textContent=`
 .journey-plan{max-width:780px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:0 0 12px;background:var(--card)}
 .journey-plan[hidden]{display:none!important}.journey-plan>strong{display:block;font-size:15px;overflow-wrap:anywhere}.journey-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:24px;margin-bottom:4px;color:var(--secondary)}
-.journey-dismiss{width:44px;height:44px;min-height:44px;padding:0;border:0;background:transparent;color:var(--secondary);font-size:22px;margin:-10px -10px -10px 0}.journey-detail{white-space:pre-line;overflow-wrap:anywhere;margin:6px 0 10px}.journey-actions{display:flex;flex-wrap:wrap;gap:8px}.journey-actions button{min-height:44px;flex:1 1 130px}
+.journey-dismiss{width:44px;height:44px;min-height:44px;padding:0;border:0;background:transparent;color:var(--secondary);font-size:22px;margin:-10px -10px -10px 0}.journey-detail{white-space:pre-line;overflow-wrap:anywhere;margin:6px 0 10px}.journey-actions{display:flex;flex-wrap:wrap;gap:8px}\
+.journey-actions button{min-height:44px;flex:1 1 130px}
 .journey-place-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;border-bottom:1px solid var(--line);padding:4px 0}.journey-place-row>.my-place-row{flex:1 1 170px;border-bottom:0;min-width:0}.journey-place-find{min-height:44px;margin:4px 0 8px auto;flex:0 0 auto}
 #myPlaceSheet[data-planning-only=true] .sheet-body>:not(#myPlanningPlace):not(#myPlacePlanning):not(#myPlaceDetails):not(#myRecordError){display:none!important}
 #myPlaceSheet[data-planning-only=true] #myPlacePlanning>summary{display:none}#myPlaceSheet[data-planning-only=true] #myPlacePlanning{border:0;margin:4px 0}#myPlaceSheet .journey-planning-place{font-weight:600;overflow-wrap:anywhere;margin:10px 0 18px}#myPlanningPlace[hidden]{display:none}

@@ -53,7 +53,8 @@ export function createRecordTransfer({library,cleanFavorite,cleanShape,cleanAlig
     let ref=refs.get(key);if(!ref){
      ref='t'+(targets.length+1);const builtin=builtins.find(t=>t.id===key);let definition;
      if(builtin)definition={id:ref,kind:'builtin',key,name:builtin.name};
-     else {const f=key.startsWith('fav:')&&favorites.find(p=>p.id===key.slice(4));if(!f||!number(f.targetHeightM,0,1000))fail('対象「'+record.target.name+'」の定義がありません。対象を登録し直してください');definition={id:ref,kind:'custom',name:f.name,location:location(f),heightM:f.targetHeightM,category:f.targetCategory??''};}
+     else {const f=key.startsWith('fav:')&&favorites.find(p=>p.id===key.slice(4));if(!f||!number(f.targetHeightM,0,1000))fail('対象「'+record.target.name+'」の定義がありません。対象を登録し直してください');definition={id:ref,kind:'custom',name:f.name,location:location(f),heightM:f.targetHeightM,category:f.targetCategory??''};
+     }
      refs.set(key,ref);targets.push(definition);
     }
     const target=key.startsWith('fav:')?library.targetFromFavorite(favorites.find(p=>p.id===key.slice(4))):builtins.find(t=>t.id===key),alignment=cleanAlignment(target,favorite.recordAlignments?.[key]);
@@ -66,7 +67,8 @@ export function createRecordTransfer({library,cleanFavorite,cleanShape,cleanAlig
  }
  function prepareImport(data,{favorites,observations,shapes,owner}){
   if(!owner)fail('記録を利用できるアカウントでログインしてください');
-  data=validate(data);const nextFavorites=favorites.map(p=>clone(p)),nextObservations=observations.map(r=>clone(r)),nextShapes=Object.assign(Object.create(null),clone(shapes)),changed=new Set(),resolved=new Map(),unresolved=[],report={addedPlaces:0,reusedPlaces:0,duplicatePlaces:0,addedTargets:0,reusedTargets:0,addedBindings:0,variantPlaces:0};
+  data=validate(data);const nextFavorites=favorites.map(p=>clone(p)),nextObservations=observations.map(r=>clone(r)),nextShapes=Object.assign(Object.create(null),clone(shapes)),changed=new Set(),resolved=new Map(),unresolved=[],report={addedPlaces:0,reusedPlaces:0,duplicatePlaces:0,addedTargets:0,
+  reusedTargets:0,addedBindings:0,variantPlaces:0};
   const used=new Set(data.places.flatMap(p=>p.targets.map(t=>t.ref))),ids=new Set([...favorites,...observations].map(x=>x.id));
   const uid=prefix=>{for(let i=0;i<20;i++){const id=makeId(prefix);if(text(id,80)&&id&&!ids.has(id)){ids.add(id);return id;}}return fail('新しい登録IDを作れませんでした');};
   const targetIndex=new Map();for(const p of nextFavorites)if(number(p.targetHeightM,0,1000)){const normalized=cleanFavorite(p);if(normalized&&!targetIndex.has(targetIdentity(normalized)))targetIndex.set(targetIdentity(normalized),p);}
@@ -95,13 +97,15 @@ export function createRecordTransfer({library,cleanFavorite,cleanShape,cleanAlig
    };
    let place=sameBase.find(matches);
    if(place){if(originalPlaces.has(place.id))report.reusedPlaces++;else report.duplicatePlaces++;}
-   else {place={...input.location,id:uid('point-'),recordRegistered:true,...(input.bodies?{planningBodies:input.bodies}:{})};nextFavorites.push(place);if(!placeIndex.has(signature))placeIndex.set(signature,[]);placeIndex.get(signature).push(place);changed.add(place.id);report.addedPlaces++;if(sameBase.length)report.variantPlaces++;if(input.shape)nextShapes[place.id]={latitude:place.latitude,longitude:place.longitude,shape:input.shape};}
+   else {place={...input.location,id:uid('point-'),recordRegistered:true,...(input.bodies?{planningBodies:input.bodies}:{})};nextFavorites.push(place);if(!placeIndex.has(signature))placeIndex.set(signature,[]);placeIndex.get(signature).push(place);changed.add(place.id);report.addedPlaces++;
+   if(sameBase.length)report.variantPlaces++;if(input.shape)nextShapes[place.id]={latitude:place.latitude,longitude:place.longitude,shape:input.shape};}
    if(!place.recordRegistered){place.recordRegistered=true;changed.add(place.id);}
    const alignments={...(place.recordAlignments||{})};
    for(const binding of bindings){
     const t=binding.target,key=t.key||t.id;if(status(place,key))continue;
     if(binding.alignment.matchMode==='overlap'){if(Object.hasOwn(alignments,key)){delete alignments[key];changed.add(place.id);}}else {alignments[key]=binding.alignment;changed.add(place.id);}
-    const pair=pairKey(place.id,key),previous=recordIndex.get(pair)||[],stamp=Math.max(now(),...previous.flatMap(r=>[r.createdAt||0,r.updatedAt||0]))+1,record=library.cleanObservation({id:uid('reg-'),placeId:place.id,target:{key,name:t.name,latitude:t.latitude,longitude:t.longitude},observer:place,registration:true,removed:false,result:binding.result,date:'',note:'',createdAt:stamp,updatedAt:stamp});if(!record)fail('対象の登録内容を確認してください');nextObservations.push(record);recordIndex.set(pair,[...previous,record]);statusCache.set(pair,record);report.addedBindings++;
+    const pair=pairKey(place.id,key),previous=recordIndex.get(pair)||[],stamp=Math.max(now(),...previous.flatMap(r=>[r.createdAt||0,r.updatedAt||0]))+1,record=library.cleanObservation({id:uid('reg-'),placeId:place.id,target:{key,name:t.name,latitude:t.latitude,longitude:t.longitude},observer:place,
+    registration:true,removed:false,result:binding.result,date:'',note:'',createdAt:stamp,updatedAt:stamp});if(!record)fail('対象の登録内容を確認してください');nextObservations.push(record);recordIndex.set(pair,[...previous,record]);statusCache.set(pair,record);report.addedBindings++;
    }
    if(Object.keys(alignments).length)place.recordAlignments=alignments;else delete place.recordAlignments;
    if(JSON.stringify(place).length>20000)fail('撮影地点の設定が多すぎて保存できません');

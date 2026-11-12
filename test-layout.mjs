@@ -1021,7 +1021,7 @@ ok(/found\.sort\(\(a, b\) => Math\.floor\(a\.pass\.visible\.start\.at \/ 60000\)
   ok(/dialog\.sheet\.as-page\[open\] \{ display: flex; flex-direction: column; animation: none; \}/.test(html) && !/page-from-right/.test(html), "ページは右から動かして出さない");
   ok(/t\.clientX <= 24/.test(html) && /edge\.dx > Math\.min\(120, innerWidth \* 0\.3\)/.test(html), "左の縁から内側へスワイプしてページを閉じる");
   ok(/dialog\.sheet\.as-page > \.sheet-head > \[data-page-close\] \{ display: none !important; \}/.test(html), "隠した右上の×が残らない（観測地点で残っていた）");
-  const tui = fs.readFileSync(new URL("./astronotes-target-ui.js", import.meta.url), "utf8");
+  const tui = fs.readFileSync(new URL("./astronotes-target-ui.js", import.meta.url), "utf8").replace(/\\\n/g, ""); // 行継続（\+改行）は文面に含めない
   ok(/<span class="page-actions" data-target-head-actions><button type="button" class="chip" data-target-clear aria-label="選択を解除">解除<\/button><button type="button" class="chip my-add-point" data-target-new aria-label="対象を追加"/.test(tui)
     && !/＋ 対象を追加/.test(tui), "対象を選ぶ: 解除と＋（記録と同じ）は上の右");
 }

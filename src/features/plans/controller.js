@@ -39,11 +39,13 @@ function planSnapshot(button) {
   } else if(kind==='skymap') {
     const p=SkyMapUI.shareState(),t=p.target,at=p.at,observer={...p.observer,elevation:p.observer.groundManualM??p.ground??0},eyeM=p.eyeM;
     const target={id:t.id,name:t.name,latitude:t.latitude,longitude:t.longitude,groundM:t.groundM??(t.id==='fuji'?3776:0),parts:t.parts.map(x=>({id:x.id,name:x.name,m:x.m,...(Number.isFinite(x.latitude)&&Number.isFinite(x.longitude)?{latitude:x.latitude,longitude:x.longitude}:{})}))};if(t.kind)target.kind=t.kind;if(Number.isFinite(t.widthM))target.widthM=t.widthM;
-    payload={v:1,kind:'aim',o:AstroNotesPlan.compactPoint(observer,eyeM),at,t:target,body:p.body,part:p.partId??t.parts[0].id,limb:p.limb,matchMode:p.matchMode||'overlap',air:aimAirSettings.mode,l:globalThis.TrialExplore?.active()?globalThis.TrialExplore.camera().l:{on:true,mode:'manual',focal:50,sensor:'full',portrait:false,grid:'none'},pan:globalThis.TrialExplore?.active()?globalThis.TrialExplore.camera().pan:[0,0]};
+    payload={v:1,kind:'aim',o:AstroNotesPlan.compactPoint(observer,eyeM),at,t:target,body:p.body,part:p.partId??t.parts[0].id,limb:p.limb,matchMode:p.matchMode||'overlap',air:aimAirSettings.mode,l:globalThis.TrialExplore?.active()?globalThis.TrialExplore.camera().l:{on:true,mode:'manual',focal:50,
+    sensor:'full',portrait:false,grid:'none'},pan:globalThis.TrialExplore?.active()?globalThis.TrialExplore.camera().pan:[0,0]};
     const camera=globalThis.TrialExplore?.active()?globalThis.TrialExplore.camera():null;if(camera?.timelapse)payload.timelapse={...camera.timelapse};
     const source=$('skyMapCanvas'),scene=document.createElement('canvas');scene.width=source.width;scene.height=source.height;scene.getContext('2d').drawImage(source,0,0);
     const st=AstroNotesBodies.state(p.body,at,{...observer,elevation:observer.elevation+eyeM});
-    s={title:`${AstroNotesBodies.definition(p.body).name} × ${t.name}`,at,observer,target:t,start:at-900000,end:at+900000,created,scene,rows:[['撮影日時',AstroNotesPlan.dateTime(at)+'（日本時間）'],['撮影地点',`${observer.name} / 緯度 ${observer.latitude.toFixed(6)}・経度 ${observer.longitude.toFixed(6)}`],['高さ',`標高 ${aimM(observer.elevation)}m / 地上から ${aimM(eyeM)}m`],['重ね方',p.matchMode==='overlap'?'全体に重なる':AstroNotesAlign.limbById(p.limb).name],['見る方向',`方位 ${st.azimuth.toFixed(1)}° / 高度 ${st.apparentAltitude.toFixed(2)}°`]],note:'地図：国土地理院。位置と時刻の計算です。共有リンクでは同じ条件の構図を確認できます。'};
+    s={title:`${AstroNotesBodies.definition(p.body).name} × ${t.name}`,at,observer,target:t,start:at-900000,end:at+900000,created,scene,rows:[['撮影日時',AstroNotesPlan.dateTime(at)+'（日本時間）'],['撮影地点',`${observer.name} / 緯度 ${observer.latitude.toFixed(6)}・経度 ${observer.longitude.toFixed(6)}`],['高さ',
+    `標高 ${aimM(observer.elevation)}m / 地上から ${aimM(eyeM)}m`],['重ね方',p.matchMode==='overlap'?'全体に重なる':AstroNotesAlign.limbById(p.limb).name],['見る方向',`方位 ${st.azimuth.toFixed(1)}° / 高度 ${st.apparentAltitude.toFixed(2)}°`]],note:'地図：国土地理院。位置と時刻の計算です。共有リンクでは同じ条件の構図を確認できます。'};
   } else {
     const host=$('aimLook'),spec=host._lookSpec,cv=host.querySelector('[data-look-canvas]');
     if(globalThis.TrialExplore?.active())globalThis.TrialExplore.assertScene();
@@ -99,7 +101,8 @@ function restoreSharedPlan(recent = null, options = {}) {
   // Keep the sender's chosen heights, without modifying saved favorites or custom targets.
   const retainedId=p.t.id==='cocoon-tower'?p.t.id:null;
   // Only known fields reach rendering; keep unknown protocol extensions in storage/codec for compatibility.
-  const t=p.t,shared={id:t.id,name:t.name,latitude:t.latitude,longitude:t.longitude,groundM:t.groundM,parts:t.parts.map(q=>({id:q.id,name:q.name,m:q.m,...(q.latitude!==undefined?{latitude:q.latitude,longitude:q.longitude}:{})})),...(t.kind?{kind:t.kind}:{}),...(t.widthM!==undefined?{widthM:t.widthM}:{})};
+  const t=p.t,shared={id:t.id,name:t.name,latitude:t.latitude,longitude:t.longitude,groundM:t.groundM,parts:t.parts.map(q=>({id:q.id,name:q.name,m:q.m,...(q.latitude!==undefined?{latitude:q.latitude,longitude:q.longitude}:{})})),...(t.kind?{kind:t.kind}:{}),...(t.widthM!==undefined?{
+  widthM:t.widthM}:{})};
   aim.sharedTarget={...(builtin || {}),...shared,id:builtin?.id || retainedId || 'shared'};
   aim.candPick=null;aim.spot=null;aim.wantSpot=null;aim.wantKey=null;aim.candKey=null;aim.centerKey=null;aim.reverse=null;clearAimAirCompare();
   $('aimLimb').innerHTML='';
@@ -145,7 +148,8 @@ function renderNotebook(){
   };
   // 2026-10-20 使い方の説明は予定が1件も無いときだけ（ユーザー「出し方を変えた方がいいのも最適化して」）
   if(!soon.length){const p=document.createElement('p');p.className='tiny history-empty';p.textContent=rows.length?'これからの予定はありません。':'予定はまだありません。';host.append(p);}
-  if(!rows.length){const how=document.createElement('p');how.className='tiny';how.textContent='探すで見つけた日時と構図を残せます。保存した予定はログイン中に同期します。';host.append(how);const find=document.createElement('button');find.type='button';find.className='chip';find.textContent='撮影機会を探す';find.onclick=openNotebookExplore;find.hidden=!screenAllowed('framing')||!screenAllowed('skymap');host.append(find);}
+  if(!rows.length){const how=document.createElement('p');how.className='tiny';how.textContent='探すで見つけた日時と構図を残せます。保存した予定はログイン中に同期します。';host.append(how);const find=document.createElement('button');find.type='button';find.className='chip';find.textContent='撮影機会を探す';find.onclick=openNotebookExplore;
+  find.hidden=!screenAllowed('framing')||!screenAllowed('skymap');host.append(find);}
   for(const r of soon)host.append(row(r,false));
   if(past.length){const det=document.createElement('details');det.className='schedule-past';const sum=document.createElement('summary');sum.textContent=`過ぎた予定 ${past.length}件`;det.append(sum);for(const r of past)det.append(row(r,true));host.append(det);}
 }
@@ -156,7 +160,8 @@ function keepNotebookPlan(cur,e) {
 let quickSaveNoticeTimer=0;
 function quickSaveNotice(text,error=false){
  let host=$('quickSaveNotice');
- if(!host){host=document.createElement('div');host.id='quickSaveNotice';host.hidden=true;const message=document.createElement('span');message.id='quickSaveNoticeText';message.setAttribute('role','status');message.setAttribute('aria-live','polite');const close=document.createElement('button');close.type='button';close.className='chip';close.textContent='閉じる';close.onclick=()=>{host.hidden=true;clearTimeout(quickSaveNoticeTimer);};host.append(message,close);document.body.append(host);}
+ if(!host){host=document.createElement('div');host.id='quickSaveNotice';host.hidden=true;const message=document.createElement('span');message.id='quickSaveNoticeText';message.setAttribute('role','status');message.setAttribute('aria-live','polite');const close=document.createElement('button');
+ close.type='button';close.className='chip';close.textContent='閉じる';close.onclick=()=>{host.hidden=true;clearTimeout(quickSaveNoticeTimer);};host.append(message,close);document.body.append(host);}
  clearTimeout(quickSaveNoticeTimer);$('quickSaveNoticeText').textContent=text;host.dataset.error=String(error);host.querySelector('button').hidden=!error;host.hidden=false;
  if(!error)quickSaveNoticeTimer=setTimeout(()=>{host.hidden=true;},3500);
 }
@@ -179,7 +184,8 @@ function notebookPlanIssue(p){
   if(!screenAllowed('framing')||!screenAllowed('skymap')||!AstroNotesAccess.canFrame(toolAllowed,p.t.id,p.body))return 'この予定の天体・対象を開く権限がありません。';
   return '';
 }
-function notebookPlanNotice(text){if(globalThis.TrialExplore?.active()&&globalThis.AstroNotesJourney?.notice){AstroNotesJourney.notice(text);return;}let p=$('notebookPlanNotice');if(!p){p=document.createElement('p');p.id='notebookPlanNotice';p.className='warn';p.setAttribute('role','status');$('scheduleHub').prepend(p);}p.textContent=text;}
+function notebookPlanNotice(text){if(globalThis.TrialExplore?.active()&&globalThis.AstroNotesJourney?.notice){AstroNotesJourney.notice(text);return;}let p=$('notebookPlanNotice');if(!p){p=document.createElement('p');p.id='notebookPlanNotice';p.className='warn';p.setAttribute('role','status');
+$('scheduleHub').prepend(p);}p.textContent=text;}
 function notebookSavedCurrent(saved){return !!saved?.ok&&saved.saveOwner?.generation===accessState.generation&&saved.saveOwner?.loginId===auth?.loginId&&!!auth?.token&&toolAllowed('records')&&schedule().list().some(r=>r.id===saved.row?.id&&JSON.stringify(r)===JSON.stringify(saved.row));}
 function openNotebookExplore(){if(!screenAllowed('framing')||!screenAllowed('skymap'))return;navigationHistory.pushRoute('#/explore');}
 function showNotebookPlans(){if(!auth?.token||!toolAllowed('records'))return;setNotebookTab('plans');navigationHistory.pushRoute('#/records');}
@@ -213,8 +219,10 @@ async function preparePlanShare(button,{current=()=>true}={}){
  }
 }
 function initPlanSharing() {
-  for(const [id,t] of [['notebookPointsTab','points'],['notebookOpportunitiesTab','opportunities'],['notebookPlansTab','plans']]){$(id).onclick=()=>setNotebookTab(t);$(id).onkeydown=e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();setNotebookTab(e.key==='Home'?'points':e.key==='End'?'plans':['points','opportunities','plans'][(['points','opportunities','plans'].indexOf(notebookTab)+(e.key==='ArrowRight'?1:2))%3],true);}};}
-  globalThis.AstroNotesPlanUI=AstroNotesPlan.mount({snapshot:preparePlanShare,show:showSheet,keep:keepNotebookPlan,canKeep:()=>!!auth?.token&&toolAllowed('records'),quickSave:quickSaveExplore,openNotebook:saved=>{if(!notebookSavedCurrent(saved))return false;afterPagePop(()=>{if(notebookSavedCurrent(saved))showNotebookPlans();});return true;}});
+  for(const [id,t] of [['notebookPointsTab','points'],['notebookOpportunitiesTab','opportunities'],['notebookPlansTab','plans']]){$(id).onclick=()=>setNotebookTab(t);$(id).onkeydown=e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();
+  setNotebookTab(e.key==='Home'?'points':e.key==='End'?'plans':['points','opportunities','plans'][(['points','opportunities','plans'].indexOf(notebookTab)+(e.key==='ArrowRight'?1:2))%3],true);}};}
+  globalThis.AstroNotesPlanUI=AstroNotesPlan.mount({snapshot:preparePlanShare,show:showSheet,keep:keepNotebookPlan,canKeep:()=>!!auth?.token&&toolAllowed('records'),quickSave:quickSaveExplore,openNotebook:saved=>{if(!notebookSavedCurrent(saved))return false;
+  afterPagePop(()=>{if(notebookSavedCurrent(saved))showNotebookPlans();});return true;}});
 }
 
 initPlanSharing();

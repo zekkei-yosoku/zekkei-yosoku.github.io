@@ -32,7 +32,8 @@ import {scrollLock,startupSessionReady} from '../features/plans/controller.js';
  const themeLabel=document.createElement('div');themeLabel.id='themeModeLabel';themeLabel.textContent='表示モード';
  const themeButtons=document.createElement('div');themeButtons.id='themeMode';themeButtons.setAttribute('role','group');themeButtons.setAttribute('aria-labelledby','themeModeLabel');themeButtons.style.cssText='display:flex;gap:6px;margin-top:8px';
  const themeStatus=document.createElement('p');themeStatus.className='tiny';themeStatus.setAttribute('role','status');
- const updateTheme=()=>{for(const button of themeButtons.children){const selected=button.dataset.mode===getThemePreference();button.setAttribute('aria-pressed',String(selected));button.style.background=selected?'var(--accent)':'var(--sunk)';button.style.color=selected?'var(--on-accent)':'var(--text)';}};
+ const updateTheme=()=>{for(const button of themeButtons.children){const selected=button.dataset.mode===getThemePreference();button.setAttribute('aria-pressed',String(selected));button.style.background=selected?'var(--accent)':'var(--sunk)';
+ button.style.color=selected?'var(--on-accent)':'var(--text)';}};
  for(const [mode,name] of [['auto','自動'],['light','ライト'],['dark','ダーク']]){
   const button=document.createElement('button');button.type='button';button.dataset.mode=mode;button.textContent=name;button.style.cssText='flex:1;min-height:44px;border-radius:9px;font-size:16px';
   button.onclick=()=>{const saved=setThemePreference(mode);updateTheme();themeStatus.textContent=saved?'保存しました。':'保存できませんでした。端末の保存設定を確認してください。';};themeButtons.append(button);
@@ -48,16 +49,23 @@ import {scrollLock,startupSessionReady} from '../features/plans/controller.js';
  autoInput.onchange=()=>{const saved=globalThis.AstroNotesAlmanacDashboard?.setAuto(autoInput.checked);updateAuto();autoStatus.textContent=saved?'保存しました。':'保存できませんでした。端末の保存設定を確認してください。';};
  autoRow.append(autoLabel,autoStatus);row.append(themeRow,label,select,note,status,autoRow);
  const settings=document.createElement('dialog');settings.id='appSettings';settings.className='sheet';settings.tabIndex=-1;settings.setAttribute('aria-labelledby','appSettingsTitle');
- settings.innerHTML='<div class="sheet-head"><strong id="appSettingsTitle">設定</strong><button type="button" id="appSettingsClose" aria-label="閉じる" title="閉じる"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><div class="sheet-body"></div>';
+ settings.innerHTML=('<div class="sheet-head"><strong id="appSettingsTitle">設定</strong><button type="button" id="appSettingsClose" aria-label="閉じる" title="閉じる">'+
+ '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><div class="sheet-body"></div>');
  const settingsBody=settings.querySelector('.sheet-body');
  const categories=document.createElement('div');categories.id='settingsCategories';
- categories.innerHTML='<button type="button" class="list-item" id="settingsAccount" style="width:100%;display:flex;align-items:center;gap:14px;text-align:left;min-height:88px;padding:16px 4px"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2Z"/></svg><span style="flex:1"><strong>アカウント・ログイン</strong><span class="tiny" style="display:block;margin-top:4px">パスワード・パスキーなど</span></span><span aria-hidden="true">›</span></button><button type="button" class="list-item" id="settingsScreen" style="width:100%;display:flex;align-items:center;gap:14px;text-align:left;min-height:88px;padding:16px 4px"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg><span style="flex:1"><strong>画面</strong><span class="tiny" style="display:block;margin-top:4px">表示モード・起動画面</span></span><span aria-hidden="true">›</span></button>';
- const back=document.createElement('button');back.type='button';back.id='settingsBack';back.className='panel-back';back.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg>';back.setAttribute('aria-label','戻る');back.hidden=false;
+ categories.innerHTML=('<button type="button" class="list-item" id="settingsAccount" style="width:100%;display:flex;align-items:center;gap:14px;text-align:left;min-height:88px;padding:16px 4px">'+
+ '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2Z"/></svg><span style="flex:1"><strong>アカウント・ログイン</strong>'+
+ '<span class="tiny" style="display:block;margin-top:4px">パスワード・パスキーなど</span></span><span aria-hidden="true">›</span></button><button type="button" class="list-item" id="settingsScreen" style="width:100%;display:flex;align-items:center;gap:14px;text-align:left;min-height:88px;padding:16px 4px">'+
+ '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg><span style="flex:1"><strong>画面</strong>'+
+ '<span class="tiny" style="display:block;margin-top:4px">表示モード・起動画面</span></span><span aria-hidden="true">›</span></button>');
+ const back=document.createElement('button');back.type='button';back.id='settingsBack';back.className='panel-back';
+ back.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg>';back.setAttribute('aria-label','戻る');back.hidden=false;
  row.hidden=true;settings.querySelector('.sheet-head').prepend(back);settingsBody.append(categories,row);document.body.append(settings);
  const originalAccountOpen=document.getElementById('authButton').onclick;
  let settingsOpener=document.getElementById('toolsButton');
  const externalSettings=AstroNotesPlan.externalApps.settings();externalSettings.hidden=true;settingsBody.append(externalSettings);
- const externalEntry=document.getElementById('settingsScreen').cloneNode(true);externalEntry.id='settingsExternalApps';externalEntry.querySelector('strong').textContent='カレンダー・地図';externalEntry.querySelector('.tiny').textContent='開くアプリ';externalEntry.querySelector('svg').innerHTML='<path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/>';categories.append(externalEntry);
+ const externalEntry=document.getElementById('settingsScreen').cloneNode(true);externalEntry.id='settingsExternalApps';externalEntry.querySelector('strong').textContent='カレンダー・地図';externalEntry.querySelector('.tiny').textContent='開くアプリ';
+ externalEntry.querySelector('svg').innerHTML='<path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/>';categories.append(externalEntry);
  const settingsHome=()=>{categories.hidden=false;row.hidden=true;externalSettings.hidden=true;back.hidden=true;document.getElementById('appSettingsTitle').textContent='設定';};
  externalEntry.onclick=()=>{externalSettings.refresh();categories.hidden=true;row.hidden=true;externalSettings.hidden=false;back.hidden=false;document.getElementById('appSettingsTitle').textContent='カレンダー・地図';settings.focus({preventScroll:true});};
  const ownerEntry=document.createElement('div');ownerEntry.id='settingsPrivateEntry';categories.append(ownerEntry);
@@ -76,7 +84,8 @@ import {scrollLock,startupSessionReady} from '../features/plans/controller.js';
   let start=null;
   panel.addEventListener('touchstart',event=>{start=null;if(!panel.open||event.touches.length!==1||event.target.closest('button,input,select,textarea,a,[contenteditable]'))return;const t=event.touches[0];start={id:t.identifier,x:t.clientX,y:t.clientY};},{passive:true});
   panel.addEventListener('touchcancel',()=>{start=null;},{passive:true});
-  panel.addEventListener('touchend',event=>{const from=start;start=null;if(!from||!panel.open)return;const t=Array.from(event.changedTouches).find(t=>t.identifier===from.id);if(!t)return;const dx=t.clientX-from.x,dy=t.clientY-from.y;if(dx>70&&Math.abs(dy)<dx*.5 && (panel.id!=='accountSheet'||leaveAccountCodes()))panel.close();},{passive:true});
+  panel.addEventListener('touchend',event=>{const from=start;start=null;if(!from||!panel.open)return;const t=Array.from(event.changedTouches).find(t=>t.identifier===from.id);if(!t)return;const dx=t.clientX-from.x,dy=t.clientY-from.y;
+  if(dx>70&&Math.abs(dy)<dx*.5 && (panel.id!=='accountSheet'||leaveAccountCodes()))panel.close();},{passive:true});
  }
  const update=()=>{updateTheme();updateAuto();select.value=get();for(const o of select.options)o.disabled=!permitted(o.value);status.textContent=!permitted(get())?'選択した画面は現在利用できないため、起動時はホームを開きます。':'';};
  // Refresh against live grants whenever settings is opened, including after a drawer swipe.

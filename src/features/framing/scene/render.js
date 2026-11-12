@@ -32,14 +32,20 @@ async function aimLookRender(host, spec) {
   if (!host.querySelector("canvas")) {
     host.innerHTML = `<div class="aim-look-h"><span>見え方</span></div>
       <p class="aim-look-cap"><strong data-look-title></strong><span class="sub-line" data-look-sub></span><span class="sub-line" data-look-light></span><span class="sub-line" data-look-extra></span></p>
-      <div class="aim-look-figure"><canvas data-look-canvas role="img"></canvas><button type="button" data-look-pick class="aim-body-move" aria-pressed="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg></button>
-      <div class="aim-body-controls" data-look-controls hidden><div class="aim-body-directions" role="group" aria-label="天体の位置を微調整"><button type="button" data-body-nudge="-1,0" aria-label="天体を左へ">←</button><button type="button" data-body-nudge="0,-1" aria-label="天体を上へ">↑</button><button type="button" data-body-nudge="0,1" aria-label="天体を下へ">↓</button><button type="button" data-body-nudge="1,0" aria-label="天体を右へ">→</button></div><span class="sr-only" role="status" aria-live="polite" data-look-position></span></div></div><div class="aim-figure-share"><button type="button" class="plan-trigger" aria-label="撮影計画を共有" title="共有" data-plan-action="share" data-plan-source="aim"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8v12M8.4 6.3 12 2.8l3.6 3.5M8.6 9.5H7.2A2.2 2.2 0 0 0 5 11.7v7.1A2.2 2.2 0 0 0 7.2 21h9.6a2.2 2.2 0 0 0 2.2-2.2v-7.1a2.2 2.2 0 0 0-2.2-2.2h-1.4"/></svg></button></div>
+      <div class="aim-look-figure"><canvas data-look-canvas role="img"></canvas><button type="button" data-look-pick class="aim-body-move" aria-pressed="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">\
+<path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg></button>
+      <div class="aim-body-controls" data-look-controls hidden><div class="aim-body-directions" role="group" aria-label="天体の位置を微調整"><button type="button" data-body-nudge="-1,0" aria-label="天体を左へ">←</button><button type="button" data-body-nudge="0,-1" aria-label="天体を上へ">↑</button>\
+<button type="button" data-body-nudge="0,1" aria-label="天体を下へ">↓</button><button type="button" data-body-nudge="1,0" aria-label="天体を右へ">→</button></div><span class="sr-only" role="status" aria-live="polite" data-look-position></span></div></div><div class="aim-figure-share">\
+<button type="button" class="plan-trigger" aria-label="撮影計画を共有" title="共有" data-plan-action="share" data-plan-source="aim"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">\
+<path d="M12 2.8v12M8.4 6.3 12 2.8l3.6 3.5M8.6 9.5H7.2A2.2 2.2 0 0 0 5 11.7v7.1A2.2 2.2 0 0 0 7.2 21h9.6a2.2 2.2 0 0 0 2.2-2.2v-7.1a2.2 2.2 0 0 0-2.2-2.2h-1.4"/></svg></button></div>
       <button type="button" data-look-confirm hidden disabled aria-hidden="true" tabindex="-1"></button><button type="button" data-look-cancel hidden aria-hidden="true" tabindex="-1"></button>
       <div class="aim-frame-info"><div class="tiny aim-frame-times" data-look-frame-times hidden></div></div>
       <div class="aim-time-controls"></div><div class="aim-lens">
         <div class="aim-lens-row"><label>焦点距離 <input type="number" min="8" max="2000" step="any" required data-lens-focal aria-label="レンズの実焦点距離（mm）"> mm</label><button type="button" class="chip" data-lens-apply>反映</button></div>
-        <div class="aim-lens-row"><select data-lens-sensor aria-label="センサーサイズ"><option value="full">フルサイズ</option><option value="aps">APS-C</option><option value="canon">APS-C（Canon）</option><option value="m43">マイクロフォーサーズ</option></select><button type="button" class="chip" data-lens-portrait aria-pressed="false">縦位置</button></div>
-        <div class="aim-lens-toggles"><button type="button" class="chip" data-lens-on aria-pressed="false">画角枠</button><div class="aim-grid-control"><span>グリッド</span><select data-lens-grid aria-label="構図のグリッド"><option value="none">なし</option><option value="thirds">9分割</option><option value="diagonal">9分割＋対角</option></select></div></div>
+        <div class="aim-lens-row"><select data-lens-sensor aria-label="センサーサイズ"><option value="full">フルサイズ</option><option value="aps">APS-C</option><option value="canon">APS-C（Canon）</option><option value="m43">マイクロフォーサーズ</option></select>\
+<button type="button" class="chip" data-lens-portrait aria-pressed="false">縦位置</button></div>
+        <div class="aim-lens-toggles"><button type="button" class="chip" data-lens-on aria-pressed="false">画角枠</button><div class="aim-grid-control"><span>グリッド</span><select data-lens-grid aria-label="構図のグリッド"><option value="none">なし</option><option value="thirds">9分割</option>\
+<option value="diagonal">9分割＋対角</option></select></div></div>
       </div>
       <div class="tiny" data-lens-info></div><p class="tiny" data-look-outside hidden></p>
       <div class="aim-look-time"><div class="aim-time-heading"><span>時刻</span><output data-look-at></output></div><input type="range" min="0" max="0" step="any" value="0" data-look-range aria-label="時刻を動かす">
@@ -99,7 +105,8 @@ async function aimLookRender(host, spec) {
   const sw = aimLens.portrait ? sensor[1] : sensor[0], sh = aimLens.portrait ? sensor[0] : sensor[1];
   // 従来の図の範囲を保ち、その中に余白12%で収まる枠の実焦点距離を逆算する。
   const autoFocal = Math.max(sh / (2 * win.halfH * Math.PI / 180), sw / (2 * win.halfW * Math.PI / 180)) * 1.12;
-  if(host._compose?.apply){const c=host._compose,groundAngle=mountain?0:(outline&&outline.hiddenAngle!==null?Math.max(outline.hiddenAngle,baseAngle):baseAngle),vfov=c.mode==="body"?8*Math.max(radius,.05):Math.max(.05,(topAngle-groundAngle)/0.6),f=sh/(2*Math.tan(vfov/2*Math.PI/180));aimLens.on=true;aimLens.mode="manual";aimLens.focal=Math.round(Math.max(8,Math.min(2000,f))*10)/10;try{localStorage.setItem("sorami.lens",JSON.stringify(aimLens));}catch{/* 保存できない端末では覚えないだけ */}}
+  if(host._compose?.apply){const c=host._compose,groundAngle=mountain?0:(outline&&outline.hiddenAngle!==null?Math.max(outline.hiddenAngle,baseAngle):baseAngle),vfov=c.mode==="body"?8*Math.max(radius,.05):Math.max(.05,(topAngle-groundAngle)/0.6),f=sh/(2*Math.tan(vfov/2*Math.PI/180));aimLens.on=true;
+  aimLens.mode="manual";aimLens.focal=Math.round(Math.max(8,Math.min(2000,f))*10)/10;try{localStorage.setItem("sorami.lens",JSON.stringify(aimLens));}catch{/* 保存できない端末では覚えないだけ */}}
   const focal = aimLens.mode === "auto" ? autoFocal : aimLens.focal;
   lensFocal.value = String(Math.round(focal * 10) / 10);
   lensFocal.step = "any";
@@ -109,7 +116,8 @@ async function aimLookRender(host, spec) {
     win.halfH = Math.max(viewFrame.halfH, viewFrame.halfW / (W / H)) * 1.12;
     win.halfW = win.halfH * W / H;
   }
-  if(host._compose?.mode==="body"&&Number.isFinite(host._compose.at)){let aimed=false;try{const st=AstroNotesBodies.state(body,host._compose.at,eyeObs);if(st&&Number.isFinite(st.azimuth)&&Number.isFinite(st.apparentAltitude)&&aimComposeNear(st,win.az0,topAngle,baseAngle)){win.az0=st.azimuth;win.alt0=st.apparentAltitude;aimed=true;}}catch(e){globalThis.AstroNotesErrors?.note('framing.composeAim',e);}if(!aimed)host._compose=null;}
+  if(host._compose?.mode==="body"&&Number.isFinite(host._compose.at)){let aimed=false;try{const st=AstroNotesBodies.state(body,host._compose.at,eyeObs);if(st&&Number.isFinite(st.azimuth)&&Number.isFinite(st.apparentAltitude)&&aimComposeNear(st,win.az0,topAngle,baseAngle)){win.az0=st.azimuth;
+  win.alt0=st.apparentAltitude;aimed=true;}}catch(e){globalThis.AstroNotesErrors?.note('framing.composeAim',e);}if(!aimed)host._compose=null;}
   host.querySelector("[data-lens-info]").textContent = `${aimLens.mode === "auto" ? "約" : ""}${(Math.round(focal * 10) / 10)}mm${frame ? ` ・ 画角 ${frame.horizontalDeg.toFixed(1)}° × ${frame.verticalDeg.toFixed(1)}°` : "（画角枠なし）"}（歪曲なしの目安）`;
   const proj = AstroNotesAlign.viewProjector(win.az0, win.alt0);
   const comparison=aimAirCompare&&aimAirCompare.day===S.JstCal.startOfDay(spec.at)&&aimAirCompare.latitude===spec.obs.latitude&&aimAirCompare.longitude===spec.obs.longitude?aimAirCompare.at:null;
@@ -304,7 +312,8 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
       if(light&&body!=='moon'){if(light.textContent!==msg)light.textContent=msg;light.hidden=!msg;hold();}
       if(light&&body==='moon'){
         host._captionNext={at:p.at,prefix:moonPrefix};
-        const write=()=>{host._captionTimer=0;const c=host._captionNext;if(host._lookSeq!==seq||!c)return;host._captionDone=Date.now();const text=[c.prefix,esc(lightTimingText(c.at,eyeObs))].filter(Boolean).join(' ・ ');if(light._moonCaption!==text){light._moonCaption=text;light.innerHTML=text;}light.hidden=!text;hold();};
+        const write=()=>{host._captionTimer=0;const c=host._captionNext;if(host._lookSeq!==seq||!c)return;host._captionDone=Date.now();const text=[c.prefix,esc(lightTimingText(c.at,eyeObs))].filter(Boolean).join(' ・ ');if(light._moonCaption!==text){light._moonCaption=text;light.innerHTML=text;
+        }light.hidden=!text;hold();};
         if(!host._captionTimer){const wait=120-(Date.now()-(host._captionDone||0));if(wait<=0)write();else host._captionTimer=setTimeout(write,wait);}
       }
     }
@@ -418,12 +427,15 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
       if(item.polygons?.length){
         // 形は時刻/天体と独立。再生・ドラッグのたびに穴埋めを再計算しない。
         let mask=item.solidSilhouette;
-        if(!mask||mask.source!==item.polygons){mask=aimLookSolidSilhouette(item.polygons,{closeBase:item.target.id==="skytree",basePoints:item.basePoints,view:{minX:-panLimit*W,minY:-panLimit*H,maxX:W*(1+panLimit),maxY:H*(1+panLimit)}});if(!mask)continue;mask.source=item.polygons;item.solidSilhouette=mask;}
+        if(!mask||mask.source!==item.polygons){mask=aimLookSolidSilhouette(item.polygons,{closeBase:item.target.id==="skytree",basePoints:item.basePoints,view:{minX:-panLimit*W,minY:-panLimit*H,maxX:W*(1+panLimit),maxY:H*(1+panLimit)}});if(!mask)continue;mask.source=item.polygons;
+        item.solidSilhouette=mask;}
         ctx.save();
         // マスクに色を付けた別バッファを使い、空や月をsource-inで消さない。
-        if(mask.ink!==ctx.fillStyle){const tinted=document.createElement('canvas');tinted.width=mask.canvas.width;tinted.height=mask.canvas.height;const c=tinted.getContext('2d');c.drawImage(mask.canvas,0,0);c.globalCompositeOperation='source-in';c.fillStyle=ctx.fillStyle;c.fillRect(0,0,tinted.width,tinted.height);mask.tinted=tinted;mask.ink=ctx.fillStyle;}
+        if(mask.ink!==ctx.fillStyle){const tinted=document.createElement('canvas');tinted.width=mask.canvas.width;tinted.height=mask.canvas.height;const c=tinted.getContext('2d');c.drawImage(mask.canvas,0,0);c.globalCompositeOperation='source-in';c.fillStyle=ctx.fillStyle;
+        c.fillRect(0,0,tinted.width,tinted.height);mask.tinted=tinted;mask.ink=ctx.fillStyle;}
         // Outline the filled union, never individual model edges or internal mesh lines.
-        if(!mask.rimCanvas){const edge=document.createElement('canvas');edge.width=mask.canvas.width;edge.height=mask.canvas.height;const c=edge.getContext('2d');c.drawImage(mask.canvas,0,0);c.globalCompositeOperation='source-in';c.fillStyle=rim;c.fillRect(0,0,edge.width,edge.height);mask.rimCanvas=edge;}
+        if(!mask.rimCanvas){const edge=document.createElement('canvas');edge.width=mask.canvas.width;edge.height=mask.canvas.height;const c=edge.getContext('2d');c.drawImage(mask.canvas,0,0);c.globalCompositeOperation='source-in';c.fillStyle=rim;c.fillRect(0,0,edge.width,edge.height);
+        mask.rimCanvas=edge;}
         for(const [dx,dy] of [[-.6,0],[.6,0],[0,-.6],[0,.6]])ctx.drawImage(mask.rimCanvas,mask.x+dx,mask.y+dy,mask.width,mask.height);
         ctx.drawImage(mask.tinted,mask.x,mask.y,mask.width,mask.height);ctx.restore();
         // 2026-10-20 選んでいない建物は、足元から地上の線まで下ろす（ユーザー「シルエットが浮いてたりして見栄えが悪い」）。
@@ -606,7 +618,9 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
   };
   host._redrawLook = () => { if (host._lookSeq === seq) draw(cur); };
  host._trialCompositionView={spec,cv,W,H,k,win}; globalThis.AstroNotesTrialComposition?.bind(host,host._trialCompositionView);
-  aimLookPick(host, { spec, cv, draw: () => draw(cur), bodyPosition: () => { const p = at(cur); if (p.x === null) return null; const xy = toPx([p.x, p.y]), off = host._lensOffset || [0, 0]; return [xy[0] + off[0] * W, xy[1] + off[1] * H]; }, W, H, k, win, az:pickGeo?.azimuth??az, topAngle:pickGeo?.angle??topAngle, D:pickGeo?.distanceKm??D, path, toPx: xy => { const p = toPx(xy), off = host._lensOffset || [0, 0]; return p ? [p[0] + off[0] * W, p[1] + off[1] * H] : null; }, pan: () => { const off = host._lensOffset || [0, 0]; return [off[0] * W, off[1] * H]; }, pathTap: cv.onclick });
+  aimLookPick(host, { spec, cv, draw: () => draw(cur), bodyPosition: () => { const p = at(cur); if (p.x === null) return null; const xy = toPx([p.x, p.y]), off = host._lensOffset || [0, 0]; return [xy[0] + off[0] * W, xy[1] + off[1] * H];
+  }, W, H, k, win, az:pickGeo?.azimuth??az, topAngle:pickGeo?.angle??topAngle, D:pickGeo?.distanceKm??D, path, toPx: xy => { const p = toPx(xy), off = host._lensOffset || [0, 0]; return p ? [p[0] + off[0] * W, p[1] + off[1] * H] : null; }, pan: () => { const off = host._lensOffset || [0, 0];
+  return [off[0] * W, off[1] * H]; }, pathTap: cv.onclick });
   const move = host.querySelector("[data-lens-move]");
   const center = host.querySelector("[data-lens-center]");
   move.disabled = true; center.disabled = false;
@@ -618,7 +632,10 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     host._pick=null;aimReverseClear();
     aimLookRender(host,spec);
   };
-  const composeButton=host.querySelector("[data-lens-compose]");if(composeButton){const near=host._compose?.mode==="body";let reach=near;if(!near){try{const st=AstroNotesBodies.state(body,host._lookAt??selectedAt,eyeObs);reach=!!st&&aimComposeNear(st,az,topAngle,baseAngle);}catch(e){globalThis.AstroNotesErrors?.note('framing.composeReach',e);}}composeButton.disabled=!reach;composeButton.setAttribute("aria-pressed",String(near));{const label=near?"全体を入れる":"天体に寄る";composeButton.setAttribute("aria-label",label);composeButton.title=label;composeButton.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21M7.5 10.5h6'+(near?"":"M10.5 7.5v6")+'"/></svg>';}composeButton.onclick=()=>{host._compose={mode:near?"whole":"body",apply:true,at:host._lookAt??selectedAt};host._lensKeyOffset=null;aimLookRender(host,spec);};}
+  const composeButton=host.querySelector("[data-lens-compose]");if(composeButton){const near=host._compose?.mode==="body";let reach=near;if(!near){try{const st=AstroNotesBodies.state(body,host._lookAt??selectedAt,eyeObs);reach=!!st&&aimComposeNear(st,az,topAngle,baseAngle);
+  }catch(e){globalThis.AstroNotesErrors?.note('framing.composeReach',e);}}composeButton.disabled=!reach;composeButton.setAttribute("aria-pressed",String(near));{const label=near?"全体を入れる":"天体に寄る";composeButton.setAttribute("aria-label",label);composeButton.title=label;
+  composeButton.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21M7.5 10.5h6'+(near?"":"M10.5 7.5v6")+'"/></svg>';
+  }composeButton.onclick=()=>{host._compose={mode:near?"whole":"body",apply:true,at:host._lookAt??selectedAt};host._lensKeyOffset=null;aimLookRender(host,spec);};}
   center.onclick = () => { host._lensKeyOffset = null;const bottom=frame?H/2+frame.halfH*k:H-12,y=(bottom-groundEdge)/H;host._lensSnap={ground:!!frame&&Math.abs(y)<=1,center:true};host._lensOffset=[0,Math.max(-1,Math.min(1,y))];draw(cur); };
   {const centre=center.onclick;center.onclick=()=>{if(host._compose?.mode==="body"){host._compose=null;aimLookRender(host,spec);return;}centre();};}
   if (!host._pick) { cv.onkeydown = null; cv.tabIndex = 0; }
@@ -702,7 +719,8 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     };
     cv.onpointerup = cv.onpointercancel = cv.onlostpointercapture = endGesture;
     cv.onclick = ev => { if (gesture.suppressClick) { gesture.suppressClick = false; return; } pathTap?.(ev); };
-    cv.onkeydown = (ev) => { const d = { ArrowLeft: [-.01, 0], ArrowRight: [.01, 0], ArrowUp: [0, -.01], ArrowDown: [0, .01] }[ev.key]; if (!d) return; ev.preventDefault(); const off = host._lensKeyOffset || host._lensOffset || [0, 0]; host._lensKeyOffset = [Math.max(-panLimit, Math.min(panLimit, off[0] + d[0])), Math.max(-1, Math.min(1, off[1] + d[1]))]; shift(...host._lensKeyOffset, { horizontal: !!d[0], vertical: !!d[1] }); cv.dispatchEvent?.(new Event("change", { bubbles: true })); };
+    cv.onkeydown = (ev) => { const d = { ArrowLeft: [-.01, 0], ArrowRight: [.01, 0], ArrowUp: [0, -.01], ArrowDown: [0, .01] }[ev.key]; if (!d) return; ev.preventDefault(); const off = host._lensKeyOffset || host._lensOffset || [0, 0];
+    host._lensKeyOffset = [Math.max(-panLimit, Math.min(panLimit, off[0] + d[0])), Math.max(-1, Math.min(1, off[1] + d[1]))]; shift(...host._lensKeyOffset, { horizontal: !!d[0], vertical: !!d[1] }); cv.dispatchEvent?.(new Event("change", { bubbles: true })); };
   } else {
     if (host._lensGesture?.raf) cancelAnimationFrame(host._lensGesture.raf);
     host._lensGesture = null; cv.onlostpointercapture = null;
@@ -712,7 +730,8 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
   host._cameraPreview={frame,current:()=>host._lookSeq===seq&&(typeof auth==='undefined'?null:auth?.token)===cameraOwner&&!host.hidden&&host.getClientRects().length>0,
     key:()=>JSON.stringify([seq,host._lensOffset,aimLens]),
     pauseRealtime:()=>{for(const b of document.querySelectorAll('.tool-datetime-play[data-playing="true"]'))b.click();},
-    snapshot:()=>{const off=host._lensOffset||[0,0],offset={x:off[0]*W/k,y:-off[1]*H/k};return {start:host._lookAt??selectedAt,key:host._cameraPreview.key(),margin:ms=>{const state=AstroNotesBodies.state(body,ms,eyeObs),xy=proj(state.azimuth,state.apparentAltitude);return !xy?-180:Math.min(state.apparentAltitude-state.angularRadius,AstroNotesTimelapse.margin({x:xy[0],y:xy[1],radius:state.angularRadius},frame,offset));}};},
+    snapshot:()=>{const off=host._lensOffset||[0,0],offset={x:off[0]*W/k,y:-off[1]*H/k};return {start:host._lookAt??selectedAt,key:host._cameraPreview.key(),margin:ms=>{const state=AstroNotesBodies.state(body,ms,eyeObs),xy=proj(state.azimuth,state.apparentAltitude);
+    return !xy?-180:Math.min(state.apparentAltitude-state.angularRadius,AstroNotesTimelapse.margin({x:xy[0],y:xy[1],radius:state.angularRadius},frame,offset));}};},
     draw:ms=>{if(host._lookSeq===seq){host._blendP=null;draw(timeIndex(ms),ms);}}};
   cur = timeIndex(selectedAt); draw(cur);
   if (ridgePending) ridgePending.then((ridge) => {

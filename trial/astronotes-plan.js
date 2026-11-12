@@ -42,7 +42,8 @@ const AstroNotesPlan = (() => {
     } catch { return null; }
   }
   const onlyLinkFields=(v,keys)=>v&&typeof v==='object'&&Object.keys(v).every(k=>keys.includes(k));
-  const compactable=p=>valid(p)&&p.kind==='aim'&&onlyLinkFields(p,['v','kind','o','at','t','body','part','limb','air','l','pan','matchMode','timelapse'])&&onlyLinkFields(p.t,['id','name','latitude','longitude','groundM','parts','kind','widthM'])&&p.t.parts.every(q=>onlyLinkFields(q,['id','name','m','latitude','longitude']))&&onlyLinkFields(p.l,['on','mode','focal','sensor','portrait','grid']);
+  const compactable=p=>valid(p)&&p.kind==='aim'&&onlyLinkFields(p,['v','kind','o','at','t','body','part','limb','air','l','pan','matchMode','timelapse'])&&onlyLinkFields(p.t,['id','name','latitude','longitude','groundM','parts','kind','widthM'])&&p.t.parts.every(q=>onlyLinkFields(q,['id','name','m',
+  'latitude','longitude']))&&onlyLinkFields(p.l,['on','mode','focal','sensor','portrait','grid']);
   function encodeTuple(p){
     // A lossless tuple removes repeated field names. Unknown future extensions keep the v1 codec.
     if(!compactable(p))return encode(p);
@@ -157,24 +158,31 @@ const AstroNotesPlan = (() => {
   }
   function mount({snapshot,show,keep=null,canKeep=()=>true,openNotebook=null,quickSave=null}) {
     const d=document.createElement('dialog');d.id='planSheet';d.className='sheet';d.tabIndex=-1;d.setAttribute('aria-labelledby','planTitle');
-    d.innerHTML=`<div class="sheet-head"><strong id="planTitle">共有</strong><button type="button" id="planClose" aria-label="閉じる"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><div class="sheet-body"><p id="planSummary"></p>
+    d.innerHTML=`<div class="sheet-head"><strong id="planTitle">共有</strong><button type="button" id="planClose" aria-label="閉じる"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">\
+<path d="m6 6 12 12M18 6 6 18"/></svg></button></div><div class="sheet-body"><p id="planSummary"></p>
       <section id="planCalendar" aria-label="予定の登録"><label for="planEventTitle">予定の件名</label><input type="text" id="planEventTitle" maxlength="200">
       <label for="planStart">開始（日本時間）</label><input type="datetime-local" step="1" id="planStart"><label for="planEnd">終了（日本時間）</label><input type="datetime-local" step="1" id="planEnd">
       <div class="plan-actions"><button type="button" class="chip primary" id="planKeep" hidden>記録の予定に保存</button></div>
       <div id="planExport"><div class="plan-actions"><button type="button" class="chip primary" id="planCalendarAdd" style="min-height:44px">カレンダーに追加</button></div></div></section>
-      <section id="planImage" aria-label="画像とリンクの共有" hidden><div class="plan-preview-frame" tabindex="0" aria-label="共有画像を確認"><img id="planPreview" alt="撮影計画の共有画像"></div><div class="plan-actions"><button type="button" class="chip primary" id="planShare" aria-label="画像を共有" disabled>共有</button><button type="button" class="chip" id="planSave" aria-label="画像を保存" disabled>保存</button><button type="button" class="chip" id="planCopy" disabled>リンクをコピー</button></div></section><p id="planStatus" class="tiny" role="status" aria-live="polite"></p><button type="button" id="planOpenNotebook" class="chip" hidden>予定を見る</button></div>`;
+      <section id="planImage" aria-label="画像とリンクの共有" hidden><div class="plan-preview-frame" tabindex="0" aria-label="共有画像を確認"><img id="planPreview" alt="撮影計画の共有画像"></div><div class="plan-actions"><button type="button" class="chip primary" id="planShare" aria-label="画像を共有" disabled>共有</button>\
+<button type="button" class="chip" id="planSave" aria-label="画像を保存" disabled>保存</button><button type="button" class="chip" id="planCopy" disabled>リンクをコピー</button></div></section><p id="planStatus" class="tiny" role="status" aria-live="polite"></p>\
+<button type="button" id="planOpenNotebook" class="chip" hidden>予定を見る</button></div>`;
     document.body.append(d);const $=id=>document.getElementById(id);let current=null,file=null,url=null,seq=AstroNotesLibrary.gate(),back=null,localSave=false,saved=null,requested='share';
     const retry=document.createElement('button');retry.id='planRetry';retry.type='button';retry.className='chip';retry.textContent='再試行';retry.hidden=true;retry.onclick=()=>open(requested,back,!!current);$('planStatus').after(retry);
-    const waiting=document.createElement('div');waiting.id='planWaiting';waiting.className='note-wait';waiting.hidden=true;waiting.innerHTML='<span class="note-wait-character" aria-hidden="true"></span><span class="note-wait-message" id="planWaitingMessage" role="status" aria-live="polite"></span>';$('planStatus').before(waiting);
-    const tabs=document.createElement('div');tabs.id='planSharingTabs';tabs.className='forecast-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','共有する内容');tabs.innerHTML='<button type="button" id="planImageTab" role="tab" aria-controls="planImage">画像・リンク</button><button type="button" id="planCalendarTab" role="tab" aria-controls="planCalendar">カレンダーに追加</button>';$('planSummary').before(tabs);
-    for(const [tab,panel,kind]of[['planImageTab','planImage','share'],['planCalendarTab','planCalendar','export']]){$(panel).setAttribute('role','tabpanel');$(panel).setAttribute('aria-labelledby',tab);$(tab).onclick=()=>open(kind,back,true);$(tab).onkeydown=e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const next=e.key==='Home'?'planImageTab':e.key==='End'?'planCalendarTab':tab==='planImageTab'?'planCalendarTab':'planImageTab';$(next).click();$(next).focus();}};}
+    const waiting=document.createElement('div');waiting.id='planWaiting';waiting.className='note-wait';waiting.hidden=true;waiting.innerHTML='<span class="note-wait-character" aria-hidden="true"></span><span class="note-wait-message" id="planWaitingMessage" role="status" aria-live="polite"></span>';
+    $('planStatus').before(waiting);
+    const tabs=document.createElement('div');tabs.id='planSharingTabs';tabs.className='forecast-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','共有する内容');
+    tabs.innerHTML='<button type="button" id="planImageTab" role="tab" aria-controls="planImage">画像・リンク</button><button type="button" id="planCalendarTab" role="tab" aria-controls="planCalendar">カレンダーに追加</button>';$('planSummary').before(tabs);
+    for(const [tab,panel,kind]of[['planImageTab','planImage','share'],['planCalendarTab','planCalendar','export']]){$(panel).setAttribute('role','tabpanel');$(panel).setAttribute('aria-labelledby',tab);$(tab).onclick=()=>open(kind,back,true);
+    $(tab).onkeydown=e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const next=e.key==='Home'?'planImageTab':e.key==='End'?'planCalendarTab':tab==='planImageTab'?'planCalendarTab':'planImageTab';$(next).click();$(next).focus();}};}
     const status=t=>{waiting.hidden=true;d.removeAttribute('aria-busy');$('planStatus').textContent=t;};
     const busy=t=>{status('');waiting.hidden=false;$('planWaitingMessage').textContent=t;d.setAttribute('aria-busy','true');};
     const clearSaved=()=>{saved=null;$('planOpenNotebook').hidden=true;};
     $('planOpenNotebook').onclick=()=>{if(!saved)return;const pending=saved;d.addEventListener('close',()=>{setTimeout(()=>{if(!openNotebook?.(pending))alert('アカウントまたは予定が変わりました。記録の予定一覧を開き直してください。');},0);},{once:true});d.close();};
     const edits=()=>({title:$('planEventTitle').value,start:$('planStart').value,end:$('planEnd').value,reminder:0});
     const refreshKeep=()=>{$('planKeep').hidden=!localSave||!keep||!canKeep()||current?.payload?.kind!=='aim';};
-    const validate=()=>{refreshKeep();try{if(!current)throw Error('共有する撮影条件を準備しています。');const e=event(current,edits());$('planCalendarAdd').disabled=false;$('planKeep').disabled=false;status(!$('planKeep').hidden?'記録に保存するか、カレンダーへ追加できます。記録の予定はログイン中に同期します。':'');return e;}catch(e){$('planCalendarAdd').disabled=true;$('planKeep').disabled=true;status(e.message);return null;}};
+    const validate=()=>{refreshKeep();try{if(!current)throw Error('共有する撮影条件を準備しています。');const e=event(current,edits());$('planCalendarAdd').disabled=false;$('planKeep').disabled=false;status(!$('planKeep').hidden?'記録に保存するか、カレンダーへ追加できます。記録の予定はログイン中に同期します。':'');return e;
+    }catch(e){$('planCalendarAdd').disabled=true;$('planKeep').disabled=true;status(e.message);return null;}};
     const download=(blob,name)=>{const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);};
     for(const id of ['planEventTitle','planStart','planEnd'])$(id).oninput=validate;
     $('planClose').onclick=()=>d.close();d.addEventListener('close',()=>{if(d.open)return;AstroNotesPlan.externalApps?.cancelCalendar();seq.cancel();clearSaved();if(url)URL.revokeObjectURL(url);url=null;file=null;current=null;back?.focus({preventScroll:true});});
@@ -187,16 +195,21 @@ const AstroNotesPlan = (() => {
     };
     // 2026-10-20 構図の重なりは AstroNotes の NOTEBOOK の予定にも残せる（件名・日時はこの欄の値）
     $('planKeep').style.minHeight='44px';
-    $('planKeep').onclick=()=>{clearSaved();const e=validate();if(!e||!keep||!canKeep()||!current)return;const r=keep(current,e);if(r?.ok&&openNotebook){saved=r;$('planOpenNotebook').hidden=false;}status(r&&r.ok?(r.updated?'予定を更新しました。':'予定を保存しました。記録の「予定」で見られます。'):r?.error||'予定を保存できませんでした。ブラウザの保存設定や空き容量を確認してください。');};
+    $('planKeep').onclick=()=>{clearSaved();const e=validate();if(!e||!keep||!canKeep()||!current)return;const r=keep(current,e);if(r?.ok&&openNotebook){saved=r;$('planOpenNotebook').hidden=false;
+    }status(r&&r.ok?(r.updated?'予定を更新しました。':'予定を保存しました。記録の「予定」で見られます。'):r?.error||'予定を保存できませんでした。ブラウザの保存設定や空き容量を確認してください。');};
     $('planSave').onclick=()=>{if(file){download(file,file.name);status('画像の保存を開始しました。保存先から共有できます。');}};
-    $('planCopy').onclick=async()=>{const copiedUrl=current?.url;if(!copiedUrl)return;try{await navigator.clipboard.writeText(copiedUrl);status('同じ撮影条件のリンクをコピーしました。');}catch{status('コピーできませんでした。下のリンクを選んでコピーしてください。');const a=document.createElement('a');a.href=copiedUrl;a.textContent=copiedUrl;$('planStatus').append(document.createElement('br'),a);}};
-    $('planShare').onclick=async()=>{if(!file)return;const data={files:[file],title:current.title};try{if(!navigator.canShare?.({files:[file]})||!navigator.share){status('この端末では画像共有を使えません。「保存」から共有してください。');return;}await navigator.share(data);status('共有画面を閉じました。');}catch(e){status(e.name==='AbortError'?'共有を取り消しました。': '共有できませんでした。「保存」から共有してください。');}};
-    async function open(kind,source,reuse=false){AstroNotesPlan.externalApps?.cancelCalendar();requested=kind;localSave=kind==='keep'||kind==='calendar';kind=localSave||kind==='export'?'calendar':'image';back=source;seq.cancel();const token=seq.ticket();retry.hidden=true;clearSaved();file=null;if(url)URL.revokeObjectURL(url);url=null;$('planPreview').removeAttribute('src');for(const id of ['planSave','planShare','planCopy'])$(id).disabled=true;
+    $('planCopy').onclick=async()=>{const copiedUrl=current?.url;if(!copiedUrl)return;try{await navigator.clipboard.writeText(copiedUrl);status('同じ撮影条件のリンクをコピーしました。');}catch{status('コピーできませんでした。下のリンクを選んでコピーしてください。');const a=document.createElement('a');a.href=copiedUrl;a.textContent=copiedUrl;
+    $('planStatus').append(document.createElement('br'),a);}};
+    $('planShare').onclick=async()=>{if(!file)return;const data={files:[file],title:current.title};try{if(!navigator.canShare?.({files:[file]})||!navigator.share){status('この端末では画像共有を使えません。「保存」から共有してください。');return;}await navigator.share(data);status('共有画面を閉じました。');
+    }catch(e){status(e.name==='AbortError'?'共有を取り消しました。': '共有できませんでした。「保存」から共有してください。');}};
+    async function open(kind,source,reuse=false){AstroNotesPlan.externalApps?.cancelCalendar();requested=kind;localSave=kind==='keep'||kind==='calendar';kind=localSave||kind==='export'?'calendar':'image';back=source;seq.cancel();const token=seq.ticket();retry.hidden=true;clearSaved();file=null;
+    if(url)URL.revokeObjectURL(url);url=null;$('planPreview').removeAttribute('src');for(const id of ['planSave','planShare','planCopy'])$(id).disabled=true;
       tabs.hidden=localSave;for(const [id,selected]of[['planImageTab',kind==='image'],['planCalendarTab',kind==='calendar']]){$(id).setAttribute('aria-selected',String(selected));$(id).tabIndex=selected?0:-1;}
       $('planTitle').textContent=localSave?'予定':'共有';$('planExport').hidden=false;$('planKeep').textContent='記録の予定に保存';$('planSummary').hidden=kind!=='calendar';$('planCalendar').hidden=kind!=='calendar';$('planImage').hidden=kind!=='image';
       const fresh=!reuse||!current;
       if(fresh){current=null;$('planCalendar').hidden=true;$('planImage').hidden=true;$('planSummary').textContent='';busy('共有する内容を準備しています…');}
-      try{if(!d.open)show(d);if(fresh){const next=await snapshot(source,{current:()=>seq.current(token)&&d.open});if(!seq.current(token)||!d.open)return;current=next;}if(!current?.payload||!current.observer){current=null;throw Error('共有する撮影条件を確認できませんでした。「再試行」を押してください。');}$('planKeep').hidden=!localSave||!keep||!canKeep()||current.payload.kind!=='aim';$('planSummary').textContent=current.observer.name;status('');$('planCalendar').hidden=kind!=='calendar';$('planImage').hidden=kind!=='image';
+      try{if(!d.open)show(d);if(fresh){const next=await snapshot(source,{current:()=>seq.current(token)&&d.open});if(!seq.current(token)||!d.open)return;current=next;}if(!current?.payload||!current.observer){current=null;throw Error('共有する撮影条件を確認できませんでした。「再試行」を押してください。');
+      }$('planKeep').hidden=!localSave||!keep||!canKeep()||current.payload.kind!=='aim';$('planSummary').textContent=current.observer.name;status('');$('planCalendar').hidden=kind!=='calendar';$('planImage').hidden=kind!=='image';
         if(fresh){$('planEventTitle').value=current.title;$('planStart').value=localInput(current.start);$('planEnd').value=localInput(Math.ceil(Math.max(current.end,current.start+1000)/1000)*1000);}if(kind==='calendar'){validate();return;}
         const captured=current;
         busy('共有する画像を作っています…');await document.fonts.ready;if(!seq.current(token)||!d.open)return;
@@ -247,7 +260,10 @@ AstroNotesPlan.createExternalApps=function({storage,show,onMapChange=()=>{},doc=
  function cancel(kind){const r=pending[kind];pending[kind]=null;r?.cleanup?.();if(sheets[kind]?.dialog.open)sheets[kind].dialog.close();}
  function sheet(kind){
   if(sheets[kind])return sheets[kind];const prefix=kind==='map'?'mapApp':'calendarApp';let dialog=doc.getElementById(prefix+'Sheet');
-  if(!dialog){dialog=doc.createElement('dialog');dialog.id=prefix+'Sheet';dialog.className='sheet';dialog.tabIndex=-1;dialog.setAttribute('aria-labelledby',prefix+'Title');dialog.innerHTML='<div class="sheet-head"><strong id="'+prefix+'Title"></strong><button type="button" id="'+prefix+'Close" aria-label="閉じる">閉じる</button></div><div class="sheet-body"><p class="tiny" id="'+prefix+'Coord"></p><div class="map-app-list" id="'+prefix+'List"></div><label class="map-app-remember"><input type="checkbox" id="'+prefix+'Remember">次回からも使う</label></div>';doc.body.append(dialog);}
+  if(!dialog){dialog=doc.createElement('dialog');dialog.id=prefix+'Sheet';dialog.className='sheet';dialog.tabIndex=-1;dialog.setAttribute('aria-labelledby',prefix+'Title');
+  dialog.innerHTML='<div class="sheet-head"><strong id="'+prefix+'Title"></strong><button type="button" id="'+prefix+('Close" aria-label="閉じる">閉じる</button></div><div class="sheet-body">'+
+  '<p class="tiny" id="')+prefix+'Coord"></p><div class="map-app-list" id="'+prefix+'List"></div><label class="map-app-remember"><input type="checkbox" id="'+prefix+'Remember">次回からも使う</label></div>';
+  doc.body.append(dialog);}
   dialog.querySelector('#'+prefix+'Title').textContent=kind==='map'?'地図アプリを選ぶ':'カレンダーを選ぶ';
   const close=dialog.querySelector('#'+prefix+'Close'),list=dialog.querySelector('#'+prefix+'List'),remember=dialog.querySelector('#'+prefix+'Remember'),note=dialog.querySelector('#'+prefix+'Coord');
   remember.parentElement.lastChild.textContent='次回からも使う';
@@ -273,7 +289,8 @@ AstroNotesPlan.createExternalApps=function({storage,show,onMapChange=()=>{},doc=
    if(!recovery&&(s.remember.checked||get(r.kind)!==null)&&!set(r.kind,s.remember.checked?id:null)){s.status.textContent='設定を保存できませんでした。次回のアプリを覚えずに、今回だけ開けます。';addOnce(s,r,id,version);return;}
    r.launched=true;s.dialog.close();launch(r,id);
   };s.list.append(b);}
-  if(recovery){const b=doc.createElement('button');b.type='button';b.className='fav-btn';b.id='calendarFileSave';b.textContent='予定ファイルを保存';b.style.minHeight='44px';b.onclick=()=>{if(!current(r)||r.launched||r.choiceVersion!==version)return;r.launched=true;s.dialog.close();launch(r,'file');};s.list.append(b);}
+  if(recovery){const b=doc.createElement('button');b.type='button';b.className='fav-btn';b.id='calendarFileSave';b.textContent='予定ファイルを保存';b.style.minHeight='44px';b.onclick=()=>{if(!current(r)||r.launched||r.choiceVersion!==version)return;r.launched=true;s.dialog.close();launch(r,'file');};
+  s.list.append(b);}
   if(!s.dialog.open)show(s.dialog);else s.dialog.focus({preventScroll:true});
  }
  function addOnce(s,r,id,version){
@@ -299,7 +316,9 @@ AstroNotesPlan.createExternalApps=function({storage,show,onMapChange=()=>{},doc=
  function settings(){
   const box=doc.createElement('section');box.id='externalAppSettings';const status=doc.createElement('p');status.className='tiny';status.id='externalAppSettingsStatus';status.setAttribute('role','status');
   const controls=[];
-  for(const [kind,title]of [['calendar','カレンダー'],['map','地図']]){const row=doc.createElement('div');row.style.cssText='padding:16px 0';const label=doc.createElement('label');label.htmlFor='externalDefault'+(kind==='map'?'Map':'Calendar');label.textContent=title;const select=doc.createElement('select');select.id=label.htmlFor;select.className='fav-in';select.style.cssText='display:block;width:100%;min-height:44px;font-size:16px;margin-top:8px';select.add(new Option('毎回選ぶ',''));for(const {id,label}of choices(kind))select.add(new Option(label,id));select.value=get(kind)||'';select.onchange=()=>{if(set(kind,select.value||null))status.textContent='保存しました。';else{select.value=get(kind)||'';status.textContent='設定を保存できませんでした。端末の保存設定を確認してください。';}};row.append(label,select);box.append(row);controls.push({kind,select});}
+  for(const [kind,title]of [['calendar','カレンダー'],['map','地図']]){const row=doc.createElement('div');row.style.cssText='padding:16px 0';const label=doc.createElement('label');label.htmlFor='externalDefault'+(kind==='map'?'Map':'Calendar');label.textContent=title;
+  const select=doc.createElement('select');select.id=label.htmlFor;select.className='fav-in';select.style.cssText='display:block;width:100%;min-height:44px;font-size:16px;margin-top:8px';select.add(new Option('毎回選ぶ',''));for(const {id,label}of choices(kind))select.add(new Option(label,id));
+  select.value=get(kind)||'';select.onchange=()=>{if(set(kind,select.value||null))status.textContent='保存しました。';else{select.value=get(kind)||'';status.textContent='設定を保存できませんでした。端末の保存設定を確認してください。';}};row.append(label,select);box.append(row);controls.push({kind,select});}
   const note=doc.createElement('p');note.className='tiny';note.textContent='この端末で使うアプリを選べます。';box.append(note,status);
   const refresh=()=>{for(const {kind,select}of controls)select.value=get(kind)||'';};listeners.add(refresh);box.refresh=()=>{refresh();status.textContent='';};
   return box;

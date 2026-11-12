@@ -45,7 +45,8 @@ function recordSilhouette(obs,target,opts){
  if(recordGeometry.known.has(key)){const hit=recordGeometry.known.get(key);recordGeometry.used.set(key,hit);return hit;}
  const outline=AstroNotesAlign.towerOutline(obs,target,{eyeM:opts.eyeM??1.5,heightM:opts.heightM??null});
  let value=null;
- if(outline){const polygon=AstroNotesAlign.convexHull(outline.hitPolygons?outline.hitPolygons.flat():outline.hitPoints||outline.points||[]);if(polygon.length>=3&&Number.isFinite(outline.viewBaseAngle)&&Number.isFinite(outline.topAngle))value={viewBaseAngle:outline.viewBaseAngle,topAngle:outline.topAngle,approximate:!!outline.approximate,polygon};}
+ if(outline){const polygon=AstroNotesAlign.convexHull(outline.hitPolygons?outline.hitPolygons.flat():outline.hitPoints||outline.points||[]);
+ if(polygon.length>=3&&Number.isFinite(outline.viewBaseAngle)&&Number.isFinite(outline.topAngle))value={viewBaseAngle:outline.viewBaseAngle,topAngle:outline.topAngle,approximate:!!outline.approximate,polygon};}
  recordGeometry.known.set(key,value);recordGeometry.used.set(key,value);return value;
 }
 // 2026-11-09 線・範囲の地点も一覧に出す（ユーザー「範囲とか線の時も出るようにできないの？」）。
@@ -164,7 +165,8 @@ async function recordShapeOpportunity(session,p,place,record,solver,live){
  const cancelled={rows:[],failed:0,cancelled:true};
  try{
   const step=recordShapeStep(s,target),{points,paths}=recordShapePoints(s,step),mountain=aimIsMountain(target);
-  const base=recordHash(JSON.stringify(['astronotes.shape-geometry.v1',s.type,s.vertices,step,target.id??null,target.latitude,target.longitude,target.groundM??null,(target.parts||[]).map(x=>[x.id,x.m]),!!target.rim,place.eyeHeightAGL??null,place.standAglM??null,place.stand??null,o.partId,aimIsMountain(target),AstroNotesAtmosphere.targetK()]));
+  const base=recordHash(JSON.stringify(['astronotes.shape-geometry.v1',s.type,s.vertices,step,target.id??null,target.latitude,target.longitude,target.groundM??null,(target.parts||[]).map(x=>[x.id,x.m]),!!target.rim,place.eyeHeightAGL??null,place.standAglM??null,place.stand??null,o.partId,
+  aimIsMountain(target),AstroNotesAtmosphere.targetK()]));
   let memo=recordShapeMemo.get(base);
   if(!memo||memo.count!==points.length){
    const blocks=[];
@@ -328,7 +330,8 @@ function recordPrepared(session,shaped,obs,target,body,opts){
 }
 function recordSolverFor(session,variant,shaped,override){
  const terrain=override||session.terrain,align=Object.create(AstroNotesAlign);
- const prepare=(obs,target,body,opts)=>{const silhouette=variant==='opportunity'&&!aimIsMountain(target)?recordSilhouette(obs,target,opts):null;if(variant==='discovery'&&!opts.ridge&&!opts.silhouette)return recordDiscoveryView(session,shaped,obs,target,body,opts);return recordPrepared(session,shaped,obs,target,body,silhouette?{...opts,silhouette}:opts);};
+ const prepare=(obs,target,body,opts)=>{const silhouette=variant==='opportunity'&&!aimIsMountain(target)?recordSilhouette(obs,target,opts):null;if(variant==='discovery'&&!opts.ridge&&!opts.silhouette)return recordDiscoveryView(session,shaped,obs,target,body,opts);
+ return recordPrepared(session,shaped,obs,target,body,silhouette?{...opts,silhouette}:opts);};
  align.prepareDailyView=prepare;
  align.dailyView=(obs,target,body,day,{at,...opts}={})=>prepare(obs,target,body,opts)(day,at);
  const viewFor=(obs,p)=>{
@@ -394,7 +397,8 @@ async function recordSearch(plan,entries,{isCurrent=()=>true,variant='discovery'
 // Use the forecast's existing mascot, speech bubble, track and motion rules.
 function showRecordProgress(host,label,unit='件'){
  const element=(tag,cls)=>{const n=document.createElement(tag);n.className=cls;return n;};
- const node=element('div','note-wait record-search-progress'),character=element('span','note-wait-character'),bubble=element('div','note-wait-message'),headline=element('span','record-progress-title'),count=element('span','record-progress-count'),bar=element('div','note-progress'),fill=element('span','note-progress-fill');
+ const node=element('div','note-wait record-search-progress'),character=element('span','note-wait-character'),bubble=element('div','note-wait-message'),headline=element('span','record-progress-title'),count=element('span','record-progress-count'),bar=element('div','note-progress'),
+ fill=element('span','note-progress-fill');
  character.setAttribute('aria-hidden','true');count.setAttribute('aria-hidden','true');fill.setAttribute('aria-hidden','true');
  bar.setAttribute('role','progressbar');bar.setAttribute('aria-label','検索の進捗');bar.setAttribute('aria-valuemin','0');bar.setAttribute('aria-valuemax','100');
  bar.append(fill);bubble.append(headline,count,bar);node.append(character,bubble);host.replaceChildren(node);

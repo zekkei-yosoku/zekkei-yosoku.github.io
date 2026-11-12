@@ -4,7 +4,8 @@
 const api=root.AstroNotesCandidateDiscovery||(typeof require==='function'?require('./search.js'):null);
 const Composition=root.AstroNotesCandidateComposition||(typeof require==='function'?require('./composition.js'):null);
 const allowedPoint=p=>p&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&Math.abs(p.latitude)<85&&Math.abs(p.longitude)<=180;
-function requestKey(p){return JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode,p.profile,p.strict,p.composition,!!p.compositionInvalid,p.timeWindow,p.timeSpec||{kind:'day',at:api.day(p.at)},p.atmosphere,p.lens?.mode==='unspecified'?{mode:'unspecified'}:p.lens,p.extraTargets,p.requireAllTargets,...(p.overlapMembers?[p.overlapMembers]:[])]);}
+function requestKey(p){return JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode,p.profile,p.strict,p.composition,!!p.compositionInvalid,p.timeWindow,p.timeSpec||{kind:'day',at:api.day(p.at)},p.atmosphere,p.lens?.mode==='unspecified'?{mode:'unspecified'}:p.lens,p.extraTargets,
+p.requireAllTargets,...(p.overlapMembers?[p.overlapMembers]:[])]);}
 function regionsFor(seeds){
  const map=new Map(),size=.005;
  for(const seed of seeds||[]){
@@ -29,7 +30,8 @@ function regionsFor(seeds){
 const placeKinds=new Set(['viewpoint','plaza','park','riverbank']);
 function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPointsPerBatch=40,inverseOptions={},yieldTask=()=>new Promise(r=>setTimeout(r,0))}={}){
  const sessions=new Map();
- const fresh=(key,inverse,lastResult=null)=>({key,regions:regionsFor(inverse.seeds),inverse,lastResult,rows:[],queue:[],seen:new Set(),seenRows:new Set(),cursor:0,started:false,counts:{checked:0,unknown:0,blocked:0,noOverlap:0,unverified:0,heightUnknown:0,nearBuilding:0,obstacle:0,outsideFrame:0,deferred:0},coverage:[],busy:false});
+ const fresh=(key,inverse,lastResult=null)=>({key,regions:regionsFor(inverse.seeds),inverse,lastResult,rows:[],queue:[],seen:new Set(),seenRows:new Set(),cursor:0,started:false,counts:{checked:0,unknown:0,blocked:0,noOverlap:0,unverified:0,heightUnknown:0,nearBuilding:0,obstacle:0,outsideFrame:0,
+ deferred:0},coverage:[],busy:false});
  // Rechecking the same conditions replaces only working progress. The last
  // complete result remains available when a recheck fails or is cancelled.
  function restart(plan){const key=requestKey(plan),previous=sessions.get(key);if(previous?.busy&&previous.current?.()!==false)return false;if(previous)sessions.set(key,fresh(key,previous.inverse,previous.lastResult));return true;}
@@ -63,7 +65,9 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
     if(!wanted()||data.cancelled)return {cancelled:true};
     const points=[...(data.points||[])];
     if(!session.started&&loadStatic){
-     try{const legacy=await loadStatic();for(const p of api.sampleSidewalks(legacy).rows){if(!session.regions.some(r=>p.longitude>=r.bbox[0]&&p.longitude<=r.bbox[2]&&p.latitude>=r.bbox[1]&&p.latitude<=r.bbox[3]))continue;points.push({...p,surfaceId:p.polygonId||p.sourceId,placeKind:'road',standingSurfaceKnown:p.structureClassificationKnown&&!p.nonTerrainStructure,accessKnown:undefined,sourceEvidence:{kind:'PLATEAU-pedestrian-surface',sourceId:p.sourceId},name:'歩道の撮影候補'});}}catch{/* Live source remains usable. */}
+     try{const legacy=await loadStatic();for(const p of api.sampleSidewalks(legacy).rows){if(!session.regions.some(r=>p.longitude>=r.bbox[0]&&p.longitude<=r.bbox[2]&&p.latitude>=r.bbox[1]&&p.latitude<=r.bbox[3]))continue;
+     points.push({...p,surfaceId:p.polygonId||p.sourceId,placeKind:'road',standingSurfaceKnown:p.structureClassificationKnown&&!p.nonTerrainStructure,accessKnown:undefined,sourceEvidence:{kind:'PLATEAU-pedestrian-surface',sourceId:p.sourceId},name:'歩道の撮影候補'});
+     }}catch{/* Live source remains usable. */}
     }
     // Commit a provider page only after all awaited preparation is current.
     if(!wanted())return {cancelled:true};
@@ -110,7 +114,8 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
    // The place source asked to wait (Overpass cooling down): wait, then fetch the regions it left. Three waits at most;
    // a busier Overpass ends the search with its regions reported as not fetched.
    const waitMs=(page.retryAt||0)-Date.now();
-   if(!page.coverage.pendingPoints&&waitMs>0&&waits<3){waits++;options.onProgress?.({stage:'places-wait',waitMs,...page.counts});for(const end=Date.now()+waitMs+250;Date.now()<end;){if(!wanted())return {cancelled:true};await new Promise(r=>setTimeout(r,Math.min(250,end-Date.now())));}more=true;continue;}
+   if(!page.coverage.pendingPoints&&waitMs>0&&waits<3){waits++;options.onProgress?.({stage:'places-wait',waitMs,...page.counts});for(const end=Date.now()+waitMs+250;Date.now()<end;){if(!wanted())return {cancelled:true};await new Promise(r=>setTimeout(r,Math.min(250,end-Date.now())));}more=true;
+   continue;}
    if(!page.coverage.pendingPoints){
     const cursor=JSON.stringify(page.coverage.nextCursor);
     if(cursors.has(cursor)){const stalled={...page,stalled:true};sessions.get(page.requestKey).lastResult=stalled;return stalled;}
@@ -120,7 +125,8 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
   }
   return {cancelled:true};
  }
- function result(s){return {rows:s.rows.slice(),counts:{...s.counts},retryAt:s.retryAt||0,requestKey:s.key,cached:false,limited:true,coverageStatus:'partial',jobStatus:'complete',canContinue:s.queue.length>0||s.cursor!==null,coverage:{regions:s.regions.length,loaded:s.coverage,pendingPoints:s.queue.length,nextCursor:s.cursor,approximateInverse:true},dataVersion:'generic-v1'};}
+ function result(s){return {rows:s.rows.slice(),counts:{...s.counts},retryAt:s.retryAt||0,requestKey:s.key,cached:false,limited:true,coverageStatus:'partial',jobStatus:'complete',canContinue:s.queue.length>0||s.cursor!==null,coverage:{regions:s.regions.length,loaded:s.coverage,
+ pendingPoints:s.queue.length,nextCursor:s.cursor,approximateInverse:true},dataVersion:'generic-v1'};}
  return {search,searchAll,restart,cached:plan=>{const s=sessions.get(requestKey(plan));return s?.lastResult?{...s.lastResult,rows:s.lastResult.rows.slice(),cached:true}:null;},clear:()=>sessions.clear()};
 }
 api.requestKey=requestKey;api.regionsFor=regionsFor;api.createGenericSearch=createGenericSearch;

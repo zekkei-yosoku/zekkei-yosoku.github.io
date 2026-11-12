@@ -37,7 +37,9 @@ function applyDrafts(favorites,drafts){
 function cleanObservation(r){
  const text=(v,max=2000)=>typeof v==='string'&&v.length<=max,t=r?.target;
  if(!r||!text(r.id,80)||!r.id||!text(r.placeId,200)||!r.placeId||!t||!text(t.key,200)||!t.key||!text(t.name,200)||!['seen','partial','hidden'].includes(r.result))return null;
- return {id:r.id,placeId:r.placeId,target:{key:t.key,name:t.name||'対象',latitude:Number.isFinite(t.latitude)?t.latitude:null,longitude:Number.isFinite(t.longitude)?t.longitude:null},observer:point(r.observer)?{latitude:r.observer.latitude,longitude:r.observer.longitude,elevation:Number.isFinite(r.observer.elevation)?r.observer.elevation:null,eyeHeightAGL:Number.isFinite(r.observer.eyeHeightAGL)?r.observer.eyeHeightAGL:1.5}:null,result:r.result,date:text(r.date,10)&&/^\d{4}-\d{2}-\d{2}$/.test(r.date)?r.date:'',note:text(r.note,500)?r.note:'',...(r.registration===true?{registration:true,removed:r.removed===true}:{}),createdAt:Number.isFinite(r.createdAt)?r.createdAt:0,updatedAt:Number.isFinite(r.updatedAt)?r.updatedAt:0};
+ return {id:r.id,placeId:r.placeId,target:{key:t.key,name:t.name||'対象',latitude:Number.isFinite(t.latitude)?t.latitude:null,longitude:Number.isFinite(t.longitude)?t.longitude:null},observer:point(r.observer)?{latitude:r.observer.latitude,longitude:r.observer.longitude,
+ elevation:Number.isFinite(r.observer.elevation)?r.observer.elevation:null,eyeHeightAGL:Number.isFinite(r.observer.eyeHeightAGL)?r.observer.eyeHeightAGL:1.5}:null,result:r.result,date:text(r.date,10)&&/^\d{4}-\d{2}-\d{2}$/.test(r.date)?r.date:'',note:text(r.note,500)?r.note:'',
+ ...(r.registration===true?{registration:true,removed:r.removed===true}:{}),createdAt:Number.isFinite(r.createdAt)?r.createdAt:0,updatedAt:Number.isFinite(r.updatedAt)?r.updatedAt:0};
 }
 function registrationChanges(place,before,after,now=Date.now()){
  const old=new Set(before.map(t=>t.key||t.id)),next=new Set(after.map(t=>t.key||t.id)),out=[];
@@ -59,7 +61,8 @@ function prepareRecord({owner,favorites,observations,shapes,place,isNew,initialT
  const changes=registrationChanges(place,initialTargets,targets);if(changes.some(r=>!r))throw Error('対象の情報を確認してください');
  const nextShapes=Object.assign(Object.create(null),shapes);if(shape)nextShapes[place.id]={latitude:place.latitude,longitude:place.longitude,shape};else delete nextShapes[place.id];
  const k=keys(owner),nextObservations=[...observations,...changes];
- return {favorites:nextFavorites,observations:nextObservations,shapes:nextShapes,changedFavorites:[...new Set([...(isNew||favorites.find(f=>f.id===place.id)?.name!==place.name?[place.id]:[]),...used.map(x=>x.entry.id)])],entries:[[k.observations,nextObservations],[k.shapes,nextShapes],['sorami.favorites',nextFavorites]]};
+ return {favorites:nextFavorites,observations:nextObservations,shapes:nextShapes,changedFavorites:[...new Set([...(isNew||favorites.find(f=>f.id===place.id)?.name!==place.name?[place.id]:[]),...used.map(x=>x.entry.id)])],entries:[[k.observations,nextObservations],[k.shapes,nextShapes],
+ ['sorami.favorites',nextFavorites]]};
 }
 // Notebook membership is records/shapes; favorite locations remain picker candidates.
 function prepareQuickRecord({owner,favorites,observations,shapes,observer,target,knownTargets=[],currentTargets,cleanShape}){
@@ -94,7 +97,8 @@ function prepareNotebookBulk({owner,favorites,observations,shapes,placeIds,mode,
  let nextFavorites=favorites,nextObservations=observations,nextShapes=Object.assign(Object.create(null),shapes),changedFavorites=[];
  if(mode==='delete'){
   nextObservations=observations.filter(r=>!ids.has(r.placeId));
-  for(const id of ids)delete nextShapes[id];nextFavorites=favorites.map(f=>{if(!ids.has(f.id)||(!f.recordRegistered&&!f.recordAlignments&&!f.planningBodies))return f;const next={...f};delete next.recordRegistered;delete next.recordAlignments;delete next.planningBodies;changedFavorites.push(f.id);return next;});
+  for(const id of ids)delete nextShapes[id];nextFavorites=favorites.map(f=>{if(!ids.has(f.id)||(!f.recordRegistered&&!f.recordAlignments&&!f.planningBodies))return f;const next={...f};delete next.recordRegistered;delete next.recordAlignments;delete next.planningBodies;changedFavorites.push(f.id);
+  return next;});
  }else if(mode==='add'){
   if(!targets.length||typeof currentTargets!=='function')throw Error('追加する対象を選んでください');
   const chosen=[...new Map(targets.map(t=>[t.key||t.id,t])).values()],used=drafts.filter(d=>chosen.some(t=>(t.key||t.id)==='fav:'+d.entry.id));

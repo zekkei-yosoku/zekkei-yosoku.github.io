@@ -18,7 +18,8 @@
   return Math.min(pointSegment(a,c,d),pointSegment(b,c,d),pointSegment(c,a,b),pointSegment(d,a,b));
  }
  function open(data){
-  const rows=(data?.places||[]).filter(r=>r&&typeof r.n==='string'&&finitePoint(r.p)).map(r=>({name:r.n,address:r.a||'',kind:data.kinds?.[r.k]||'',latitude:r.p[0]/1e5,longitude:r.p[1]/1e5,elevation:Number.isFinite(r.e)&&r.e>=-500&&r.e<=9000?r.e:null,deckM:Number.isFinite(r.d)&&r.d>=0&&r.d<=700?r.d:null,code:r.k,raw:r}));
+  const rows=(data?.places||[]).filter(r=>r&&typeof r.n==='string'&&finitePoint(r.p)).map(r=>({name:r.n,address:r.a||'',kind:data.kinds?.[r.k]||'',latitude:r.p[0]/1e5,longitude:r.p[1]/1e5,elevation:Number.isFinite(r.e)&&r.e>=-500&&r.e<=9000?r.e:null,
+  deckM:Number.isFinite(r.d)&&r.d>=0&&r.d<=700?r.d:null,code:r.k,raw:r}));
   const waters=rows.filter(r=>r.code==='w').map(r=>{const points=path(data,r.raw);return{name:r.name,points,...box(points)};});
   for(const row of rows){
    row.context=[];if(row.code!=='b')continue;

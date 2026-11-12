@@ -3,10 +3,13 @@
 'use strict';
 async function decode(data){
  if(!data.arrays)return data;
- const unpack=async item=>{const packed=Uint8Array.from(atob(item.gzipBase64),c=>c.charCodeAt(0)),buffer=await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();if(buffer.byteLength!==item.elementCount*4)throw Error('packed-building-size');return new DataView(buffer);};
+ const unpack=async item=>{const packed=Uint8Array.from(atob(item.gzipBase64),c=>c.charCodeAt(0)),buffer=await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();if(buffer.byteLength!==item.elementCount*4)throw Error('packed-building-size');
+ return new DataView(buffer);};
  const [vertices,indices,rings,faces]=await Promise.all(['vertexCoordinates','ringVertexIndices','ringOffsets','faceRingOffsets'].map(n=>unpack(data.arrays[n]))),q=data.quantization;
  const result={...data,buildings:data.buildings.map(b=>({...b,sourceSha256:b.sourceSha256||data.sourceSha256s[b.sourceIndex]}))};
- for(const b of result.buildings)Object.defineProperty(b,'polygons',{get(){const rows=[];for(let j=0;j<b.faceCount;j++){const face=b.firstFace+j,rr=[];for(let r=faces.getUint32(face*4,true);r<faces.getUint32((face+1)*4,true);r++){const ring=[];for(let i=rings.getUint32(r*4,true);i<rings.getUint32((r+1)*4,true);i++){const v=indices.getUint32(i*4,true)*3;ring.push([q.originLon+vertices.getInt32(v*4,true)*q.angularScale,q.originLat+vertices.getInt32((v+1)*4,true)*q.angularScale,vertices.getInt32((v+2)*4,true)*q.heightScale]);}rr.push(ring);}rows.push({id:data.targetPolygonIds?.[b.id]?.[j]||b.id+':source-face-index:'+j,sourcePolygonIndex:j,rings:rr});}return rows;}});
+ for(const b of result.buildings)Object.defineProperty(b,'polygons',{get(){const rows=[];for(let j=0;j<b.faceCount;j++){const face=b.firstFace+j,rr=[];for(let r=faces.getUint32(face*4,true);r<faces.getUint32((face+1)*4,true);r++){const ring=[];for(let i=rings.getUint32(r*4,true);
+ i<rings.getUint32((r+1)*4,true);i++){const v=indices.getUint32(i*4,true)*3;ring.push([q.originLon+vertices.getInt32(v*4,true)*q.angularScale,q.originLat+vertices.getInt32((v+1)*4,true)*q.angularScale,vertices.getInt32((v+2)*4,true)*q.heightScale]);}rr.push(ring);
+ }rows.push({id:data.targetPolygonIds?.[b.id]?.[j]||b.id+':source-face-index:'+j,sourcePolygonIndex:j,rings:rr});}return rows;}});
  return result;
 }
 return {decode};
@@ -236,7 +239,8 @@ function create({load=null,fetchImpl=(typeof fetch==='function'?fetch.bind(root)
  }
  const metres=(b,lat,lon)=>{const kx=111320*Math.cos(lat*RAD),ky=110540;return [(lon-b.originLongitude)*kx,(lat-b.originLatitude)*ky];};
  const onFootprint=(b,lat,lon)=>{const [x,y]=metres(b,lat,lon);return b.rings.some(({ring})=>inside(ring,x,y));};
- const distance=(b,lat,lon)=>{if(onFootprint(b,lat,lon))return 0;const [x,y]=metres(b,lat,lon);let best=Infinity;for(const {ring} of b.rings)for(let i=0,j=ring.length-1;i<ring.length;j=i++){const [x1,y1]=ring[j],[x2,y2]=ring[i],dx=x2-x1,dy=y2-y1,l=dx*dx+dy*dy,t=l?Math.max(0,Math.min(1,((x-x1)*dx+(y-y1)*dy)/l)):0;best=Math.min(best,Math.hypot(x-x1-t*dx,y-y1-t*dy));}return best;};
+ const distance=(b,lat,lon)=>{if(onFootprint(b,lat,lon))return 0;const [x,y]=metres(b,lat,lon);let best=Infinity;for(const {ring} of b.rings)for(let i=0,j=ring.length-1;i<ring.length;
+ j=i++){const [x1,y1]=ring[j],[x2,y2]=ring[i],dx=x2-x1,dy=y2-y1,l=dx*dx+dy*dy,t=l?Math.max(0,Math.min(1,((x-x1)*dx+(y-y1)*dy)/l)):0;best=Math.min(best,Math.hypot(x-x1-t*dx,y-y1-t*dy));}return best;};
  // Buildings within radiusM of a point, nearest first (a point on a footprint is at 0 m).
  async function near(lat,lon,{radiusM=300,limit=8,minHeightM=0}={}){
   const list=await partAt(lat,lon);
@@ -273,7 +277,8 @@ return {create,part,shape,cityModel,aimPoint};
 'use strict';
 const RAD=Math.PI/180;
 function mesh(lat,lon){const my=Math.floor(lat*120),mx=Math.floor(lon*80);return ''+Math.floor(my/80)+(Math.floor(mx/80)-100)+Math.floor(my%80/10)+Math.floor(mx%80/10);}
-function meshesIn([w,s,e,n]){const out=new Set();for(let y=Math.floor(s*12)/12;y<=n+1/24;y+=1/12)for(let x=Math.floor(w*8)/8;x<=e+1/16;x+=1/8){const la=Math.min(n,Math.max(s,y+1e-9)),lo=Math.min(e,Math.max(w,x+1e-9));out.add(mesh(la,lo));}out.add(mesh(s,w));out.add(mesh(n,e));out.add(mesh(s,e));out.add(mesh(n,w));return [...out];}
+function meshesIn([w,s,e,n]){const out=new Set();for(let y=Math.floor(s*12)/12;y<=n+1/24;y+=1/12)for(let x=Math.floor(w*8)/8;x<=e+1/16;x+=1/8){const la=Math.min(n,Math.max(s,y+1e-9)),lo=Math.min(e,Math.max(w,x+1e-9));out.add(mesh(la,lo));}out.add(mesh(s,w));out.add(mesh(n,e));out.add(mesh(s,e));
+out.add(mesh(n,w));return [...out];}
 const sha=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
 const pts=g=>{const out=[];for(let i=0;i<g.length;i+=2)out.push({lat:g[i]/1e7,lon:g[i+1]/1e7});return out;};
 // The Overpass "out geom" shape the place provider already parses.
@@ -346,7 +351,8 @@ async function decode(data){
  if(buffer.byteLength!==data.tiles.length*256*256*4||sources&&sources.length*4!==buffer.byteLength)throw Error('invalid-terrain-size');
  const world=256*2**data.zoom;
  function pixel(lat,lon){return [(lon+180)/360*world,(1-Math.asinh(Math.tan(lat*rad))/Math.PI)/2*world];}
- function lookup(x,y){const px=Math.floor(x),py=Math.floor(y),tile=tiles.get(Math.floor(px/256)+','+Math.floor(py/256));if(!tile)return {height:null,sourceCode:0};const i=tile.offset+(py%256+256)%256*256+(px%256+256)%256;if(!Number.isInteger(i)||i<0||i*4+4>buffer.byteLength)return {height:null,sourceCode:0};const cm=view.getInt32(i*4,true);return {height:cm===MISSING?null:cm/100,sourceCode:cm===MISSING?0:sources?.[i]??1};}
+ function lookup(x,y){const px=Math.floor(x),py=Math.floor(y),tile=tiles.get(Math.floor(px/256)+','+Math.floor(py/256));if(!tile)return {height:null,sourceCode:0};const i=tile.offset+(py%256+256)%256*256+(px%256+256)%256;
+ if(!Number.isInteger(i)||i<0||i*4+4>buffer.byteLength)return {height:null,sourceCode:0};const cm=view.getInt32(i*4,true);return {height:cm===MISSING?null:cm/100,sourceCode:cm===MISSING?0:sources?.[i]??1};}
  function sample(p){return lookup(...pixel(p.latitude,p.longitude));}
  function at(p){return sample(p).height;}
  function trace(observer,{azimuth,altitude,maxM,endpoint=null,refractionK=1}){
@@ -354,8 +360,11 @@ async function decode(data){
   const segments=[];let lastPoint=null,previous={xy:pixel(observer.latitude,observer.longitude),d:0};
   for(let d=Math.min(100,maxM);;d=Math.min(d+100,maxM)){const p=d===maxM&&endpoint?endpoint:Geo().destination(observer.latitude,observer.longitude,azimuth,d/1000),next={xy:pixel(p.latitude,p.longitude),d};segments.push([previous,next]);previous=next;lastPoint=p;if(d===maxM)break;}
   let checked=0,missing=0,lowerResolutionCells=0,ignoredCells=0,hit=null,minMarginM=Infinity;const eye=observer.elevation+(observer.eyeM??1.5);
-  for(const [from,to] of segments){const start=from.xy,finish=to.xy,dx=finish[0]-start[0],dy=finish[1]-start[1],length=to.d-from.d,crossings=[0,1];for(const [a,b] of [[start[0],finish[0]],[start[1],finish[1]]])if(a!==b)for(let n=Math.floor(Math.min(a,b))+1;n<Math.max(a,b);n++)crossings.push((n-a)/(b-a));crossings.sort((a,b)=>a-b);
-  for(let i=1;i<crossings.length;i++){const lo=crossings[i-1],hi=crossings[i];if(hi-lo<1e-14)continue;const t=(lo+hi)/2,value=lookup(start[0]+t*dx,start[1]+t*dy),z=value.height;checked++;if(value.sourceCode===2)lowerResolutionCells++;if(z===null)missing++;if(z===null)continue;const a=Math.max(0,from.d+lo*length),b=from.d+hi*length,vertex=-R*refractionK*Math.tan(altitude*rad),distances=[a,b];if(vertex>a&&vertex<b)distances.push(vertex);const heights=distances.map(d=>eye+d*Math.tan(altitude*rad)+d*d/(2*R*refractionK)),ray=Math.min(...heights),d=distances[heights.indexOf(ray)],margin=ray-z;minMarginM=Math.min(minMarginM,margin);if(margin<=0&&!hit)hit={distanceM:d,terrainM:z,rayM:ray};}}
+  for(const [from,to] of segments){const start=from.xy,finish=to.xy,dx=finish[0]-start[0],dy=finish[1]-start[1],length=to.d-from.d,crossings=[0,1];for(const [a,b] of [[start[0],finish[0]],[start[1],finish[1]]])if(a!==b)for(let n=Math.floor(Math.min(a,b))+1;n<Math.max(a,b);
+  n++)crossings.push((n-a)/(b-a));crossings.sort((a,b)=>a-b);
+  for(let i=1;i<crossings.length;i++){const lo=crossings[i-1],hi=crossings[i];if(hi-lo<1e-14)continue;const t=(lo+hi)/2,value=lookup(start[0]+t*dx,start[1]+t*dy),z=value.height;checked++;if(value.sourceCode===2)lowerResolutionCells++;if(z===null)missing++;if(z===null)continue;
+  const a=Math.max(0,from.d+lo*length),b=from.d+hi*length,vertex=-R*refractionK*Math.tan(altitude*rad),distances=[a,b];if(vertex>a&&vertex<b)distances.push(vertex);
+  const heights=distances.map(d=>eye+d*Math.tan(altitude*rad)+d*d/(2*R*refractionK)),ray=Math.min(...heights),d=distances[heights.indexOf(ray)],margin=ray-z;minMarginM=Math.min(minMarginM,margin);if(margin<=0&&!hit)hit={distanceM:d,terrainM:z,rayM:ray};}}
 
   return {status:hit?'model-blocked':'unknown',recommend:false,checked,missing,lowerResolutionCells,end:lastPoint,ignoredNearObserverM:0,ignoredCells,hit,minMarginM:Number.isFinite(minMarginM)?minMarginM:null,reason:hit?'conditional-dem-intersection':'no-terrain-visibility-certification'};
  }
@@ -454,7 +463,8 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
    }
    d=next;if(hit)break;
   }
-  return {status:hit?'blocked':missing||endpointUncertain||farUncertain?'unknown':'model-clear',reason:!hit&&farUncertain?'coarse-terrain-margin':undefined,hit,checked,missing,minMarginM:Number.isFinite(minMarginM)?minMarginM:null,source:lastSource,scopeM:d,nativeRaster:true,endpointContactUncertain:endpointUncertain,datumUncertainty:true};
+  return {status:hit?'blocked':missing||endpointUncertain||farUncertain?'unknown':'model-clear',reason:!hit&&farUncertain?'coarse-terrain-margin':undefined,hit,checked,missing,minMarginM:Number.isFinite(minMarginM)?minMarginM:null,source:lastSource,scopeM:d,nativeRaster:true,
+  endpointContactUncertain:endpointUncertain,datumUncertainty:true};
  }
  return {sample,at:async(p,o)=>(await sample(p,o)).height,trace,resetBudget:()=>{fetched=0;started=Date.now();},stats:()=>({tiles:cache.size,fetched}),clearFailures:()=>{fetched=0;}};
 }
@@ -484,12 +494,15 @@ function convexTriangles(vertices,indices){
  if(norm<1e-10)return [];
  const scale=Math.max(1,...ids.map(i=>Math.hypot(...sub(vertices[i],vertices[a])))),eps=scale*1e-8,d=ids.reduce((j,k)=>Math.abs(dot(normal,sub(vertices[k],vertices[a])))>Math.abs(dot(normal,sub(vertices[j],vertices[a])))?k:j,a);
  if(Math.abs(dot(normal,sub(vertices[d],vertices[a])))/norm<=eps){
-  const axis=normal.map(Math.abs).indexOf(Math.max(...normal.map(Math.abs))),xy=id=>vertices[id].filter((_,i)=>i!==axis),turn=(a,b,c)=>{const p=xy(a),q=xy(b),r=xy(c);return(q[0]-p[0])*(r[1]-p[1])-(q[1]-p[1])*(r[0]-p[0]);},sorted=ids.slice().sort((a,b)=>xy(a)[0]-xy(b)[0]||xy(a)[1]-xy(b)[1]),low=[],high=[];
-  for(const i of sorted){while(low.length>=2&&turn(low.at(-2),low.at(-1),i)<=0)low.pop();low.push(i);}for(const i of sorted.reverse()){while(high.length>=2&&turn(high.at(-2),high.at(-1),i)<=0)high.pop();high.push(i);}const ring=low.slice(0,-1).concat(high.slice(0,-1));return ring.slice(1,-1).map((id,i)=>[ring[0],id,ring[i+2]]);
+  const axis=normal.map(Math.abs).indexOf(Math.max(...normal.map(Math.abs))),xy=id=>vertices[id].filter((_,i)=>i!==axis),turn=(a,b,c)=>{const p=xy(a),q=xy(b),r=xy(c);return(q[0]-p[0])*(r[1]-p[1])-(q[1]-p[1])*(r[0]-p[0]);
+  },sorted=ids.slice().sort((a,b)=>xy(a)[0]-xy(b)[0]||xy(a)[1]-xy(b)[1]),low=[],high=[];
+  for(const i of sorted){while(low.length>=2&&turn(low.at(-2),low.at(-1),i)<=0)low.pop();low.push(i);}for(const i of sorted.reverse()){while(high.length>=2&&turn(high.at(-2),high.at(-1),i)<=0)high.pop();high.push(i);}const ring=low.slice(0,-1).concat(high.slice(0,-1));
+  return ring.slice(1,-1).map((id,i)=>[ring[0],id,ring[i+2]]);
  }
  const center=[0,1,2].map(k=>(vertices[a][k]+vertices[b][k]+vertices[c][k]+vertices[d][k])/4),face=(i,j,k)=>{const n=cross(sub(vertices[j],vertices[i]),sub(vertices[k],vertices[i]));return dot(n,sub(center,vertices[i]))>0?[i,k,j]:[i,j,k];};
  let faces=[face(a,b,c),face(a,d,b),face(a,c,d),face(b,d,c)];
- for(const id of ids){if([a,b,c,d].includes(id))continue;const visible=f=>{const n=cross(sub(vertices[f[1]],vertices[f[0]]),sub(vertices[f[2]],vertices[f[0]]));return dot(n,sub(vertices[id],vertices[f[0]]))>eps*Math.hypot(...n);},removed=faces.filter(visible);if(!removed.length)continue;const edges=new Map();for(const f of removed)for(let i=0;i<3;i++){const u=f[i],v=f[(i+1)%3],key=u<v?u+','+v:v+','+u;if(edges.has(key))edges.delete(key);else edges.set(key,[u,v]);}faces=faces.filter(f=>!visible(f));for(const [u,v]of edges.values())faces.push(face(u,v,id));}
+ for(const id of ids){if([a,b,c,d].includes(id))continue;const visible=f=>{const n=cross(sub(vertices[f[1]],vertices[f[0]]),sub(vertices[f[2]],vertices[f[0]]));return dot(n,sub(vertices[id],vertices[f[0]]))>eps*Math.hypot(...n);},removed=faces.filter(visible);if(!removed.length)continue;
+ const edges=new Map();for(const f of removed)for(let i=0;i<3;i++){const u=f[i],v=f[(i+1)%3],key=u<v?u+','+v:v+','+u;if(edges.has(key))edges.delete(key);else edges.set(key,[u,v]);}faces=faces.filter(f=>!visible(f));for(const [u,v]of edges.values())faces.push(face(u,v,id));}
  return faces;
 }
 function sourceModel(align,target){
@@ -523,8 +536,10 @@ function model(align,target){
 }
 function compatible(c,t,align=globalThis.AstroNotesAlign||(typeof require==='function'?require('../../../astronotes-align.js'):null)){const m=model(align,t);return !!m&&c.modelId===m.id&&c.modelSignature===m.signature&&c.targetFrame===targetFrame(t);}
 function bounds({target,align=globalThis.AstroNotesAlign||(typeof require==='function'?require('../../../astronotes-align.js'):null),obs}){
- const m=model(align,target);if(!m)return null;const bearing=obs?G().inverse(target.latitude,target.longitude,obs.latitude,obs.longitude).azimuth*rad:0,b={heightMinM:Infinity,heightMaxM:-Infinity,eastMinM:Infinity,eastMaxM:-Infinity,northMinM:Infinity,northMaxM:-Infinity,xMinM:Infinity,xMaxM:-Infinity};
- for(const [east,north,height]of m.vertices){const x=-Math.cos(bearing)*east+Math.sin(bearing)*north;b.heightMinM=Math.min(b.heightMinM,height);b.heightMaxM=Math.max(b.heightMaxM,height);b.eastMinM=Math.min(b.eastMinM,east);b.eastMaxM=Math.max(b.eastMaxM,east);b.northMinM=Math.min(b.northMinM,north);b.northMaxM=Math.max(b.northMaxM,north);b.xMinM=Math.min(b.xMinM,x);b.xMaxM=Math.max(b.xMaxM,x);}return b;
+ const m=model(align,target);if(!m)return null;
+ const bearing=obs?G().inverse(target.latitude,target.longitude,obs.latitude,obs.longitude).azimuth*rad:0,b={heightMinM:Infinity,heightMaxM:-Infinity,eastMinM:Infinity,eastMaxM:-Infinity,northMinM:Infinity,northMaxM:-Infinity,xMinM:Infinity,xMaxM:-Infinity};
+ for(const [east,north,height]of m.vertices){const x=-Math.cos(bearing)*east+Math.sin(bearing)*north;b.heightMinM=Math.min(b.heightMinM,height);b.heightMaxM=Math.max(b.heightMaxM,height);b.eastMinM=Math.min(b.eastMinM,east);b.eastMaxM=Math.max(b.eastMaxM,east);
+ b.northMinM=Math.min(b.northMinM,north);b.northMaxM=Math.max(b.northMaxM,north);b.xMinM=Math.min(b.xMinM,x);b.xMaxM=Math.max(b.xMaxM,x);}return b;
 }
 function world(target,eastM,northM,heightM){return {...G().destination(target.latitude,target.longitude,Math.atan2(eastM,northM)/rad,Math.hypot(eastM,northM)/1000),heightM};}
 function anchor(target,c){return world(target,c.eastM,c.northM,c.heightM);}
@@ -532,28 +547,37 @@ function geometry(obs,target,c,align){const p=anchor(target,c);return {anchor:p,
 function frame(obs,target,align){const m=model(align,target);if(!m)return null;const key=JSON.stringify([obs.latitude,obs.longitude,obs.elevation,obs.eyeM,targetFrame(target),m.signature,globalThis.AstroNotesAtmosphere?.targetK?.()]);if(cached?.key===key)return cached;
  const bearing=G().inverse(obs.latitude,obs.longitude,target.latitude,target.longitude).azimuth,project=align.viewProjector(bearing,0);
  const vertices=m.vertices.map(([e,n,h])=>{const p=world(target,e,n,h),g=align.geometryFrom(obs,{...target,...p,parts:[{id:'__surface',m:h}]},{eyeM:obs.eyeM??1.5,heightM:h}),xy=project(g.azimuth,g.angle),depth=g.distanceKm*1000*Math.cos((g.azimuth-bearing)*rad);return {e,n,h,xy,depth};});
- const solids=m.faces.map((f,i)=>{const pts=f.map(j=>vertices[j]);if(!pts.length||pts.some(v=>!v.xy||v.depth<=0))return null;return {triangles:m.surfaceTriangles[i],box:[Math.min(...pts.map(v=>v.xy[0])),Math.min(...pts.map(v=>v.xy[1])),Math.max(...pts.map(v=>v.xy[0])),Math.max(...pts.map(v=>v.xy[1]))]};});
+ const solids=m.faces.map((f,i)=>{const pts=f.map(j=>vertices[j]);if(!pts.length||pts.some(v=>!v.xy||v.depth<=0))return null;
+ return {triangles:m.surfaceTriangles[i],box:[Math.min(...pts.map(v=>v.xy[0])),Math.min(...pts.map(v=>v.xy[1])),Math.max(...pts.map(v=>v.xy[0])),Math.max(...pts.map(v=>v.xy[1]))]};});
  return cached={key,vertices,solids,project,model:m,bearing};
 }
 function bary(a,b,c,p){const det=(b[1]-c[1])*(a[0]-c[0])+(c[0]-b[0])*(a[1]-c[1]);if(Math.abs(det)<1e-12)return null;const u=((b[1]-c[1])*(p[0]-c[0])+(c[0]-b[0])*(p[1]-c[1]))/det,v=((c[1]-a[1])*(p[0]-c[0])+(a[0]-c[0])*(p[1]-c[1]))/det;return [u,v,1-u-v].every(x=>x>=-1e-7)?[u,v,1-u-v]:null;}
-function composition(f,obs,target,p,limb='center'){const bearing=G().inverse(target.latitude,target.longitude,obs.latitude,obs.longitude).azimuth*rad;return {basis:'scene-surface',modelId:f.model.id,modelSignature:f.model.signature,targetFrame:targetFrame(target),eastM:p.e,northM:p.n,heightM:p.h,xM:-Math.cos(bearing)*p.e+Math.sin(bearing)*p.n,limb,approximate:true};}
+function composition(f,obs,target,p,limb='center'){const bearing=G().inverse(target.latitude,target.longitude,obs.latitude,obs.longitude).azimuth*rad;
+return {basis:'scene-surface',modelId:f.model.id,modelSignature:f.model.signature,targetFrame:targetFrame(target),eastM:p.e,northM:p.n,heightM:p.h,xM:-Math.cos(bearing)*p.e+Math.sin(bearing)*p.n,limb,approximate:true};}
 function pick({obs,target,align,azimuth,altitude,limb='center'}){const f=frame(obs,target,align),q=f?.project(azimuth,altitude);if(!q)return null;let best=null;
  for(const solid of f.solids){if(!solid)continue;const b=solid.box;if(q[0]<b[0]-1e-8||q[0]>b[2]+1e-8||q[1]<b[1]-1e-8||q[1]>b[3]+1e-8)continue;
-  for(const ids of solid.triangles){const v=ids.map(i=>f.vertices[i]),weights=bary(...v.map(p=>p.xy),q);if(!weights)continue;const inv=weights.reduce((s,x,i)=>s+x/v[i].depth,0),depth=1/inv;if(!(depth>0)||best&&depth>=best.depth)continue;const mu=weights.map((x,i)=>x/v[i].depth/inv);best={v,mu,depth};}
+  for(const ids of solid.triangles){const v=ids.map(i=>f.vertices[i]),weights=bary(...v.map(p=>p.xy),q);if(!weights)continue;const inv=weights.reduce((s,x,i)=>s+x/v[i].depth,0),depth=1/inv;if(!(depth>0)||best&&depth>=best.depth)continue;const mu=weights.map((x,i)=>x/v[i].depth/inv);
+  best={v,mu,depth};}
  }
  if(!best)return null;
  // Refine in the selected triangle using the exact same geographic projection as the scene.
- let [u,v]=best.mu;const pts=best.v,point=(u,v)=>({e:pts[0].e*u+pts[1].e*v+pts[2].e*(1-u-v),n:pts[0].n*u+pts[1].n*v+pts[2].n*(1-u-v),h:pts[0].h*u+pts[1].h*v+pts[2].h*(1-u-v)}),at=(u,v)=>{const p=point(u,v),c=composition(f,obs,target,p),g=geometry(obs,target,c,align);return f.project(g.azimuth,g.angle);};
- for(let i=0;i<5;i++){const p=at(u,v);if(!p)return null;const x=p[0]-q[0],y=p[1]-q[1];if(Math.hypot(x,y)<1e-8)break;const d=1e-4,a=at(u+d,v),b=at(u,v+d);if(!a||!b)return null;const j00=(a[0]-p[0])/d,j10=(a[1]-p[1])/d,j01=(b[0]-p[0])/d,j11=(b[1]-p[1])/d,det=j00*j11-j01*j10;if(Math.abs(det)<1e-14)return null;u-=(j11*x-j01*y)/det;v-=(-j10*x+j00*y)/det;}
+ let [u,v]=best.mu;const pts=best.v,point=(u,v)=>({e:pts[0].e*u+pts[1].e*v+pts[2].e*(1-u-v),n:pts[0].n*u+pts[1].n*v+pts[2].n*(1-u-v),h:pts[0].h*u+pts[1].h*v+pts[2].h*(1-u-v)}),at=(u,v)=>{const p=point(u,v),c=composition(f,obs,target,p),g=geometry(obs,target,c,align);
+ return f.project(g.azimuth,g.angle);};
+ for(let i=0;i<5;i++){const p=at(u,v);if(!p)return null;const x=p[0]-q[0],y=p[1]-q[1];if(Math.hypot(x,y)<1e-8)break;const d=1e-4,a=at(u+d,v),b=at(u,v+d);if(!a||!b)return null;const j00=(a[0]-p[0])/d,j10=(a[1]-p[1])/d,j01=(b[0]-p[0])/d,j11=(b[1]-p[1])/d,det=j00*j11-j01*j10;
+ if(Math.abs(det)<1e-14)return null;u-=(j11*x-j01*y)/det;v-=(-j10*x+j00*y)/det;}
  if(u<-.002||v<-.002||u+v>1.002)return null;const p=point(u,v),back=at(u,v);if(!back||Math.hypot(back[0]-q[0],back[1]-q[1])>1e-5)return null;return composition(f,obs,target,p,limb);
 }
-function preset({obs,target,align,heightM,xM=0,limb='center'}){const m=model(align,target);if(!m||!Number.isFinite(heightM)||!Number.isFinite(xM))return null;const bearing=G().inverse(target.latitude,target.longitude,obs.latitude,obs.longitude).azimuth*rad,right=p=>-Math.cos(bearing)*p[0]+Math.sin(bearing)*p[1],front=p=>Math.sin(bearing)*p[0]+Math.cos(bearing)*p[1],z=heightM;let chosen=null,depth=-Infinity;
- for(const triangles of m.surfaceTriangles)for(const ids of triangles){const verts=ids.map(i=>m.vertices[i]);if(z<Math.min(...verts.map(p=>p[2]))-1e-7||z>Math.max(...verts.map(p=>p[2]))+1e-7)continue;const cut=[];for(let i=0;i<3;i++){const a=verts[i],b=verts[(i+1)%3];if(Math.abs(a[2]-z)<1e-7)cut.push(a);if((a[2]<z&&b[2]>z)||(a[2]>z&&b[2]<z)){const t=(z-a[2])/(b[2]-a[2]);cut.push(a.map((x,j)=>x+t*(b[j]-x)));}}
-  for(let i=0;i<cut.length;i++)for(let j=i+1;j<cut.length;j++){const a=cut[i],b=cut[j],ra=right(a),rb=right(b);if(xM<Math.min(ra,rb)-1e-7||xM>Math.max(ra,rb)+1e-7)continue;const t=Math.abs(rb-ra)<1e-9?(front(a)>front(b)?0:1):(xM-ra)/(rb-ra),p=a.map((x,k)=>x+t*(b[k]-x)),d=front(p);if(d>depth){chosen=p;depth=d;}}
+function preset({obs,target,align,heightM,xM=0,limb='center'}){const m=model(align,target);if(!m||!Number.isFinite(heightM)||!Number.isFinite(xM))return null;
+const bearing=G().inverse(target.latitude,target.longitude,obs.latitude,obs.longitude).azimuth*rad,right=p=>-Math.cos(bearing)*p[0]+Math.sin(bearing)*p[1],front=p=>Math.sin(bearing)*p[0]+Math.cos(bearing)*p[1],z=heightM;let chosen=null,depth=-Infinity;
+ for(const triangles of m.surfaceTriangles)for(const ids of triangles){const verts=ids.map(i=>m.vertices[i]);if(z<Math.min(...verts.map(p=>p[2]))-1e-7||z>Math.max(...verts.map(p=>p[2]))+1e-7)continue;const cut=[];for(let i=0;i<3;i++){const a=verts[i],b=verts[(i+1)%3];
+ if(Math.abs(a[2]-z)<1e-7)cut.push(a);if((a[2]<z&&b[2]>z)||(a[2]>z&&b[2]<z)){const t=(z-a[2])/(b[2]-a[2]);cut.push(a.map((x,j)=>x+t*(b[j]-x)));}}
+  for(let i=0;i<cut.length;i++)for(let j=i+1;j<cut.length;j++){const a=cut[i],b=cut[j],ra=right(a),rb=right(b);if(xM<Math.min(ra,rb)-1e-7||xM>Math.max(ra,rb)+1e-7)continue;const t=Math.abs(rb-ra)<1e-9?(front(a)>front(b)?0:1):(xM-ra)/(rb-ra),p=a.map((x,k)=>x+t*(b[k]-x)),d=front(p);
+  if(d>depth){chosen=p;depth=d;}}
  }
  return chosen?composition({model:m},obs,target,{e:chosen[0],n:chosen[1],h:heightM},limb):null;
 }
-function visible({obs,target,align,composition:c,toleranceM=.5}){if(!model(align,target)||!compatible(c,target,align))return {known:false,visible:false};const g=geometry(obs,target,c,align),first=pick({obs,target,align,azimuth:g.azimuth,altitude:g.angle});if(!first)return {known:false,visible:false};const distance=Math.hypot(first.eastM-c.eastM,first.northM-c.northM,first.heightM-c.heightM);return {known:true,visible:distance<=toleranceM,distanceM:distance};}
+function visible({obs,target,align,composition:c,toleranceM=.5}){if(!model(align,target)||!compatible(c,target,align))return {known:false,visible:false};const g=geometry(obs,target,c,align),first=pick({obs,target,align,azimuth:g.azimuth,altitude:g.angle});
+if(!first)return {known:false,visible:false};const distance=Math.hypot(first.eastM-c.eastM,first.northM-c.northM,first.heightM-c.heightM);return {known:true,visible:distance<=toleranceM,distanceM:distance};}
 return {model,bounds,compatible,anchor,geometry,pick,preset,visible};
 });
 
@@ -561,7 +585,8 @@ return {model,bounds,compatible,anchor,geometry,pick,preset,visible};
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AstroNotesCandidateComposition=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
 'use strict';
 const Surface=globalThis.AstroNotesTrialSurface||(typeof require==='function'?require('./scene-surface.js'):null);
-const rad=Math.PI/180,DAY=86400000,R=6371008.8,Geo=()=>globalThis.AstroNotesTerrain||(typeof require==='function'?require('../../../astronotes-terrain.js'):null),inside=(r,p)=>{let yes=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>p.latitude)!==(r[j][1]>p.latitude)&&p.longitude<(r[j][0]-r[i][0])*(p.latitude-r[i][1])/(r[j][1]-r[i][1])+r[i][0])yes=!yes;return yes;};
+const rad=Math.PI/180,DAY=86400000,R=6371008.8,Geo=()=>globalThis.AstroNotesTerrain||(typeof require==='function'?require('../../../astronotes-terrain.js'):null),inside=(r,p)=>{let yes=false;for(let i=0,j=r.length-1;i<r.length;
+j=i++)if((r[i][1]>p.latitude)!==(r[j][1]>p.latitude)&&p.longitude<(r[j][0]-r[i][0])*(p.latitude-r[i][1])/(r[j][1]-r[i][1])+r[i][0])yes=!yes;return yes;};
 function valid(c,target){
  if(!c||![c.heightM,c.xM].every(Number.isFinite)||!['center','upper','lower'].includes(c.limb))return false;
  if(!c.basis)return c.heightM>=(target.groundM??0)&&c.heightM<=Math.max(...target.parts.map(p=>p.m));
@@ -572,32 +597,43 @@ function windowValid(w){return !w||w.kind==='none'||(['rise','set','both'].inclu
 function day(at){return Math.floor((at+32400000)/DAY)*DAY-32400000;}
 function limb(st,kind){return kind==='upper'?(st.upperAltitude??st.apparentAltitude+st.angularRadius):kind==='lower'?(st.lowerAltitude??st.apparentAltitude-st.angularRadius):st.apparentAltitude;}
 const limbKind=kind=>kind==='onTop'?'lower':kind==='behind'?'upper':['lower','upper'].includes(kind)?kind:'center';
-function anchorAt(obs,target,c){if(c.basis==='scene-surface')return Surface.anchor(target,c);const bearing=Geo().inverse(target.latitude,target.longitude,obs.latitude,obs.longitude).azimuth;return {...(c.xM?Geo().destination(target.latitude,target.longitude,bearing+(c.xM<0?90:-90),Math.abs(c.xM)/1000):target),heightM:c.heightM};}
+function anchorAt(obs,target,c){if(c.basis==='scene-surface')return Surface.anchor(target,c);const bearing=Geo().inverse(target.latitude,target.longitude,obs.latitude,obs.longitude).azimuth;
+return {...(c.xM?Geo().destination(target.latitude,target.longitude,bearing+(c.xM<0?90:-90),Math.abs(c.xM)/1000):target),heightM:c.heightM};}
 function geometry(obs,target,c,align){const anchor=anchorAt(obs,target,c),g=align.geometryFrom(obs,{...target,latitude:anchor.latitude,longitude:anchor.longitude,parts:[{id:'__surface',m:c.heightM}]},{eyeM:obs.eyeM??1.5,heightM:c.heightM});return {anchor,...g};}
 const roadCache=new WeakMap();
-function roadAt(data,p){let boxes=roadCache.get(data);if(!boxes){boxes=(data.features||[]).filter(f=>['2000','2010','2020'].includes(f.function)).map(f=>{const r=f.coordinatesLonLatHeight;return {f,box:[Math.min(...r.map(v=>v[0])),Math.min(...r.map(v=>v[1])),Math.max(...r.map(v=>v[0])),Math.max(...r.map(v=>v[1]))]};});roadCache.set(data,boxes);}let result=null;const k=Math.cos(p.latitude*rad),nearEdge=r=>r.some((a,i)=>{const b=r[(i+1)%r.length],dx=(b[0]-a[0])*k,dy=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*k*dx+(p.latitude-a[1])*dy)/(dx*dx+dy*dy||1)));return Math.hypot((p.longitude-a[0])*k-u*dx,p.latitude-a[1]-u*dy)*111195<.1;});
- for(const {f,box:b} of boxes)if(p.longitude>=b[0]&&p.longitude<=b[2]&&p.latitude>=b[1]&&p.latitude<=b[3]&&inside(f.coordinatesLonLatHeight,p)&&!(f.interiorRingsLonLatHeight||[]).some(h=>inside(h,p))){if(!f.structureClassificationKnown||f.nonTerrainStructure)return null;if(!nearEdge(f.coordinatesLonLatHeight)&&!(f.interiorRingsLonLatHeight||[]).some(nearEdge))result=f;}
+function roadAt(data,p){let boxes=roadCache.get(data);if(!boxes){boxes=(data.features||[]).filter(f=>['2000','2010','2020'].includes(f.function)).map(f=>{const r=f.coordinatesLonLatHeight;
+return {f,box:[Math.min(...r.map(v=>v[0])),Math.min(...r.map(v=>v[1])),Math.max(...r.map(v=>v[0])),Math.max(...r.map(v=>v[1]))]};});roadCache.set(data,boxes);}let result=null;
+const k=Math.cos(p.latitude*rad),nearEdge=r=>r.some((a,i)=>{const b=r[(i+1)%r.length],dx=(b[0]-a[0])*k,dy=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*k*dx+(p.latitude-a[1])*dy)/(dx*dx+dy*dy||1)));return Math.hypot((p.longitude-a[0])*k-u*dx,p.latitude-a[1]-u*dy)*111195<.1;});
+ for(const {f,box:b} of boxes)if(p.longitude>=b[0]&&p.longitude<=b[2]&&p.latitude>=b[1]&&p.latitude<=b[3]&&inside(f.coordinatesLonLatHeight,p)&&!(f.interiorRingsLonLatHeight||[]).some(h=>inside(h,p))){if(!f.structureClassificationKnown||f.nonTerrainStructure)return null;
+ if(!nearEdge(f.coordinatesLonLatHeight)&&!(f.interiorRingsLonLatHeight||[]).some(nearEdge))result=f;}
  return result;
 }
 // Upper-limb apparent altitude crossing flat 0 degrees. Not a terrain/building horizon.
-function riseSet(body,start,end,obs,bodies){const f=t=>limb(bodies.state(body,t,{...obs,elevation:obs.elevation+(obs.eyeM??1.5)}),'upper'),out=[],edge=t=>{if(Math.abs(f(t))>1e-10)return;const derivative=f(t+1000)-f(t-1000);if(Math.abs(derivative)>1e-10)out.push({at:t,kind:derivative>0?'rise':'set'});};edge(start);let at=start,previous=f(at);for(let t=Math.min(end,start+300000);at<end;t=Math.min(end,t+300000)){const v=f(t);if((previous>0)!==(v>0)){let lo=at,hi=t;for(let i=0;i<30&&hi-lo>100;i++){const mid=(lo+hi)/2;if((f(mid)>0)===(previous>0))lo=mid;else hi=mid;}out.push({at:(lo+hi)/2,kind:v>previous?'rise':'set'});}at=t;previous=v;}edge(end);return out.sort((a,b)=>a.at-b.at).filter((e,i,a)=>!i||Math.abs(e.at-a[i-1].at)>200||e.kind!==a[i-1].kind);}
+function riseSet(body,start,end,obs,bodies){const f=t=>limb(bodies.state(body,t,{...obs,elevation:obs.elevation+(obs.eyeM??1.5)}),'upper'),out=[],edge=t=>{if(Math.abs(f(t))>1e-10)return;const derivative=f(t+1000)-f(t-1000);
+if(Math.abs(derivative)>1e-10)out.push({at:t,kind:derivative>0?'rise':'set'});};edge(start);let at=start,previous=f(at);for(let t=Math.min(end,start+300000);at<end;t=Math.min(end,t+300000)){const v=f(t);if((previous>0)!==(v>0)){let lo=at,hi=t;for(let i=0;i<30&&hi-lo>100;i++){const mid=(lo+hi)/2;
+if((f(mid)>0)===(previous>0))lo=mid;else hi=mid;}out.push({at:(lo+hi)/2,kind:v>previous?'rise':'set'});}at=t;previous=v;}edge(end);return out.sort((a,b)=>a.at-b.at).filter((e,i,a)=>!i||Math.abs(e.at-a[i-1].at)>200||e.kind!==a[i-1].kind);}
 function inWindow(at,w,events){return !w||w.kind==='none'||events.some(e=>(w.kind==='both'||e.kind===w.kind)&&at>=e.at-w.beforeMin*60000&&at<=e.at+w.afterMin*60000);}
 function windowEvents(plan,obs,bodies){const w=plan.timeWindow;if(!windowValid(w))throw Error('invalid-time-window');if(!w||w.kind==='none')return [];const start=day(plan.at);return riseSet(plan.body,start-w.afterMin*60000,start+DAY+w.beforeMin*60000,obs,bodies);}
 function screenAnchor({azimuth,altitude,obs,target,align,eyeM=1.5}){
  const base=Geo().inverse(obs.latitude,obs.longitude,target.latitude,target.longitude),d=base.km*1000,k=globalThis.AstroNotesAtmosphere?.targetK?.()??7/6,diff=(a,b)=>((a-b+540)%360)-180;let xM=d*Math.tan(diff(azimuth,base.azimuth)*rad),anchor;
- for(let i=0;i<8;i++){anchor=anchorAt(obs,target,{heightM:0,xM});const g=Geo().inverse(obs.latitude,obs.longitude,anchor.latitude,anchor.longitude),error=diff(g.azimuth,azimuth);if(Math.abs(error)<1e-8)break;const shifted=anchorAt(obs,target,{heightM:0,xM:xM+1}),q=Geo().inverse(obs.latitude,obs.longitude,shifted.latitude,shifted.longitude),slope=diff(q.azimuth,g.azimuth);if(!Number.isFinite(slope)||Math.abs(slope)<1e-10)return {heightM:NaN,xM:NaN};xM-=error/slope;}
+ for(let i=0;i<8;i++){anchor=anchorAt(obs,target,{heightM:0,xM});const g=Geo().inverse(obs.latitude,obs.longitude,anchor.latitude,anchor.longitude),error=diff(g.azimuth,azimuth);if(Math.abs(error)<1e-8)break;
+ const shifted=anchorAt(obs,target,{heightM:0,xM:xM+1}),q=Geo().inverse(obs.latitude,obs.longitude,shifted.latitude,shifted.longitude),slope=diff(q.azimuth,g.azimuth);if(!Number.isFinite(slope)||Math.abs(slope)<1e-10)return {heightM:NaN,xM:NaN};xM-=error/slope;}
  anchor=anchorAt(obs,target,{heightM:0,xM});const distance=Geo().inverse(obs.latitude,obs.longitude,anchor.latitude,anchor.longitude).km*1000;const radius=R*k,theta=distance/radius;return {heightM:(radius+obs.elevation+eyeM)/(Math.cos(theta)-Math.tan(altitude*rad)*Math.sin(theta))-radius,xM};
 }
 function make({align,bodies,terrain,sidewalks,yieldTask=()=>new Promise(r=>setTimeout(r,0))}){
  const pathCache=new Map();
- function guesses(plan,seed){const start=day(plan.at),key=plan.body+','+start+','+(plan.atmosphere||'');let path=pathCache.get(key);if(!path){path=[];const ref={latitude:35.68626,longitude:139.73068,elevation:30};for(let t=start;t<start+DAY;t+=120000){const s=bodies.state(plan.body,t,ref);path.push({at:t,azimuth:s.azimuth});}pathCache.set(key,path);while(pathCache.size>4)pathCache.delete(pathCache.keys().next().value);}const bearing=Geo().inverse(seed.latitude,seed.longitude,plan.target.latitude,plan.target.longitude).azimuth,diff=a=>Math.abs(((a-bearing+540)%360)-180),ordered=path.slice().sort((a,b)=>diff(a.azimuth)-diff(b.azimuth)),out=[];for(const q of ordered){if(out.every(t=>Math.abs(t-q.at)>4*3600000))out.push(q.at);if(out.length===2)break;}return out;}
+ function guesses(plan,seed){const start=day(plan.at),key=plan.body+','+start+','+(plan.atmosphere||'');let path=pathCache.get(key);if(!path){path=[];const ref={latitude:35.68626,longitude:139.73068,elevation:30};for(let t=start;t<start+DAY;t+=120000){const s=bodies.state(plan.body,t,ref);
+ path.push({at:t,azimuth:s.azimuth});}pathCache.set(key,path);while(pathCache.size>4)pathCache.delete(pathCache.keys().next().value);
+ }const bearing=Geo().inverse(seed.latitude,seed.longitude,plan.target.latitude,plan.target.longitude).azimuth,diff=a=>Math.abs(((a-bearing+540)%360)-180),ordered=path.slice().sort((a,b)=>diff(a.azimuth)-diff(b.azimuth)),out=[];
+ for(const q of ordered){if(out.every(t=>Math.abs(t-q.at)>4*3600000))out.push(q.at);if(out.length===2)break;}return out;}
  async function solve(plan,seed){
   const c=plan.composition;if(!valid(c,plan.target)||!windowValid(plan.timeWindow))return {solutions:[],reason:'invalid-composition-or-time-window'};
   const D=Geo().inverse(plan.target.latitude,plan.target.longitude,seed.latitude,seed.longitude).km;if(!(D>.02&&D<=20))return {solutions:[],reason:'unsupported-distance'};
   const base=Geo().inverse(plan.target.latitude,plan.target.longitude,seed.latitude,seed.longitude).azimuth,start=day(plan.at),solutions=[];
   for(const at0 of guesses(plan,seed)){
    await yieldTask();let th=base,t=at0,ground=terrain.at(seed),failed=false,converged=false;if(!Number.isFinite(ground))continue;
-   const at=(bearing,time,h)=>{const pos=Geo().destination(plan.target.latitude,plan.target.longitude,bearing,D),obs={...pos,elevation:h,eyeM:1.5},g=geometry(obs,plan.target,c,align),st=bodies.state(plan.body,time,{...obs,elevation:h+1.5}),xy=align.viewProjector(g.azimuth,g.angle)(st.azimuth,limb(st,c.limb));return xy?{residual:xy,obs,g,st}:null;};
+   const at=(bearing,time,h)=>{const pos=Geo().destination(plan.target.latitude,plan.target.longitude,bearing,D),obs={...pos,elevation:h,eyeM:1.5},g=geometry(obs,plan.target,c,align),st=bodies.state(plan.body,time,{...obs,elevation:h+1.5}),xy=align.viewProjector(g.azimuth,g.angle)(st.azimuth,
+   limb(st,c.limb));return xy?{residual:xy,obs,g,st}:null;};
    for(let round=0;round<5;round++){
     converged=false;
     for(let i=0;i<40;i++){
@@ -611,7 +647,8 @@ function make({align,bodies,terrain,sidewalks,yieldTask=()=>new Promise(r=>setTi
    if(failed||!converged||t<start||t>=start+DAY)continue;const q=at(th,t,ground);if(!q)continue;const actual=terrain.at(q.obs);if(!Number.isFinite(actual)||Math.abs(actual-ground)>.02||Math.hypot(...q.residual)>.002||limb(q.st,'upper')<=0)continue;
    const road=roadAt(sidewalks,q.obs);if(!road)continue;const times=windowEvents(plan,q.obs,bodies);if(!inWindow(t,plan.timeWindow,times))continue;
    if(solutions.some(s=>Geo().distanceKm(s.observer.latitude,s.observer.longitude,q.obs.latitude,q.obs.longitude)<.001&&Math.abs(s.event.at-t)<1000))continue;
-   const next=bodies.state(plan.body,t+60000,{...q.obs,elevation:ground+1.5}),event={at:t,intersects:true,side:next.apparentAltitude<q.st.apparentAltitude?'set':'rise',matchMode:'overlap',partId:'__whole',composition:{...c},compositionResidualDeg:Math.hypot(...q.residual),sunAltitude:bodies.state('sun',t,{...q.obs,elevation:ground+1.5}).apparentAltitude};
+   const next=bodies.state(plan.body,t+60000,{...q.obs,elevation:ground+1.5}),event={at:t,intersects:true,side:next.apparentAltitude<q.st.apparentAltitude?'set':'rise',matchMode:'overlap',partId:'__whole',composition:{...c},compositionResidualDeg:Math.hypot(...q.residual),
+   sunAltitude:bodies.state('sun',t,{...q.obs,elevation:ground+1.5}).apparentAltitude};
    solutions.push({observer:{...q.obs,sourceId:road.sourceId,polygonId:road.polygonId,structureClassificationKnown:true,nonTerrainStructure:false},anchor:q.g.anchor,geometry:{...q.g,topM:c.heightM},event});
   }
   return {solutions,reason:solutions.length?'composition-solutions':'no-solved-walkway-point'};
@@ -673,7 +710,8 @@ function closestPoint(p,polygons){
 function ridgeGeometry(observer,target,align){
  const raw=target.rim?.points||align.rimPoints?.(target.rim);if(!Array.isArray(raw)||!raw.length)return null;
  const center=Geo().inverse(observer.latitude,observer.longitude,target.rim.latitude??target.latitude,target.rim.longitude??target.longitude),difference=(a,b)=>((a-b+540)%360)-180;
- const points=raw.filter(p=>[p.latitude,p.longitude,p.m??p.heightM].every(Number.isFinite)).map(p=>{const anchor={latitude:p.latitude,longitude:p.longitude,heightM:p.m??p.heightM},geometry=align.geometryFrom(observer,{...target,...anchor,rim:null,parts:[{id:'ridge',m:anchor.heightM}]},{heightM:anchor.heightM,eyeM:observer.eyeM??1.5});return {anchor,geometry,relative:difference(geometry.azimuth,center.azimuth)};}).filter(p=>Number.isFinite(p.geometry?.angle)).sort((a,b)=>a.relative-b.relative);
+ const points=raw.filter(p=>[p.latitude,p.longitude,p.m??p.heightM].every(Number.isFinite)).map(p=>{const anchor={latitude:p.latitude,longitude:p.longitude,heightM:p.m??p.heightM},geometry=align.geometryFrom(observer,{...target,...anchor,rim:null,parts:[{id:'ridge',m:anchor.heightM}]},{
+ heightM:anchor.heightM,eyeM:observer.eyeM??1.5});return {anchor,geometry,relative:difference(geometry.azimuth,center.azimuth)};}).filter(p=>Number.isFinite(p.geometry?.angle)).sort((a,b)=>a.relative-b.relative);
  if(!points.length)return null;
  const bin=Math.atan(.015/Math.max(.001,center.km))/rad;
  return {points,at(azimuth){const relative=difference(azimuth,center.azimuth);let visible=null,closest=null;
@@ -689,11 +727,13 @@ function standingDomain(point,sidewalks){
  }
  const road=sidewalks&&roadAt(sidewalks,point);
  if(!sidewalks)return null;
- const eligible=(sidewalks.features||[]).filter(f=>['2000','2010','2020'].includes(f.function)&&f.structureClassificationKnown&&!f.nonTerrainStructure),named=eligible.filter(f=>point.polygonId?f.polygonId===point.polygonId:point.sourceId&&f.sourceId===point.sourceId),roads={features:road?[road]:named.length?named:eligible};
+ const eligible=(sidewalks.features||[]).filter(f=>['2000','2010','2020'].includes(f.function)&&f.structureClassificationKnown&&!f.nonTerrainStructure),named=eligible.filter(f=>point.polygonId?f.polygonId===point.polygonId:point.sourceId&&f.sourceId===point.sourceId),roads={
+ features:road?[road]:named.length?named:eligible};
  // A legacy seed can be a distance/bearing hint outside every surveyed face.
  // Its solved point must still be on an actual surveyed face. Dynamic places
  // above always retain their individual surface instead of this legacy union.
- return {polygons:roads.features.map(f=>[f.coordinatesLonLatHeight,...(f.interiorRingsLonLatHeight||[])]),lines:[],contains:p=>!!roadAt(roads,p),metadata:{},metadataAt:p=>{const f=roadAt(roads,p);return f?{sourceId:f.sourceId,polygonId:f.polygonId,structureClassificationKnown:true,nonTerrainStructure:false}:{};}};
+ return {polygons:roads.features.map(f=>[f.coordinatesLonLatHeight,...(f.interiorRingsLonLatHeight||[])]),lines:[],contains:p=>!!roadAt(roads,p),metadata:{},metadataAt:p=>{const f=roadAt(roads,p);
+ return f?{sourceId:f.sourceId,polygonId:f.polygonId,structureClassificationKnown:true,nonTerrainStructure:false}:{};}};
 }
 // This is a constrained local inverse, not an exhaustive surface search. A
 // line has no invented width; every trial position is parameterized on it.
@@ -756,7 +796,8 @@ async function surfaceInverse(plan,seed,range,timeSeeds,deps){
   for(let i=1;i<line.length;i++){const [lon,lat]=line[i-1],[endLon,endLat]=line[i],g=Geo().inverse(lat,lon,endLat,endLon),length=g.km*1000;if(!(length>0))continue;parts.push({start:total,end:total+length,lat,lon,azimuth:g.azimuth});total+=length;vertices.push(total);}
   if(!(total>0))continue;
   const position=s=>{const p=parts.find(p=>s<=p.end)||parts.at(-1);return Geo().destination(p.lat,p.lon,p.azimuth,(bounded(s,0,total)-p.start)/1000);};
-  let nearest={s:0,d:Infinity};for(const p of parts){const v=Geo().inverse(p.lat,p.lon,seed.latitude,seed.longitude),s=bounded(v.km*1000*Math.cos((v.azimuth-p.azimuth)*rad),0,p.end-p.start)+p.start,pos=position(s),d=Geo().distanceKm(pos.latitude,pos.longitude,seed.latitude,seed.longitude);if(d<nearest.d)nearest={s,d};}
+  let nearest={s:0,d:Infinity};for(const p of parts){const v=Geo().inverse(p.lat,p.lon,seed.latitude,seed.longitude),s=bounded(v.km*1000*Math.cos((v.azimuth-p.azimuth)*rad),0,p.end-p.start)+p.start,pos=position(s),d=Geo().distanceKm(pos.latitude,pos.longitude,seed.latitude,seed.longitude);
+  if(d<nearest.d)nearest={s,d};}
   const stations=[nearest.s,...vertices,...parts.map(p=>(p.start+p.end)/2)].filter((s,i,a)=>a.indexOf(s)===i).slice(0,16);
   for(const t of timeStarts){for(const s of stations){
    if(exhausted||cancelled)break;
@@ -790,7 +831,8 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
  if(!isCurrent())return empty('cancelled',true);
  try{await bodies.ensure?.(plan.body);}catch{return empty('body-data-unavailable',true);}
  let ground;try{ground=Number.isFinite(point.groundM)?point.groundM:groundAt?await groundAt(point):await terrain?.at(point);}catch{ground=null;}
- const elevation=Number.isFinite(point.standingElevationM)?point.standingElevationM:Number.isFinite(point.surfaceElevationM)?point.surfaceElevationM:Number.isFinite(point.elevation)?point.elevation:Number.isFinite(ground)?ground+(point.surfaceAglM??point.surfaceHeightM??0):null,eyeM=point.eyeM??point.eyeHeightAGL??1.5;
+ const elevation=Number.isFinite(point.standingElevationM)?point.standingElevationM:Number.isFinite(point.surfaceElevationM)?point.surfaceElevationM:Number.isFinite(point.elevation)?point.elevation:Number.isFinite(ground)?ground+(point.surfaceAglM??point.surfaceHeightM??0):null,
+ eyeM=point.eyeM??point.eyeHeightAGL??1.5;
  if(!Number.isFinite(elevation)||!Number.isFinite(eyeM)||eyeM<0)return empty('standing-height-unknown',true);
  const observer={...point,elevation,eyeM},eye={...observer,elevation:elevation+eyeM},c=plan.composition;
  const g=c?geometry(observer,target,c,align):align.geometryFrom(observer,target,{partId:plan.partId==='__whole'?null:plan.partId,eyeM});
@@ -866,7 +908,10 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
  for(const cluster of clusters){
   const best=cluster.reduce((a,b)=>b.gap<a.gap?b:a),interval=[cluster[0].at,cluster.at(-1).at];let sunAltitude=null,side=null;
   try{sunAltitude=bodies.state('sun',best.at,eye).apparentAltitude;side=bodies.state(plan.body,best.at+1000,eye).apparentAltitude<best.state.apparentAltitude?'set':'rise';}catch{unknown=true;}
-  const contactLimb=limbKind(c?.limb||plan.limb),event={at:range.kind==='instant'?range.start:best.at,intersects:strict||best.overlaps,nearTarget:!strict,relation:strict?(contactLimb!=='center'?'edge-contact':'anchor-hit'):best.overlaps?(geometryKind==='silhouette'?'silhouette-overlap':'anchor-hit'):'near',matchMode:strict?'limb':'near',partId:plan.partId||'tip',contactLimb,gapAngleDeg:best.gap,gapAngleRad:best.gap*rad,toleranceAngleDeg:best.tolerance,toleranceAngleRad:best.tolerance*rad,radius:best.state.angularRadius,altitude:best.state.apparentAltitude,azimuth:best.state.azimuth,sunAltitude,side,targetGeometryKind:geometryKind,timeInterval:interval,timeIntervalSampled:true,visibility:'unknown',...(c?{composition:{...c},compositionResidualDeg:best.gap}:{})};
+  const contactLimb=limbKind(c?.limb||plan.limb),event={at:range.kind==='instant'?range.start:best.at,intersects:strict||best.overlaps,nearTarget:!strict,
+  relation:strict?(contactLimb!=='center'?'edge-contact':'anchor-hit'):best.overlaps?(geometryKind==='silhouette'?'silhouette-overlap':'anchor-hit'):'near',matchMode:strict?'limb':'near',partId:plan.partId||'tip',contactLimb,gapAngleDeg:best.gap,gapAngleRad:best.gap*rad,
+  toleranceAngleDeg:best.tolerance,toleranceAngleRad:best.tolerance*rad,radius:best.state.angularRadius,altitude:best.state.apparentAltitude,azimuth:best.state.azimuth,sunAltitude,side,targetGeometryKind:geometryKind,timeInterval:interval,timeIntervalSampled:true,visibility:'unknown',...(c?{
+  composition:{...c},compositionResidualDeg:best.gap}:{})};
   solutions.push({observer:{...observer},event,geometry:{...best.geometry},anchor:{...best.anchor}});
  }
  let surfaceAttempted=false;
@@ -881,7 +926,8 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
    const checked=await opportunities({...plan,timeSpec:{kind:'instant',at:range.kind==='instant'?range.start:q.at}},q.observer,{align,bodies,terrain,groundAt,isCurrent,yieldTask,budget:Math.max(1,limit-calls),_surfaceSolved:true});calls+=checked.evaluated||0;
    if(checked.reason==='cancelled')return empty('cancelled',true);
    exhausted||=checked.reason==='budget-exhausted';unknown||=checked.partial&&checked.reason==='some-calculations-unknown';
-   for(const s of checked.solutions)if(!solutions.some(p=>Math.abs(p.event.at-s.event.at)<1000&&Geo().distanceKm(p.observer.latitude,p.observer.longitude,s.observer.latitude,s.observer.longitude)<.001))solutions.push({...s,event:{...s.event,inverseSurfaceSolved:true,alignmentResidualDeg:q.loss,...(c?{compositionResidualDeg:q.loss}:{})}});
+   for(const s of checked.solutions)if(!solutions.some(p=>Math.abs(p.event.at-s.event.at)<1000&&Geo().distanceKm(p.observer.latitude,p.observer.longitude,s.observer.latitude,s.observer.longitude)<.001))solutions.push({...s,event:{...s.event,inverseSurfaceSolved:true,alignmentResidualDeg:q.loss,
+   ...(c?{compositionResidualDeg:q.loss}:{})}});
   }
  }
  const partial=range.kind!=='instant'||exhausted||riseLimited||unknown||surfaceAttempted;
@@ -950,8 +996,10 @@ function faceHit(rings,origin,direction,maxM,quadratic=[0,0,0]){
  const axis=normal.map(Math.abs).indexOf(Math.max(...normal.map(Math.abs))),project=q=>q.filter((_,i)=>i!==axis);
  for(const t of roots.sort((a,b)=>a-b)){if(t<=.05||t>maxM)continue;const p=origin.map((x,i)=>x+t*direction[i]+t*t*quadratic[i]),pp=project(p);if(inside(rings[0].map(project),pp)&&!rings.slice(1).some(r=>inside(r.map(project),pp)))return {distanceM:t,point:p};}return null;
 }
-function boxIntersects(box,origin,direction,maxM,padding){let lo=0,hi=maxM;for(let i=0;i<3;i++){const a=box[i]-padding,b=box[i+3]+padding;if(Math.abs(direction[i])<1e-12){if(origin[i]<a||origin[i]>b)return false;continue;}const t=[(a-origin[i])/direction[i],(b-origin[i])/direction[i]].sort((a,b)=>a-b);lo=Math.max(lo,t[0]);hi=Math.min(hi,t[1]);if(hi<lo)return false;}return true;}
-function buildingBox(b){const z=b.solidZRangeM||[b.zMin,b.zMax];if(!b.bbox||!z.every(Number.isFinite))return null;const lo=[Infinity,Infinity,Infinity],hi=[-Infinity,-Infinity,-Infinity];for(const lon of [b.bbox[0],b.bbox[2]])for(const lat of [b.bbox[1],b.bbox[3]])for(const h of z){const p=local(lat,lon,h);for(let i=0;i<3;i++){lo[i]=Math.min(lo[i],p[i]);hi[i]=Math.max(hi[i],p[i]);}}return [...lo,...hi];}
+function boxIntersects(box,origin,direction,maxM,padding){let lo=0,hi=maxM;for(let i=0;i<3;i++){const a=box[i]-padding,b=box[i+3]+padding;if(Math.abs(direction[i])<1e-12){if(origin[i]<a||origin[i]>b)return false;continue;
+}const t=[(a-origin[i])/direction[i],(b-origin[i])/direction[i]].sort((a,b)=>a-b);lo=Math.max(lo,t[0]);hi=Math.min(hi,t[1]);if(hi<lo)return false;}return true;}
+function buildingBox(b){const z=b.solidZRangeM||[b.zMin,b.zMax];if(!b.bbox||!z.every(Number.isFinite))return null;const lo=[Infinity,Infinity,Infinity],hi=[-Infinity,-Infinity,-Infinity];
+for(const lon of [b.bbox[0],b.bbox[2]])for(const lat of [b.bbox[1],b.bbox[3]])for(const h of z){const p=local(lat,lon,h);for(let i=0;i<3;i++){lo[i]=Math.min(lo[i],p[i]);hi[i]=Math.max(hi[i],p[i]);}}return [...lo,...hi];}
 
 function trace(index,observer,{azimuth,altitude,maxM=12000,endpoint=null,targetKey=null,refractionK=1,onlyTarget=false}){
  if(!Number.isFinite(observer.elevation)||!Number.isFinite(azimuth)||!Number.isFinite(altitude)||Math.abs(altitude)>=89||!Number.isFinite(maxM)||maxM<=0)return {status:'unknown',recommend:false,reason:'invalid-height-or-ray'};
@@ -960,15 +1008,22 @@ function trace(index,observer,{azimuth,altitude,maxM=12000,endpoint=null,targetK
  const east=[-Math.sin(b),Math.cos(b),0],north=[-Math.sin(a)*Math.cos(b),-Math.sin(a)*Math.sin(b),Math.cos(a)],up=[Math.cos(a)*Math.cos(b),Math.cos(a)*Math.sin(b),Math.sin(a)];
  const direction=endpoint?local(endpoint.latitude,endpoint.longitude,endpoint.elevation).map((v,i)=>(v-origin[i])/maxM):east.map((v,i)=>v*Math.sin(az)+north[i]*Math.cos(az)+up[i]*Math.tan(alt));
  const curvature=(1-1/refractionK)/(2*R),quadratic=up.map(v=>-v*curvature),chord=direction.slice();if(endpoint)for(let i=0;i<3;i++)direction[i]+=up[i]*curvature*maxM;
- const ids=new Set(),loX=Math.floor(Math.min(lon,end.longitude)*1000)-1,hiX=Math.floor(Math.max(lon,end.longitude)*1000)+1,loY=Math.floor(Math.min(lat,end.latitude)*1000)-1,hiY=Math.floor(Math.max(lat,end.latitude)*1000)+1;for(const [key,entries]of Object.entries(index.grid||{})){const [x,y]=key.split(',').map(Number);if(x>=loX&&x<=hiX&&y>=loY&&y<=hiY)for(const id of entries)ids.add(id);}
+ const ids=new Set(),loX=Math.floor(Math.min(lon,end.longitude)*1000)-1,hiX=Math.floor(Math.max(lon,end.longitude)*1000)+1,loY=Math.floor(Math.min(lat,end.latitude)*1000)-1,hiY=Math.floor(Math.max(lat,end.latitude)*1000)+1;
+ for(const [key,entries]of Object.entries(index.grid||{})){const [x,y]=key.split(',').map(Number);if(x>=loX&&x<=hiX&&y>=loY&&y<=hiY)for(const id of entries)ids.add(id);}
  let compiled=cache.get(index);if(!compiled){compiled=new Map();compiled.boxes=new Map();cache.set(index,compiled);}
  const association=index.targetAssociations?.[targetKey],targetIds=new Set(association?.sourceSha256&&(association.sourceSha256===index.sourceSha256||index.sourceSha256s?.includes(association.sourceSha256))?association.buildingIds||[]:[]),contacts=new Map();
- let hit=null,faces=0;for(const id of ids){const building=index.buildings[id];if(onlyTarget&&!targetIds.has(building.id))continue;let box=compiled.boxes.get(id);if(box===undefined){box=buildingBox(building);compiled.boxes.set(id,box);}if(box&&!boxIntersects(box,origin,chord,maxM,1+Math.abs(curvature)*maxM*maxM))continue;let polys=compiled.get(id);if(!polys){polys=building.polygons.map(poly=>({id:poly.id,rings:poly.rings.map(r=>r.map(p=>local(p[1],p[0],p[2])))}));compiled.set(id,polys);}for(const poly of polys){faces++;const own=targetIds.has(building.id)&&(!building.sourceSha256||building.sourceSha256===association.sourceSha256),h=faceHit(poly.rings,origin,direction,own?maxM:hit?.distanceM??maxM,quadratic);if(h){const row={...h,pointFrame:'WGS84 ECEF offset from lon139.73068 lat35.68626 h0; geoid uncorrected diagnostic',buildingId:building.id,polygonId:poly.id,lod:building.lod,observerWithinHitBuildingBBox:building.bbox?lon>=building.bbox[0]&&lon<=building.bbox[2]&&lat>=building.bbox[1]&&lat<=building.bbox[3]:null};if(own){contacts.set(building.id+':'+poly.id,row);}else hit=row;}}}
- return {refractionK,status:hit?'model-blocked':contacts.size?'target-contact':'unknown',recommend:false,hit,targetContacts:[...contacts.values()],faces,buildingsChecked:ids.size,reason:hit?'conditional-model-intersection':contacts.size?'target-complex-contact-needs-component-check':'incomplete-coverage-or-uncertainty'};
+ let hit=null,faces=0;for(const id of ids){const building=index.buildings[id];if(onlyTarget&&!targetIds.has(building.id))continue;let box=compiled.boxes.get(id);if(box===undefined){box=buildingBox(building);compiled.boxes.set(id,box);
+ }if(box&&!boxIntersects(box,origin,chord,maxM,1+Math.abs(curvature)*maxM*maxM))continue;let polys=compiled.get(id);if(!polys){polys=building.polygons.map(poly=>({id:poly.id,rings:poly.rings.map(r=>r.map(p=>local(p[1],p[0],p[2])))}));compiled.set(id,polys);}for(const poly of polys){faces++;
+ const own=targetIds.has(building.id)&&(!building.sourceSha256||building.sourceSha256===association.sourceSha256),h=faceHit(poly.rings,origin,direction,own?maxM:hit?.distanceM??maxM,quadratic);
+ if(h){const row={...h,pointFrame:'WGS84 ECEF offset from lon139.73068 lat35.68626 h0; geoid uncorrected diagnostic',buildingId:building.id,polygonId:poly.id,lod:building.lod,
+ observerWithinHitBuildingBBox:building.bbox?lon>=building.bbox[0]&&lon<=building.bbox[2]&&lat>=building.bbox[1]&&lat<=building.bbox[3]:null};if(own){contacts.set(building.id+':'+poly.id,row);}else hit=row;}}}
+ return {refractionK,status:hit?'model-blocked':contacts.size?'target-contact':'unknown',recommend:false,hit,targetContacts:[...contacts.values()],faces,buildingsChecked:ids.size,
+ reason:hit?'conditional-model-intersection':contacts.size?'target-complex-contact-needs-component-check':'incomplete-coverage-or-uncertainty'};
 }
 function targetGeometry(index,observer,targetKey){
  const association=index.targetAssociations?.[targetKey],sha=association?.sourceSha256;if(!sha||!(sha===index.sourceSha256||index.sourceSha256s?.includes(sha)))return {complete:false,reason:'missing-target-geometry-source'};
- const ids=new Set(association.buildingIds||[]),rows=index.buildings.filter(b=>ids.has(b.id));if(!ids.size||rows.length!==ids.size||rows.some(b=>(b.sourceSha256||index.sourceSha256)!==sha||!b.bbox?.every(Number.isFinite)||!(b.faceCount>0||b.polygons?.length>0)))return {complete:false,reason:'incomplete-target-geometry'};
+ const ids=new Set(association.buildingIds||[]),rows=index.buildings.filter(b=>ids.has(b.id));
+ if(!ids.size||rows.length!==ids.size||rows.some(b=>(b.sourceSha256||index.sourceSha256)!==sha||!b.bbox?.every(Number.isFinite)||!(b.faceCount>0||b.polygons?.length>0)))return {complete:false,reason:'incomplete-target-geometry'};
  let maxM=0;for(const b of rows)for(const lon of [b.bbox[0],b.bbox[2]])for(const lat of [b.bbox[1],b.bbox[3]])maxM=Math.max(maxM,Geo().inverse(observer.latitude,observer.longitude,lat,lon).km*1000+5);
  return {complete:maxM>0,maxM,reason:'entire-identified-target-building-depth'};
 }
@@ -976,11 +1031,14 @@ function covers(index,observer,end){
  const meshes=index.coverageMeshes?.filter(m=>m.provided);if(!meshes?.length)return {complete:false,reason:'no-building-model-range'};
  const within=(p,b)=>p[0]>=b[0]-1e-10&&p[0]<=b[2]+1e-10&&p[1]>=b[1]-1e-10&&p[1]<=b[3]+1e-10;
  const selection=index.geometrySelection,extra=selection?.includedFullSourceMeshes||selection?.unclippedCoverageMeshes||[],boxes=meshes.map(m=>m.bbox),rect=b=>[[b[0],b[1]],[b[2],b[1]],[b[2],b[3]],[b[0],b[3]]],boundaries=[...boxes.map(rect),...(selection?[selection.envelopeLonLat]:[])];
- const inSelection=p=>{if(!selection||meshes.some(m=>extra.includes(m.code)&&within(p,m.bbox)))return true;const ring=selection.envelopeLonLat;if(!inside(ring,p))return false;const k=Math.cos(p[1]*rad),scale=111195;for(let i=0;i<ring.length;i++){const a=ring[i],b=ring[(i+1)%ring.length],x=(b[0]-a[0])*k,y=b[1]-a[1],u=Math.max(0,Math.min(1,((p[0]-a[0])*k*x+(p[1]-a[1])*y)/(x*x+y*y||1)));if(Math.hypot((p[0]-a[0]-u*(b[0]-a[0]))*k,p[1]-a[1]-u*y)*scale<5)return false;}return true;};
+ const inSelection=p=>{if(!selection||meshes.some(m=>extra.includes(m.code)&&within(p,m.bbox)))return true;const ring=selection.envelopeLonLat;if(!inside(ring,p))return false;const k=Math.cos(p[1]*rad),scale=111195;for(let i=0;i<ring.length;
+ i++){const a=ring[i],b=ring[(i+1)%ring.length],x=(b[0]-a[0])*k,y=b[1]-a[1],u=Math.max(0,Math.min(1,((p[0]-a[0])*k*x+(p[1]-a[1])*y)/(x*x+y*y||1)));if(Math.hypot((p[0]-a[0]-u*(b[0]-a[0]))*k,p[1]-a[1]-u*y)*scale<5)return false;}return true;};
  const inv=Geo().inverse(observer.latitude,observer.longitude,end.latitude,end.longitude),n=Math.max(1,Math.ceil(inv.km*1000/50));let checked=0,previous=[observer.longitude,observer.latitude];
  for(let j=1;j<=n;j++){const geo=j===n?end:Geo().destination(observer.latitude,observer.longitude,inv.azimuth,inv.km*j/n),next=[geo.longitude,geo.latitude],delta=sub(next,previous),marks=[0,1];
-  for(const ring of boundaries)for(let i=0;i<ring.length;i++){const a=ring[i],edge=sub(ring[(i+1)%ring.length],a),den=delta[0]*edge[1]-delta[1]*edge[0];if(Math.abs(den)<1e-20)continue;const q=sub(a,previous),t=(q[0]*edge[1]-q[1]*edge[0])/den,u=(q[0]*delta[1]-q[1]*delta[0])/den;if(t>0&&t<1&&u>=0&&u<=1)marks.push(t);}
-  marks.sort((a,b)=>a-b);for(let k=1;k<marks.length;k++){const t=(marks[k-1]+marks[k])/2,p=previous.map((x,i)=>x+t*delta[i]);if(!inSelection(p))return {complete:false,reason:'outside-selected-building-range',checked};if(!boxes.some(b=>within(p,b)))return {complete:false,reason:'missing-building-source-mesh',checked};checked++;}previous=next;
+  for(const ring of boundaries)for(let i=0;i<ring.length;i++){const a=ring[i],edge=sub(ring[(i+1)%ring.length],a),den=delta[0]*edge[1]-delta[1]*edge[0];if(Math.abs(den)<1e-20)continue;const q=sub(a,previous),t=(q[0]*edge[1]-q[1]*edge[0])/den,u=(q[0]*delta[1]-q[1]*delta[0])/den;
+  if(t>0&&t<1&&u>=0&&u<=1)marks.push(t);}
+  marks.sort((a,b)=>a-b);for(let k=1;k<marks.length;k++){const t=(marks[k-1]+marks[k])/2,p=previous.map((x,i)=>x+t*delta[i]);if(!inSelection(p))return {complete:false,reason:'outside-selected-building-range',checked};
+  if(!boxes.some(b=>within(p,b)))return {complete:false,reason:'missing-building-source-mesh',checked};checked++;}previous=next;
  }
  return {complete:true,checked,kind:'provided-PLATEAU-model-range'};
 }
@@ -996,8 +1054,10 @@ function classifyRay(index,observer,ray,building,terrain){
 
 function sceneExposure(align,observer,target,state){
  const outline=align.towerOutline?.(observer,target,{eyeM:observer.eyeM??1.5});if(!outline?.known||outline.schematic)return {known:false,visible:false};
- const project=align.viewProjector(state.azimuth,state.apparentAltitude),polygons=(outline.polygons||outline.hitPolygons||[outline.hitPoints||outline.points]).filter(Boolean).map(r=>r.map(p=>project(p[0],p[1])).filter(Boolean)).filter(r=>r.length>=3);if(!polygons.length)return {known:false,visible:false};
- const radius=Math.tan(state.angularRadius*rad)/rad,upper=project(state.azimuth,state.upperAltitude??state.apparentAltitude+state.angularRadius)?.[1],lower=project(state.azimuth,state.lowerAltitude??state.apparentAltitude-state.angularRadius)?.[1];if(![radius,upper,lower].every(Number.isFinite))return {known:false,visible:false};
+ const project=align.viewProjector(state.azimuth,state.apparentAltitude),polygons=(outline.polygons||outline.hitPolygons||[outline.hitPoints||outline.points]).filter(Boolean).map(r=>r.map(p=>project(p[0],p[1])).filter(Boolean)).filter(r=>r.length>=3);
+ if(!polygons.length)return {known:false,visible:false};
+ const radius=Math.tan(state.angularRadius*rad)/rad,upper=project(state.azimuth,state.upperAltitude??state.apparentAltitude+state.angularRadius)?.[1],lower=project(state.azimuth,state.lowerAltitude??state.apparentAltitude-state.angularRadius)?.[1];
+ if(![radius,upper,lower].every(Number.isFinite))return {known:false,visible:false};
  const samples=[[0,0],[0,.9],[0,-.9],[-.9,0],[.9,0],[-.6363961,-.6363961],[.6363961,-.6363961],[-.6363961,.6363961],[.6363961,.6363961]],visible=samples.some(([x,y])=>!polygons.some(r=>inside(r,[x*radius,y*(y>=0?upper:-lower)])));
  return {known:true,visible,samples:samples.length,modelId:outline.modelId||'existing-scene-outline',approximate:!!outline.approximate};
 }
@@ -1023,25 +1083,36 @@ function create({align,shooting,bodies,index,surfaceAt,terrain=null,prefilter=tr
   if(!prepared&&plan.timeWindow?.kind&&plan.timeWindow.kind!=='none'){const times=Composition.windowEvents(plan,obs,bodies);events=events.filter(e=>Composition.inWindow(e.at,plan.timeWindow,times));}
   const distance=geometry?.distanceKm*1000,refractionK=mode==='model-los'?(globalThis.AstroNotesAtmosphere?.targetK?.()??7/6):1;
   const needsTargetProbe=!!prepared||mode!=='model-los'||(plan.partId&&plan.partId!=='__whole'&&plan.matchMode!=='overlap');
-  const targetRay=needsTargetProbe&&geometry&&events.length?trace(index,obs,{azimuth:geometry.azimuth,altitude:Math.atan2(geometry.topM-obs.elevation-obs.eyeM-distance*distance/(2*R*refractionK),distance)/rad,maxM:distance,refractionK,targetKey:plan.target.id,endpoint:{...(prepared?.anchor||plan.target),elevation:geometry.topM}}):null;
-  const targetTerrain=needsTargetProbe&&geometry&&events.length&&terrain?terrain.trace(obs,{azimuth:geometry.azimuth,altitude:Math.atan2(geometry.topM-obs.elevation-obs.eyeM-distance*distance/(2*R*refractionK),distance)/rad,maxM:distance,refractionK,targetKey:plan.target.id,endpoint:{...(prepared?.anchor||plan.target),elevation:geometry.topM}}):null;
+  const targetRay=needsTargetProbe&&geometry&&events.length?trace(index,obs,{azimuth:geometry.azimuth,altitude:Math.atan2(geometry.topM-obs.elevation-obs.eyeM-distance*distance/(2*R*refractionK),distance)/rad,maxM:distance,refractionK,targetKey:plan.target.id,endpoint:{
+  ...(prepared?.anchor||plan.target),elevation:geometry.topM}}):null;
+  const targetTerrain=needsTargetProbe&&geometry&&events.length&&terrain?terrain.trace(obs,{azimuth:geometry.azimuth,altitude:Math.atan2(geometry.topM-obs.elevation-obs.eyeM-distance*distance/(2*R*refractionK),distance)/rad,maxM:distance,refractionK,targetKey:plan.target.id,endpoint:{
+  ...(prepared?.anchor||plan.target),elevation:geometry.topM}}):null;
   const tested=[];for(const event of events){const st=bodies.state(plan.body,event.at,{...obs,elevation:obs.elevation+obs.eyeM});const rays=[];for(const offset of [0,-1,1]){const ray={targetKey:plan.target.id,azimuth:st.azimuth,altitude:(mode==='model-los'?(offset===1?(st.upperAltitude??st.apparentAltitude+st.angularRadius):offset===-1?(st.lowerAltitude??st.apparentAltitude-st.angularRadius):st.apparentAltitude):(st.geometricAltitude??st.altitude??st.apparentAltitude)+offset*st.angularRadius),maxM:mode==='model-los'?distance:12000,refractionK};const building=trace(index,obs,ray),ground=terrain?.trace(obs,ray)??null;if(mode==='model-los'){const self=trace(index,obs,{...ray,maxM:ownTarget.maxM,onlyTarget:true});building.targetContacts=self.targetContacts;building.targetDepthM=ownTarget.maxM;}const result={...building,terrain:ground,model:mode==='model-los'?classifyRay(index,obs,ray,building,ground):null};rays.push(result);if(mode==='model-los'&&result.model.status==='model-blocked')break;}const targetVisibilityProbes=[];let targetOccluded=false;
    if(mode==='model-los'&&rays.length===3&&rays.every(r=>r.model.status==='model-visible')&&rays[0].targetContacts?.length){
     for(const [x,y] of [[0,-.9],[0,.9],[-.9,0],[.9,0],[-.6363961,-.6363961],[.6363961,-.6363961],[-.6363961,.6363961],[.6363961,.6363961]]){
-     const rx=Math.tan(st.angularRadius*rad)/rad,ry=Math.tan((y>=0?(st.upperAltitude??st.apparentAltitude+st.angularRadius)-st.apparentAltitude:st.apparentAltitude-(st.lowerAltitude??st.apparentAltitude-st.angularRadius))*rad)/rad,angle=align.viewUnprojector(st.azimuth,st.apparentAltitude)(x*rx,y*ry),probe={targetKey:plan.target.id,azimuth:angle[0],altitude:angle[1],maxM:distance,refractionK},building=trace(index,obs,probe),ground=terrain.trace(obs,probe);const self=trace(index,obs,{...probe,maxM:ownTarget.maxM,onlyTarget:true});building.targetContacts=self.targetContacts;building.targetDepthM=ownTarget.maxM;targetVisibilityProbes.push({...building,terrain:ground,model:classifyRay(index,obs,probe,building,ground)});
+     const rx=Math.tan(st.angularRadius*rad)/rad,ry=Math.tan((y>=0?(st.upperAltitude??st.apparentAltitude+st.angularRadius)-st.apparentAltitude:st.apparentAltitude-(st.lowerAltitude??st.apparentAltitude-st.angularRadius))*rad)/rad,angle=align.viewUnprojector(st.azimuth,st.apparentAltitude)(x*rx,
+     y*ry),probe={targetKey:plan.target.id,azimuth:angle[0],altitude:angle[1],maxM:distance,refractionK},building=trace(index,obs,probe),ground=terrain.trace(obs,probe);const self=trace(index,obs,{...probe,maxM:ownTarget.maxM,onlyTarget:true});building.targetContacts=self.targetContacts;
+     building.targetDepthM=ownTarget.maxM;targetVisibilityProbes.push({...building,terrain:ground,model:classifyRay(index,obs,probe,building,ground)});
     }
     targetOccluded=targetVisibilityProbes.every(r=>r.targetContacts?.length);
    }
-   const selectedSurface=prepared?.event.composition?.basis==='scene-surface'?Surface.visible({obs,target:plan.target,align,composition:prepared.event.composition}):null;const shown=mode==='model-los'&&!targetOccluded&&rays.every(r=>r.model?.status==='model-visible')&&targetVisibilityProbes.every(r=>r.model.status==='model-visible')?sceneExposure(align,obs,plan.target,st):null;tested.push({event,rays,targetVisibilityProbes,targetOccluded,selectedSurface,sceneExposure:shown});}
+   const selectedSurface=prepared?.event.composition?.basis==='scene-surface'?Surface.visible({obs,target:plan.target,align,composition:prepared.event.composition}):null;
+   const shown=mode==='model-los'&&!targetOccluded&&rays.every(r=>r.model?.status==='model-visible')&&targetVisibilityProbes.every(r=>r.model.status==='model-visible')?sceneExposure(align,obs,plan.target,st):null;
+   tested.push({event,rays,targetVisibilityProbes,targetOccluded,selectedSurface,sceneExposure:shown});}
   if(mode==='model-los'){
    const selectedPartRequired=!!prepared||plan.partId&&plan.partId!=='__whole'&&plan.matchMode!=='overlap';
    const selectedPartModel=selectedPartRequired&&targetRay&&targetTerrain?classifyRay(index,obs,{targetKey:plan.target.id,azimuth:geometry.azimuth,maxM:distance,endpoint:{...(prepared?.anchor||plan.target),elevation:geometry.topM}},targetRay,targetTerrain):null;
-   const event=(!selectedPartRequired||selectedPartModel?.status==='model-visible')?tested.find(e=>(!e.selectedSurface||e.selectedSurface.visible)&&e.sceneExposure?.visible&&!e.targetOccluded&&e.rays.every(r=>r.model.status==='model-visible')&&e.targetVisibilityProbes.every(r=>r.model.status==='model-visible'))?.event:null;
+   const event=(!selectedPartRequired||selectedPartModel?.status==='model-visible')?tested.find(e=>(!e.selectedSurface||e.selectedSurface.visible)&&e.sceneExposure?.visible&&!e.targetOccluded&&e.rays.every(r=>r.model.status==='model-visible')&&
+   e.targetVisibilityProbes.every(r=>r.model.status==='model-visible'))?.event:null;
    const evidence={kind:'terrain-and-building-model-los',scope:'observer-to-target',treesModeled:false,actualVisibilityGuaranteed:false,observerHeightBasis:'GSI DEM + 1.5m',buildingRangeComplete:!!event,terrainNumericComplete:!!event,targetSelfGeometryComplete:ownTarget.complete,sceneModelExposureChecked:!!event,selectedSurfaceChecked:!!event&&!!prepared?.event.composition?.basis,celestialInteriorSampleVisible:!!event,targetSelfCheckedToM:ownTarget.maxM,refractionK,bodySamples:'centre/upper/lower; target-occlusion interior probes when needed'};
-   if(event)return {status:'model-visible',recommend:true,aligned:true,event,place:{id:'model-'+point.latitude.toFixed(7)+','+point.longitude.toFixed(7),name:'モデル候補 '+point.latitude.toFixed(5)+', '+point.longitude.toFixed(5),latitude:point.latitude,longitude:point.longitude,elevation:estimate,eyeHeightAGL:1.5},modelEvidence:evidence,events:tested,targetRay,targetTerrain,assumedObserver:obs,surface};
-   return {status:!events.length?'no-overlap':tested.some(e=>e.targetOccluded||e.rays.some(r=>r.model.status==='model-blocked')||e.targetVisibilityProbes.some(r=>r.model.status==='model-blocked'))?'model-blocked':'model-unknown',recommend:false,aligned:events.length>0,events:tested,targetRay,targetTerrain,modelEvidence:evidence,assumedObserver:obs,surface,reason:!events.length?'no-overlap-event':tested.some(e=>e.selectedSurface&&!e.selectedSurface.visible)?'selected-drawing-surface-occluded-or-unknown':tested.some(e=>e.sceneExposure?.known&&!e.sceneExposure.visible)?'display-model-disagreement':'model-obstructed-or-range-unresolved'};
+   if(event)return {status:'model-visible',recommend:true,aligned:true,event,place:{id:'model-'+point.latitude.toFixed(7)+','+point.longitude.toFixed(7),name:'モデル候補 '+point.latitude.toFixed(5)+', '+point.longitude.toFixed(5),latitude:point.latitude,longitude:point.longitude,elevation:estimate,
+   eyeHeightAGL:1.5},modelEvidence:evidence,events:tested,targetRay,targetTerrain,assumedObserver:obs,surface};
+   return {status:!events.length?'no-overlap':tested.some(e=>e.targetOccluded||e.rays.some(r=>r.model.status==='model-blocked')||e.targetVisibilityProbes.some(r=>r.model.status==='model-blocked'))?'model-blocked':'model-unknown',recommend:false,aligned:events.length>0,events:tested,targetRay,
+   targetTerrain,modelEvidence:evidence,assumedObserver:obs,surface,
+   reason:!events.length?'no-overlap-event':tested.some(e=>e.selectedSurface&&!e.selectedSurface.visible)?'selected-drawing-surface-occluded-or-unknown':tested.some(e=>e.sceneExposure?.known&&!e.sceneExposure.visible)?'display-model-disagreement':'model-obstructed-or-range-unresolved'};
   }
-  return {status:'unknown',recommend:false,aligned:events.length>0,events:tested,targetRay,targetTerrain,targetProbe:{kind:plan.matchMode==='overlap'||plan.partId==='__whole'?'whole-object-tip-probe':'selected-height-probe',heightM:geometry?.topM??null,diagnosticOnly:true},assumedObserver:obs,surface,reason:'estimated-surface-and-incomplete-3d-coverage'};
+  return {status:'unknown',recommend:false,aligned:events.length>0,events:tested,targetRay,targetTerrain,targetProbe:{kind:plan.matchMode==='overlap'||plan.partId==='__whole'?'whole-object-tip-probe':'selected-height-probe',heightM:geometry?.topM??null,diagnosticOnly:true},assumedObserver:obs,
+  surface,reason:'estimated-surface-and-incomplete-3d-coverage'};
  }
  return async function evaluate(plan,point){
   if(!plan.composition)return evaluateBase(plan,point);
@@ -1073,10 +1144,12 @@ function sampleSidewalks(data,limit=600){
   const lo=Math.min(...ring.map(p=>p[0])),hi=Math.max(...ring.map(p=>p[0])),a=Math.min(...ring.map(p=>p[1])),b=Math.max(...ring.map(p=>p[1]));
   const dy=12.5/111195,dx=dy/Math.max(.1,Math.cos((a+b)*Math.PI/360));
   // Narrow sidewalks can miss the grid. Sample inside each edge, never on its boundary.
-  const holes=feature.interiorRingsLonLatHeight||[],k=Math.cos((a+b)*Math.PI/360),near=r=>p=>r.some((u,i)=>{const v=r[(i+1)%r.length],x=(v[0]-u[0])*k,y=v[1]-u[1],t=Math.max(0,Math.min(1,((p.longitude-u[0])*k*x+(p.latitude-u[1])*y)/(x*x+y*y||1)));return Math.hypot((p.longitude-u[0])*k-t*x,p.latitude-u[1]-t*y)*111195<.1;}),eligible=p=>inside(ring,p.latitude,p.longitude)&&!holes.some(h=>inside(h,p.latitude,p.longitude))&&!near(ring)(p)&&!holes.some(h=>near(h)(p));
+  const holes=feature.interiorRingsLonLatHeight||[],k=Math.cos((a+b)*Math.PI/360),near=r=>p=>r.some((u,i)=>{const v=r[(i+1)%r.length],x=(v[0]-u[0])*k,y=v[1]-u[1],t=Math.max(0,Math.min(1,((p.longitude-u[0])*k*x+(p.latitude-u[1])*y)/(x*x+y*y||1)));
+  return Math.hypot((p.longitude-u[0])*k-t*x,p.latitude-u[1]-t*y)*111195<.1;}),eligible=p=>inside(ring,p.latitude,p.longitude)&&!holes.some(h=>inside(h,p.latitude,p.longitude))&&!near(ring)(p)&&!holes.some(h=>near(h)(p));
   const candidates=[];
   for(let lat=a+dy/2;lat<b;lat+=dy)for(let lon=lo+dx/2;lon<hi;lon+=dx)if(inside(ring,lat,lon)&&!(feature.interiorRingsLonLatHeight||[]).some(hole=>inside(hole,lat,lon)))candidates.push(point(lat,lon));
-  for(let i=1;i<ring.length;i++){const u=ring[i-1],v=ring[i],x=(v[0]-u[0])*k,y=v[1]-u[1],length=Math.hypot(x,y);if(!length)continue;let found=false;for(const offset of [.5,.25,.125]){for(const sign of [1,-1]){const p=point((u[1]+v[1])/2+sign*x/length*offset/111195,(u[0]+v[0])/2-sign*y/length*offset/(111195*k));if(eligible(p)){candidates.push(p);found=true;break;}}if(found)break;}}
+  for(let i=1;i<ring.length;i++){const u=ring[i-1],v=ring[i],x=(v[0]-u[0])*k,y=v[1]-u[1],length=Math.hypot(x,y);if(!length)continue;let found=false;
+  for(const offset of [.5,.25,.125]){for(const sign of [1,-1]){const p=point((u[1]+v[1])/2+sign*x/length*offset/111195,(u[0]+v[0])/2-sign*y/length*offset/(111195*k));if(eligible(p)){candidates.push(p);found=true;break;}}if(found)break;}}
   for(const p of candidates){
    if(!eligible(p))continue;const key=p.latitude.toFixed(7)+','+p.longitude.toFixed(7);if(seen.has(key))continue;seen.add(key);
    if(rows.length>=scanLimit){limited=true;break;}
@@ -1122,7 +1195,13 @@ function create({loadData,evaluate,clock=()=>performance.now(),yieldTask=()=>new
      if(result?.deferred)counts.deferred++;
      else if(result?.status==='no-overlap')counts.noOverlap++;
      else if(result?.status==='blocked'||result?.status==='model-blocked')counts.blocked++;
-     else if(result?.recommend===true&&((result.status==='verified'&&p.groundKnown&&p.standingSurfaceKnown&&data.visibilityCertified===true)||(result.status==='model-visible'&&result.modelEvidence?.kind==='terrain-and-building-model-los'&&result.modelEvidence.scope==='observer-to-target'&&result.modelEvidence.buildingRangeComplete&&result.modelEvidence.terrainNumericComplete&&result.modelEvidence.targetSelfGeometryComplete&&result.modelEvidence.sceneModelExposureChecked&&result.modelEvidence.celestialInteriorSampleVisible&&result.modelEvidence.actualVisibilityGuaranteed===false))&&result.event&&Number.isFinite(result.event.at)&&day(result.event.at)===day(plan.at)){for(const row of [result,...(result.additionalCandidates||[])]){if(row?.recommend!==true||!['model-visible','verified'].includes(row.status)||!row.place||!Number.isFinite(row.place.latitude)||!Number.isFinite(row.place.longitude)||!row.event||day(row.event.at)!==day(plan.at))continue;if(row.status==='model-visible'&&!(row.modelEvidence?.kind==='terrain-and-building-model-los'&&row.modelEvidence.scope==='observer-to-target'&&row.modelEvidence.buildingRangeComplete&&row.modelEvidence.terrainNumericComplete&&row.modelEvidence.targetSelfGeometryComplete&&row.modelEvidence.sceneModelExposureChecked&&row.modelEvidence.celestialInteriorSampleVisible&&row.modelEvidence.actualVisibilityGuaranteed===false))continue;const k=[row.place.latitude.toFixed(6),row.place.longitude.toFixed(6),Math.round(row.event.at/1000)].join(',');if(!seenRows.has(k)){seenRows.add(k);rows.push(row);}}}
+     else if(result?.recommend===true&&((result.status==='verified'&&p.groundKnown&&p.standingSurfaceKnown&&data.visibilityCertified===true)||(result.status==='model-visible'&&result.modelEvidence?.kind==='terrain-and-building-model-los'&&result.modelEvidence.scope==='observer-to-target'&&
+     result.modelEvidence.buildingRangeComplete&&result.modelEvidence.terrainNumericComplete&&result.modelEvidence.targetSelfGeometryComplete&&result.modelEvidence.sceneModelExposureChecked&&result.modelEvidence.celestialInteriorSampleVisible&&
+     result.modelEvidence.actualVisibilityGuaranteed===false))&&result.event&&Number.isFinite(result.event.at)&&day(result.event.at)===day(plan.at)){for(const row of [result,...(result.additionalCandidates||[])]){if(row?.recommend!==true||!['model-visible',
+     'verified'].includes(row.status)||!row.place||!Number.isFinite(row.place.latitude)||!Number.isFinite(row.place.longitude)||!row.event||day(row.event.at)!==day(plan.at))continue;
+     if(row.status==='model-visible'&&!(row.modelEvidence?.kind==='terrain-and-building-model-los'&&row.modelEvidence.scope==='observer-to-target'&&row.modelEvidence.buildingRangeComplete&&row.modelEvidence.terrainNumericComplete&&row.modelEvidence.targetSelfGeometryComplete&&
+     row.modelEvidence.sceneModelExposureChecked&&row.modelEvidence.celestialInteriorSampleVisible&&row.modelEvidence.actualVisibilityGuaranteed===false))continue;
+     const k=[row.place.latitude.toFixed(6),row.place.longitude.toFixed(6),Math.round(row.event.at/1000)].join(',');if(!seenRows.has(k)){seenRows.add(k);rows.push(row);}}}
      else counts.unknown++;
     }
     if(counts.checked%25===0)onProgress({...counts});
@@ -1160,12 +1239,15 @@ function hash(s){let x=2166136261;for(let i=0;i<s.length;i++){x^=s.charCodeAt(i)
 function distance(a,b){return Math.hypot((a[0]-b[0])*Math.cos((a[1]+b[1])*RAD/2),a[1]-b[1])*M;}
 function inside(r,p){let yes=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>p.latitude)!==(r[j][1]>p.latitude)&&p.longitude<(r[j][0]-r[i][0])*(p.latitude-r[i][1])/(r[j][1]-r[i][1])+r[i][0])yes=!yes;return yes;}
 const contains=(f,p)=>(!f.bbox||bboxPoint(p,f.bbox))&&f.polygons.some(poly=>inside(poly[0],p)&&!poly.slice(1).some(r=>inside(r,p)));
-function edgeDistance(line,p){let d=Infinity;const c=Math.cos(p.latitude*RAD);for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],x=(b[0]-a[0])*c,y=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*c*x+(p.latitude-a[1])*y)/(x*x+y*y||1)));d=Math.min(d,Math.hypot((p.longitude-a[0])*c-u*x,p.latitude-a[1]-u*y)*M);}return d;}
+function edgeDistance(line,p){let d=Infinity;const c=Math.cos(p.latitude*RAD);for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],x=(b[0]-a[0])*c,y=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*c*x+(p.latitude-a[1])*y)/(x*x+y*y||1)));
+d=Math.min(d,Math.hypot((p.longitude-a[0])*c-u*x,p.latitude-a[1]-u*y)*M);}return d;}
 const xy=g=>(g||[]).filter(p=>p&&finite(p.lon)&&finite(p.lat)&&Math.abs(p.lon)<=180&&Math.abs(p.lat)<=90).map(p=>[p.lon,p.lat]);
 const closed=r=>r.length>=4&&distance(r[0],r[r.length-1])<.01;
 // Multipolygon member fragments are joined only by equal endpoints. An unclosed
 // ring is unavailable geometry, not an invitation to fill the relation's bbox.
-function joinRings(lines){const todo=lines.map(x=>x.slice()),rings=[];while(todo.length){let r=todo.shift(),changed=true;while(!closed(r)&&changed){changed=false;for(let i=0;i<todo.length;i++){let b=todo[i];if(distance(r[r.length-1],b[0])<.01)r.push(...b.slice(1));else if(distance(r[r.length-1],b[b.length-1])<.01)r.push(...b.slice(0,-1).reverse());else if(distance(r[0],b[b.length-1])<.01)r.unshift(...b.slice(0,-1));else if(distance(r[0],b[0])<.01)r.unshift(...b.slice(1).reverse());else continue;todo.splice(i,1);changed=true;break;}}if(closed(r))rings.push(r);}return rings;}
+function joinRings(lines){const todo=lines.map(x=>x.slice()),rings=[];while(todo.length){let r=todo.shift(),changed=true;while(!closed(r)&&changed){changed=false;for(let i=0;i<todo.length;i++){let b=todo[i];if(distance(r[r.length-1],b[0])<.01)r.push(...b.slice(1));
+else if(distance(r[r.length-1],b[b.length-1])<.01)r.push(...b.slice(0,-1).reverse());else if(distance(r[0],b[b.length-1])<.01)r.unshift(...b.slice(0,-1));else if(distance(r[0],b[0])<.01)r.unshift(...b.slice(1).reverse());else continue;todo.splice(i,1);changed=true;break;}}if(closed(r))rings.push(r);
+}return rings;}
 function parseElements(elements){
  const rows=[];
  for(const e of elements){
@@ -1223,7 +1305,8 @@ function* tileQueue(regions){const seen=new Set();for(const r of regions){const 
  }}}
 function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0}={}){
  const generationBudget=maxPoints+skipPoints;
- const areas=features.filter(f=>f.kind&&f.polygons.length),waters=features.filter(f=>f.water),rivers=features.filter(f=>['river','canal'].includes(f.tags.waterway)),buildings=features.filter(f=>f.building),groups=[],unknownGeometry=features.filter(f=>f.geometryIncomplete).map(f=>f.id);let generationLimited=false;
+ const areas=features.filter(f=>f.kind&&f.polygons.length),waters=features.filter(f=>f.water),rivers=features.filter(f=>['river','canal'].includes(f.tags.waterway)),buildings=features.filter(f=>f.building),groups=[],unknownGeometry=features.filter(f=>f.geometryIncomplete).map(f=>f.id);
+ let generationLimited=false;
  const inRegion=p=>regions.some(r=>bboxPoint(p,r.bbox));
  for(const f of features){
   if(forbidden(f.tags)||(!f.walking&&f.kind!=='viewpoint'))continue;
@@ -1235,10 +1318,12 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
   if(f.walking){
    const filled=f.tags.area==='yes'||!!f.tags['area:highway'];
    if(filled){for(const poly of f.polygons){const r=poly[0],xs=r.map(p=>p[0]),ys=r.map(p=>p[1]),a=Math.min(...ys),b=Math.max(...ys),lo=Math.min(...xs),hi=Math.max(...xs),dy=spacingM/M,dx=dy/Math.max(.01,Math.cos((a+b)*RAD/2));let count=0;
-    for(const region of regions){const box=region.bbox,fromLat=Math.max(a,box[1]),toLat=Math.min(b,box[3]),fromLon=Math.max(lo,box[0]),toLon=Math.min(hi,box[2]);for(let lat=fromLat+dy/2;lat<toLat&&count<generationBudget*4;lat+=dy)for(let lon=fromLon+dx/2;lon<toLon&&count<generationBudget*4;lon+=dx){const p={latitude:lat,longitude:lon};if(inside(r,p)&&!poly.slice(1).some(h=>inside(h,p))){candidates.push(p);count++;}}}if(count>=generationBudget*4)generationLimited=true;
+    for(const region of regions){const box=region.bbox,fromLat=Math.max(a,box[1]),toLat=Math.min(b,box[3]),fromLon=Math.max(lo,box[0]),toLon=Math.min(hi,box[2]);for(let lat=fromLat+dy/2;lat<toLat&&count<generationBudget*4;lat+=dy)for(let lon=fromLon+dx/2;lon<toLon&&count<generationBudget*4;
+    lon+=dx){const p={latitude:lat,longitude:lon};if(inside(r,p)&&!poly.slice(1).some(h=>inside(h,p))){candidates.push(p);count++;}}}if(count>=generationBudget*4)generationLimited=true;
     // Small pedestrian squares may be smaller than one grid cell.
     const p={latitude:(a+b)/2,longitude:(lo+hi)/2};if(inside(r,p)&&!poly.slice(1).some(h=>inside(h,p)))candidates.push(p);
-   }}else for(const line of f.lines){for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],n=Math.max(1,Math.ceil(distance(a,b)/spacingM));for(let j=0;j<n;j++){const p={longitude:a[0]+(b[0]-a[0])*j/n,latitude:a[1]+(b[1]-a[1])*j/n};if(!inRegion(p))continue;if(candidates.length>=generationBudget*8){generationLimited=true;break;}candidates.push(p);}}const last=line[line.length-1];if(last)candidates.push({longitude:last[0],latitude:last[1]});}
+   }}else for(const line of f.lines){for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],n=Math.max(1,Math.ceil(distance(a,b)/spacingM));for(let j=0;j<n;j++){const p={longitude:a[0]+(b[0]-a[0])*j/n,latitude:a[1]+(b[1]-a[1])*j/n};if(!inRegion(p))continue;
+   if(candidates.length>=generationBudget*8){generationLimited=true;break;}candidates.push(p);}}const last=line[line.length-1];if(last)candidates.push({longitude:last[0],latitude:last[1]});}
   }
   const points=[];
   for(const p of candidates){
@@ -1269,7 +1354,9 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
     surfaceGeometry:{polygons:f.walking&&(f.tags.area==='yes'||f.tags['area:highway'])?f.polygons:[],lines:f.walking&&f.tags.area!=='yes'&&!f.tags['area:highway']?f.lines:[],...(f.position?{position:f.position}:{})},
     groundM:null,groundKnown:false,surfaceAglM:knownFloor?floor:structuralUnknown?null:0,surfaceHeightM:knownFloor?floor:structuralUnknown?null:0,surfaceElevationM:null,eyeM:1.5,
     standingSurfaceKnown:false,accessKnown,structureClassificationKnown:!structuralUnknown||!!knownFloor,nonTerrainStructure:!!elevated||!!knownFloor&&floor>0,
-    sourceEvidence:{kind:'osm-mapped-walking-surface',heightBasis:'surfaceAglM/surfaceHeightM:height-above-local-ground; surfaceElevationM:groundM+surfaceAglM; eyeM:height-above-surface',osmId:f.id,placeOsmId:(area||f).id,tags:{...f.tags},areaTags:area?{...area.tags}:null,classification:riverArea?'named-riverside-area':riverPath?'named-riverside-walkway':riverside?'mapped-river-proximity':'mapped-feature',floor:knownFloor?{heightM:floor,source:floorSource}:null,buildingContaining:building?.id||null,access:'mapped-only',vegetation:'unknown',actualVisibilityGuaranteed:false}
+    sourceEvidence:{kind:'osm-mapped-walking-surface',heightBasis:'surfaceAglM/surfaceHeightM:height-above-local-ground; surfaceElevationM:groundM+surfaceAglM; eyeM:height-above-surface',osmId:f.id,placeOsmId:(area||f).id,tags:{...f.tags},areaTags:area?{...area.tags}:null,
+    classification:riverArea?'named-riverside-area':riverPath?'named-riverside-walkway':riverside?'mapped-river-proximity':'mapped-feature',floor:knownFloor?{heightM:floor,source:floorSource}:null,buildingContaining:building?.id||null,access:'mapped-only',vegetation:'unknown',
+    actualVisibilityGuaranteed:false}
    });
   }
   if(points.length){const preferred=points.filter(p=>p.placeKind!=='sidewalk'),support=points.filter(p=>p.placeKind==='sidewalk');if(preferred.length)groups.push(preferred);if(support.length)groups.push(support);}
@@ -1278,7 +1365,8 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
  // the entire budget before a small park or a viewpoint is considered.
  groups.sort((a,b)=>(a[0].placeKind==='sidewalk')-(b[0].placeKind==='sidewalk'));
  const rows=[],seen=new Set();let remaining=0,visited=0;
- for(const priority of [false,true]){const g=groups.filter(a=>(a[0].placeKind==='sidewalk')===priority);for(let i=0;g.some(a=>i<a.length);i++)for(const a of g)if(i<a.length){const p=a[i],k=key(p)+'/'+p.surfaceId;if(seen.has(k))continue;seen.add(k);if(visited++<skipPoints)continue;if(rows.length<maxPoints)rows.push(p);else remaining++;}}
+ for(const priority of [false,true]){const g=groups.filter(a=>(a[0].placeKind==='sidewalk')===priority);for(let i=0;g.some(a=>i<a.length);i++)for(const a of g)if(i<a.length){const p=a[i],k=key(p)+'/'+p.surfaceId;if(seen.has(k))continue;seen.add(k);if(visited++<skipPoints)continue;
+ if(rows.length<maxPoints)rows.push(p);else remaining++;}}
  return {rows,limited:remaining>0||generationLimited,omittedPoints:remaining,generationLimited,unknownGeometry};
 }
 function publishedViewpoints(data,regions){
@@ -1290,8 +1378,10 @@ function publishedViewpoints(data,regions){
   // input, and do not prove windows/visibility for a new arbitrary target.
   points.push({latitude:p.latitude,longitude:p.longitude,lat:p.latitude,lon:p.longitude,placeId:'viewpoint/'+p.id,name:p.name,placeKind:'viewpoint',sourceId:'viewpoint/'+p.id,surfaceId:'viewpoint/'+p.id,polygonId:p.id,region:regions.find(r=>bboxPoint(p,r.bbox))?.id,
    surfaceGeometry:{polygons:[],lines:[],position:{latitude:p.latitude,longitude:p.longitude}},
-   groundM:null,groundKnown:false,surfaceAglM:p.deckM,surfaceHeightM:p.deckM,surfaceElevationM:null,eyeM:published?0:1.5,standingSurfaceKnown:false,accessKnown:false,structureClassificationKnown:true,nonTerrainStructure:true,heightBasis:basis,quality:published?'published-viewpoint-point-model':'documented-floor-point-model',
-   sourceEvidence:{kind:'documented-viewpoint-point-model',source,checkedAt:p.sightline?.checkedAt||null,heightBasis:basis,heightM:p.deckM,reference:'height-above-local-ground',eyeHeightIncluded:published,positionBasis:'existing-point-model',physicalFloorMeasured:!published&&basis==='survey-floor',windowOpening:'unknown',targetVisibility:'unknown',buildingLOS:'unknown',vegetation:'unknown',actualVisibilityGuaranteed:false}
+   groundM:null,groundKnown:false,surfaceAglM:p.deckM,surfaceHeightM:p.deckM,surfaceElevationM:null,eyeM:published?0:1.5,standingSurfaceKnown:false,accessKnown:false,structureClassificationKnown:true,nonTerrainStructure:true,heightBasis:basis,
+   quality:published?'published-viewpoint-point-model':'documented-floor-point-model',
+   sourceEvidence:{kind:'documented-viewpoint-point-model',source,checkedAt:p.sightline?.checkedAt||null,heightBasis:basis,heightM:p.deckM,reference:'height-above-local-ground',eyeHeightIncluded:published,positionBasis:'existing-point-model',physicalFloorMeasured:!published&&basis==='survey-floor',
+   windowOpening:'unknown',targetVisibility:'unknown',buildingLOS:'unknown',vegetation:'unknown',actualVisibilityGuaranteed:false}
   });
  }return points;
 }
@@ -1305,7 +1395,8 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
   let timedOut=false;const cancel=()=>controller.abort(),timer=setInterval(()=>{if(!current())cancel();if(Date.now()-started>maxDurationMs){timedOut=true;cancel();}},100);signal?.addEventListener('abort',cancel,{once:true});
   const coverage={status:'partial',requestedRegions:requested,fetchedRegions:[],failedRegions:[],pendingRegions:[],missing:[],osmComplete:false,samplingComplete:false,heightComplete:false,visibilityAssessed:false,actualVisibilityGuaranteed:false,queryTileDegrees:TILE};
   const merged=new Map();let nextOffset=offset,hasPending=false;
-  async function bounded(promise,ms){let t,abort;return Promise.race([promise,new Promise((_,reject)=>{t=setTimeout(()=>reject(Error('timeout')),ms);}),new Promise((_,reject)=>{abort=()=>reject(Error('cancelled'));if(controller.signal.aborted)abort();else controller.signal.addEventListener('abort',abort,{once:true});})]).finally(()=>{clearTimeout(t);controller.signal.removeEventListener('abort',abort);});}
+  async function bounded(promise,ms){let t,abort;return Promise.race([promise,new Promise((_,reject)=>{t=setTimeout(()=>reject(Error('timeout')),ms);}),new Promise((_,reject)=>{abort=()=>reject(Error('cancelled'));if(controller.signal.aborted)abort();
+  else controller.signal.addEventListener('abort',abort,{once:true});})]).finally(()=>{clearTimeout(t);controller.signal.removeEventListener('abort',abort);});}
   async function request(url,opts={}){
    if(!current()||controller.signal.aborted)throw Error('cancelled');
    const own=new AbortController(),abort=()=>own.abort(),t=setTimeout(abort,timeoutMs);controller.signal.addEventListener('abort',abort,{once:true});opts.signal?.addEventListener('abort',abort,{once:true});
@@ -1335,7 +1426,8 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
    }if(!current()||controller.signal.aborted)throw Error('cancelled');
    // A refusal (429) waits a minute; a slow answer only briefly, as a dense Tokyo tile can take Overpass 10-20 s.
    endpointCursor=(endpointCursor+1)%Math.max(1,servers.length);if(overpassAttempted)overpassRetryAfter=Date.now()+(/429/.test(reason)?60000:20000);
-   if(retryFailed&&current()&&!controller.signal.aborted)try{const endpoint='https://api.openstreetmap.org/api/0.6/map',res=await request(endpoint+'?bbox='+b.join(','));if(!res.ok)throw Error('HTTP '+res.status);const xml=await bounded(res.text(),timeoutMs),elements=mapElements(xml),value={features:parseElements(elements),at:Date.now(),timestamp:null,endpoint,version:hash(xml),fallback:true};cache.set(tile.id,value);return value;}catch(e){reason+='; map '+String(e.message||e);}
+   if(retryFailed&&current()&&!controller.signal.aborted)try{const endpoint='https://api.openstreetmap.org/api/0.6/map',res=await request(endpoint+'?bbox='+b.join(','));if(!res.ok)throw Error('HTTP '+res.status);
+   const xml=await bounded(res.text(),timeoutMs),elements=mapElements(xml),value={features:parseElements(elements),at:Date.now(),timestamp:null,endpoint,version:hash(xml),fallback:true};cache.set(tile.id,value);return value;}catch(e){reason+='; map '+String(e.message||e);}
    throw Error(reason);
   }
   try{
@@ -1367,22 +1459,27 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
    // A small documented viewpoint supplement is independent of OSM availability.
    // Add once at the beginning; continuation pages only advance dynamic geometry.
    coverage.documentedViewpoints=0;
-   if(!cursor&&offset===0&&typeof loadViewpoints==='function'&&current()&&!controller.signal.aborted)try{const supplement=publishedViewpoints(await bounded(loadViewpoints(plan,{signal:controller.signal,isCurrent:current}),timeoutMs),requested);points.unshift(...supplement);coverage.documentedViewpoints=supplement.length;}catch{coverage.missing.push('documented-viewpoints-unavailable');}
+   if(!cursor&&offset===0&&typeof loadViewpoints==='function'&&current()&&!controller.signal.aborted)try{const supplement=publishedViewpoints(await bounded(loadViewpoints(plan,{signal:controller.signal,isCurrent:current}),timeoutMs),requested);points.unshift(...supplement);
+   coverage.documentedViewpoints=supplement.length;}catch{coverage.missing.push('documented-viewpoints-unavailable');}
    // Query ground only for the sampled surfaces. GSI failures and sea sentinels
    // stay null; tileElevations() is deliberately not used (it maps failures to 0).
    terrain.resetBudget?.();
    let index=0;
    await Promise.all(Array.from({length:Math.min(4,points.length)},async()=>{while(index<points.length&&current()&&!controller.signal.aborted){const p=points[index++],k=key(p);let g=heightCache.get(k)||null;
-    try{if(!g&&typeof terrain.groundElevation==='function')g=await bounded(terrain.groundElevation(p.latitude,p.longitude,{withSource:true,fetchImpl:request}),timeoutMs+250);if(g&&finite(g.elevation)&&g.source&&g.source!=='海'){heightCache.set(k,g);if(heightCache.size>20000)heightCache.delete(heightCache.keys().next().value);}else g=null;}catch{g=null;}
+    try{if(!g&&typeof terrain.groundElevation==='function')g=await bounded(terrain.groundElevation(p.latitude,p.longitude,{withSource:true,fetchImpl:request}),timeoutMs+250);if(g&&finite(g.elevation)&&g.source&&g.source!=='海'){heightCache.set(k,g);
+    if(heightCache.size>20000)heightCache.delete(heightCache.keys().next().value);}else g=null;}catch{g=null;}
     if(!current())break;if(g){p.groundM=g.elevation;p.groundKnown=true;p.surfaceElevationM=finite(p.surfaceAglM)?g.elevation+p.surfaceAglM:null;p.standingSurfaceKnown=p.structureClassificationKnown&&finite(p.surfaceAglM);p.sourceEvidence.ground={source:g.source,heightM:g.elevation,kind:'dem'};}
    }}));
    // Worldwide data remains usable as a coarse model, with its resolution
    // explicit. Missing GSI within Japan is not quietly replaced by coarse DEM.
    const world=points.filter(p=>!p.groundKnown&&typeof terrain.inJapan==='function'&&!terrain.inJapan(p.latitude,p.longitude));
-   if(world.length&&current()&&!controller.signal.aborted&&typeof terrain.fetchElevations==='function')try{const h=await bounded(terrain.fetchElevations(world,{fetchImpl:request,timeoutMs}),timeoutMs+250);world.forEach((p,i)=>{if(finite(h[i])){p.groundM=h[i];p.groundKnown=true;p.surfaceElevationM=finite(p.surfaceAglM)?h[i]+p.surfaceAglM:null;p.standingSurfaceKnown=p.structureClassificationKnown&&finite(p.surfaceAglM);p.sourceEvidence.ground={source:'Open-Meteo Copernicus DEM',heightM:h[i],resolutionM:90,kind:'coarse-dem'};}});if(!credits.some(c=>c.name==='Open-Meteo'))credits.push({name:'Open-Meteo',url:'https://open-meteo.com/en/docs/elevation-api'});}catch{/* 通信できない時は粗い標高なしで続ける */}
+   if(world.length&&current()&&!controller.signal.aborted&&typeof terrain.fetchElevations==='function')try{const h=await bounded(terrain.fetchElevations(world,{fetchImpl:request,timeoutMs}),timeoutMs+250);world.forEach((p,i)=>{if(finite(h[i])){p.groundM=h[i];p.groundKnown=true;
+   p.surfaceElevationM=finite(p.surfaceAglM)?h[i]+p.surfaceAglM:null;p.standingSurfaceKnown=p.structureClassificationKnown&&finite(p.surfaceAglM);p.sourceEvidence.ground={source:'Open-Meteo Copernicus DEM',heightM:h[i],resolutionM:90,kind:'coarse-dem'};}});
+   if(!credits.some(c=>c.name==='Open-Meteo'))credits.push({name:'Open-Meteo',url:'https://open-meteo.com/en/docs/elevation-api'});}catch{/* 通信できない時は粗い標高なしで続ける */}
    // Water polygons in OSM already remove obvious water points. GSI supplies
    // additional evidence; unknown tiles do not turn into land or a global veto.
-   if(points.length&&current()&&!controller.signal.aborted&&typeof terrain.waterAt==='function')try{const water=await bounded(terrain.waterAt(points,{fetchImpl:request,useDem:false}),timeoutMs+250);points.forEach((p,i)=>{p.sourceEvidence.water=water[i]===true?'water':water[i]===false?'land':'unknown';if(water[i]===true&&!p.nonTerrainStructure){p.excludedReason='water';p.standingSurfaceKnown=false;}});}catch{points.forEach(p=>{p.sourceEvidence.water='unknown';});}
+   if(points.length&&current()&&!controller.signal.aborted&&typeof terrain.waterAt==='function')try{const water=await bounded(terrain.waterAt(points,{fetchImpl:request,useDem:false}),timeoutMs+250);
+   points.forEach((p,i)=>{p.sourceEvidence.water=water[i]===true?'water':water[i]===false?'land':'unknown';if(water[i]===true&&!p.nonTerrainStructure){p.excludedReason='water';p.standingSurfaceKnown=false;}});}catch{points.forEach(p=>{p.sourceEvidence.water='unknown';});}
    const kept=points.filter(p=>p.excludedReason!=='water');coverage.heightComplete=kept.every(p=>p.groundKnown&&p.standingSurfaceKnown);coverage.unknownSurfacePoints=kept.filter(p=>!p.standingSurfaceKnown).length;
    if(coverage.unknownSurfacePoints)coverage.missing.push('standing-surface-height');if(timedOut)coverage.missing.push('time-budget');if(!current())coverage.missing.push('cancelled');
    coverage.status=coverage.osmComplete&&coverage.samplingComplete&&coverage.heightComplete&&!coverage.incompleteGeometry.length&&!coverage.missing.length?'loaded':'partial';
@@ -1493,7 +1590,8 @@ function memoOutlines(align){
  const memo=new Map(),models=()=>globalThis.AstroNotesCityModels||null,ids=new WeakMap();let nextId=0;
  const modelKey=target=>{const m=models()?.[target?.id];if(!m)return 0;if(!ids.has(m))ids.set(m,++nextId);return ids.get(m);};
  const towerOutline=(observer,target,options={})=>{
-  const key=JSON.stringify([observer?.latitude,observer?.longitude,observer?.elevation,observer?.eyeM,target?.id,target?.latitude,target?.longitude,target?.groundM,target?.parts,target?.heightM,options,modelKey(target),!!globalThis.AstroNotesTowerModels,!!globalThis.AstroNotesCityModels]),now=Date.now(),hit=memo.get(key);
+  const key=JSON.stringify([observer?.latitude,observer?.longitude,observer?.elevation,observer?.eyeM,target?.id,target?.latitude,target?.longitude,target?.groundM,target?.parts,target?.heightM,options,modelKey(target),!!globalThis.AstroNotesTowerModels,!!globalThis.AstroNotesCityModels]),
+  now=Date.now(),hit=memo.get(key);
   if(hit&&now-hit.at<3000){memo.delete(key);memo.set(key,hit);return hit.value;}
   const value=align.towerOutline(observer,target,options);memo.set(key,{at:now,value});while(memo.size>32)memo.delete(memo.keys().next().value);return value;
  };
@@ -1586,7 +1684,8 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
     const meta=up&&ground>obs.elevation+.3?standingMetadata({...up,elevation:ground},data,point):false;
     if(!meta)return {status:'model-blocked',recommend:false,reason:'target-line-terrain',partial:true};
     // The step stays in the same park or riverbank, which keeps the point's kind and name.
-    obs={...obs,...meta,placeKind:point.placeKind,name:point.name||meta.name,latitude:up.latitude,longitude:up.longitude,groundM:ground,elevation:ground,surfaceAglM:0,surfaceHeightM:0,surfaceId:(point.surfaceId||'ground')+':up'+(step+1),movedUpFrom:{latitude:point.latitude,longitude:point.longitude,elevation:floor}};
+    obs={...obs,...meta,placeKind:point.placeKind,name:point.name||meta.name,latitude:up.latitude,longitude:up.longitude,groundM:ground,elevation:ground,surfaceAglM:0,surfaceHeightM:0,surfaceId:(point.surfaceId||'ground')+':up'+(step+1),movedUpFrom:{latitude:point.latitude,longitude:point.longitude,
+    elevation:floor}};
    }
   }
   const solved=await Composition.opportunities(plan,obs,{align,bodies,terrain,sidewalks,groundAt:p=>terrain?.at(p,options),standingAt:p=>standingMetadata(p,data,point),isCurrent:options.isCurrent,yieldTask});
@@ -1594,7 +1693,8 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   for(const solution of solved.solutions||[]){
    if(options.isCurrent?.()===false)throw Error('candidate-cancelled');
    const state=bodies.state(plan.body,solution.event.at,{...solution.observer,elevation:solution.observer.elevation+solution.observer.eyeM});
-   const frame=plan.overlapAnchor?lensCheck({...plan,target:plan.overlapAnchor.target,partId:plan.overlapAnchor.partId},solution.observer,state,align.geometryFrom(solution.observer,plan.overlapAnchor.target,{eyeM:solution.observer.eyeM})||solution.geometry,align):lensCheck(plan,solution.observer,state,solution.geometry,align);if(!frame.fits){outside++;continue;}
+   const frame=plan.overlapAnchor?lensCheck({...plan,target:plan.overlapAnchor.target,partId:plan.overlapAnchor.partId},solution.observer,state,align.geometryFrom(solution.observer,plan.overlapAnchor.target,{eyeM:solution.observer.eyeM})||solution.geometry,align):lensCheck(plan,solution.observer,
+   state,solution.geometry,align);if(!frame.fits){outside++;continue;}
    const los=await visibility(plan,solution,options);if(los.status==='blocked'){blocked++;continue;}
    const at=solution.event.at,position=solution.observer,finalGround=Number.isFinite(position.groundM)?position.groundM:ground;
    const sun=bodies.state('sun',at,{...position,elevation:position.elevation+position.eyeM});
@@ -1621,11 +1721,18 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    const usedBuildings=[los.target?.buildings,...(los.rays||[]).filter(r=>r.status==='model-clear').map(r=>r.buildings)],buildingHeights=usedBuildings.some(b=>b?.heights==='estimated')?'estimated':usedBuildings.every(b=>b?.heights==='plateau')?'plateau':'model';
    const kind=position.placeKind||point.placeKind;
    accepted.push({id,requestKey:plan.requestKey,status:combinedClear&&frame.status!=='unknown'?'model-visible':'visible-partial',recommend:true,aligned:true,placeKind:kind==='sidewalk'?'road':kind||'unknown',surfaceId:point.surfaceId,
-    place:{id,name:position.name||point.name||'撮影候補地点',latitude:position.latitude,longitude:position.longitude,elevation:finalGround,groundManualM:finalGround,stand:'ground',standAglM:position.elevation-finalGround+position.eyeM,eyeHeightAGL:position.elevation-finalGround+position.eyeM,decks:[],surfaceId:point.surfaceId},
-    assumedObserver:{...position},event:{...solution.event,sunAltitude:sun.apparentAltitude},quality:{visibility:los.status,extraTargets:visibilityQuality,buildingHeights,targetAngleDeg:solution.geometry.angle,frame:frame.status,photographyClass:photo,geometry:solution.event.targetGeometryKind||'anchor',datum:'source-epoch-unverified'},rank:[Math.round(solution.geometry.angle*10)/10,solution.event.gapAngleDeg??0],
-    frame,extraTargets:extras,visibility:los,sourceEvidence:position.sourceEvidence||point.sourceEvidence,modelEvidence:{kind:combinedClear?'terrain-and-building-model-los':'geometry-with-partial-los',scope:'target-and-celestial-rays',actualVisibilityGuaranteed:false,treesModeled:false,terrainNumericComplete:!!los.rays?.every(r=>r.intentionalTarget||r.terrain?.status==='model-clear'),buildingRangeComplete:!!los.rays?.every(r=>r.intentionalTarget||r.buildings?.complete&&r.buildings?.evaluated),targetSelfGeometryComplete:los.shapeKnown&&los.target?.buildings?.evaluated&&!los.target?.buildings?.unresolvedTargetContacts,extraTargetsAssessed:extras.length,datumUncertainty:true}});
+    place:{id,name:position.name||point.name||'撮影候補地点',latitude:position.latitude,longitude:position.longitude,elevation:finalGround,groundManualM:finalGround,stand:'ground',standAglM:position.elevation-finalGround+position.eyeM,eyeHeightAGL:position.elevation-finalGround+position.eyeM,decks:[],
+    surfaceId:point.surfaceId},
+    assumedObserver:{...position},event:{...solution.event,sunAltitude:sun.apparentAltitude},quality:{visibility:los.status,extraTargets:visibilityQuality,buildingHeights,targetAngleDeg:solution.geometry.angle,frame:frame.status,photographyClass:photo,
+    geometry:solution.event.targetGeometryKind||'anchor',datum:'source-epoch-unverified'},rank:[Math.round(solution.geometry.angle*10)/10,solution.event.gapAngleDeg??0],
+    frame,extraTargets:extras,visibility:los,sourceEvidence:position.sourceEvidence||point.sourceEvidence,modelEvidence:{kind:combinedClear?'terrain-and-building-model-los':'geometry-with-partial-los',scope:'target-and-celestial-rays',actualVisibilityGuaranteed:false,treesModeled:false,
+    terrainNumericComplete:!!los.rays?.every(r=>r.intentionalTarget||r.terrain?.status==='model-clear'),buildingRangeComplete:!!los.rays?.every(r=>r.intentionalTarget||r.buildings?.complete&&r.buildings?.evaluated),
+    targetSelfGeometryComplete:los.shapeKnown&&los.target?.buildings?.evaluated&&!los.target?.buildings?.unresolvedTargetContacts,extraTargetsAssessed:extras.length,datumUncertainty:true}});
   }
-  return accepted.length?{...accepted[0],additionalCandidates:accepted.slice(1),partial:solved.partial}: {status:unverified?'unverified':blocked?'model-blocked':outside?'outside-frame':'no-overlap',recommend:false,heightUnknown:heightUnknown>0,obstacle:!!lastUnverified&&[lastUnverified.target?.buildings,...(lastUnverified.rays||[]).map(r=>r.buildings)].some(b=>['trees','elevated-structure'].includes(b?.reason)),unverifiedBy:lastUnverified?{target:[lastUnverified.target?.terrain?.status,lastUnverified.target?.terrain?.reason,lastUnverified.target?.buildings?.status,lastUnverified.target?.buildings?.reason],rays:(lastUnverified.rays||[]).map(r=>r.intentionalTarget?'target':[r.status,r.terrain?.reason||r.terrain?.status,r.buildings?.reason||r.buildings?.status].join('/'))}:null,partial:solved.partial,reason:solved.reason};
+  return accepted.length?{...accepted[0],additionalCandidates:accepted.slice(1),partial:solved.partial}: {status:unverified?'unverified':blocked?'model-blocked':outside?'outside-frame':'no-overlap',recommend:false,heightUnknown:heightUnknown>0,
+  obstacle:!!lastUnverified&&[lastUnverified.target?.buildings,...(lastUnverified.rays||[]).map(r=>r.buildings)].some(b=>['trees','elevated-structure'].includes(b?.reason)),unverifiedBy:lastUnverified?{target:[lastUnverified.target?.terrain?.status,lastUnverified.target?.terrain?.reason,
+  lastUnverified.target?.buildings?.status,lastUnverified.target?.buildings?.reason],rays:(lastUnverified.rays||[]).map(r=>r.intentionalTarget?'target':[r.status,r.terrain?.reason||r.terrain?.status,r.buildings?.reason||r.buildings?.status].join('/'))}:null,partial:solved.partial,
+  reason:solved.reason};
  }
  return {evaluate,visibility,clear:()=>{visibilityCache.clear();targetLines.clear();}};
 }
@@ -1639,7 +1746,8 @@ if(typeof module==='object'&&module.exports)module.exports={createGeneric,lensCh
 const api=root.AstroNotesCandidateDiscovery||(typeof require==='function'?require('./search.js'):null);
 const Composition=root.AstroNotesCandidateComposition||(typeof require==='function'?require('./composition.js'):null);
 const allowedPoint=p=>p&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&Math.abs(p.latitude)<85&&Math.abs(p.longitude)<=180;
-function requestKey(p){return JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode,p.profile,p.strict,p.composition,!!p.compositionInvalid,p.timeWindow,p.timeSpec||{kind:'day',at:api.day(p.at)},p.atmosphere,p.lens?.mode==='unspecified'?{mode:'unspecified'}:p.lens,p.extraTargets,p.requireAllTargets,...(p.overlapMembers?[p.overlapMembers]:[])]);}
+function requestKey(p){return JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode,p.profile,p.strict,p.composition,!!p.compositionInvalid,p.timeWindow,p.timeSpec||{kind:'day',at:api.day(p.at)},p.atmosphere,p.lens?.mode==='unspecified'?{mode:'unspecified'}:p.lens,p.extraTargets,
+p.requireAllTargets,...(p.overlapMembers?[p.overlapMembers]:[])]);}
 function regionsFor(seeds){
  const map=new Map(),size=.005;
  for(const seed of seeds||[]){
@@ -1664,7 +1772,8 @@ function regionsFor(seeds){
 const placeKinds=new Set(['viewpoint','plaza','park','riverbank']);
 function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPointsPerBatch=40,inverseOptions={},yieldTask=()=>new Promise(r=>setTimeout(r,0))}={}){
  const sessions=new Map();
- const fresh=(key,inverse,lastResult=null)=>({key,regions:regionsFor(inverse.seeds),inverse,lastResult,rows:[],queue:[],seen:new Set(),seenRows:new Set(),cursor:0,started:false,counts:{checked:0,unknown:0,blocked:0,noOverlap:0,unverified:0,heightUnknown:0,nearBuilding:0,obstacle:0,outsideFrame:0,deferred:0},coverage:[],busy:false});
+ const fresh=(key,inverse,lastResult=null)=>({key,regions:regionsFor(inverse.seeds),inverse,lastResult,rows:[],queue:[],seen:new Set(),seenRows:new Set(),cursor:0,started:false,counts:{checked:0,unknown:0,blocked:0,noOverlap:0,unverified:0,heightUnknown:0,nearBuilding:0,obstacle:0,outsideFrame:0,
+ deferred:0},coverage:[],busy:false});
  // Rechecking the same conditions replaces only working progress. The last
  // complete result remains available when a recheck fails or is cancelled.
  function restart(plan){const key=requestKey(plan),previous=sessions.get(key);if(previous?.busy&&previous.current?.()!==false)return false;if(previous)sessions.set(key,fresh(key,previous.inverse,previous.lastResult));return true;}
@@ -1698,7 +1807,9 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
     if(!wanted()||data.cancelled)return {cancelled:true};
     const points=[...(data.points||[])];
     if(!session.started&&loadStatic){
-     try{const legacy=await loadStatic();for(const p of api.sampleSidewalks(legacy).rows){if(!session.regions.some(r=>p.longitude>=r.bbox[0]&&p.longitude<=r.bbox[2]&&p.latitude>=r.bbox[1]&&p.latitude<=r.bbox[3]))continue;points.push({...p,surfaceId:p.polygonId||p.sourceId,placeKind:'road',standingSurfaceKnown:p.structureClassificationKnown&&!p.nonTerrainStructure,accessKnown:undefined,sourceEvidence:{kind:'PLATEAU-pedestrian-surface',sourceId:p.sourceId},name:'歩道の撮影候補'});}}catch{/* Live source remains usable. */}
+     try{const legacy=await loadStatic();for(const p of api.sampleSidewalks(legacy).rows){if(!session.regions.some(r=>p.longitude>=r.bbox[0]&&p.longitude<=r.bbox[2]&&p.latitude>=r.bbox[1]&&p.latitude<=r.bbox[3]))continue;
+     points.push({...p,surfaceId:p.polygonId||p.sourceId,placeKind:'road',standingSurfaceKnown:p.structureClassificationKnown&&!p.nonTerrainStructure,accessKnown:undefined,sourceEvidence:{kind:'PLATEAU-pedestrian-surface',sourceId:p.sourceId},name:'歩道の撮影候補'});
+     }}catch{/* Live source remains usable. */}
     }
     // Commit a provider page only after all awaited preparation is current.
     if(!wanted())return {cancelled:true};
@@ -1745,7 +1856,8 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
    // The place source asked to wait (Overpass cooling down): wait, then fetch the regions it left. Three waits at most;
    // a busier Overpass ends the search with its regions reported as not fetched.
    const waitMs=(page.retryAt||0)-Date.now();
-   if(!page.coverage.pendingPoints&&waitMs>0&&waits<3){waits++;options.onProgress?.({stage:'places-wait',waitMs,...page.counts});for(const end=Date.now()+waitMs+250;Date.now()<end;){if(!wanted())return {cancelled:true};await new Promise(r=>setTimeout(r,Math.min(250,end-Date.now())));}more=true;continue;}
+   if(!page.coverage.pendingPoints&&waitMs>0&&waits<3){waits++;options.onProgress?.({stage:'places-wait',waitMs,...page.counts});for(const end=Date.now()+waitMs+250;Date.now()<end;){if(!wanted())return {cancelled:true};await new Promise(r=>setTimeout(r,Math.min(250,end-Date.now())));}more=true;
+   continue;}
    if(!page.coverage.pendingPoints){
     const cursor=JSON.stringify(page.coverage.nextCursor);
     if(cursors.has(cursor)){const stalled={...page,stalled:true};sessions.get(page.requestKey).lastResult=stalled;return stalled;}
@@ -1755,7 +1867,8 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
   }
   return {cancelled:true};
  }
- function result(s){return {rows:s.rows.slice(),counts:{...s.counts},retryAt:s.retryAt||0,requestKey:s.key,cached:false,limited:true,coverageStatus:'partial',jobStatus:'complete',canContinue:s.queue.length>0||s.cursor!==null,coverage:{regions:s.regions.length,loaded:s.coverage,pendingPoints:s.queue.length,nextCursor:s.cursor,approximateInverse:true},dataVersion:'generic-v1'};}
+ function result(s){return {rows:s.rows.slice(),counts:{...s.counts},retryAt:s.retryAt||0,requestKey:s.key,cached:false,limited:true,coverageStatus:'partial',jobStatus:'complete',canContinue:s.queue.length>0||s.cursor!==null,coverage:{regions:s.regions.length,loaded:s.coverage,
+ pendingPoints:s.queue.length,nextCursor:s.cursor,approximateInverse:true},dataVersion:'generic-v1'};}
  return {search,searchAll,restart,cached:plan=>{const s=sessions.get(requestKey(plan));return s?.lastResult?{...s.lastResult,rows:s.lastResult.rows.slice(),cached:true}:null;},clear:()=>sessions.clear()};
 }
 api.requestKey=requestKey;api.regionsFor=regionsFor;api.createGenericSearch=createGenericSearch;
@@ -1766,7 +1879,8 @@ if(typeof module==='object'&&module.exports)module.exports={requestKey,regionsFo
 (()=>{
 'use strict';const C=AstroNotesCandidateComposition,S=AstroNotesTrialSurface,states=new WeakMap();let ownerKey='',config={composition:null,timeWindow:{kind:'none'},compositionInvalid:false,invalidDraft:null},editing=null;
 const current=()=>typeof SkyMapUI==='undefined'?null:SkyMapUI.selectionState(),owner=()=>typeof auth==='undefined'?'':auth?.loginId||'';
-function syncContext(s=current()){const key=JSON.stringify([owner(),s?.target,s?.body,s?.partId,s?.limb,s?.matchMode,globalThis.AstroNotesTrialOverlap?.key?.(s)??null]);if(key!==ownerKey){ownerKey=key;config={composition:null,timeWindow:{kind:'none'},compositionInvalid:false,invalidDraft:null};for(const st of statesList){st.invalid=false;st.dragging=false;st.active=false;st.error='';closePanel(st,false);}if(editing){editing.active=false;editing=null;}}return s;}
+function syncContext(s=current()){const key=JSON.stringify([owner(),s?.target,s?.body,s?.partId,s?.limb,s?.matchMode,globalThis.AstroNotesTrialOverlap?.key?.(s)??null]);if(key!==ownerKey){ownerKey=key;config={composition:null,timeWindow:{kind:'none'},compositionInvalid:false,invalidDraft:null};
+for(const st of statesList){st.invalid=false;st.dragging=false;st.active=false;st.error='';closePanel(st,false);}if(editing){editing.active=false;editing=null;}}return s;}
 function notify(){document.dispatchEvent(new Event('astronotes-composition-change'));for(const st of statesList)update(st);}
 const statesList=new Set();
 function plan(s=current()){syncContext(s);return structuredClone(config);}
@@ -1783,7 +1897,8 @@ function update(st){
  if(!cap.limbs&&config.composition?.limb!=='center'&&config.composition)config.composition={...config.composition,limb:'center'};
  const c=config.composition,localX=c?.basis==='scene-surface'&&Number.isFinite(bearing)?-Math.cos(bearing)*c.eastM+Math.sin(bearing)*c.northM:c?.xM,ground=t.groundM??0,pk=JSON.stringify([t.id,t.parts]);
  if(st.partsKey!==pk){st.partsKey=pk;st.presets.replaceChildren();for(const p of t.parts||[]){if(!Number.isFinite(p.m))continue;const b=document.createElement('button');b.type='button';b.className='chip';b.textContent=p.name||p.id||'指定位置';b.onclick=()=>setPreset(st,p.m,0);st.presets.append(b);}}
- for(const [field,min,max]of [[st.height,cap.bounds?.heightMinM-ground,cap.bounds?.heightMaxM-ground],[st.x,cap.bounds?.xMinM,cap.bounds?.xMaxM]]){if(Number.isFinite(min))field.min=String(min);else field.removeAttribute('min');if(Number.isFinite(max))field.max=String(max);else field.removeAttribute('max');}
+ for(const [field,min,max]of [[st.height,cap.bounds?.heightMinM-ground,cap.bounds?.heightMaxM-ground],[st.x,cap.bounds?.xMinM,cap.bounds?.xMaxM]]){if(Number.isFinite(min))field.min=String(min);else field.removeAttribute('min');if(Number.isFinite(max))field.max=String(max);
+ else field.removeAttribute('max');}
  st.button.disabled=!cap.surface;st.button.setAttribute('aria-description',cap.surface?'':'この対象は面を指定できません。');if(!cap.surface){st.active=false;st.dragging=false;if(editing===st)editing=null;}
  st.button.setAttribute('aria-label',st.active?'指定を終了':'重ねる位置を指定');st.button.title=st.active?'指定を終了':'重ねる位置を指定';st.button.setAttribute('aria-pressed',String(!!st.active));st.adjust.hidden=!st.active;st.clear.disabled=!c;st.limb.disabled=!cap.limbs;
  const message=st.error||(config.compositionInvalid?'対象の面を選び直してください。':'');
@@ -1791,41 +1906,64 @@ function update(st){
  for(const field of [st.height,st.x])field.setAttribute('aria-invalid',String(!!config.invalidDraft));
  if(c){if(document.activeElement!==st.height)st.height.value=config.invalidDraft?.height??(c.heightM-ground).toFixed(1);if(document.activeElement!==st.x)st.x.value=config.invalidDraft?.x??localX.toFixed(1);st.limb.value=c.limb;}redraw(st.host);
 }
-function setPreset(st,heightM,xM){const s=syncContext(),v=st.host._trialCompositionView,c=S.preset({obs:{...v.spec.obs,eyeM:v.spec.eyeM},target:s.target,align:AstroNotesAlign,heightM,xM,limb:st.limb.value});if(c){const g=S.geometry({...v.spec.obs,eyeM:v.spec.eyeM},s.target,c,AstroNotesAlign),visible=S.pick({obs:{...v.spec.obs,eyeM:v.spec.eyeM},target:s.target,align:AstroNotesAlign,azimuth:g.azimuth,altitude:g.angle,limb:st.limb.value});config.composition=visible||c;st.invalid=false;config.compositionInvalid=false;config.invalidDraft=null;st.error='';if(visible&&Math.abs(visible.heightM-heightM)>.1)st.error=`手前の面に調整しました（高さ${(visible.heightM-s.target.groundM).toFixed(1)}m）。`;}else {st.invalid=true;config.compositionInvalid=true;config.invalidDraft={height:st.height.value,x:st.x.value};st.error='この位置に対象の面がありません。';}notify();}
+function setPreset(st,heightM,xM){const s=syncContext(),v=st.host._trialCompositionView,c=S.preset({obs:{...v.spec.obs,eyeM:v.spec.eyeM},target:s.target,align:AstroNotesAlign,heightM,xM,limb:st.limb.value});
+if(c){const g=S.geometry({...v.spec.obs,eyeM:v.spec.eyeM},s.target,c,AstroNotesAlign),visible=S.pick({obs:{...v.spec.obs,eyeM:v.spec.eyeM},target:s.target,align:AstroNotesAlign,azimuth:g.azimuth,altitude:g.angle,limb:st.limb.value});config.composition=visible||c;st.invalid=false;
+config.compositionInvalid=false;config.invalidDraft=null;st.error='';if(visible&&Math.abs(visible.heightM-heightM)>.1)st.error=`手前の面に調整しました（高さ${(visible.heightM-s.target.groundM).toFixed(1)}m）。`;}else {st.invalid=true;config.compositionInvalid=true;
+config.invalidDraft={height:st.height.value,x:st.x.value};st.error='この位置に対象の面がありません。';}notify();}
 function changed(st){const s=syncContext();setPreset(st,st.height.value===''?NaN:Number(st.height.value)+(s?.target?.groundM||0),st.x.value===''?NaN:Number(st.x.value));}
 function addLabel(parent,text,field){const l=document.createElement('label');l.className='tiny';l.style.display='block';Object.assign(field.style,{maxWidth:'100%',minWidth:'0',minHeight:'44px'});l.append(text,field);parent.append(l);return field;}
 function closePanel(st,restoreFocus=true){st.restoreFocus=restoreFocus;if(st.panel.open)st.panel.close();}
 function dispose(st){closePanel(st,false);for(const node of [st.panel,st.button,st.adjust,st.overlay,st.note])node.remove();statesList.delete(st);states.delete(st.host);}
 const icon=paths=>'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+paths+'</svg>';
-function bind(host,view){host._trialCompositionView=view;let st=states.get(host);if(!host.closest('#exploreScenePanel')){if(st){closePanel(st,false);st.button.hidden=st.adjust.hidden=st.overlay.hidden=st.note.hidden=true;}return;}if(st&&(!st.panel.isConnected||st.cv!==view.cv)){dispose(st);st=null;}if(st){update(st);return;}
+function bind(host,view){host._trialCompositionView=view;let st=states.get(host);if(!host.closest('#exploreScenePanel')){if(st){closePanel(st,false);st.button.hidden=st.adjust.hidden=st.overlay.hidden=st.note.hidden=true;}return;}if(st&&(!st.panel.isConnected||st.cv!==view.cv)){dispose(st);st=null;
+}if(st){update(st);return;}
  const figure=host.querySelector('.aim-look-figure');
- const button=document.createElement('button');button.type='button';button.id='trialCompositionToggle';button.className='trial-composition-tool';button.innerHTML=icon('<circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/>');
- const adjust=document.createElement('button');adjust.type='button';adjust.id='trialCompositionAdjust';adjust.className='trial-composition-tool';adjust.hidden=true;adjust.setAttribute('aria-label','重ねる位置を数値で指定');adjust.title='数値で指定';adjust.setAttribute('aria-haspopup','dialog');adjust.setAttribute('aria-expanded','false');adjust.setAttribute('aria-controls','trialComposition');adjust.innerHTML=icon('<path d="M4 7h5m4 0h7M4 17h9m4 0h3"/><circle cx="11" cy="7" r="2"/><circle cx="15" cy="17" r="2"/>');
+ const button=document.createElement('button');button.type='button';button.id='trialCompositionToggle';button.className='trial-composition-tool';
+ button.innerHTML=icon('<circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/>');
+ const adjust=document.createElement('button');adjust.type='button';adjust.id='trialCompositionAdjust';adjust.className='trial-composition-tool';adjust.hidden=true;adjust.setAttribute('aria-label','重ねる位置を数値で指定');adjust.title='数値で指定';adjust.setAttribute('aria-haspopup','dialog');
+ adjust.setAttribute('aria-expanded','false');adjust.setAttribute('aria-controls','trialComposition');adjust.innerHTML=icon('<path d="M4 7h5m4 0h7M4 17h9m4 0h3"/><circle cx="11" cy="7" r="2"/><circle cx="15" cy="17" r="2"/>');
  const panel=document.createElement('dialog');panel.id='trialComposition';panel.className='sheet trial-composition-dialog';panel.setAttribute('aria-label','重ねる位置');panel.tabIndex=-1;
- const head=document.createElement('div');head.className='sheet-head';const title=document.createElement('strong');title.textContent='重ねる位置';const close=document.createElement('button');close.type='button';close.textContent='閉じる';close.setAttribute('data-composition-close','');head.append(title,close);
+ const head=document.createElement('div');head.className='sheet-head';const title=document.createElement('strong');title.textContent='重ねる位置';const close=document.createElement('button');close.type='button';close.textContent='閉じる';close.setAttribute('data-composition-close','');
+ head.append(title,close);
  const fields=document.createElement('div');fields.className='sheet-body';const presets=document.createElement('div');presets.className='trial-composition-presets';fields.append(presets);
  const height=addLabel(fields,'高さ（地上から m）',document.createElement('input'));height.type='number';height.step='.1';height.className='fav-in';height.setAttribute('aria-label','重ねる対象の高さ（地上からm）');
  const x=addLabel(fields,'左右（右＋ / 左− m）',document.createElement('input'));x.type='number';x.step='.1';x.className='fav-in';x.setAttribute('aria-label','対象の中心から左右の位置（m）');
  const limb=addLabel(fields,'天体の合わせる位置',document.createElement('select'));limb.className='fav-in';limb.setAttribute('aria-label','天体の合わせる位置');for(const [v,n] of [['center','中心'],['upper','上の縁'],['lower','下の縁']])limb.add(new Option(n,v));
- const inputNote=document.createElement('p');inputNote.id='trialCompositionInputStatus';inputNote.className='tiny';inputNote.hidden=true;inputNote.setAttribute('role','status');inputNote.setAttribute('aria-live','polite');for(const field of [height,x])field.setAttribute('aria-describedby',inputNote.id);
+ const inputNote=document.createElement('p');inputNote.id='trialCompositionInputStatus';inputNote.className='tiny';inputNote.hidden=true;inputNote.setAttribute('role','status');inputNote.setAttribute('aria-live','polite');
+ for(const field of [height,x])field.setAttribute('aria-describedby',inputNote.id);
  const clear=document.createElement('button');clear.type='button';clear.className='fav-btn';clear.textContent='指定を解除';fields.append(inputNote,clear);panel.append(head,fields);host.append(panel);
  // Feedback never participates in the drawing's layout or intercepts a pick.
- const note=document.createElement('p');note.id='trialCompositionStatus';note.className='trial-composition-status';note.hidden=true;note.setAttribute('role','status');note.setAttribute('aria-live','polite');note.setAttribute('aria-atomic','true');Object.assign(note.style,{position:'absolute',left:'12px',right:'64px',top:'12px',zIndex:'3',margin:'0',padding:'8px 12px',border:'1px solid var(--line)',borderRadius:'10px',background:'var(--card)',color:'var(--text)',fontSize:'14px',lineHeight:'1.5',textAlign:'center',pointerEvents:'none'});
- const overlay=document.createElement('div');overlay.setAttribute('aria-hidden','true');Object.assign(overlay.style,{position:'absolute',inset:'0',pointerEvents:'none',overflow:'hidden'});const marker=document.createElement('span'),disc=document.createElement('span');Object.assign(marker.style,{position:'absolute',width:'12px',height:'12px',border:'2px solid var(--accent)',borderRadius:'50%',transform:'translate(-50%,-50%)'});Object.assign(disc.style,{position:'absolute',border:'2px dashed var(--accent)',borderRadius:'50%',transform:'translate(-50%,-50%)',background:'rgba(180,190,200,.12)'});overlay.append(disc,marker);figure.append(overlay,note,button,adjust);
+ const note=document.createElement('p');note.id='trialCompositionStatus';note.className='trial-composition-status';note.hidden=true;note.setAttribute('role','status');note.setAttribute('aria-live','polite');note.setAttribute('aria-atomic','true');
+ Object.assign(note.style,{position:'absolute',left:'12px',right:'64px',top:'12px',zIndex:'3',margin:'0',padding:'8px 12px',border:'1px solid var(--line)',borderRadius:'10px',background:'var(--card)',color:'var(--text)',fontSize:'14px',lineHeight:'1.5',textAlign:'center',pointerEvents:'none'});
+ const overlay=document.createElement('div');overlay.setAttribute('aria-hidden','true');Object.assign(overlay.style,{position:'absolute',inset:'0',pointerEvents:'none',overflow:'hidden'});const marker=document.createElement('span'),disc=document.createElement('span');
+ Object.assign(marker.style,{position:'absolute',width:'12px',height:'12px',border:'2px solid var(--accent)',borderRadius:'50%',transform:'translate(-50%,-50%)'});
+ Object.assign(disc.style,{position:'absolute',border:'2px dashed var(--accent)',borderRadius:'50%',transform:'translate(-50%,-50%)',background:'rgba(180,190,200,.12)'});overlay.append(disc,marker);figure.append(overlay,note,button,adjust);
  st={normalTouchAction:view.cv.style.touchAction,host,cv:view.cv,panel,button,adjust,clear,note,inputNote,fields,height,x,limb,presets,overlay,marker,disc,active:false,restoreFocus:true};states.set(host,st);statesList.add(st);
  button.onclick=()=>{st.dragging=false;st.active=!st.active;if(!st.active&&!config.compositionInvalid)st.error='';editing=st.active?st:null;if(st.active&&!config.composition){const s=syncContext();setPreset(st,s.target.parts[0].m,0);}notify();};
  adjust.onclick=()=>{if(!st.active||panel.open&&panel.matches(':modal'))return;if(panel.open)panel.close();st.dragging=false;st.restoreFocus=true;adjust.setAttribute('aria-expanded','true');showSheet(panel);};
  close.onclick=()=>closePanel(st);panel.addEventListener('close',()=>{if(panel.open)return;adjust.setAttribute('aria-expanded','false');if(st.restoreFocus&&button.isConnected&&!button.hidden)(st.active?adjust:button).focus({preventScroll:true});});
  panel.addEventListener('click',e=>{if(e.target!==panel)return;const r=panel.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closePanel(st);});
- clear.onclick=()=>{config.composition=null;st.dragging=false;st.active=false;editing=null;st.invalid=false;config.compositionInvalid=false;config.invalidDraft=null;st.error='';notify();closePanel(st);};height.onchange=x.onchange=()=>changed(st);limb.onchange=()=>{if(config.composition)config.composition={...config.composition,limb:limb.value};notify();};
+ clear.onclick=()=>{config.composition=null;st.dragging=false;st.active=false;editing=null;st.invalid=false;config.compositionInvalid=false;config.invalidDraft=null;st.error='';notify();closePanel(st);};height.onchange=x.onchange=()=>changed(st);
+ limb.onchange=()=>{if(config.composition)config.composition={...config.composition,limb:limb.value};notify();};
  const cv=view.cv;
- function choose(ev){if(!st.active)return;const v=host._trialCompositionView,s=syncContext(),r=cv.getBoundingClientRect(),px=(ev.clientX-r.left)*v.W/r.width,py=(ev.clientY-r.top)*v.H/r.height,off=host._lensOffset||[0,0],angle=AstroNotesAlign.viewUnprojector(v.win.az0,v.win.alt0)((px-off[0]*v.W-v.W/2)/v.k,(v.H/2-py+off[1]*v.H)/v.k);if(!angle)return;const obs={...v.spec.obs,elevation:v.spec.obs.elevation??0,eyeM:v.spec.eyeM},c=S.pick({azimuth:angle[0],altitude:angle[1],obs,target:s.target,align:AstroNotesAlign,limb:config.composition?.limb||'center'});if(c){config.composition=c;st.invalid=false;config.compositionInvalid=false;config.invalidDraft=null;st.error='';}else {st.invalid=true;config.compositionInvalid=true;st.error='対象の面を選んでください。';}notify();}
- for(const type of ['pointerdown','pointermove','pointerup','pointercancel'])cv.addEventListener(type,ev=>{if(!st.active){if(type==='pointerdown')st.suppressClick=false;else if(st.suppressClick){ev.preventDefault();ev.stopImmediatePropagation();}return;}ev.preventDefault();ev.stopImmediatePropagation();if(type==='pointerdown'){st.dragging=true;try{cv.setPointerCapture(ev.pointerId);}catch{/* 既に離れた指は捕まえられないだけ */}}if(type==='pointerdown'||st.dragging&&type!=='pointercancel')choose(ev);if(type==='pointerup'||type==='pointercancel')st.dragging=false;},true);
+ function choose(ev){if(!st.active)return;
+ const v=host._trialCompositionView,s=syncContext(),r=cv.getBoundingClientRect(),px=(ev.clientX-r.left)*v.W/r.width,py=(ev.clientY-r.top)*v.H/r.height,off=host._lensOffset||[0,0],angle=AstroNotesAlign.viewUnprojector(v.win.az0,v.win.alt0)((px-off[0]*v.W-v.W/2)/v.k,(v.H/2-py+off[1]*v.H)/v.k);
+ if(!angle)return;const obs={...v.spec.obs,elevation:v.spec.obs.elevation??0,eyeM:v.spec.eyeM},c=S.pick({azimuth:angle[0],altitude:angle[1],obs,target:s.target,align:AstroNotesAlign,limb:config.composition?.limb||'center'});if(c){config.composition=c;st.invalid=false;config.compositionInvalid=false;
+ config.invalidDraft=null;st.error='';}else {st.invalid=true;config.compositionInvalid=true;st.error='対象の面を選んでください。';}notify();}
+ for(const type of ['pointerdown','pointermove','pointerup','pointercancel'])cv.addEventListener(type,ev=>{if(!st.active){if(type==='pointerdown')st.suppressClick=false;else if(st.suppressClick){ev.preventDefault();ev.stopImmediatePropagation();}return;}ev.preventDefault();
+ ev.stopImmediatePropagation();if(type==='pointerdown'){st.dragging=true;try{cv.setPointerCapture(ev.pointerId);}catch{/* 既に離れた指は捕まえられないだけ */}}if(type==='pointerdown'||st.dragging&&type!=='pointercancel')choose(ev);if(type==='pointerup'||type==='pointercancel')st.dragging=false;},true);
  cv.addEventListener('click',e=>{if(st.active||st.suppressClick){st.suppressClick=false;e.preventDefault();e.stopImmediatePropagation();}},true);
- cv.addEventListener('keydown',e=>{if(!st.active)return;const dirs={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};if(e.key==='Escape'){st.suppressClick=!!st.dragging;st.dragging=false;st.active=false;editing=null;if(!config.compositionInvalid)st.error='';notify();return;}if(!dirs[e.key])return;e.preventDefault();e.stopImmediatePropagation();const c=config.composition,v=host._trialCompositionView,s=syncContext(),g=C.geometry({...v.spec.obs,eyeM:v.spec.eyeM},s.target,c,AstroNotesAlign),xy=AstroNotesAlign.viewProjector(v.win.az0,v.win.alt0)(g.azimuth,g.angle),off=host._lensOffset||[0,0],r=cv.getBoundingClientRect(),step=e.shiftKey?10:1;choose({clientX:r.left+(v.W/2+xy[0]*v.k+off[0]*v.W+dirs[e.key][0]*step)*r.width/v.W,clientY:r.top+(v.H/2-xy[1]*v.k+off[1]*v.H+dirs[e.key][1]*step)*r.height/v.H});},true);
+ cv.addEventListener('keydown',e=>{if(!st.active)return;const dirs={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};if(e.key==='Escape'){st.suppressClick=!!st.dragging;st.dragging=false;st.active=false;editing=null;if(!config.compositionInvalid)st.error='';notify();return;
+ }if(!dirs[e.key])return;e.preventDefault();e.stopImmediatePropagation();
+ const c=config.composition,v=host._trialCompositionView,s=syncContext(),g=C.geometry({...v.spec.obs,eyeM:v.spec.eyeM},s.target,c,AstroNotesAlign),xy=AstroNotesAlign.viewProjector(v.win.az0,v.win.alt0)(g.azimuth,g.angle),off=host._lensOffset||[0,0],r=cv.getBoundingClientRect(),step=e.shiftKey?10:1;
+ choose({clientX:r.left+(v.W/2+xy[0]*v.k+off[0]*v.W+dirs[e.key][0]*step)*r.width/v.W,clientY:r.top+(v.H/2-xy[1]*v.k+off[1]*v.H+dirs[e.key][1]*step)*r.height/v.H});},true);
  update(st);
 }
-function redraw(host){const st=states.get(host),v=host._trialCompositionView,c=config.composition;if(!st||!v)return;if(st.active){if(!st.wasEditing)st.normalTouchAction=v.cv.style.touchAction;v.cv.style.touchAction='none';st.wasEditing=true;}else if(st.wasEditing){v.cv.style.touchAction=st.normalTouchAction;st.wasEditing=false;}st.overlay.hidden=!c||!host.closest('#exploreScenePanel');if(st.overlay.hidden)return;if(!c)return;const s=current();if(!s?.target)return;const g=C.geometry({...v.spec.obs,eyeM:v.spec.eyeM},s.target,c,AstroNotesAlign),xy=AstroNotesAlign.viewProjector(v.win.az0,v.win.alt0)(g.azimuth,g.angle);if(!xy){st.overlay.hidden=true;return;}const r=v.cv.getBoundingClientRect(),off=host._lensOffset||[0,0],x=(v.W/2+xy[0]*v.k+off[0]*v.W)*r.width/v.W,y=(v.H/2-xy[1]*v.k+off[1]*v.H)*r.height/v.H,rad=Math.max(2,(host._bodyRadius||.25)*v.k*r.width/v.W);Object.assign(st.marker.style,{left:x+'px',top:y+'px'});Object.assign(st.disc.style,{left:x+'px',top:(y+(c.limb==='upper'?rad:c.limb==='lower'?-rad:0))+'px',width:2*rad+'px',height:2*rad+'px'});st.disc.hidden=!st.active||!capabilities(s,v.spec.obs).limbs;}
+function redraw(host){const st=states.get(host),v=host._trialCompositionView,c=config.composition;if(!st||!v)return;if(st.active){if(!st.wasEditing)st.normalTouchAction=v.cv.style.touchAction;v.cv.style.touchAction='none';st.wasEditing=true;
+}else if(st.wasEditing){v.cv.style.touchAction=st.normalTouchAction;st.wasEditing=false;}st.overlay.hidden=!c||!host.closest('#exploreScenePanel');if(st.overlay.hidden)return;if(!c)return;const s=current();if(!s?.target)return;
+const g=C.geometry({...v.spec.obs,eyeM:v.spec.eyeM},s.target,c,AstroNotesAlign),xy=AstroNotesAlign.viewProjector(v.win.az0,v.win.alt0)(g.azimuth,g.angle);if(!xy){st.overlay.hidden=true;return;
+}const r=v.cv.getBoundingClientRect(),off=host._lensOffset||[0,0],x=(v.W/2+xy[0]*v.k+off[0]*v.W)*r.width/v.W,y=(v.H/2-xy[1]*v.k+off[1]*v.H)*r.height/v.H,rad=Math.max(2,(host._bodyRadius||.25)*v.k*r.width/v.W);Object.assign(st.marker.style,{left:x+'px',top:y+'px'});
+Object.assign(st.disc.style,{left:x+'px',top:(y+(c.limb==='upper'?rad:c.limb==='lower'?-rad:0))+'px',width:2*rad+'px',height:2*rad+'px'});st.disc.hidden=!st.active||!capabilities(s,v.spec.obs).limbs;}
 document.addEventListener('astronotes-preview-leave',()=>{editing=null;for(const st of statesList){st.active=false;st.dragging=false;closePanel(st,false);update(st);}});
 globalThis.AstroNotesTrialComposition={bind,redraw,plan,label,capabilities};const host=document.getElementById('aimLook');if(host?._trialCompositionView)bind(host,host._trialCompositionView);
 })();
@@ -1837,12 +1975,14 @@ const cache=new WeakMap(),rad=Math.PI/180;
 const point=p=>p&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&Math.abs(p.latitude)<=90&&Math.abs(p.longitude)<=180;
 const within=(p,b)=>p.longitude>=b[0]&&p.longitude<=b[2]&&p.latitude>=b[1]&&p.latitude<=b[3];
 function inside(r,p){let yes=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>p.latitude)!==(r[j][1]>p.latitude)&&p.longitude<(r[j][0]-r[i][0])*(p.latitude-r[i][1])/(r[j][1]-r[i][1])+r[i][0])yes=!yes;return yes;}
-function edgeDistance(r,p){const k=Math.cos(p.latitude*rad);let distance=Infinity;for(let i=1;i<r.length;i++){const a=r[i-1],b=r[i],x=(b[0]-a[0])*k,y=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*k*x+(p.latitude-a[1])*y)/(x*x+y*y||1)));distance=Math.min(distance,Math.hypot((p.longitude-a[0])*k-u*x,p.latitude-a[1]-u*y)*111195);}return distance;}
+function edgeDistance(r,p){const k=Math.cos(p.latitude*rad);let distance=Infinity;for(let i=1;i<r.length;i++){const a=r[i-1],b=r[i],x=(b[0]-a[0])*k,y=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*k*x+(p.latitude-a[1])*y)/(x*x+y*y||1)));
+distance=Math.min(distance,Math.hypot((p.longitude-a[0])*k-u*x,p.latitude-a[1]-u*y)*111195);}return distance;}
 function prepared(data,kind){
  if(!data||typeof data!=='object')return null;const previous=cache.get(data);if(previous?.kind===kind)return previous.result;
  const ring=r=>Array.isArray(r)&&r.length>=4&&r.every(p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&Math.abs(p[0])<=180&&Math.abs(p[1])<=90)&&r[0][0]===r.at(-1)[0]&&r[0][1]===r.at(-1)[1];
  const box=b=>Array.isArray(b)&&b.length===4&&b.every(Number.isFinite)&&b[0]<b[2]&&b[1]<b[3];
- const valid=data.version===1&&data.kind===kind&&Array.isArray(data.coverageBboxes)&&data.coverageBboxes.every(box)&&Array.isArray(data.features)&&data.features.every(f=>typeof f.id==='string'&&typeof f.name==='string'&&f.name.trim()&&f.name.length<=300&&box(f.bbox)&&Array.isArray(f.polygons)&&f.polygons.length&&f.polygons.every(p=>Array.isArray(p)&&p.length&&p.every(ring)));
+ const valid=data.version===1&&data.kind===kind&&Array.isArray(data.coverageBboxes)&&data.coverageBboxes.every(box)&&Array.isArray(data.features)&&data.features.every(f=>typeof f.id==='string'&&typeof f.name==='string'&&f.name.trim()&&f.name.length<=300&&box(f.bbox)&&Array.isArray(f.polygons)&&
+ f.polygons.length&&f.polygons.every(p=>Array.isArray(p)&&p.length&&p.every(ring)));
  const result=valid?data:null;cache.set(data,{kind,result});return result;
 }
 function resolve(data,p,kind){
@@ -1922,7 +2062,8 @@ const day=at=>globalThis.AstroNotesCandidateDiscovery?.day(at)??Math.floor((at+3
 const clockText=at=>Number.isFinite(at)?new Date(at+32400000).toISOString().slice(11,16):'時刻未確認';
 const uncertainty=row=>[row.quality?.visibility==='unknown'?'見通し未確認':'',row.quality?.buildingHeights==='estimated'?'建物の高さは推定':'',row.frame?.status==='unknown'?'全体の画角未確認':''].filter(Boolean);
 function configure(value){if(typeof value==='function')loadLabels=value;else if(value){ports={...ports,...value};if(typeof value.loadLabels==='function')loadLabels=value.loadLabels;}}
-function planKey(plan){return typeof ports.requestKey==='function'?ports.requestKey(plan):JSON.stringify([plan.requestKey,plan.owner,plan.body,plan.target,plan.partId,plan.limb,plan.matchMode,plan.composition,plan.compositionInvalid,plan.timeSpec||null,day(plan.at),plan.atmosphere,plan.cameraHeight]);}
+function planKey(plan){return typeof ports.requestKey==='function'?ports.requestKey(plan):JSON.stringify([plan.requestKey,plan.owner,plan.body,plan.target,plan.partId,plan.limb,plan.matchMode,plan.composition,plan.compositionInvalid,plan.timeSpec||null,day(plan.at),plan.atmosphere,
+plan.cameraHeight]);}
 function formatRow(node,row,types){
  if(!node.hasAttribute('data-candidate-columns')){
   const notes=[...node.querySelectorAll('.sub-line')].filter(n=>!n.hasAttribute('data-place-kind')).map(n=>n.textContent.replace(/^\d{2}:\d{2}・/,'').replace(/ · \d{2}:\d{2}/,''));
@@ -1938,15 +2079,20 @@ function formatRow(node,row,types){
  node.querySelector('[data-candidate-time]').textContent=clockText(row.event?.at);
  const angleCell=node.querySelector('[data-candidate-angle]');if(angleCell){const a=angleOf(row);angleCell.textContent=Number.isFinite(a)?Math.round(a)+'°':'—';angleCell.setAttribute('aria-label',Number.isFinite(a)?'見上げる角度 '+Math.round(a)+'度':'見上げる角度 不明');}
  const unconfirmed=uncertainty(row);let note=node.querySelector('[data-candidate-uncertainty]');
- if(unconfirmed.length){if(!note){note=document.createElement('span');note.dataset.candidateUncertainty='';note.className='tiny sub-line';Object.assign(note.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});node.append(note);}note.textContent=unconfirmed.join(' ・ ');}else note?.remove();
+ if(unconfirmed.length){if(!note){note=document.createElement('span');note.dataset.candidateUncertainty='';note.className='tiny sub-line';Object.assign(note.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});node.append(note);}note.textContent=unconfirmed.join(' ・ ');
+ }else note?.remove();
 }
 function createHeader(){
- const header=document.createElement('div');header.className='candidate-list-heading';header.dataset.candidateHeaders='';header.setAttribute('role','group');header.setAttribute('aria-label','候補の並べ替え');Object.assign(header.style,{display:'grid',gridTemplateColumns:columns,gap:'8px',borderBottom:'1px solid var(--line)',marginTop:'8px'});
- for(const [key,label]of [['name','地点'],['time','時刻'],['kind','種類'],['angle','角度']]){const button=document.createElement('button');button.type='button';button.dataset.candidateSort=key;button.dataset.label=label;Object.assign(button.style,{minWidth:'0',minHeight:'44px',padding:'8px 0',border:'0',borderRadius:'0',background:'transparent',boxShadow:'none',textAlign:'left',fontSize:'14px',fontWeight:'600',whiteSpace:'nowrap'});button.onclick=()=>{sort=sort===key?key+'-desc':key;updateHeaders();apply();};header.append(button);}return header;
+ const header=document.createElement('div');header.className='candidate-list-heading';header.dataset.candidateHeaders='';header.setAttribute('role','group');header.setAttribute('aria-label','候補の並べ替え');
+ Object.assign(header.style,{display:'grid',gridTemplateColumns:columns,gap:'8px',borderBottom:'1px solid var(--line)',marginTop:'8px'});
+ for(const [key,label]of [['name','地点'],['time','時刻'],['kind','種類'],['angle','角度']]){const button=document.createElement('button');button.type='button';button.dataset.candidateSort=key;button.dataset.label=label;
+ Object.assign(button.style,{minWidth:'0',minHeight:'44px',padding:'8px 0',border:'0',borderRadius:'0',background:'transparent',boxShadow:'none',textAlign:'left',fontSize:'14px',fontWeight:'600',whiteSpace:'nowrap'});button.onclick=()=>{sort=sort===key?key+'-desc':key;updateHeaders();apply();};
+ header.append(button);}return header;
 }
 function updateHeaders(){
  if(!control)return;const key=sort.replace(/-desc$/,''),descending=sort.endsWith('-desc');
- for(const button of control.querySelectorAll('[data-candidate-sort]')){const active=button.dataset.candidateSort===key;button.textContent=button.dataset.label+(active?(descending?' ↓':' ↑'):' ↕');button.setAttribute('aria-label',button.dataset.label+(active?'、現在は'+(descending?'降順':'昇順')+'。':'。')+(active&&!descending?'降順':'昇順')+'に並べ替え');button.setAttribute('aria-pressed',String(active));button.style.color=active?'var(--accent)':'var(--secondary)';}
+ for(const button of control.querySelectorAll('[data-candidate-sort]')){const active=button.dataset.candidateSort===key;button.textContent=button.dataset.label+(active?(descending?' ↓':' ↑'):' ↕');
+ button.setAttribute('aria-label',button.dataset.label+(active?'、現在は'+(descending?'降順':'昇順')+'。':'。')+(active&&!descending?'降順':'昇順')+'に並べ替え');button.setAttribute('aria-pressed',String(active));button.style.color=active?'var(--accent)':'var(--secondary)';}
  const reset=control.querySelector('[data-candidate-recommended]');if(reset)reset.hidden=sort==='recommended';
 }
 function button(label,handler){const b=document.createElement('button');b.type='button';b.className='fav-btn';b.textContent=label;b.style.minHeight='44px';b.onclick=handler;return b;}
@@ -1958,14 +2104,17 @@ function mount(panel,plan){
   for(const g of groups.values())for(const node of g.nodes)node.remove();
   scope=next;filterScope=nextFilters;groups.clear();windows.clear();visibleEntries=[];selectedId=null;revision.cancel();mapMode=false;mapHits=[];
   if(!keepFilters){time=kind='all';sort='time';control?.remove();control=null;list=null;}
-  else if(control){list?.replaceChildren();const toggle=control.querySelector('#candidateMapToggle');toggle.textContent='地図で見る';toggle.setAttribute('aria-expanded','false');toggle.disabled=true;const status=control.querySelector('[data-filter-status]');status.textContent='';status.hidden=true;control.querySelector('[data-candidate-headers]').hidden=false;if(list)list.hidden=false;}
+  else if(control){list?.replaceChildren();const toggle=control.querySelector('#candidateMapToggle');toggle.textContent='地図で見る';toggle.setAttribute('aria-expanded','false');toggle.disabled=true;const status=control.querySelector('[data-filter-status]');status.textContent='';status.hidden=true;
+  control.querySelector('[data-candidate-headers]').hidden=false;if(list)list.hidden=false;}
   if(mapPanel)mapPanel.hidden=true;
   if(previous)queueMicrotask(()=>{if(scope===next&&panel.isConnected)globalThis.MyPlacesUI?.renderPickerPanel(panel);});
  }
  if(!control?.isConnected){
   control=document.createElement('section');control.id='candidateListControls';control.className='aim-disclosure';Object.assign(control.style,{padding:'12px 0',marginTop:'12px'});control.setAttribute('aria-label','この日の候補の絞り込みと並び順');
   const filters=document.createElement('div');filters.className='candidate-filter-fields';control.append(filters);
-  const add=(label,id,options,value,change)=>{const l=document.createElement('label');l.className='tiny';Object.assign(l.style,{display:'grid',gridTemplateColumns:'76px minmax(0,1fr)',alignItems:'center',gap:'12px',margin:'0 0 8px',fontSize:'14px'});l.textContent=label;const s=document.createElement('select');s.id=id;s.setAttribute('aria-label',label);Object.assign(s.style,{width:'100%',minWidth:'0',maxWidth:'100%',minHeight:'44px',margin:'0',fontSize:'16px'});for(const [v,n]of options)s.add(new Option(n,v));s.value=value;s.onchange=()=>{change(s.value);apply();};l.append(s);filters.append(l);};
+  const add=(label,id,options,value,change)=>{const l=document.createElement('label');l.className='tiny';Object.assign(l.style,{display:'grid',gridTemplateColumns:'76px minmax(0,1fr)',alignItems:'center',gap:'12px',margin:'0 0 8px',fontSize:'14px'});l.textContent=label;
+  const s=document.createElement('select');s.id=id;s.setAttribute('aria-label',label);Object.assign(s.style,{width:'100%',minWidth:'0',maxWidth:'100%',minHeight:'44px',margin:'0',fontSize:'16px'});for(const [v,n]of options)s.add(new Option(n,v));s.value=value;s.onchange=()=>{change(s.value);apply();
+  };l.append(s);filters.append(l);};
   add('時間帯','candidateTimeFilter',[['all','すべての時間'],['rise','出の前後1時間'],['set','入の前後1時間']],time,v=>time=v);
   add('場所の種類','candidateKindFilter',[['all','すべての種類'],...Object.entries(names)],kind,v=>kind=v);
   const actions=document.createElement('div');actions.className='candidate-list-actions';Object.assign(actions.style,{display:'flex',gap:'8px',flexWrap:'wrap'});
@@ -2013,7 +2162,8 @@ async function apply(){
  status.hidden=!merged.length;status.textContent=`${visibleEntries.length} / ${merged.length}件を表示`+(unknownTime?`。出入り時刻を確認できない${unknownTime}件は時間帯の絞り込みから除外しています。`:'')+(merged.length&&!labels.facilities?'。種類データを読み込めない地点は種類未確認です。':'');
  const toggle=control.querySelector('#candidateMapToggle');toggle.disabled=!visibleEntries.length||typeof ports.createMapView!=='function';
  if(mapMode){if(!visibleEntries.length)showMap(false);else refreshMap();}updateHeaders();
- if(suspendedView?.scope===scope&&visibleEntries.length&&(!suspendedView.selectedId||visibleEntries.some(e=>e.id===suspendedView.selectedId))){const saved=suspendedView;suspendedView=null;selectedId=saved.selectedId;if(saved.mapMode)showMap(true);else requestAnimationFrame(()=>{if(scope===saved.scope&&control?.isConnected){const scroller=ports.getScroller?.()||control.closest('.sheet-body')||control.closest('[role=tabpanel]');if(scroller)scroller.scrollTop=saved.scrollTop;}});}
+ if(suspendedView?.scope===scope&&visibleEntries.length&&(!suspendedView.selectedId||visibleEntries.some(e=>e.id===suspendedView.selectedId))){const saved=suspendedView;suspendedView=null;selectedId=saved.selectedId;if(saved.mapMode)showMap(true);
+ else requestAnimationFrame(()=>{if(scope===saved.scope&&control?.isConnected){const scroller=ports.getScroller?.()||control.closest('.sheet-body')||control.closest('[role=tabpanel]');if(scroller)scroller.scrollTop=saved.scrollTop;}});}
  ports.onRendered?.(visibleEntries.length);return visibleEntries.map(e=>e.row);
 }
 function unregister(box){const g=groups.get(box);if(g){for(const node of g.nodes)node.remove();groups.delete(box);}return apply();}
@@ -2034,13 +2184,15 @@ function ensureMap(){
   const note=document.createElement('p');note.className='tiny';note.textContent='各ピンは、それぞれの時刻の候補です。';mapPanel.append(note);
   const wrap=document.createElement('div');wrap.className='mapwrap';Object.assign(wrap.style,{position:'relative',height:'min(55vh,480px)',minHeight:'280px',overflow:'hidden',borderRadius:'12px'});
   const canvas=document.createElement('canvas');canvas.id='candidateMapCanvas';canvas.setAttribute('aria-label','候補の位置。下の候補選択欄でも選べます。');Object.assign(canvas.style,{width:'100%',height:'100%',display:'block',touchAction:'none'});wrap.append(canvas);
-  const zoom=document.createElement('div');zoom.className='mapzoom';const plus=button('＋',()=>{}),minus=button('−',()=>{});plus.id='candidateMapZoomIn';minus.id='candidateMapZoomOut';plus.setAttribute('aria-label','地図を拡大');minus.setAttribute('aria-label','地図を縮小');zoom.append(plus,minus);wrap.append(zoom);mapPanel.append(wrap);
+  const zoom=document.createElement('div');zoom.className='mapzoom';const plus=button('＋',()=>{}),minus=button('−',()=>{});plus.id='candidateMapZoomIn';minus.id='candidateMapZoomOut';plus.setAttribute('aria-label','地図を拡大');minus.setAttribute('aria-label','地図を縮小');zoom.append(plus,minus);
+  wrap.append(zoom);mapPanel.append(wrap);
   const card=document.createElement('div');card.id='candidateMapCard';mapPanel.append(card);
   const select=document.createElement('select');select.id='candidateMapChoice';select.setAttribute('aria-label','地図の候補');Object.assign(select.style,{width:'100%',fontSize:'16px',minHeight:'44px',marginTop:'12px'});select.onchange=()=>chooseMap(select.value);card.append(select);
   const detail=document.createElement('p');detail.id='candidateMapDetail';detail.className='tiny';detail.setAttribute('role','status');card.append(detail);
   const use=button('見え方を確認',()=>{const e=mapSelection();if(!currentEntry(e)){detail.textContent='条件が変わりました。一覧に戻って候補を確認してください。';return;}e.node.click();});use.id='candidateMapUse';card.append(use);
   const back=button('一覧に戻る',()=>{wrap._mapShell?.setWide(false);showMap(false);});back.hidden=true;card.append(back);
-  new MutationObserver(()=>{const wide=wrap.classList.contains('sky-map-wide'),footer=wrap.querySelector('.shared-map-footer');back.hidden=!wide;if(wide&&footer){footer.hidden=false;if(card.parentNode!==footer)footer.append(card);}else if(card.parentNode!==mapPanel)mapPanel.append(card);}).observe(wrap,{attributes:true,attributeFilter:['class']});
+  new MutationObserver(()=>{const wide=wrap.classList.contains('sky-map-wide'),footer=wrap.querySelector('.shared-map-footer');back.hidden=!wide;if(wide&&footer){footer.hidden=false;if(card.parentNode!==footer)footer.append(card);}else if(card.parentNode!==mapPanel)mapPanel.append(card);
+  }).observe(wrap,{attributes:true,attributeFilter:['class']});
  }
  if(mapPanel.parentNode!==control)control.append(mapPanel);
  if(!mapInstance){mapInstance=ports.createMapView({canvas:'candidateMapCanvas',zoomIn:'candidateMapZoomIn',zoomOut:'candidateMapZoomOut'});mapInstance.setOverlay(drawMap);mapInstance.onPick((_point,pixel)=>{
@@ -2051,8 +2203,10 @@ function ensureMap(){
 function showMap(on){
  if(!control)return false;if(on&&(!visibleEntries.length||typeof ports.createMapView!=='function'))return false;
  const scrollHost=ports.getScroller?.()||control.closest('[role=tabpanel]')||control.closest('dialog'),toggle=control.querySelector('#candidateMapToggle');
- if(on){mapScroll={node:scrollHost,top:scrollHost?.scrollTop||0};ensureMap();mapMode=true;mapPanel.hidden=false;list.hidden=true;control.querySelector('[data-candidate-headers]').hidden=true;toggle.textContent='一覧に戻る';toggle.setAttribute('aria-expanded','true');mapFitPending=true;refreshMap();mapPanel.scrollIntoView?.({block:'nearest'});}
- else{mapMode=false;if(mapPanel){mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);mapPanel.hidden=true;}if(list)list.hidden=false;control.querySelector('[data-candidate-headers]').hidden=false;toggle.textContent='地図で見る';toggle.setAttribute('aria-expanded','false');const saved=mapScroll,expected=scope;if(saved?.node)requestAnimationFrame(()=>{if(!mapMode&&scope===expected&&saved.node.isConnected)saved.node.scrollTop=saved.top;});}
+ if(on){mapScroll={node:scrollHost,top:scrollHost?.scrollTop||0};ensureMap();mapMode=true;mapPanel.hidden=false;list.hidden=true;control.querySelector('[data-candidate-headers]').hidden=true;toggle.textContent='一覧に戻る';toggle.setAttribute('aria-expanded','true');mapFitPending=true;refreshMap();
+ mapPanel.scrollIntoView?.({block:'nearest'});}
+ else{mapMode=false;if(mapPanel){mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);mapPanel.hidden=true;}if(list)list.hidden=false;control.querySelector('[data-candidate-headers]').hidden=false;toggle.textContent='地図で見る';toggle.setAttribute('aria-expanded','false');
+ const saved=mapScroll,expected=scope;if(saved?.node)requestAnimationFrame(()=>{if(!mapMode&&scope===expected&&saved.node.isConnected)saved.node.scrollTop=saved.top;});}
  return true;
 }
 function refreshMap(){
@@ -2061,9 +2215,12 @@ function refreshMap(){
  const select=mapPanel.querySelector('#candidateMapChoice'),signature=JSON.stringify(visibleEntries.map(e=>[e.id,e.row.place.name,e.row.event?.at]));
  if(select.dataset.signature!==signature){select.replaceChildren();visibleEntries.forEach((e,i)=>select.add(new Option(`${i+1}. ${e.row.place.name} ・ ${clockText(e.row.event?.at)}`,e.id)));select.dataset.signature=signature;}
  select.value=selectedId||'';const e=mapSelection();
- const detail=mapPanel.querySelector('#candidateMapDetail');if(e){const obs=e.row.assumedObserver,p=e.row.place,base=Number.isFinite(obs?.elevation)?obs.elevation:p.groundManualM??p.elevation,eye=Number.isFinite(obs?.eyeM)?obs.eyeM:p.standAglM??p.eyeHeightAGL;detail.textContent=e.types.map(t=>names[t]).join('・')+' ・ '+clockText(e.row.event?.at)+(Number.isFinite(base)&&Number.isFinite(eye)?' ・ 撮影位置の標高 '+(base+eye).toFixed(1)+'m':' ・ 高さ未確認')+uncertainty(e.row).map(s=>' ・ '+s).join('');}
+ const detail=mapPanel.querySelector('#candidateMapDetail');if(e){const obs=e.row.assumedObserver,p=e.row.place,base=Number.isFinite(obs?.elevation)?obs.elevation:p.groundManualM??p.elevation,eye=Number.isFinite(obs?.eyeM)?obs.eyeM:p.standAglM??p.eyeHeightAGL;
+ detail.textContent=e.types.map(t=>names[t]).join('・')+' ・ '+clockText(e.row.event?.at)+(Number.isFinite(base)&&Number.isFinite(eye)?' ・ 撮影位置の標高 '+(base+eye).toFixed(1)+'m':' ・ 高さ未確認')+uncertainty(e.row).map(s=>' ・ '+s).join('');}
  mapPanel.querySelector('#candidateMapUse').disabled=!currentEntry(e);
- if(mapFitPending){mapFitPending=false;const ps=visibleEntries.map(e=>e.row.place).filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude));if(ps.length){const lat0=Math.min(...ps.map(p=>p.latitude)),lat1=Math.max(...ps.map(p=>p.latitude)),lon0=Math.min(...ps.map(p=>p.longitude)),lon1=Math.max(...ps.map(p=>p.longitude)),lat=(lat0+lat1)/2,lon=(lon0+lon1)/2,cv=mapPanel.querySelector('canvas'),dx=Math.max(.00001,(lon1-lon0)/360),dy=Math.max(.00001,(lat1-lat0)/(360*Math.cos(lat*Math.PI/180))),z=Math.min(17,Math.log2(Math.max(160,cv.clientWidth)*.7/(256*dx)),Math.log2(Math.max(200,cv.clientHeight)*.7/(256*dy)));mapInstance.open({latitude:lat,longitude:lon},z);}}
+ if(mapFitPending){mapFitPending=false;const ps=visibleEntries.map(e=>e.row.place).filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude));
+ if(ps.length){const lat0=Math.min(...ps.map(p=>p.latitude)),lat1=Math.max(...ps.map(p=>p.latitude)),lon0=Math.min(...ps.map(p=>p.longitude)),lon1=Math.max(...ps.map(p=>p.longitude)),lat=(lat0+lat1)/2,lon=(lon0+lon1)/2,cv=mapPanel.querySelector('canvas'),dx=Math.max(.00001,(lon1-lon0)/360),
+ dy=Math.max(.00001,(lat1-lat0)/(360*Math.cos(lat*Math.PI/180))),z=Math.min(17,Math.log2(Math.max(160,cv.clientWidth)*.7/(256*dx)),Math.log2(Math.max(200,cv.clientHeight)*.7/(256*dy)));mapInstance.open({latitude:lat,longitude:lon},z);}}
  mapInstance.redraw();
 }
 function drawMap(ctx,{project,width,height}){
@@ -2072,10 +2229,15 @@ function drawMap(ctx,{project,width,height}){
  if(selected&&currentEntry(selected)){
   const p=selected.row.place,t=selected.group.plan.target;
   if(t&&Number.isFinite(t.latitude)&&Number.isFinite(t.longitude)){const a=project(p.latitude,p.longitude),b=project(t.latitude,t.longitude);ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.strokeStyle='#f4bb44';ctx.lineWidth=3;ctx.stroke();
-   const top=64,off=b[0]<24||b[0]>width-24||b[1]<top||b[1]>height-24,origin=a[0]>=24&&a[0]<=width-24&&a[1]>=top&&a[1]<=height-24?a:[width/2,height/2],dx=b[0]-origin[0],dy=b[1]-origin[1],scale=off?Math.min(1,dx>0?(width-24-origin[0])/dx:dx<0?(24-origin[0])/dx:Infinity,dy>0?(height-24-origin[1])/dy:dy<0?(top-origin[1])/dy:Infinity):1,tx=off?origin[0]+dx*scale:b[0],ty=off?origin[1]+dy*scale:b[1];ctx.beginPath();ctx.arc(tx,ty,7,0,Math.PI*2);ctx.fillStyle='#bc7cff';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle='#fff';ctx.strokeStyle='#222';ctx.lineWidth=4;let label=(off?'対象方向：':'')+(t.name||'対象');const maxLabelWidth=Math.max(20,width-20);if(ctx.measureText(label).width>maxLabelWidth){while(label.length&&ctx.measureText(label+'…').width>maxLabelWidth)label=label.slice(0,-1);label+='…';}const half=ctx.measureText(label).width/2+5,labelX=Math.max(half,Math.min(width-half,tx)),labelY=Math.max(14,Math.min(height-14,ty+(ty<84||ty>=a[1]?20:-20)));ctx.strokeText(label,labelX,labelY);ctx.fillText(label,labelX,labelY);
+   const top=64,off=b[0]<24||b[0]>width-24||b[1]<top||b[1]>height-24,origin=a[0]>=24&&a[0]<=width-24&&a[1]>=top&&a[1]<=height-24?a:[width/2,height/2],dx=b[0]-origin[0],dy=b[1]-origin[1],scale=off?Math.min(1,dx>0?(width-24-origin[0])/dx:dx<0?(24-origin[0])/dx:Infinity,
+   dy>0?(height-24-origin[1])/dy:dy<0?(top-origin[1])/dy:Infinity):1,tx=off?origin[0]+dx*scale:b[0],ty=off?origin[1]+dy*scale:b[1];ctx.beginPath();ctx.arc(tx,ty,7,0,Math.PI*2);ctx.fillStyle='#bc7cff';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle='#fff';
+   ctx.strokeStyle='#222';ctx.lineWidth=4;let label=(off?'対象方向：':'')+(t.name||'対象');const maxLabelWidth=Math.max(20,width-20);if(ctx.measureText(label).width>maxLabelWidth){while(label.length&&ctx.measureText(label+'…').width>maxLabelWidth)label=label.slice(0,-1);label+='…';
+   }const half=ctx.measureText(label).width/2+5,labelX=Math.max(half,Math.min(width-half,tx)),labelY=Math.max(14,Math.min(height-14,ty+(ty<84||ty>=a[1]?20:-20)));ctx.strokeText(label,labelX,labelY);ctx.fillText(label,labelX,labelY);
   }
  }
- visibleEntries.map((e,i)=>({e,i})).sort((a,b)=>Number(a.e.id===selectedId)-Number(b.e.id===selectedId)).forEach(({e,i})=>{if(!currentEntry(e))return;const p=e.row.place;if(!Number.isFinite(p.latitude)||!Number.isFinite(p.longitude))return;const [x,y]=project(p.latitude,p.longitude);if(x<-24||x>width+24||y<-24||y>height+24)return;mapHits.push({x,y,id:e.id});ctx.beginPath();ctx.arc(x,y,e.id===selectedId?16:13,0,Math.PI*2);ctx.fillStyle=e.id===selectedId?'#176cc5':'#273b52';ctx.fill();ctx.lineWidth=e.id===selectedId?3:2;ctx.strokeStyle='#fff';ctx.stroke();ctx.fillStyle='#fff';ctx.fillText(String(i+1),x,y);});ctx.restore();
+ visibleEntries.map((e,i)=>({e,i})).sort((a,b)=>Number(a.e.id===selectedId)-Number(b.e.id===selectedId)).forEach(({e,i})=>{if(!currentEntry(e))return;const p=e.row.place;if(!Number.isFinite(p.latitude)||!Number.isFinite(p.longitude))return;const [x,y]=project(p.latitude,p.longitude);
+ if(x<-24||x>width+24||y<-24||y>height+24)return;mapHits.push({x,y,id:e.id});ctx.beginPath();ctx.arc(x,y,e.id===selectedId?16:13,0,Math.PI*2);ctx.fillStyle=e.id===selectedId?'#176cc5':'#273b52';ctx.fill();ctx.lineWidth=e.id===selectedId?3:2;ctx.strokeStyle='#fff';ctx.stroke();ctx.fillStyle='#fff';
+ ctx.fillText(String(i+1),x,y);});ctx.restore();
 }
 // Keep UI preferences and a valid return position, never old executable rows.
 function suspend(){
@@ -2085,7 +2247,8 @@ function suspend(){
  if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);
  revision.cancel();for(const g of groups.values())for(const node of g.nodes)node.remove();groups.clear();visibleEntries=[];mapHits=[];mapMode=false;if(mapPanel)mapPanel.hidden=true;control.remove();
 }
-function reset(){if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);revision.cancel();groups.clear();windows.clear();visibleEntries=[];selectedId=null;mapHits=[];mapMode=false;if(mapPanel)mapPanel.hidden=true;control?.remove();control=null;list=null;scope='';filterScope='';mapScroll=null;suspendedView=null;}
+function reset(){if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);revision.cancel();groups.clear();windows.clear();visibleEntries=[];selectedId=null;mapHits=[];mapMode=false;if(mapPanel)mapPanel.hidden=true;control?.remove();control=null;list=null;scope='';filterScope='';
+mapScroll=null;suspendedView=null;}
 const api={mount,configure,registerRegistered:register,registerAdditional:register,unregister,apply,kinds,accepts,compare,showMap,suspend,reset,visibleRows:()=>visibleEntries.filter(currentEntry).map(e=>e.row)};
 globalThis.AstroNotesCandidatePicker=api;
 if(typeof module!=='undefined')module.exports={kinds,accepts,compare,candidateKey,mergeEntries,placePriority};
@@ -2104,7 +2267,8 @@ const dataTag=new URL(document.currentScript.src,location.href).searchParams.get
 const dataHashes={"candidate-viewpoints.json":"f9496da00f09be194ea770c3c7e851afd84f388fe5fa388922635e53c86950c5","candidate-terrain.json":"5c78165203510383eab45feb0e2195a06c6f4d8ec5f3e682db941ca705279779","candidate-buildings.json":"e4ec51ed732be60108959a7854cdd5ae8aab46a94aaa026f0d5094101e1f4c8a","building-heights/index.json":"6c50fb9f8e0792f34d99cefb9b5aeb300a5a43f722bd0b0aa4ba8572c2676e19","building-shapes/index.json":"0298fc54cd928ed403b637b456b0871fe984d3978a02961a40e89e07c7d6c10c","osm-places/index.json":"101f0c969fcfdf205b775f6dad761b00b99264fd4c6905a751da38de859a4bdc","candidate-surfaces.json":"de16ae6e56aa05a1d4a7d6d0fa8974a4373183f35e8282f412f7fbd7c637751f","candidate-sidewalks.json":"efc42ec01902232f52ec36e84808dc3400892d91c5ddf663d91ef34bb123e48a","candidate-label-addresses.json":"3919fc5e919863ba593174cdd805f860d41882938667055ab456b9abe33d869b","candidate-label-facilities.json":"ca92359defa9b765fe86db8bf5053cd5921182a39af1975b9324274615efdf53"};
 // The trial keeps no copy of this data: its page points at the production folder (build-preview.py).
 const dataBase=document.querySelector('meta[name="astronotes-data-base"]')?.content||'data/';
-const readData=async(name,{signal}={})=>{const r=await fetch(dataBase+name+'?v='+dataTag,{signal});if(!r.ok)throw Error('data');const bytes=await r.arrayBuffer(),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');if(hash!==dataHashes[name])throw Error('data-version');return JSON.parse(new TextDecoder().decode(bytes));};
+const readData=async(name,{signal}={})=>{const r=await fetch(dataBase+name+'?v='+dataTag,{signal});if(!r.ok)throw Error('data');const bytes=await r.arrayBuffer(),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
+if(hash!==dataHashes[name])throw Error('data-version');return JSON.parse(new TextDecoder().decode(bytes));};
 const cachedData=new Map();
 function loaded(name){if(!cachedData.has(name)){const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),10000);cachedData.set(name,readData(name,{signal:ctrl.signal}).catch(e=>{cachedData.delete(name);throw e;}).finally(()=>clearTimeout(timer)));}return cachedData.get(name);}
 // Saved targets standing on a PLATEAU building take its shape on this page (見え方 and new places).
@@ -2117,7 +2281,8 @@ if(typeof globalThis.aimTargetList==='function'&&!globalThis.aimTargetList.plate
 }
 async function refreshShapes(){
  if(!plateauShapes||typeof aimTargetList!=='function')return;
- try{const changed=await plateauShapes.prepare(aimTargetList());if(!changed.length)return;if(changed.includes(SkyMapUI?.selectionState?.()?.target?.id))SkyMapUI.render?.();document.dispatchEvent(new Event('astronotes-records-change'));}catch{/* Shapes are an enhancement; the outline estimate stays. */}
+ try{const changed=await plateauShapes.prepare(aimTargetList());if(!changed.length)return;if(changed.includes(SkyMapUI?.selectionState?.()?.target?.id))SkyMapUI.render?.();document.dispatchEvent(new Event('astronotes-records-change'));
+ }catch{/* Shapes are an enhancement; the outline estimate stays. */}
 }
 document.addEventListener('astronotes-records-change',refreshShapes);
 (globalThis.startupSessionReady||Promise.resolve()).then(refreshShapes,()=>{});
@@ -2136,12 +2301,16 @@ let modelPromise=null;
 async function loadModel(){
  // Buildings: PLATEAU top heights (every city PLATEAU covers) along each line, GSI footprints elsewhere; the 3D band model is no longer loaded.
  if(!modelPromise)modelPromise=(async()=>{await AstroNotesAssets.ensureModels();const dem=await loaded('candidate-terrain.json').catch(()=>null);
-  const heights=AstroNotesCandidateHeights.create({base:dataBase+'building-heights/',loadIndex:()=>loaded('building-heights/index.json'),ownFootprint:key=>plateauShapes?.footprint(key)||null,obstacles:osmPlaces?(a,b)=>osmPlaces.obstaclesAlong(a,b):null,gsiAlong:(a,b)=>AstroNotesTerrain.gsiBuildingsAlong(a,b),groundAt:p=>footprintGround.sample(p).then(r=>r.height)});
-  return AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:live,heights,staticTerrain:dem?await AstroNotesCandidateTerrain.decode(dem):null,sidewalks:await loaded('candidate-sidewalks.json').catch(()=>null)});})().catch(e=>{modelPromise=null;throw e;});
+  const heights=AstroNotesCandidateHeights.create({base:dataBase+'building-heights/',loadIndex:()=>loaded('building-heights/index.json'),ownFootprint:key=>plateauShapes?.footprint(key)||null,obstacles:osmPlaces?(a,b)=>osmPlaces.obstaclesAlong(a,b):null,gsiAlong:(a,
+  b)=>AstroNotesTerrain.gsiBuildingsAlong(a,b),groundAt:p=>footprintGround.sample(p).then(r=>r.height)});
+  return AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:live,heights,staticTerrain:dem?await AstroNotesCandidateTerrain.decode(dem):null,sidewalks:await loaded('candidate-sidewalks.json').catch(()=>null)});
+  })().catch(e=>{modelPromise=null;throw e;});
  return modelPromise;
 }
 let evaluationBudgetStarted=false;
-const engine=AstroNotesCandidateDiscovery.createGenericSearch({provider,bodies:AstroNotesBodies,loadStatic:()=>loaded('candidate-sidewalks.json'),evaluate:async(p,point,data,options)=>{const model=await loadModel();if(plateauShapes&&String(p.target?.id||'').startsWith('fav:')&&!plateauShapes.attachedTo(p.target.id))await plateauShapes.prepare([p.target]).catch(()=>{});if(!options.isCurrent())throw Error('candidate-cancelled');if(!evaluationBudgetStarted){live.resetBudget();footprintGround.resetBudget();evaluationBudgetStarted=true;}return model.evaluate(p,point,data,options);}});
+const engine=AstroNotesCandidateDiscovery.createGenericSearch({provider,bodies:AstroNotesBodies,loadStatic:()=>loaded('candidate-sidewalks.json'),evaluate:async(p,point,data,options)=>{const model=await loadModel();
+if(plateauShapes&&String(p.target?.id||'').startsWith('fav:')&&!plateauShapes.attachedTo(p.target.id))await plateauShapes.prepare([p.target]).catch(()=>{});if(!options.isCurrent())throw Error('candidate-cancelled');if(!evaluationBudgetStarted){live.resetBudget();footprintGround.resetBudget();
+evaluationBudgetStarted=true;}return model.evaluate(p,point,data,options);}});
 const stop=()=>{if(autoSearchTimer!==null)clearTimeout(autoSearchTimer);autoSearchTimer=null;if(watch!==null)clearInterval(watch);watch=null;controller?.abort();controller=null;};
 // The refraction settings only: weather the view loads later for a chosen place (気象予報) must not discard the places
 // already found when going back to the list (2026-11-11, seen on the iPhone). The evaluator keys its own caches by the data.
@@ -2158,7 +2327,8 @@ function snapshot(){
  const host=document.querySelector('#exploreScenePanel #aimLook'),view=host?._trialCompositionView;
  // The preview fills the same map-owned content width (max 780px); derive its dimensions without revealing or painting it.
  const W=mainWorkspace()?.previewWidth(),H=W?(host?._full&&host._fullH?Math.round(host._fullH):Math.round(Math.min(W>=640?620:440,W*(aimIsMountain(s.target)?.66:.9)))):null;
- const lens=typeof aimLens==='undefined'?null:{mode:aimLens.on&&aimLens.mode==='manual'?'evaluate':'unspecified',focal:aimLens.focal,sensorWidth:AIM_SENSOR[aimLens.sensor]?.[0],sensorHeight:AIM_SENSOR[aimLens.sensor]?.[1],portrait:aimLens.portrait,crop:1,viewModel:'scene',aspect:W&&H?W/H:view?.W&&view?.H?view.W/view.H:1,pan:[...(host?._lensOffset||[0,0])],targetExtent:s.partId==='__whole'?'overlap':'anchor'};
+ const lens=typeof aimLens==='undefined'?null:{mode:aimLens.on&&aimLens.mode==='manual'?'evaluate':'unspecified',focal:aimLens.focal,sensorWidth:AIM_SENSOR[aimLens.sensor]?.[0],sensorHeight:AIM_SENSOR[aimLens.sensor]?.[1],portrait:aimLens.portrait,crop:1,viewModel:'scene',
+ aspect:W&&H?W/H:view?.W&&view?.H?view.W/view.H:1,pan:[...(host?._lensOffset||[0,0])],targetExtent:s.partId==='__whole'?'overlap':'anchor'};
  const extraTargets=typeof aimSceneExtraTargets==='function'?aimSceneExtraTargets(s.target.id):[];
  // With one target overlapped as a whole, only the body and what it overlaps have to fit (2026-11-11 ユーザー「天体と重なる所
  // だけ確認」): no lens drops a place then, so the lens stays out of the search. Choosing a place sets the focal length and the
@@ -2200,20 +2370,26 @@ function syncRecordSave(host,toolbar){
  const place=share.querySelector('[data-quick-save=place]'),plan=share.querySelector('[data-quick-save=plan]');if(!place||!plan)return;
  let dialog=share.querySelector('#trialRecordSaveSheet'),button=share.querySelector('#trialRecordSave');
  if(!dialog){
-  button=document.createElement('button');button.id='trialRecordSave';button.type='button';button.className='trial-record-action';button.setAttribute('aria-label','記録に保存');button.setAttribute('aria-haspopup','dialog');button.setAttribute('aria-expanded','false');button.setAttribute('aria-controls','trialRecordSaveSheet');
+  button=document.createElement('button');button.id='trialRecordSave';button.type='button';button.className='trial-record-action';button.setAttribute('aria-label','記録に保存');button.setAttribute('aria-haspopup','dialog');button.setAttribute('aria-expanded','false');
+  button.setAttribute('aria-controls','trialRecordSaveSheet');
   const svg=document.querySelector('#recordsMenu svg').cloneNode(true);svg.removeAttribute('class');svg.setAttribute('width','24');svg.setAttribute('height','24');
   const plus=document.createElementNS('http://www.w3.org/2000/svg','path');plus.setAttribute('d','M19 13v8m-4-4h8');plus.setAttribute('data-record-add','');
-  const gap=document.createElementNS('http://www.w3.org/2000/svg','path');gap.setAttribute('d','M19 13v8m-4-4h8');gap.setAttribute('stroke','var(--card)');gap.setAttribute('stroke-width','5');svg.append(gap,plus);button.append(svg);const label=document.createElement('span');label.textContent='記録';button.append(label);
+  const gap=document.createElementNS('http://www.w3.org/2000/svg','path');gap.setAttribute('d','M19 13v8m-4-4h8');gap.setAttribute('stroke','var(--card)');gap.setAttribute('stroke-width','5');svg.append(gap,plus);button.append(svg);const label=document.createElement('span');label.textContent='記録';
+  button.append(label);
   dialog=document.createElement('dialog');dialog.id='trialRecordSaveSheet';dialog.className='sheet trial-record-dialog';dialog.setAttribute('aria-label','記録に保存');dialog.tabIndex=-1;
-  const head=document.createElement('div');head.className='sheet-head';const title=document.createElement('strong');title.textContent='記録に保存';const close=document.createElement('button');close.type='button';close.textContent='閉じる';close.setAttribute('data-record-save-close','');head.append(title,close);
-  const choices=document.createElement('div');choices.className='sheet-body';for(const [option,text] of [[place,'撮影地点に保存'],[plan,'予定に保存']]){const label=document.createElement('span');label.setAttribute('data-save-choice-label','');label.textContent=text;option.append(label);option.setAttribute('aria-label',text);option.title=text;choices.append(option);}
+  const head=document.createElement('div');head.className='sheet-head';const title=document.createElement('strong');title.textContent='記録に保存';const close=document.createElement('button');close.type='button';close.textContent='閉じる';close.setAttribute('data-record-save-close','');
+  head.append(title,close);
+  const choices=document.createElement('div');choices.className='sheet-body';for(const [option,text] of [[place,'撮影地点に保存'],[plan,'予定に保存']]){const label=document.createElement('span');label.setAttribute('data-save-choice-label','');label.textContent=text;option.append(label);
+  option.setAttribute('aria-label',text);option.title=text;choices.append(option);}
   dialog.append(head,choices);share.append(button,dialog);
   button.onclick=()=>{if(!host.closest('#exploreScenePanel')||host.closest('#exploreScenePanel').hidden)return;if(dialog.open&&dialog.matches(':modal'))return;if(dialog.open)dialog.close();dialog.restoreRecordFocus=true;button.setAttribute('aria-expanded','true');showSheet(dialog);};
   close.onclick=()=>dialog.close();dialog.addEventListener('close',()=>{if(dialog.open)return;button.setAttribute('aria-expanded','false');if(dialog.restoreRecordFocus&&button.isConnected&&host.closest('#exploreScenePanel'))button.focus({preventScroll:true});});
-  dialog.addEventListener('click',e=>{const choice=e.target.closest('[data-quick-save]');if(choice&&!choice.disabled){queueMicrotask(()=>{if(dialog.open)dialog.close();});return;}if(e.target!==dialog)return;const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();});
+  dialog.addEventListener('click',e=>{const choice=e.target.closest('[data-quick-save]');if(choice&&!choice.disabled){queueMicrotask(()=>{if(dialog.open)dialog.close();});return;}if(e.target!==dialog)return;const r=dialog.getBoundingClientRect();
+  if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();});
  }
  const choices=dialog.querySelector('.sheet-body');
- for(const [option,text] of [[place,'撮影地点に保存'],[plan,'予定に保存']]){if(!option.querySelector('[data-save-choice-label]')){const label=document.createElement('span');label.setAttribute('data-save-choice-label','');label.textContent=text;option.append(label);option.setAttribute('aria-label',text);option.title=text;}if(option.parentElement!==choices)choices.append(option);}
+ for(const [option,text] of [[place,'撮影地点に保存'],[plan,'予定に保存']]){if(!option.querySelector('[data-save-choice-label]')){const label=document.createElement('span');label.setAttribute('data-save-choice-label','');label.textContent=text;option.append(label);option.setAttribute('aria-label',text);
+ option.title=text;}if(option.parentElement!==choices)choices.append(option);}
  const hidden=!!host.closest('#exploreScenePanel')?.hidden;if(button.hidden!==hidden)button.hidden=hidden;button.disabled=place.disabled&&plan.disabled;
 }
 function syncObserverMap(){
@@ -2230,16 +2406,21 @@ function changeCandidateDay(value){
  const previous=AstroNotesCandidateDiscovery.day(selected.at);if(start===previous)return true;
  const repeat=hasSearched,family=filterKey(selected);returnSearch=null;stop();run++;
  SkyMapUI.setTime(start+(selected.at-previous));mount();
- if(repeat)autoSearchTimer=setTimeout(()=>{autoSearchTimer=null;const latest=snapshot();if(!latest||filterKey(latest)!==family||AstroNotesCandidateDiscovery.day(latest.at)!==start||!contextActive())return;const button=document.querySelector('#additionalCandidateSearch > button');if(button&&!button.disabled&&button.dataset.state!=='searching')button.click();},350);
+ if(repeat)autoSearchTimer=setTimeout(()=>{autoSearchTimer=null;const latest=snapshot();if(!latest||filterKey(latest)!==family||AstroNotesCandidateDiscovery.day(latest.at)!==start||!contextActive())return;const button=document.querySelector('#additionalCandidateSearch > button');
+ if(button&&!button.disabled&&button.dataset.state!=='searching')button.click();},350);
  return true;
 }
 function syncCandidateDate(control,p){
  if(mainWorkspace())return;
  if(!dateNavigation){
-  dateNavigation=document.createElement('div');dateNavigation.id='candidateDateNavigation';dateNavigation.setAttribute('role','group');dateNavigation.setAttribute('aria-label','候補を探す日');Object.assign(dateNavigation.style,{display:'grid',gridTemplateColumns:'44px minmax(0,1fr) 44px',gap:'8px',marginBottom:'14px',alignItems:'center'});
+  dateNavigation=document.createElement('div');dateNavigation.id='candidateDateNavigation';dateNavigation.setAttribute('role','group');dateNavigation.setAttribute('aria-label','候補を探す日');
+  Object.assign(dateNavigation.style,{display:'grid',gridTemplateColumns:'44px minmax(0,1fr) 44px',gap:'8px',marginBottom:'14px',alignItems:'center'});
   const prev=document.createElement('button'),next=document.createElement('button'),input=document.createElement('button');
-  for(const [b,id,label,text,step]of [[prev,'candidatePreviousDay','前日の候補','‹',-1],[next,'candidateNextDay','翌日の候補','›',1]]){b.type='button';b.className='chip';b.id=id;b.textContent=text;b.setAttribute('aria-label',label);Object.assign(b.style,{width:'44px',height:'44px',padding:'0',fontSize:'26px',lineHeight:'1'});b.onclick=()=>{const current=snapshot()||dateSelection();if(current)changeCandidateDay(dateValue(current.at+step*86400000));};}
-  input.id='candidateDate';input.type='button';input.className='fav-btn';input.setAttribute('aria-label','カレンダーで候補日を選ぶ');input.setAttribute('aria-haspopup','dialog');Object.assign(input.style,{width:'100%',minWidth:'0',maxWidth:'100%',boxSizing:'border-box',height:'44px',minHeight:'44px',fontSize:'16px',textAlign:'center',padding:'8px'});dateCalendar=ToolDateTimeBar.calendar({button:input,getAt:()=>dateSelection()?.at??Date.now(),setDay:at=>changeCandidateDay(dateValue(at))});dateCalendar.id='candidateDateCalendar';
+  for(const [b,id,label,text,step]of [[prev,'candidatePreviousDay','前日の候補','‹',-1],[next,'candidateNextDay','翌日の候補','›',1]]){b.type='button';b.className='chip';b.id=id;b.textContent=text;b.setAttribute('aria-label',label);
+  Object.assign(b.style,{width:'44px',height:'44px',padding:'0',fontSize:'26px',lineHeight:'1'});b.onclick=()=>{const current=snapshot()||dateSelection();if(current)changeCandidateDay(dateValue(current.at+step*86400000));};}
+  input.id='candidateDate';input.type='button';input.className='fav-btn';input.setAttribute('aria-label','カレンダーで候補日を選ぶ');input.setAttribute('aria-haspopup','dialog');
+  Object.assign(input.style,{width:'100%',minWidth:'0',maxWidth:'100%',boxSizing:'border-box',height:'44px',minHeight:'44px',fontSize:'16px',textAlign:'center',padding:'8px'});
+  dateCalendar=ToolDateTimeBar.calendar({button:input,getAt:()=>dateSelection()?.at??Date.now(),setDay:at=>changeCandidateDay(dateValue(at))});dateCalendar.id='candidateDateCalendar';
 
   dateNavigation.append(prev,input,next);
  }
@@ -2262,14 +2443,22 @@ function mount(){
  const button=document.createElement('button');button.type='button';button.className='fav-btn';button.id='candidateSearchAction';button.setAttribute('aria-controls',main?'exploreSearchResults':'additionalCandidateResults');
  const resultList=document.createElement('div');resultList.id='additionalCandidateResults';
  const evidence=document.createElement('details');evidence.className='aim-disclosure';evidence.open=detailsOpen;const summary=document.createElement('summary');summary.textContent=main?'探索の詳細条件':'候補の条件・注意点・出典';evidence.append(summary);
- const description=document.createElement('p');description.className='tiny';description.textContent=(p?.overlapMembers?'全ての対象を合わせた輪郭に重なる地点を探します。':p?.extraTargets?.length?'重ねる対象で探します。ほかの対象は見え方で一緒に確認できます。 ':'')+'選択した天体と登録対象の位置・高さから撮影する地域を逆算し、展望台・公園・広場・河川敷を優先して探します。建物は近くを通る構図も含みます。見え方で確認できます。';evidence.append(description);
- const timeLabel=document.createElement('label');timeLabel.className='tiny';timeLabel.textContent='探索する日時 ';const mode=document.createElement('select');mode.id='candidateSearchMode';mode.setAttribute('aria-label','探索する日時');for(const [value,label]of [['day','この日全体'],['instant','選択した時刻'],['window','時間帯を指定']])mode.add(new Option(label,value));mode.value=timeChoice;timeLabel.append(mode);evidence.append(timeLabel);
- const times=document.createElement('div');times.hidden=timeChoice!=='window';for(const [label,id,value]of [['開始','candidateSearchStart',windowStart],['終了','candidateSearchEnd',windowEnd]]){const l=document.createElement('label');l.textContent=label+' ';const input=document.createElement('input');input.type='time';input.id=id;input.value=value;input.style.minHeight='44px';input.onchange=()=>{returnSearch=null;if(id.endsWith('Start'))windowStart=input.value;else windowEnd=input.value;mount();};l.append(input);times.append(l);}evidence.append(times);mode.onchange=()=>{returnSearch=null;timeChoice=mode.value;mount();};
+ const description=document.createElement('p');description.className='tiny';description.textContent=(p?.overlapMembers?'全ての対象を合わせた輪郭に重なる地点を探します。':p?.extraTargets?.length?'重ねる対象で探します。ほかの対象は見え方で一緒に確認できます。 ':'')+'選択した天体と登録対象の位置・高さから撮影する地域を逆算し、展望台・公園・広場・河川敷を優先して探します。建物は近くを通る構図も含みます。見え方で確認できます。';
+ evidence.append(description);
+ const timeLabel=document.createElement('label');timeLabel.className='tiny';timeLabel.textContent='探索する日時 ';const mode=document.createElement('select');mode.id='candidateSearchMode';mode.setAttribute('aria-label','探索する日時');
+ for(const [value,label]of [['day','この日全体'],['instant','選択した時刻'],['window','時間帯を指定']])mode.add(new Option(label,value));mode.value=timeChoice;timeLabel.append(mode);evidence.append(timeLabel);
+ const times=document.createElement('div');times.hidden=timeChoice!=='window';for(const [label,id,value]of [['開始','candidateSearchStart',windowStart],['終了','candidateSearchEnd',windowEnd]]){const l=document.createElement('label');l.textContent=label+' ';const input=document.createElement('input');
+ input.type='time';input.id=id;input.value=value;input.style.minHeight='44px';input.onchange=()=>{returnSearch=null;if(id.endsWith('Start'))windowStart=input.value;else windowEnd=input.value;mount();};l.append(input);times.append(l);}evidence.append(times);mode.onchange=()=>{returnSearch=null;
+ timeChoice=mode.value;mount();};
  const notes=document.createElement('p');notes.className='tiny';notes.textContent='地形・建物の収録範囲や高さの精度に限界があります。未確認の見通しを撮影可能と保証しません。樹木・現地の変化・営業時間等は現地条件も確認してください。取得できない情報がある場合は、結果に表示します。';evidence.append(notes);
  const resultNotes=document.createElement('p');resultNotes.className='tiny';evidence.append(resultNotes);
- const credits=document.createElement('p');credits.className='tiny';for(const [label,url]of [['© OpenStreetMap contributors (ODbL)','https://www.openstreetmap.org/copyright'],['国土地理院 標高タイル','https://maps.gsi.go.jp/development/demtile.html'],['3D都市モデル（Project PLATEAU）全国の整備都市（2020〜2025年度・国土交通省）を加工して作成','https://www.mlit.go.jp/plateau/site-policy/'],['国土地理院 ベクトルタイル（建物）','https://maps.gsi.go.jp/development/vt.html'],['町丁目：CODH/e-Stat（2020）','https://geoshape.ex.nii.ac.jp/ka/resource/']]){const a=document.createElement('a');a.textContent=label;a.href=url;a.target='_blank';a.rel='noopener';credits.append(a,' ');}evidence.append(credits);
- const visibleCredits=document.createElement('p');visibleCredits.className='tiny';visibleCredits.hidden=true;const osm=document.createElement('a');osm.href='https://www.openstreetmap.org/copyright';osm.textContent='© OpenStreetMap contributors';osm.target='_blank';osm.rel='noopener';const plateau=document.createElement('a');plateau.href='https://www.mlit.go.jp/plateau/site-policy/';plateau.textContent='3D都市モデル（Project PLATEAU）国土交通省 を加工';plateau.target='_blank';plateau.rel='noopener';visibleCredits.append(osm,' ',plateau);
- if(main){section.append(evidence,button);document.getElementById('candidateSearchFeedback').replaceChildren(status,resultList);document.getElementById('candidateSearchCredits').replaceChildren(visibleCredits);}else section.append(button,status,visibleCredits,resultList,evidence);panel.append(section);syncWorkspaceSection(panel);
+ const credits=document.createElement('p');credits.className='tiny';
+ for(const [label,url]of [['© OpenStreetMap contributors (ODbL)','https://www.openstreetmap.org/copyright'],['国土地理院 標高タイル','https://maps.gsi.go.jp/development/demtile.html'],['3D都市モデル（Project PLATEAU）全国の整備都市（2020〜2025年度・国土交通省）を加工して作成','https://www.mlit.go.jp/plateau/site-policy/'],
+ ['国土地理院 ベクトルタイル（建物）','https://maps.gsi.go.jp/development/vt.html'],['町丁目：CODH/e-Stat（2020）','https://geoshape.ex.nii.ac.jp/ka/resource/']]){const a=document.createElement('a');a.textContent=label;a.href=url;a.target='_blank';a.rel='noopener';credits.append(a,' ');}evidence.append(credits);
+ const visibleCredits=document.createElement('p');visibleCredits.className='tiny';visibleCredits.hidden=true;const osm=document.createElement('a');osm.href='https://www.openstreetmap.org/copyright';osm.textContent='© OpenStreetMap contributors';osm.target='_blank';osm.rel='noopener';
+ const plateau=document.createElement('a');plateau.href='https://www.mlit.go.jp/plateau/site-policy/';plateau.textContent='3D都市モデル（Project PLATEAU）国土交通省 を加工';plateau.target='_blank';plateau.rel='noopener';visibleCredits.append(osm,' ',plateau);
+ if(main){section.append(evidence,button);document.getElementById('candidateSearchFeedback').replaceChildren(status,resultList);document.getElementById('candidateSearchCredits').replaceChildren(visibleCredits);}else section.append(button,status,visibleCredits,resultList,evidence);
+ panel.append(section);syncWorkspaceSection(panel);
  if(editing&&['candidateSearchMode','candidateSearchStart','candidateSearchEnd'].includes(editing))section.querySelector('#'+editing)?.focus({preventScroll:true});
  const valid=p&&AstroNotesBodies.definition(p.body)&&!p.compositionInvalid&&AstroNotesCandidateComposition.timeRange(p);button.disabled=!valid;status.textContent=!p?'天体・対象・日付を選んでください。':!valid?'指定した日時と構図を確認してください。':'';
  let continuation=false,hasRun=false,searching=false,failed=false;
@@ -2279,8 +2468,12 @@ function mount(){
  async function present(result,selected,node,token,{cancelled=false,interrupted=false,partial=false}={}){
    const labels=result.rows.length?await loadLabels():{};if(!current(token,selected,node)||partial&&!searching)return;
    AstroNotesCandidatePicker.unregister?.(resultList);resultList.replaceChildren();const rows=[];
-   for(const raw of result.rows){const row=AstroNotesCandidateLabels.enrich(raw,labels);if(raw.place.name&&!/^(?:撮影候補|モデル候補)/.test(raw.place.name))row.place.name=raw.place.name;rows.push(row);const item=document.createElement('button');item.type='button';item.className='list-item';item.dataset.modelBasis=row.modelEvidence?.kind||'unknown';item.dataset.candidateName=row.place.name;item.dataset.candidateId=row.id;item.textContent=row.place.name;
-    item.onclick=()=>{if(mainWorkspace()&&!mainWorkspace().selectable()||!current(token,selected,node)||row.requestKey!==key(snapshot()))return;const event={...row.event};delete event.matchMode;const candidate={...row,event};const host=document.getElementById('aimLook'),previous=host?._compose;if(host)host._compose={mode:'whole',apply:true};if(SkyMapUI.selectCandidate(candidate,context(SkyMapUI.selectionState()))){returnSearch=selected.timeSpec?.kind==='window'&&AstroNotesCandidateDiscovery.day(row.event.at)!==AstroNotesCandidateDiscovery.day(selected.at)?{plan:selected,key:key(selected),rowId:row.id,viewAt:row.event.at}:null;sheet.close();}else if(host)host._compose=previous;};resultList.append(item);
+   for(const raw of result.rows){const row=AstroNotesCandidateLabels.enrich(raw,labels);if(raw.place.name&&!/^(?:撮影候補|モデル候補)/.test(raw.place.name))row.place.name=raw.place.name;rows.push(row);const item=document.createElement('button');item.type='button';item.className='list-item';
+   item.dataset.modelBasis=row.modelEvidence?.kind||'unknown';item.dataset.candidateName=row.place.name;item.dataset.candidateId=row.id;item.textContent=row.place.name;
+    item.onclick=()=>{if(mainWorkspace()&&!mainWorkspace().selectable()||!current(token,selected,node)||row.requestKey!==key(snapshot()))return;const event={...row.event};delete event.matchMode;const candidate={...row,event};const host=document.getElementById('aimLook'),previous=host?._compose;
+    if(host)host._compose={mode:'whole',apply:true};
+    if(SkyMapUI.selectCandidate(candidate,context(SkyMapUI.selectionState()))){returnSearch=selected.timeSpec?.kind==='window'&&AstroNotesCandidateDiscovery.day(row.event.at)!==AstroNotesCandidateDiscovery.day(selected.at)?{plan:selected,key:key(selected),rowId:row.id,viewAt:row.event.at}:null;
+    sheet.close();}else if(host)host._compose=previous;};resultList.append(item);
    }
    AstroNotesCandidatePicker.registerAdditional(resultList,rows,selected,()=>current(token,selected,node));
    if(partial){visibleCredits.hidden=!rows.length;main?.reveal();return;}
@@ -2295,7 +2488,8 @@ function mount(){
   const selected=snapshot();if(!selected)return;if(condition!==uiKey(selected)){mount();return;}
   if(!button.isConnected||!contextActive()||main&&!main.selectable())return;dateRefreshPending=false;main?.reveal();
   if(searching){stop();const token=++run;hasSearched=false;continuation=true;failed=false;searching=false;renderAction();setStatus('探索をキャンセルしました。続きから探せます。');const completed=engine.cached(selected);if(completed)present(completed,selected,section,token,{cancelled:true}).catch(()=>{});return;}
-  if(hasRun&&!continuation&&!engine.restart(selected))return;AstroNotesCandidatePicker.unregister?.(resultList);resultList.replaceChildren();hasRun=true;hasSearched=true;const node=section,token=++run;stop();controller=new AbortController();const signal=controller.signal;live.resetBudget();footprintGround.resetBudget();evaluationBudgetStarted=false;watch=setInterval(()=>{if(!current(token,selected,node)){stop();mount();}},250);
+  if(hasRun&&!continuation&&!engine.restart(selected))return;AstroNotesCandidatePicker.unregister?.(resultList);resultList.replaceChildren();hasRun=true;hasSearched=true;const node=section,token=++run;stop();controller=new AbortController();const signal=controller.signal;live.resetBudget();
+  footprintGround.resetBudget();evaluationBudgetStarted=false;watch=setInterval(()=>{if(!current(token,selected,node)){stop();mount();}},250);
   searching=true;failed=false;renderAction();
   const label='撮影できる地域を計算しています…',progress=globalThis.MyPlacesUI.recordProgress(status,label);
   progress.node.classList.add('candidate-wait');
@@ -2304,7 +2498,9 @@ function mount(){
    // a phone's search time (2026-11-11). The run and the section are checked every time, the page conditions at most
    // every 250 ms (a change of conditions also restarts the search through mount()).
    let checkedAt=-Infinity,stillCurrent=true,shown=0;const searchCurrent=()=>{if(token!==run||!node.isConnected)return false;const now=performance.now();if(now-checkedAt>=250){checkedAt=now;stillCurrent=current(token,selected,node);}return stillCurrent;};
-   const result=await engine.searchAll(selected,{more:continuation,signal,isCurrent:searchCurrent,onPage:page=>{if(page.rows?.length>shown&&searchCurrent()){shown=page.rows.length;present(page,selected,node,token,{partial:true}).catch(()=>{});}},onBatchStart:()=>{live.resetBudget();footprintGround.resetBudget();evaluationBudgetStarted=false;},onProgress:counts=>{if(!searchCurrent())return;const checked=counts.checked||0;const message=counts.stage==='inverse'?label:counts.stage==='evaluate'?'構図と見通しを確認中 ・ '+checked+'地点':'撮影場所の情報を取得中'+(checked?' ・ '+checked+'地点確認済み':'');progress.update(undefined,undefined,message);}});
+   const result=await engine.searchAll(selected,{more:continuation,signal,isCurrent:searchCurrent,onPage:page=>{if(page.rows?.length>shown&&searchCurrent()){shown=page.rows.length;present(page,selected,node,token,{partial:true}).catch(()=>{});}},onBatchStart:()=>{live.resetBudget();
+   footprintGround.resetBudget();evaluationBudgetStarted=false;},onProgress:counts=>{if(!searchCurrent())return;const checked=counts.checked||0;const message=counts.stage==='inverse'?label:counts.stage==='evaluate'?'構図と見通しを確認中 ・ '+checked+'地点':'撮影場所の情報を取得中'+(checked?' ・ '+checked+'地点確認済み':'');
+   progress.update(undefined,undefined,message);}});
    if(!current(token,selected,node))return;if(result.cancelled){failed=true;continuation=true;setStatus('候補の情報を取得できませんでした。');return;}
    await present(result,selected,node,token);
   }catch(e){if(current(token,selected,node)){const completed=engine.cached(selected);if(completed)await present(completed,selected,node,token,{interrupted:true});else{setStatus('候補の情報を取得できませんでした。');failed=true;continuation=true;}}}
@@ -2317,9 +2513,12 @@ function mount(){
   const show=()=>{if(token!==run||node!==section)return;if(node.isConnected)present(cached,p,node,token).catch(()=>{});else if(++frames<300)requestAnimationFrame(show);};show();}
 }
 let mountFrame=null;const scheduleMount=()=>{if(mountFrame===null)mountFrame=requestAnimationFrame(()=>{mountFrame=null;mount();});};
-const picker=document.getElementById('placeSheet');if(picker){new MutationObserver(scheduleMount).observe(picker,{childList:true,subtree:true,attributes:true,attributeFilter:['open','hidden','aria-selected']});picker.addEventListener('close',()=>{if(picker.open)return;if(mainWorkspace()){scheduleMount();return;}stop();run++;hasSearched=false;if(dateCalendar?.open)dateCalendar.close();AstroNotesCandidatePicker.suspend?.();section?.remove();section=null;condition='';});}
+const picker=document.getElementById('placeSheet');if(picker){new MutationObserver(scheduleMount).observe(picker,{childList:true,subtree:true,attributes:true,attributeFilter:['open','hidden','aria-selected']});picker.addEventListener('close',()=>{if(picker.open)return;
+if(mainWorkspace()){scheduleMount();return;}stop();run++;hasSearched=false;if(dateCalendar?.open)dateCalendar.close();AstroNotesCandidatePicker.suspend?.();section?.remove();section=null;condition='';});}
 let observedScene=null,previewObserver=null;
-function watchPreview(){const scenePanel=document.getElementById('exploreScenePanel');if(!scenePanel||scenePanel===observedScene)return;previewObserver?.disconnect();observedScene=scenePanel;previewObserver=new MutationObserver(()=>{const host=scenePanel.querySelector('#aimLook');if((scenePanel.hidden||scenePanel.hasAttribute('data-loading')||host?.hidden)&&scenePanel.querySelector('#trialComposition[open],#trialRecordSaveSheet[open]'))document.dispatchEvent(new Event('astronotes-preview-leave'));syncObserverMap();scheduleMount();});previewObserver.observe(scenePanel,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','data-loading']});}
+function watchPreview(){const scenePanel=document.getElementById('exploreScenePanel');if(!scenePanel||scenePanel===observedScene)return;previewObserver?.disconnect();observedScene=scenePanel;previewObserver=new MutationObserver(()=>{const host=scenePanel.querySelector('#aimLook');
+if((scenePanel.hidden||scenePanel.hasAttribute('data-loading')||host?.hidden)&&scenePanel.querySelector('#trialComposition[open],#trialRecordSaveSheet[open]'))document.dispatchEvent(new Event('astronotes-preview-leave'));syncObserverMap();scheduleMount();});
+previewObserver.observe(scenePanel,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','data-loading']});}
 // The shared bar owns the selected instant. This adapter only owns cancellation
 // and the pending search intent while its native ruler is moving.
 document.addEventListener('astronotes-candidate-date-change',event=>{
@@ -2330,7 +2529,8 @@ document.addEventListener('astronotes-candidate-date-change',event=>{
  returnSearch=null;stop();run++;mount();
  if(mainWorkspace()?.separateRecords||!repeat||!settled)return;
  const selected=snapshot(),identity=uiKey(selected);
- autoSearchTimer=setTimeout(()=>{autoSearchTimer=null;const latest=snapshot();if(!selected||!contextActive()||uiKey(latest)!==identity||engine.cached(latest))return;const button=document.getElementById('candidateSearchAction');if(button&&!button.disabled&&button.dataset.state!=='searching')button.click();},350);
+ autoSearchTimer=setTimeout(()=>{autoSearchTimer=null;const latest=snapshot();if(!selected||!contextActive()||uiKey(latest)!==identity||engine.cached(latest))return;const button=document.getElementById('candidateSearchAction');
+ if(button&&!button.disabled&&button.dataset.state!=='searching')button.click();},350);
 });
 document.addEventListener('astronotes-preview-leave',()=>{const button=document.getElementById('trialRecordSave');if(button)button.hidden=true;const dialog=document.getElementById('trialRecordSaveSheet');if(dialog?.open){dialog.restoreRecordFocus=false;dialog.close();}});
 document.addEventListener('astronotes-search-state',scheduleMount);document.addEventListener('astronotes-composition-change',mount);mount();
@@ -2384,7 +2584,8 @@ const P=(function createOverlapPolicy(){
  const NEGATIVE=['unknown','model-blocked','outside-frame','no-overlap','excluded'];
  function mergeEvaluations(results,anchor,ids=[]){
   const positives=[],seen=new Set();let partial=false;
-  results.forEach((res,i)=>{partial=partial||!!res?.partial;for(const row of res?.recommend?[res,...(res.additionalCandidates||[])]:[]){if(!row.recommend)continue;const tagged=retag(row,i,anchor);tagged.event.overlapTargetId=ids[i]??null;delete tagged.additionalCandidates;if(seen.has(tagged.id))continue;seen.add(tagged.id);positives.push(tagged);}});
+  results.forEach((res,i)=>{partial=partial||!!res?.partial;for(const row of res?.recommend?[res,...(res.additionalCandidates||[])]:[]){if(!row.recommend)continue;const tagged=retag(row,i,anchor);tagged.event.overlapTargetId=ids[i]??null;delete tagged.additionalCandidates;
+  if(seen.has(tagged.id))continue;seen.add(tagged.id);positives.push(tagged);}});
   if(positives.length)return {...positives[0],additionalCandidates:positives.slice(1),partial};
   const statuses=results.map(r=>NEGATIVE.includes(r?.status)?r.status:'unknown'),status=NEGATIVE.find(s=>statuses.includes(s))||'unknown';
   return {status,recommend:false,partial,reason:results.find(r=>r?.status===status)?.reason||(status==='unknown'?'overlap-member-unknown':undefined)};
@@ -2443,7 +2644,8 @@ function ensureField(){
  if(field?.isConnected)return field;const source=document.getElementById('skyMapTarget'),home=source?.closest('.condition-field');if(!home)return null;
  field=document.createElement('div');field.id='skyMapOverlapField';field.className='aim-say condition-field overlap-target-field';field.hidden=true;
  select=document.createElement('select');select.id='skyMapOverlapTarget';select.className='fav-in overlap-target-select';select.setAttribute('aria-labelledby','skyMapOverlapLabel');
- const lab=document.createElement('span');lab.className='aim-say-v condition-label';lab.id='skyMapOverlapLabel';lab.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></svg><span>重ねる対象</span>';
+ const lab=document.createElement('span');lab.className='aim-say-v condition-label';lab.id='skyMapOverlapLabel';
+ lab.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></svg><span>重ねる対象</span>';
  noticeNode=document.createElement('p');noticeNode.id='skyMapOverlapNotice';noticeNode.className='tiny overlap-target-notice';noticeNode.setAttribute('role','status');noticeNode.hidden=true;
  field.append(select,lab,noticeNode);home.after(field);
  select.onchange=()=>choose(select.value);
@@ -2505,7 +2707,8 @@ function evaluate(plan,fn){if(!plan?.overlapMembers)return null;return (async()=
 // Registered places from 探す: union of the existing per-target solver.
 function discovery(plan,run){
  if(!plan?.overlapMembers)return null;
- return (async()=>{const out=[];for(const m of plan.overlapMembers){const r=await run({...plan,target:m.target,partId:m.partId,limb:'center',matchMode:'overlap',overlapMembers:undefined});if(r?.cancelled)return {cancelled:true};out.push(r);}return P.mergeRows(out,{partId:plan.overlapMembers[0].partId},plan.overlapMembers.map(m=>m.target.id));})();
+ return (async()=>{const out=[];for(const m of plan.overlapMembers){const r=await run({...plan,target:m.target,partId:m.partId,limb:'center',matchMode:'overlap',overlapMembers:undefined});if(r?.cancelled)return {cancelled:true};out.push(r);
+ }return P.mergeRows(out,{partId:plan.overlapMembers[0].partId},plan.overlapMembers.map(m=>m.target.id));})();
 }
 // Figure accent: the selected member's silhouette, or the outline of the union
 // (internal borders removed) when 全て. Drawn only when several targets are shown.

@@ -183,7 +183,8 @@ function renderPending(now, hidden) {
     .map(({ pid, ev, predictionSource }) => ({ id: pid, ev, predictionSource, peak: ev.peak }));
   out.sort((a, b) => b.peak - a.peak);
   const state = savedRoundClient.state(place);
-  const notice = (state.status === "loading" || state.status === "idle") ? `<p class="tiny" role="status">保存した予測を確認しています…</p>` : state.status === "error" ? `<p class="tiny" role="status">${savedRoundUnavailable()}${state.rounds.length ? "（取得済みの予測で結果を残せます）" : ""}</p>` : state.status === "ready" && !out.length && state.reason && state.reason !== "近くに保存対象の地点がありません" ? `<p class="tiny" role="status">${esc(state.reason)}</p>` : "";
+  const notice = (state.status === "loading" || state.status === "idle") ? `<p class="tiny" role="status">保存した予測を確認しています…</p>` : state.status === "error" ? `<p class="tiny" role="status">${savedRoundUnavailable()}${state.rounds.length ? "（取得済みの予測で結果を残せます）" : ""}</p>` : state.status === "ready" &&
+  !out.length && state.reason && state.reason !== "近くに保存対象の地点がありません" ? `<p class="tiny" role="status">${esc(state.reason)}</p>` : "";
   const count=$("forecastResultsCount");count.hidden=!out.length;count.textContent=out.length?String(out.length):"";
   if (!viewState.answers) { host.hidden=true;host.innerHTML="";return; }
   $("answersPendingCount").textContent=out.length?`${out.length}件`:"";

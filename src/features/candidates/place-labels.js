@@ -5,12 +5,14 @@ const cache=new WeakMap(),rad=Math.PI/180;
 const point=p=>p&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&Math.abs(p.latitude)<=90&&Math.abs(p.longitude)<=180;
 const within=(p,b)=>p.longitude>=b[0]&&p.longitude<=b[2]&&p.latitude>=b[1]&&p.latitude<=b[3];
 function inside(r,p){let yes=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>p.latitude)!==(r[j][1]>p.latitude)&&p.longitude<(r[j][0]-r[i][0])*(p.latitude-r[i][1])/(r[j][1]-r[i][1])+r[i][0])yes=!yes;return yes;}
-function edgeDistance(r,p){const k=Math.cos(p.latitude*rad);let distance=Infinity;for(let i=1;i<r.length;i++){const a=r[i-1],b=r[i],x=(b[0]-a[0])*k,y=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*k*x+(p.latitude-a[1])*y)/(x*x+y*y||1)));distance=Math.min(distance,Math.hypot((p.longitude-a[0])*k-u*x,p.latitude-a[1]-u*y)*111195);}return distance;}
+function edgeDistance(r,p){const k=Math.cos(p.latitude*rad);let distance=Infinity;for(let i=1;i<r.length;i++){const a=r[i-1],b=r[i],x=(b[0]-a[0])*k,y=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*k*x+(p.latitude-a[1])*y)/(x*x+y*y||1)));
+distance=Math.min(distance,Math.hypot((p.longitude-a[0])*k-u*x,p.latitude-a[1]-u*y)*111195);}return distance;}
 function prepared(data,kind){
  if(!data||typeof data!=='object')return null;const previous=cache.get(data);if(previous?.kind===kind)return previous.result;
  const ring=r=>Array.isArray(r)&&r.length>=4&&r.every(p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&Math.abs(p[0])<=180&&Math.abs(p[1])<=90)&&r[0][0]===r.at(-1)[0]&&r[0][1]===r.at(-1)[1];
  const box=b=>Array.isArray(b)&&b.length===4&&b.every(Number.isFinite)&&b[0]<b[2]&&b[1]<b[3];
- const valid=data.version===1&&data.kind===kind&&Array.isArray(data.coverageBboxes)&&data.coverageBboxes.every(box)&&Array.isArray(data.features)&&data.features.every(f=>typeof f.id==='string'&&typeof f.name==='string'&&f.name.trim()&&f.name.length<=300&&box(f.bbox)&&Array.isArray(f.polygons)&&f.polygons.length&&f.polygons.every(p=>Array.isArray(p)&&p.length&&p.every(ring)));
+ const valid=data.version===1&&data.kind===kind&&Array.isArray(data.coverageBboxes)&&data.coverageBboxes.every(box)&&Array.isArray(data.features)&&data.features.every(f=>typeof f.id==='string'&&typeof f.name==='string'&&f.name.trim()&&f.name.length<=300&&box(f.bbox)&&Array.isArray(f.polygons)&&
+ f.polygons.length&&f.polygons.every(p=>Array.isArray(p)&&p.length&&p.every(ring)));
  const result=valid?data:null;cache.set(data,{kind,result});return result;
 }
 function resolve(data,p,kind){

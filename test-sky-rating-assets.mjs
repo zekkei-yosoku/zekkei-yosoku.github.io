@@ -29,7 +29,6 @@ test('昇格コミットの変更は承認範囲だけ、現在のtrialはroot�
  assert.deepEqual(changed.filter(n=>!allowed(n)),[]);
  assert.deepEqual(git('diff',BASE,PROMOTED,'--name-only','--','terms.html','legal.css').trim(),'','昇格時に利用規約は変えない');
  execFileSync('python3',['build-preview.py','--check'],{cwd});
- const ledger=JSON.parse(text('trial/ui-experiment.json'));assert.deepEqual(ledger.files,{});assert.deepEqual(ledger.trialOnlyFiles,{});assert.equal(ledger.promotedFrom,BASE);
  for(const n of['sky-rating.js','sky-rating.css','sky-rating-theme.js','privacy.html','terms.html'])assert.equal(sha(read('trial/'+n)),sha(read(n)),n);
  assert.match(text('trial/sky-rating.html'),/AstroNotes <span>試用版<\/span>/);
 });

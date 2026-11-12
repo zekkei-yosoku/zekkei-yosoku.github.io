@@ -57,7 +57,8 @@ const day=at=>globalThis.AstroNotesCandidateDiscovery?.day(at)??Math.floor((at+3
 const clockText=at=>Number.isFinite(at)?new Date(at+32400000).toISOString().slice(11,16):'時刻未確認';
 const uncertainty=row=>[row.quality?.visibility==='unknown'?'見通し未確認':'',row.quality?.buildingHeights==='estimated'?'建物の高さは推定':'',row.frame?.status==='unknown'?'全体の画角未確認':''].filter(Boolean);
 function configure(value){if(typeof value==='function')loadLabels=value;else if(value){ports={...ports,...value};if(typeof value.loadLabels==='function')loadLabels=value.loadLabels;}}
-function planKey(plan){return typeof ports.requestKey==='function'?ports.requestKey(plan):JSON.stringify([plan.requestKey,plan.owner,plan.body,plan.target,plan.partId,plan.limb,plan.matchMode,plan.composition,plan.compositionInvalid,plan.timeSpec||null,day(plan.at),plan.atmosphere,plan.cameraHeight]);}
+function planKey(plan){return typeof ports.requestKey==='function'?ports.requestKey(plan):JSON.stringify([plan.requestKey,plan.owner,plan.body,plan.target,plan.partId,plan.limb,plan.matchMode,plan.composition,plan.compositionInvalid,plan.timeSpec||null,day(plan.at),plan.atmosphere,
+plan.cameraHeight]);}
 function formatRow(node,row,types){
  if(!node.hasAttribute('data-candidate-columns')){
   const notes=[...node.querySelectorAll('.sub-line')].filter(n=>!n.hasAttribute('data-place-kind')).map(n=>n.textContent.replace(/^\d{2}:\d{2}・/,'').replace(/ · \d{2}:\d{2}/,''));
@@ -73,15 +74,20 @@ function formatRow(node,row,types){
  node.querySelector('[data-candidate-time]').textContent=clockText(row.event?.at);
  const angleCell=node.querySelector('[data-candidate-angle]');if(angleCell){const a=angleOf(row);angleCell.textContent=Number.isFinite(a)?Math.round(a)+'°':'—';angleCell.setAttribute('aria-label',Number.isFinite(a)?'見上げる角度 '+Math.round(a)+'度':'見上げる角度 不明');}
  const unconfirmed=uncertainty(row);let note=node.querySelector('[data-candidate-uncertainty]');
- if(unconfirmed.length){if(!note){note=document.createElement('span');note.dataset.candidateUncertainty='';note.className='tiny sub-line';Object.assign(note.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});node.append(note);}note.textContent=unconfirmed.join(' ・ ');}else note?.remove();
+ if(unconfirmed.length){if(!note){note=document.createElement('span');note.dataset.candidateUncertainty='';note.className='tiny sub-line';Object.assign(note.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});node.append(note);}note.textContent=unconfirmed.join(' ・ ');
+ }else note?.remove();
 }
 function createHeader(){
- const header=document.createElement('div');header.className='candidate-list-heading';header.dataset.candidateHeaders='';header.setAttribute('role','group');header.setAttribute('aria-label','候補の並べ替え');Object.assign(header.style,{display:'grid',gridTemplateColumns:columns,gap:'8px',borderBottom:'1px solid var(--line)',marginTop:'8px'});
- for(const [key,label]of [['name','地点'],['time','時刻'],['kind','種類'],['angle','角度']]){const button=document.createElement('button');button.type='button';button.dataset.candidateSort=key;button.dataset.label=label;Object.assign(button.style,{minWidth:'0',minHeight:'44px',padding:'8px 0',border:'0',borderRadius:'0',background:'transparent',boxShadow:'none',textAlign:'left',fontSize:'14px',fontWeight:'600',whiteSpace:'nowrap'});button.onclick=()=>{sort=sort===key?key+'-desc':key;updateHeaders();apply();};header.append(button);}return header;
+ const header=document.createElement('div');header.className='candidate-list-heading';header.dataset.candidateHeaders='';header.setAttribute('role','group');header.setAttribute('aria-label','候補の並べ替え');
+ Object.assign(header.style,{display:'grid',gridTemplateColumns:columns,gap:'8px',borderBottom:'1px solid var(--line)',marginTop:'8px'});
+ for(const [key,label]of [['name','地点'],['time','時刻'],['kind','種類'],['angle','角度']]){const button=document.createElement('button');button.type='button';button.dataset.candidateSort=key;button.dataset.label=label;
+ Object.assign(button.style,{minWidth:'0',minHeight:'44px',padding:'8px 0',border:'0',borderRadius:'0',background:'transparent',boxShadow:'none',textAlign:'left',fontSize:'14px',fontWeight:'600',whiteSpace:'nowrap'});button.onclick=()=>{sort=sort===key?key+'-desc':key;updateHeaders();apply();};
+ header.append(button);}return header;
 }
 function updateHeaders(){
  if(!control)return;const key=sort.replace(/-desc$/,''),descending=sort.endsWith('-desc');
- for(const button of control.querySelectorAll('[data-candidate-sort]')){const active=button.dataset.candidateSort===key;button.textContent=button.dataset.label+(active?(descending?' ↓':' ↑'):' ↕');button.setAttribute('aria-label',button.dataset.label+(active?'、現在は'+(descending?'降順':'昇順')+'。':'。')+(active&&!descending?'降順':'昇順')+'に並べ替え');button.setAttribute('aria-pressed',String(active));button.style.color=active?'var(--accent)':'var(--secondary)';}
+ for(const button of control.querySelectorAll('[data-candidate-sort]')){const active=button.dataset.candidateSort===key;button.textContent=button.dataset.label+(active?(descending?' ↓':' ↑'):' ↕');
+ button.setAttribute('aria-label',button.dataset.label+(active?'、現在は'+(descending?'降順':'昇順')+'。':'。')+(active&&!descending?'降順':'昇順')+'に並べ替え');button.setAttribute('aria-pressed',String(active));button.style.color=active?'var(--accent)':'var(--secondary)';}
  const reset=control.querySelector('[data-candidate-recommended]');if(reset)reset.hidden=sort==='recommended';
 }
 function button(label,handler){const b=document.createElement('button');b.type='button';b.className='fav-btn';b.textContent=label;b.style.minHeight='44px';b.onclick=handler;return b;}
@@ -93,14 +99,17 @@ function mount(panel,plan){
   for(const g of groups.values())for(const node of g.nodes)node.remove();
   scope=next;filterScope=nextFilters;groups.clear();windows.clear();visibleEntries=[];selectedId=null;revision.cancel();mapMode=false;mapHits=[];
   if(!keepFilters){time=kind='all';sort='time';control?.remove();control=null;list=null;}
-  else if(control){list?.replaceChildren();const toggle=control.querySelector('#candidateMapToggle');toggle.textContent='地図で見る';toggle.setAttribute('aria-expanded','false');toggle.disabled=true;const status=control.querySelector('[data-filter-status]');status.textContent='';status.hidden=true;control.querySelector('[data-candidate-headers]').hidden=false;if(list)list.hidden=false;}
+  else if(control){list?.replaceChildren();const toggle=control.querySelector('#candidateMapToggle');toggle.textContent='地図で見る';toggle.setAttribute('aria-expanded','false');toggle.disabled=true;const status=control.querySelector('[data-filter-status]');status.textContent='';status.hidden=true;
+  control.querySelector('[data-candidate-headers]').hidden=false;if(list)list.hidden=false;}
   if(mapPanel)mapPanel.hidden=true;
   if(previous)queueMicrotask(()=>{if(scope===next&&panel.isConnected)globalThis.MyPlacesUI?.renderPickerPanel(panel);});
  }
  if(!control?.isConnected){
   control=document.createElement('section');control.id='candidateListControls';control.className='aim-disclosure';Object.assign(control.style,{padding:'12px 0',marginTop:'12px'});control.setAttribute('aria-label','この日の候補の絞り込みと並び順');
   const filters=document.createElement('div');filters.className='candidate-filter-fields';control.append(filters);
-  const add=(label,id,options,value,change)=>{const l=document.createElement('label');l.className='tiny';Object.assign(l.style,{display:'grid',gridTemplateColumns:'76px minmax(0,1fr)',alignItems:'center',gap:'12px',margin:'0 0 8px',fontSize:'14px'});l.textContent=label;const s=document.createElement('select');s.id=id;s.setAttribute('aria-label',label);Object.assign(s.style,{width:'100%',minWidth:'0',maxWidth:'100%',minHeight:'44px',margin:'0',fontSize:'16px'});for(const [v,n]of options)s.add(new Option(n,v));s.value=value;s.onchange=()=>{change(s.value);apply();};l.append(s);filters.append(l);};
+  const add=(label,id,options,value,change)=>{const l=document.createElement('label');l.className='tiny';Object.assign(l.style,{display:'grid',gridTemplateColumns:'76px minmax(0,1fr)',alignItems:'center',gap:'12px',margin:'0 0 8px',fontSize:'14px'});l.textContent=label;
+  const s=document.createElement('select');s.id=id;s.setAttribute('aria-label',label);Object.assign(s.style,{width:'100%',minWidth:'0',maxWidth:'100%',minHeight:'44px',margin:'0',fontSize:'16px'});for(const [v,n]of options)s.add(new Option(n,v));s.value=value;s.onchange=()=>{change(s.value);apply();
+  };l.append(s);filters.append(l);};
   add('時間帯','candidateTimeFilter',[['all','すべての時間'],['rise','出の前後1時間'],['set','入の前後1時間']],time,v=>time=v);
   add('場所の種類','candidateKindFilter',[['all','すべての種類'],...Object.entries(names)],kind,v=>kind=v);
   const actions=document.createElement('div');actions.className='candidate-list-actions';Object.assign(actions.style,{display:'flex',gap:'8px',flexWrap:'wrap'});
@@ -148,7 +157,8 @@ async function apply(){
  status.hidden=!merged.length;status.textContent=`${visibleEntries.length} / ${merged.length}件を表示`+(unknownTime?`。出入り時刻を確認できない${unknownTime}件は時間帯の絞り込みから除外しています。`:'')+(merged.length&&!labels.facilities?'。種類データを読み込めない地点は種類未確認です。':'');
  const toggle=control.querySelector('#candidateMapToggle');toggle.disabled=!visibleEntries.length||typeof ports.createMapView!=='function';
  if(mapMode){if(!visibleEntries.length)showMap(false);else refreshMap();}updateHeaders();
- if(suspendedView?.scope===scope&&visibleEntries.length&&(!suspendedView.selectedId||visibleEntries.some(e=>e.id===suspendedView.selectedId))){const saved=suspendedView;suspendedView=null;selectedId=saved.selectedId;if(saved.mapMode)showMap(true);else requestAnimationFrame(()=>{if(scope===saved.scope&&control?.isConnected){const scroller=ports.getScroller?.()||control.closest('.sheet-body')||control.closest('[role=tabpanel]');if(scroller)scroller.scrollTop=saved.scrollTop;}});}
+ if(suspendedView?.scope===scope&&visibleEntries.length&&(!suspendedView.selectedId||visibleEntries.some(e=>e.id===suspendedView.selectedId))){const saved=suspendedView;suspendedView=null;selectedId=saved.selectedId;if(saved.mapMode)showMap(true);
+ else requestAnimationFrame(()=>{if(scope===saved.scope&&control?.isConnected){const scroller=ports.getScroller?.()||control.closest('.sheet-body')||control.closest('[role=tabpanel]');if(scroller)scroller.scrollTop=saved.scrollTop;}});}
  ports.onRendered?.(visibleEntries.length);return visibleEntries.map(e=>e.row);
 }
 function unregister(box){const g=groups.get(box);if(g){for(const node of g.nodes)node.remove();groups.delete(box);}return apply();}
@@ -169,13 +179,15 @@ function ensureMap(){
   const note=document.createElement('p');note.className='tiny';note.textContent='各ピンは、それぞれの時刻の候補です。';mapPanel.append(note);
   const wrap=document.createElement('div');wrap.className='mapwrap';Object.assign(wrap.style,{position:'relative',height:'min(55vh,480px)',minHeight:'280px',overflow:'hidden',borderRadius:'12px'});
   const canvas=document.createElement('canvas');canvas.id='candidateMapCanvas';canvas.setAttribute('aria-label','候補の位置。下の候補選択欄でも選べます。');Object.assign(canvas.style,{width:'100%',height:'100%',display:'block',touchAction:'none'});wrap.append(canvas);
-  const zoom=document.createElement('div');zoom.className='mapzoom';const plus=button('＋',()=>{}),minus=button('−',()=>{});plus.id='candidateMapZoomIn';minus.id='candidateMapZoomOut';plus.setAttribute('aria-label','地図を拡大');minus.setAttribute('aria-label','地図を縮小');zoom.append(plus,minus);wrap.append(zoom);mapPanel.append(wrap);
+  const zoom=document.createElement('div');zoom.className='mapzoom';const plus=button('＋',()=>{}),minus=button('−',()=>{});plus.id='candidateMapZoomIn';minus.id='candidateMapZoomOut';plus.setAttribute('aria-label','地図を拡大');minus.setAttribute('aria-label','地図を縮小');zoom.append(plus,minus);
+  wrap.append(zoom);mapPanel.append(wrap);
   const card=document.createElement('div');card.id='candidateMapCard';mapPanel.append(card);
   const select=document.createElement('select');select.id='candidateMapChoice';select.setAttribute('aria-label','地図の候補');Object.assign(select.style,{width:'100%',fontSize:'16px',minHeight:'44px',marginTop:'12px'});select.onchange=()=>chooseMap(select.value);card.append(select);
   const detail=document.createElement('p');detail.id='candidateMapDetail';detail.className='tiny';detail.setAttribute('role','status');card.append(detail);
   const use=button('見え方を確認',()=>{const e=mapSelection();if(!currentEntry(e)){detail.textContent='条件が変わりました。一覧に戻って候補を確認してください。';return;}e.node.click();});use.id='candidateMapUse';card.append(use);
   const back=button('一覧に戻る',()=>{wrap._mapShell?.setWide(false);showMap(false);});back.hidden=true;card.append(back);
-  new MutationObserver(()=>{const wide=wrap.classList.contains('sky-map-wide'),footer=wrap.querySelector('.shared-map-footer');back.hidden=!wide;if(wide&&footer){footer.hidden=false;if(card.parentNode!==footer)footer.append(card);}else if(card.parentNode!==mapPanel)mapPanel.append(card);}).observe(wrap,{attributes:true,attributeFilter:['class']});
+  new MutationObserver(()=>{const wide=wrap.classList.contains('sky-map-wide'),footer=wrap.querySelector('.shared-map-footer');back.hidden=!wide;if(wide&&footer){footer.hidden=false;if(card.parentNode!==footer)footer.append(card);}else if(card.parentNode!==mapPanel)mapPanel.append(card);
+  }).observe(wrap,{attributes:true,attributeFilter:['class']});
  }
  if(mapPanel.parentNode!==control)control.append(mapPanel);
  if(!mapInstance){mapInstance=ports.createMapView({canvas:'candidateMapCanvas',zoomIn:'candidateMapZoomIn',zoomOut:'candidateMapZoomOut'});mapInstance.setOverlay(drawMap);mapInstance.onPick((_point,pixel)=>{
@@ -186,8 +198,10 @@ function ensureMap(){
 function showMap(on){
  if(!control)return false;if(on&&(!visibleEntries.length||typeof ports.createMapView!=='function'))return false;
  const scrollHost=ports.getScroller?.()||control.closest('[role=tabpanel]')||control.closest('dialog'),toggle=control.querySelector('#candidateMapToggle');
- if(on){mapScroll={node:scrollHost,top:scrollHost?.scrollTop||0};ensureMap();mapMode=true;mapPanel.hidden=false;list.hidden=true;control.querySelector('[data-candidate-headers]').hidden=true;toggle.textContent='一覧に戻る';toggle.setAttribute('aria-expanded','true');mapFitPending=true;refreshMap();mapPanel.scrollIntoView?.({block:'nearest'});}
- else{mapMode=false;if(mapPanel){mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);mapPanel.hidden=true;}if(list)list.hidden=false;control.querySelector('[data-candidate-headers]').hidden=false;toggle.textContent='地図で見る';toggle.setAttribute('aria-expanded','false');const saved=mapScroll,expected=scope;if(saved?.node)requestAnimationFrame(()=>{if(!mapMode&&scope===expected&&saved.node.isConnected)saved.node.scrollTop=saved.top;});}
+ if(on){mapScroll={node:scrollHost,top:scrollHost?.scrollTop||0};ensureMap();mapMode=true;mapPanel.hidden=false;list.hidden=true;control.querySelector('[data-candidate-headers]').hidden=true;toggle.textContent='一覧に戻る';toggle.setAttribute('aria-expanded','true');mapFitPending=true;refreshMap();
+ mapPanel.scrollIntoView?.({block:'nearest'});}
+ else{mapMode=false;if(mapPanel){mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);mapPanel.hidden=true;}if(list)list.hidden=false;control.querySelector('[data-candidate-headers]').hidden=false;toggle.textContent='地図で見る';toggle.setAttribute('aria-expanded','false');
+ const saved=mapScroll,expected=scope;if(saved?.node)requestAnimationFrame(()=>{if(!mapMode&&scope===expected&&saved.node.isConnected)saved.node.scrollTop=saved.top;});}
  return true;
 }
 function refreshMap(){
@@ -196,9 +210,12 @@ function refreshMap(){
  const select=mapPanel.querySelector('#candidateMapChoice'),signature=JSON.stringify(visibleEntries.map(e=>[e.id,e.row.place.name,e.row.event?.at]));
  if(select.dataset.signature!==signature){select.replaceChildren();visibleEntries.forEach((e,i)=>select.add(new Option(`${i+1}. ${e.row.place.name} ・ ${clockText(e.row.event?.at)}`,e.id)));select.dataset.signature=signature;}
  select.value=selectedId||'';const e=mapSelection();
- const detail=mapPanel.querySelector('#candidateMapDetail');if(e){const obs=e.row.assumedObserver,p=e.row.place,base=Number.isFinite(obs?.elevation)?obs.elevation:p.groundManualM??p.elevation,eye=Number.isFinite(obs?.eyeM)?obs.eyeM:p.standAglM??p.eyeHeightAGL;detail.textContent=e.types.map(t=>names[t]).join('・')+' ・ '+clockText(e.row.event?.at)+(Number.isFinite(base)&&Number.isFinite(eye)?' ・ 撮影位置の標高 '+(base+eye).toFixed(1)+'m':' ・ 高さ未確認')+uncertainty(e.row).map(s=>' ・ '+s).join('');}
+ const detail=mapPanel.querySelector('#candidateMapDetail');if(e){const obs=e.row.assumedObserver,p=e.row.place,base=Number.isFinite(obs?.elevation)?obs.elevation:p.groundManualM??p.elevation,eye=Number.isFinite(obs?.eyeM)?obs.eyeM:p.standAglM??p.eyeHeightAGL;
+ detail.textContent=e.types.map(t=>names[t]).join('・')+' ・ '+clockText(e.row.event?.at)+(Number.isFinite(base)&&Number.isFinite(eye)?' ・ 撮影位置の標高 '+(base+eye).toFixed(1)+'m':' ・ 高さ未確認')+uncertainty(e.row).map(s=>' ・ '+s).join('');}
  mapPanel.querySelector('#candidateMapUse').disabled=!currentEntry(e);
- if(mapFitPending){mapFitPending=false;const ps=visibleEntries.map(e=>e.row.place).filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude));if(ps.length){const lat0=Math.min(...ps.map(p=>p.latitude)),lat1=Math.max(...ps.map(p=>p.latitude)),lon0=Math.min(...ps.map(p=>p.longitude)),lon1=Math.max(...ps.map(p=>p.longitude)),lat=(lat0+lat1)/2,lon=(lon0+lon1)/2,cv=mapPanel.querySelector('canvas'),dx=Math.max(.00001,(lon1-lon0)/360),dy=Math.max(.00001,(lat1-lat0)/(360*Math.cos(lat*Math.PI/180))),z=Math.min(17,Math.log2(Math.max(160,cv.clientWidth)*.7/(256*dx)),Math.log2(Math.max(200,cv.clientHeight)*.7/(256*dy)));mapInstance.open({latitude:lat,longitude:lon},z);}}
+ if(mapFitPending){mapFitPending=false;const ps=visibleEntries.map(e=>e.row.place).filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude));
+ if(ps.length){const lat0=Math.min(...ps.map(p=>p.latitude)),lat1=Math.max(...ps.map(p=>p.latitude)),lon0=Math.min(...ps.map(p=>p.longitude)),lon1=Math.max(...ps.map(p=>p.longitude)),lat=(lat0+lat1)/2,lon=(lon0+lon1)/2,cv=mapPanel.querySelector('canvas'),dx=Math.max(.00001,(lon1-lon0)/360),
+ dy=Math.max(.00001,(lat1-lat0)/(360*Math.cos(lat*Math.PI/180))),z=Math.min(17,Math.log2(Math.max(160,cv.clientWidth)*.7/(256*dx)),Math.log2(Math.max(200,cv.clientHeight)*.7/(256*dy)));mapInstance.open({latitude:lat,longitude:lon},z);}}
  mapInstance.redraw();
 }
 function drawMap(ctx,{project,width,height}){
@@ -207,10 +224,15 @@ function drawMap(ctx,{project,width,height}){
  if(selected&&currentEntry(selected)){
   const p=selected.row.place,t=selected.group.plan.target;
   if(t&&Number.isFinite(t.latitude)&&Number.isFinite(t.longitude)){const a=project(p.latitude,p.longitude),b=project(t.latitude,t.longitude);ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.strokeStyle='#f4bb44';ctx.lineWidth=3;ctx.stroke();
-   const top=64,off=b[0]<24||b[0]>width-24||b[1]<top||b[1]>height-24,origin=a[0]>=24&&a[0]<=width-24&&a[1]>=top&&a[1]<=height-24?a:[width/2,height/2],dx=b[0]-origin[0],dy=b[1]-origin[1],scale=off?Math.min(1,dx>0?(width-24-origin[0])/dx:dx<0?(24-origin[0])/dx:Infinity,dy>0?(height-24-origin[1])/dy:dy<0?(top-origin[1])/dy:Infinity):1,tx=off?origin[0]+dx*scale:b[0],ty=off?origin[1]+dy*scale:b[1];ctx.beginPath();ctx.arc(tx,ty,7,0,Math.PI*2);ctx.fillStyle='#bc7cff';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle='#fff';ctx.strokeStyle='#222';ctx.lineWidth=4;let label=(off?'対象方向：':'')+(t.name||'対象');const maxLabelWidth=Math.max(20,width-20);if(ctx.measureText(label).width>maxLabelWidth){while(label.length&&ctx.measureText(label+'…').width>maxLabelWidth)label=label.slice(0,-1);label+='…';}const half=ctx.measureText(label).width/2+5,labelX=Math.max(half,Math.min(width-half,tx)),labelY=Math.max(14,Math.min(height-14,ty+(ty<84||ty>=a[1]?20:-20)));ctx.strokeText(label,labelX,labelY);ctx.fillText(label,labelX,labelY);
+   const top=64,off=b[0]<24||b[0]>width-24||b[1]<top||b[1]>height-24,origin=a[0]>=24&&a[0]<=width-24&&a[1]>=top&&a[1]<=height-24?a:[width/2,height/2],dx=b[0]-origin[0],dy=b[1]-origin[1],scale=off?Math.min(1,dx>0?(width-24-origin[0])/dx:dx<0?(24-origin[0])/dx:Infinity,
+   dy>0?(height-24-origin[1])/dy:dy<0?(top-origin[1])/dy:Infinity):1,tx=off?origin[0]+dx*scale:b[0],ty=off?origin[1]+dy*scale:b[1];ctx.beginPath();ctx.arc(tx,ty,7,0,Math.PI*2);ctx.fillStyle='#bc7cff';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle='#fff';
+   ctx.strokeStyle='#222';ctx.lineWidth=4;let label=(off?'対象方向：':'')+(t.name||'対象');const maxLabelWidth=Math.max(20,width-20);if(ctx.measureText(label).width>maxLabelWidth){while(label.length&&ctx.measureText(label+'…').width>maxLabelWidth)label=label.slice(0,-1);label+='…';
+   }const half=ctx.measureText(label).width/2+5,labelX=Math.max(half,Math.min(width-half,tx)),labelY=Math.max(14,Math.min(height-14,ty+(ty<84||ty>=a[1]?20:-20)));ctx.strokeText(label,labelX,labelY);ctx.fillText(label,labelX,labelY);
   }
  }
- visibleEntries.map((e,i)=>({e,i})).sort((a,b)=>Number(a.e.id===selectedId)-Number(b.e.id===selectedId)).forEach(({e,i})=>{if(!currentEntry(e))return;const p=e.row.place;if(!Number.isFinite(p.latitude)||!Number.isFinite(p.longitude))return;const [x,y]=project(p.latitude,p.longitude);if(x<-24||x>width+24||y<-24||y>height+24)return;mapHits.push({x,y,id:e.id});ctx.beginPath();ctx.arc(x,y,e.id===selectedId?16:13,0,Math.PI*2);ctx.fillStyle=e.id===selectedId?'#176cc5':'#273b52';ctx.fill();ctx.lineWidth=e.id===selectedId?3:2;ctx.strokeStyle='#fff';ctx.stroke();ctx.fillStyle='#fff';ctx.fillText(String(i+1),x,y);});ctx.restore();
+ visibleEntries.map((e,i)=>({e,i})).sort((a,b)=>Number(a.e.id===selectedId)-Number(b.e.id===selectedId)).forEach(({e,i})=>{if(!currentEntry(e))return;const p=e.row.place;if(!Number.isFinite(p.latitude)||!Number.isFinite(p.longitude))return;const [x,y]=project(p.latitude,p.longitude);
+ if(x<-24||x>width+24||y<-24||y>height+24)return;mapHits.push({x,y,id:e.id});ctx.beginPath();ctx.arc(x,y,e.id===selectedId?16:13,0,Math.PI*2);ctx.fillStyle=e.id===selectedId?'#176cc5':'#273b52';ctx.fill();ctx.lineWidth=e.id===selectedId?3:2;ctx.strokeStyle='#fff';ctx.stroke();ctx.fillStyle='#fff';
+ ctx.fillText(String(i+1),x,y);});ctx.restore();
 }
 // Keep UI preferences and a valid return position, never old executable rows.
 function suspend(){
@@ -220,7 +242,8 @@ function suspend(){
  if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);
  revision.cancel();for(const g of groups.values())for(const node of g.nodes)node.remove();groups.clear();visibleEntries=[];mapHits=[];mapMode=false;if(mapPanel)mapPanel.hidden=true;control.remove();
 }
-function reset(){if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);revision.cancel();groups.clear();windows.clear();visibleEntries=[];selectedId=null;mapHits=[];mapMode=false;if(mapPanel)mapPanel.hidden=true;control?.remove();control=null;list=null;scope='';filterScope='';mapScroll=null;suspendedView=null;}
+function reset(){if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);revision.cancel();groups.clear();windows.clear();visibleEntries=[];selectedId=null;mapHits=[];mapMode=false;if(mapPanel)mapPanel.hidden=true;control?.remove();control=null;list=null;scope='';filterScope='';
+mapScroll=null;suspendedView=null;}
 const api={mount,configure,registerRegistered:register,registerAdditional:register,unregister,apply,kinds,accepts,compare,showMap,suspend,reset,visibleRows:()=>visibleEntries.filter(currentEntry).map(e=>e.row)};
 globalThis.AstroNotesCandidatePicker=api;
 if(typeof module!=='undefined')module.exports={kinds,accepts,compare,candidateKey,mergeEntries,placePriority};

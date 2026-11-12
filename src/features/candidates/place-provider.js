@@ -21,12 +21,15 @@ function hash(s){let x=2166136261;for(let i=0;i<s.length;i++){x^=s.charCodeAt(i)
 function distance(a,b){return Math.hypot((a[0]-b[0])*Math.cos((a[1]+b[1])*RAD/2),a[1]-b[1])*M;}
 function inside(r,p){let yes=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>p.latitude)!==(r[j][1]>p.latitude)&&p.longitude<(r[j][0]-r[i][0])*(p.latitude-r[i][1])/(r[j][1]-r[i][1])+r[i][0])yes=!yes;return yes;}
 const contains=(f,p)=>(!f.bbox||bboxPoint(p,f.bbox))&&f.polygons.some(poly=>inside(poly[0],p)&&!poly.slice(1).some(r=>inside(r,p)));
-function edgeDistance(line,p){let d=Infinity;const c=Math.cos(p.latitude*RAD);for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],x=(b[0]-a[0])*c,y=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*c*x+(p.latitude-a[1])*y)/(x*x+y*y||1)));d=Math.min(d,Math.hypot((p.longitude-a[0])*c-u*x,p.latitude-a[1]-u*y)*M);}return d;}
+function edgeDistance(line,p){let d=Infinity;const c=Math.cos(p.latitude*RAD);for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],x=(b[0]-a[0])*c,y=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*c*x+(p.latitude-a[1])*y)/(x*x+y*y||1)));
+d=Math.min(d,Math.hypot((p.longitude-a[0])*c-u*x,p.latitude-a[1]-u*y)*M);}return d;}
 const xy=g=>(g||[]).filter(p=>p&&finite(p.lon)&&finite(p.lat)&&Math.abs(p.lon)<=180&&Math.abs(p.lat)<=90).map(p=>[p.lon,p.lat]);
 const closed=r=>r.length>=4&&distance(r[0],r[r.length-1])<.01;
 // Multipolygon member fragments are joined only by equal endpoints. An unclosed
 // ring is unavailable geometry, not an invitation to fill the relation's bbox.
-function joinRings(lines){const todo=lines.map(x=>x.slice()),rings=[];while(todo.length){let r=todo.shift(),changed=true;while(!closed(r)&&changed){changed=false;for(let i=0;i<todo.length;i++){let b=todo[i];if(distance(r[r.length-1],b[0])<.01)r.push(...b.slice(1));else if(distance(r[r.length-1],b[b.length-1])<.01)r.push(...b.slice(0,-1).reverse());else if(distance(r[0],b[b.length-1])<.01)r.unshift(...b.slice(0,-1));else if(distance(r[0],b[0])<.01)r.unshift(...b.slice(1).reverse());else continue;todo.splice(i,1);changed=true;break;}}if(closed(r))rings.push(r);}return rings;}
+function joinRings(lines){const todo=lines.map(x=>x.slice()),rings=[];while(todo.length){let r=todo.shift(),changed=true;while(!closed(r)&&changed){changed=false;for(let i=0;i<todo.length;i++){let b=todo[i];if(distance(r[r.length-1],b[0])<.01)r.push(...b.slice(1));
+else if(distance(r[r.length-1],b[b.length-1])<.01)r.push(...b.slice(0,-1).reverse());else if(distance(r[0],b[b.length-1])<.01)r.unshift(...b.slice(0,-1));else if(distance(r[0],b[0])<.01)r.unshift(...b.slice(1).reverse());else continue;todo.splice(i,1);changed=true;break;}}if(closed(r))rings.push(r);
+}return rings;}
 function parseElements(elements){
  const rows=[];
  for(const e of elements){
@@ -84,7 +87,8 @@ function* tileQueue(regions){const seen=new Set();for(const r of regions){const 
  }}}
 function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0}={}){
  const generationBudget=maxPoints+skipPoints;
- const areas=features.filter(f=>f.kind&&f.polygons.length),waters=features.filter(f=>f.water),rivers=features.filter(f=>['river','canal'].includes(f.tags.waterway)),buildings=features.filter(f=>f.building),groups=[],unknownGeometry=features.filter(f=>f.geometryIncomplete).map(f=>f.id);let generationLimited=false;
+ const areas=features.filter(f=>f.kind&&f.polygons.length),waters=features.filter(f=>f.water),rivers=features.filter(f=>['river','canal'].includes(f.tags.waterway)),buildings=features.filter(f=>f.building),groups=[],unknownGeometry=features.filter(f=>f.geometryIncomplete).map(f=>f.id);
+ let generationLimited=false;
  const inRegion=p=>regions.some(r=>bboxPoint(p,r.bbox));
  for(const f of features){
   if(forbidden(f.tags)||(!f.walking&&f.kind!=='viewpoint'))continue;
@@ -96,10 +100,12 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
   if(f.walking){
    const filled=f.tags.area==='yes'||!!f.tags['area:highway'];
    if(filled){for(const poly of f.polygons){const r=poly[0],xs=r.map(p=>p[0]),ys=r.map(p=>p[1]),a=Math.min(...ys),b=Math.max(...ys),lo=Math.min(...xs),hi=Math.max(...xs),dy=spacingM/M,dx=dy/Math.max(.01,Math.cos((a+b)*RAD/2));let count=0;
-    for(const region of regions){const box=region.bbox,fromLat=Math.max(a,box[1]),toLat=Math.min(b,box[3]),fromLon=Math.max(lo,box[0]),toLon=Math.min(hi,box[2]);for(let lat=fromLat+dy/2;lat<toLat&&count<generationBudget*4;lat+=dy)for(let lon=fromLon+dx/2;lon<toLon&&count<generationBudget*4;lon+=dx){const p={latitude:lat,longitude:lon};if(inside(r,p)&&!poly.slice(1).some(h=>inside(h,p))){candidates.push(p);count++;}}}if(count>=generationBudget*4)generationLimited=true;
+    for(const region of regions){const box=region.bbox,fromLat=Math.max(a,box[1]),toLat=Math.min(b,box[3]),fromLon=Math.max(lo,box[0]),toLon=Math.min(hi,box[2]);for(let lat=fromLat+dy/2;lat<toLat&&count<generationBudget*4;lat+=dy)for(let lon=fromLon+dx/2;lon<toLon&&count<generationBudget*4;
+    lon+=dx){const p={latitude:lat,longitude:lon};if(inside(r,p)&&!poly.slice(1).some(h=>inside(h,p))){candidates.push(p);count++;}}}if(count>=generationBudget*4)generationLimited=true;
     // Small pedestrian squares may be smaller than one grid cell.
     const p={latitude:(a+b)/2,longitude:(lo+hi)/2};if(inside(r,p)&&!poly.slice(1).some(h=>inside(h,p)))candidates.push(p);
-   }}else for(const line of f.lines){for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],n=Math.max(1,Math.ceil(distance(a,b)/spacingM));for(let j=0;j<n;j++){const p={longitude:a[0]+(b[0]-a[0])*j/n,latitude:a[1]+(b[1]-a[1])*j/n};if(!inRegion(p))continue;if(candidates.length>=generationBudget*8){generationLimited=true;break;}candidates.push(p);}}const last=line[line.length-1];if(last)candidates.push({longitude:last[0],latitude:last[1]});}
+   }}else for(const line of f.lines){for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],n=Math.max(1,Math.ceil(distance(a,b)/spacingM));for(let j=0;j<n;j++){const p={longitude:a[0]+(b[0]-a[0])*j/n,latitude:a[1]+(b[1]-a[1])*j/n};if(!inRegion(p))continue;
+   if(candidates.length>=generationBudget*8){generationLimited=true;break;}candidates.push(p);}}const last=line[line.length-1];if(last)candidates.push({longitude:last[0],latitude:last[1]});}
   }
   const points=[];
   for(const p of candidates){
@@ -130,7 +136,9 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
     surfaceGeometry:{polygons:f.walking&&(f.tags.area==='yes'||f.tags['area:highway'])?f.polygons:[],lines:f.walking&&f.tags.area!=='yes'&&!f.tags['area:highway']?f.lines:[],...(f.position?{position:f.position}:{})},
     groundM:null,groundKnown:false,surfaceAglM:knownFloor?floor:structuralUnknown?null:0,surfaceHeightM:knownFloor?floor:structuralUnknown?null:0,surfaceElevationM:null,eyeM:1.5,
     standingSurfaceKnown:false,accessKnown,structureClassificationKnown:!structuralUnknown||!!knownFloor,nonTerrainStructure:!!elevated||!!knownFloor&&floor>0,
-    sourceEvidence:{kind:'osm-mapped-walking-surface',heightBasis:'surfaceAglM/surfaceHeightM:height-above-local-ground; surfaceElevationM:groundM+surfaceAglM; eyeM:height-above-surface',osmId:f.id,placeOsmId:(area||f).id,tags:{...f.tags},areaTags:area?{...area.tags}:null,classification:riverArea?'named-riverside-area':riverPath?'named-riverside-walkway':riverside?'mapped-river-proximity':'mapped-feature',floor:knownFloor?{heightM:floor,source:floorSource}:null,buildingContaining:building?.id||null,access:'mapped-only',vegetation:'unknown',actualVisibilityGuaranteed:false}
+    sourceEvidence:{kind:'osm-mapped-walking-surface',heightBasis:'surfaceAglM/surfaceHeightM:height-above-local-ground; surfaceElevationM:groundM+surfaceAglM; eyeM:height-above-surface',osmId:f.id,placeOsmId:(area||f).id,tags:{...f.tags},areaTags:area?{...area.tags}:null,
+    classification:riverArea?'named-riverside-area':riverPath?'named-riverside-walkway':riverside?'mapped-river-proximity':'mapped-feature',floor:knownFloor?{heightM:floor,source:floorSource}:null,buildingContaining:building?.id||null,access:'mapped-only',vegetation:'unknown',
+    actualVisibilityGuaranteed:false}
    });
   }
   if(points.length){const preferred=points.filter(p=>p.placeKind!=='sidewalk'),support=points.filter(p=>p.placeKind==='sidewalk');if(preferred.length)groups.push(preferred);if(support.length)groups.push(support);}
@@ -139,7 +147,8 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
  // the entire budget before a small park or a viewpoint is considered.
  groups.sort((a,b)=>(a[0].placeKind==='sidewalk')-(b[0].placeKind==='sidewalk'));
  const rows=[],seen=new Set();let remaining=0,visited=0;
- for(const priority of [false,true]){const g=groups.filter(a=>(a[0].placeKind==='sidewalk')===priority);for(let i=0;g.some(a=>i<a.length);i++)for(const a of g)if(i<a.length){const p=a[i],k=key(p)+'/'+p.surfaceId;if(seen.has(k))continue;seen.add(k);if(visited++<skipPoints)continue;if(rows.length<maxPoints)rows.push(p);else remaining++;}}
+ for(const priority of [false,true]){const g=groups.filter(a=>(a[0].placeKind==='sidewalk')===priority);for(let i=0;g.some(a=>i<a.length);i++)for(const a of g)if(i<a.length){const p=a[i],k=key(p)+'/'+p.surfaceId;if(seen.has(k))continue;seen.add(k);if(visited++<skipPoints)continue;
+ if(rows.length<maxPoints)rows.push(p);else remaining++;}}
  return {rows,limited:remaining>0||generationLimited,omittedPoints:remaining,generationLimited,unknownGeometry};
 }
 function publishedViewpoints(data,regions){
@@ -151,8 +160,10 @@ function publishedViewpoints(data,regions){
   // input, and do not prove windows/visibility for a new arbitrary target.
   points.push({latitude:p.latitude,longitude:p.longitude,lat:p.latitude,lon:p.longitude,placeId:'viewpoint/'+p.id,name:p.name,placeKind:'viewpoint',sourceId:'viewpoint/'+p.id,surfaceId:'viewpoint/'+p.id,polygonId:p.id,region:regions.find(r=>bboxPoint(p,r.bbox))?.id,
    surfaceGeometry:{polygons:[],lines:[],position:{latitude:p.latitude,longitude:p.longitude}},
-   groundM:null,groundKnown:false,surfaceAglM:p.deckM,surfaceHeightM:p.deckM,surfaceElevationM:null,eyeM:published?0:1.5,standingSurfaceKnown:false,accessKnown:false,structureClassificationKnown:true,nonTerrainStructure:true,heightBasis:basis,quality:published?'published-viewpoint-point-model':'documented-floor-point-model',
-   sourceEvidence:{kind:'documented-viewpoint-point-model',source,checkedAt:p.sightline?.checkedAt||null,heightBasis:basis,heightM:p.deckM,reference:'height-above-local-ground',eyeHeightIncluded:published,positionBasis:'existing-point-model',physicalFloorMeasured:!published&&basis==='survey-floor',windowOpening:'unknown',targetVisibility:'unknown',buildingLOS:'unknown',vegetation:'unknown',actualVisibilityGuaranteed:false}
+   groundM:null,groundKnown:false,surfaceAglM:p.deckM,surfaceHeightM:p.deckM,surfaceElevationM:null,eyeM:published?0:1.5,standingSurfaceKnown:false,accessKnown:false,structureClassificationKnown:true,nonTerrainStructure:true,heightBasis:basis,
+   quality:published?'published-viewpoint-point-model':'documented-floor-point-model',
+   sourceEvidence:{kind:'documented-viewpoint-point-model',source,checkedAt:p.sightline?.checkedAt||null,heightBasis:basis,heightM:p.deckM,reference:'height-above-local-ground',eyeHeightIncluded:published,positionBasis:'existing-point-model',physicalFloorMeasured:!published&&basis==='survey-floor',
+   windowOpening:'unknown',targetVisibility:'unknown',buildingLOS:'unknown',vegetation:'unknown',actualVisibilityGuaranteed:false}
   });
  }return points;
 }
@@ -166,7 +177,8 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
   let timedOut=false;const cancel=()=>controller.abort(),timer=setInterval(()=>{if(!current())cancel();if(Date.now()-started>maxDurationMs){timedOut=true;cancel();}},100);signal?.addEventListener('abort',cancel,{once:true});
   const coverage={status:'partial',requestedRegions:requested,fetchedRegions:[],failedRegions:[],pendingRegions:[],missing:[],osmComplete:false,samplingComplete:false,heightComplete:false,visibilityAssessed:false,actualVisibilityGuaranteed:false,queryTileDegrees:TILE};
   const merged=new Map();let nextOffset=offset,hasPending=false;
-  async function bounded(promise,ms){let t,abort;return Promise.race([promise,new Promise((_,reject)=>{t=setTimeout(()=>reject(Error('timeout')),ms);}),new Promise((_,reject)=>{abort=()=>reject(Error('cancelled'));if(controller.signal.aborted)abort();else controller.signal.addEventListener('abort',abort,{once:true});})]).finally(()=>{clearTimeout(t);controller.signal.removeEventListener('abort',abort);});}
+  async function bounded(promise,ms){let t,abort;return Promise.race([promise,new Promise((_,reject)=>{t=setTimeout(()=>reject(Error('timeout')),ms);}),new Promise((_,reject)=>{abort=()=>reject(Error('cancelled'));if(controller.signal.aborted)abort();
+  else controller.signal.addEventListener('abort',abort,{once:true});})]).finally(()=>{clearTimeout(t);controller.signal.removeEventListener('abort',abort);});}
   async function request(url,opts={}){
    if(!current()||controller.signal.aborted)throw Error('cancelled');
    const own=new AbortController(),abort=()=>own.abort(),t=setTimeout(abort,timeoutMs);controller.signal.addEventListener('abort',abort,{once:true});opts.signal?.addEventListener('abort',abort,{once:true});
@@ -196,7 +208,8 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
    }if(!current()||controller.signal.aborted)throw Error('cancelled');
    // A refusal (429) waits a minute; a slow answer only briefly, as a dense Tokyo tile can take Overpass 10-20 s.
    endpointCursor=(endpointCursor+1)%Math.max(1,servers.length);if(overpassAttempted)overpassRetryAfter=Date.now()+(/429/.test(reason)?60000:20000);
-   if(retryFailed&&current()&&!controller.signal.aborted)try{const endpoint='https://api.openstreetmap.org/api/0.6/map',res=await request(endpoint+'?bbox='+b.join(','));if(!res.ok)throw Error('HTTP '+res.status);const xml=await bounded(res.text(),timeoutMs),elements=mapElements(xml),value={features:parseElements(elements),at:Date.now(),timestamp:null,endpoint,version:hash(xml),fallback:true};cache.set(tile.id,value);return value;}catch(e){reason+='; map '+String(e.message||e);}
+   if(retryFailed&&current()&&!controller.signal.aborted)try{const endpoint='https://api.openstreetmap.org/api/0.6/map',res=await request(endpoint+'?bbox='+b.join(','));if(!res.ok)throw Error('HTTP '+res.status);
+   const xml=await bounded(res.text(),timeoutMs),elements=mapElements(xml),value={features:parseElements(elements),at:Date.now(),timestamp:null,endpoint,version:hash(xml),fallback:true};cache.set(tile.id,value);return value;}catch(e){reason+='; map '+String(e.message||e);}
    throw Error(reason);
   }
   try{
@@ -228,22 +241,27 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
    // A small documented viewpoint supplement is independent of OSM availability.
    // Add once at the beginning; continuation pages only advance dynamic geometry.
    coverage.documentedViewpoints=0;
-   if(!cursor&&offset===0&&typeof loadViewpoints==='function'&&current()&&!controller.signal.aborted)try{const supplement=publishedViewpoints(await bounded(loadViewpoints(plan,{signal:controller.signal,isCurrent:current}),timeoutMs),requested);points.unshift(...supplement);coverage.documentedViewpoints=supplement.length;}catch{coverage.missing.push('documented-viewpoints-unavailable');}
+   if(!cursor&&offset===0&&typeof loadViewpoints==='function'&&current()&&!controller.signal.aborted)try{const supplement=publishedViewpoints(await bounded(loadViewpoints(plan,{signal:controller.signal,isCurrent:current}),timeoutMs),requested);points.unshift(...supplement);
+   coverage.documentedViewpoints=supplement.length;}catch{coverage.missing.push('documented-viewpoints-unavailable');}
    // Query ground only for the sampled surfaces. GSI failures and sea sentinels
    // stay null; tileElevations() is deliberately not used (it maps failures to 0).
    terrain.resetBudget?.();
    let index=0;
    await Promise.all(Array.from({length:Math.min(4,points.length)},async()=>{while(index<points.length&&current()&&!controller.signal.aborted){const p=points[index++],k=key(p);let g=heightCache.get(k)||null;
-    try{if(!g&&typeof terrain.groundElevation==='function')g=await bounded(terrain.groundElevation(p.latitude,p.longitude,{withSource:true,fetchImpl:request}),timeoutMs+250);if(g&&finite(g.elevation)&&g.source&&g.source!=='海'){heightCache.set(k,g);if(heightCache.size>20000)heightCache.delete(heightCache.keys().next().value);}else g=null;}catch{g=null;}
+    try{if(!g&&typeof terrain.groundElevation==='function')g=await bounded(terrain.groundElevation(p.latitude,p.longitude,{withSource:true,fetchImpl:request}),timeoutMs+250);if(g&&finite(g.elevation)&&g.source&&g.source!=='海'){heightCache.set(k,g);
+    if(heightCache.size>20000)heightCache.delete(heightCache.keys().next().value);}else g=null;}catch{g=null;}
     if(!current())break;if(g){p.groundM=g.elevation;p.groundKnown=true;p.surfaceElevationM=finite(p.surfaceAglM)?g.elevation+p.surfaceAglM:null;p.standingSurfaceKnown=p.structureClassificationKnown&&finite(p.surfaceAglM);p.sourceEvidence.ground={source:g.source,heightM:g.elevation,kind:'dem'};}
    }}));
    // Worldwide data remains usable as a coarse model, with its resolution
    // explicit. Missing GSI within Japan is not quietly replaced by coarse DEM.
    const world=points.filter(p=>!p.groundKnown&&typeof terrain.inJapan==='function'&&!terrain.inJapan(p.latitude,p.longitude));
-   if(world.length&&current()&&!controller.signal.aborted&&typeof terrain.fetchElevations==='function')try{const h=await bounded(terrain.fetchElevations(world,{fetchImpl:request,timeoutMs}),timeoutMs+250);world.forEach((p,i)=>{if(finite(h[i])){p.groundM=h[i];p.groundKnown=true;p.surfaceElevationM=finite(p.surfaceAglM)?h[i]+p.surfaceAglM:null;p.standingSurfaceKnown=p.structureClassificationKnown&&finite(p.surfaceAglM);p.sourceEvidence.ground={source:'Open-Meteo Copernicus DEM',heightM:h[i],resolutionM:90,kind:'coarse-dem'};}});if(!credits.some(c=>c.name==='Open-Meteo'))credits.push({name:'Open-Meteo',url:'https://open-meteo.com/en/docs/elevation-api'});}catch{/* 通信できない時は粗い標高なしで続ける */}
+   if(world.length&&current()&&!controller.signal.aborted&&typeof terrain.fetchElevations==='function')try{const h=await bounded(terrain.fetchElevations(world,{fetchImpl:request,timeoutMs}),timeoutMs+250);world.forEach((p,i)=>{if(finite(h[i])){p.groundM=h[i];p.groundKnown=true;
+   p.surfaceElevationM=finite(p.surfaceAglM)?h[i]+p.surfaceAglM:null;p.standingSurfaceKnown=p.structureClassificationKnown&&finite(p.surfaceAglM);p.sourceEvidence.ground={source:'Open-Meteo Copernicus DEM',heightM:h[i],resolutionM:90,kind:'coarse-dem'};}});
+   if(!credits.some(c=>c.name==='Open-Meteo'))credits.push({name:'Open-Meteo',url:'https://open-meteo.com/en/docs/elevation-api'});}catch{/* 通信できない時は粗い標高なしで続ける */}
    // Water polygons in OSM already remove obvious water points. GSI supplies
    // additional evidence; unknown tiles do not turn into land or a global veto.
-   if(points.length&&current()&&!controller.signal.aborted&&typeof terrain.waterAt==='function')try{const water=await bounded(terrain.waterAt(points,{fetchImpl:request,useDem:false}),timeoutMs+250);points.forEach((p,i)=>{p.sourceEvidence.water=water[i]===true?'water':water[i]===false?'land':'unknown';if(water[i]===true&&!p.nonTerrainStructure){p.excludedReason='water';p.standingSurfaceKnown=false;}});}catch{points.forEach(p=>{p.sourceEvidence.water='unknown';});}
+   if(points.length&&current()&&!controller.signal.aborted&&typeof terrain.waterAt==='function')try{const water=await bounded(terrain.waterAt(points,{fetchImpl:request,useDem:false}),timeoutMs+250);
+   points.forEach((p,i)=>{p.sourceEvidence.water=water[i]===true?'water':water[i]===false?'land':'unknown';if(water[i]===true&&!p.nonTerrainStructure){p.excludedReason='water';p.standingSurfaceKnown=false;}});}catch{points.forEach(p=>{p.sourceEvidence.water='unknown';});}
    const kept=points.filter(p=>p.excludedReason!=='water');coverage.heightComplete=kept.every(p=>p.groundKnown&&p.standingSurfaceKnown);coverage.unknownSurfacePoints=kept.filter(p=>!p.standingSurfaceKnown).length;
    if(coverage.unknownSurfacePoints)coverage.missing.push('standing-surface-height');if(timedOut)coverage.missing.push('time-budget');if(!current())coverage.missing.push('cancelled');
    coverage.status=coverage.osmComplete&&coverage.samplingComplete&&coverage.heightComplete&&!coverage.incompleteGeometry.length&&!coverage.missing.length?'loaded':'partial';

@@ -6,7 +6,7 @@ const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict
   try{
    const page=await browser.newPage({viewport:{width:name==='chrome'?390:320,height:844},colorScheme:name==='chrome'?'light':'dark'});const errors=[];page.on('pageerror',e=>errors.push(e.message));
    await page.setContent('<style>body{font:16px sans-serif}.mapzoom{position:absolute;right:5px;bottom:5px}button,select{box-sizing:border-box}dialog{width:calc(100% - 40px);max-height:90vh;overflow:auto}.list-item{width:100%}</style><dialog open id="placeSheet"><div id="recentCandidates" role="tabpanel"><div id="registered"></div><div id="additionalCandidateResults"></div></div></dialog>');
-   await page.addScriptTag({path:path.resolve(__dirname,'../src/features/candidates/candidate-picker.js')});
+   await page.addScriptTag({path:path.resolve(__dirname,'../astronotes-library.js')});await page.addScriptTag({path:path.resolve(__dirname,'../src/features/candidates/candidate-picker.js')});
    await page.evaluate(async()=>{
     window.live={registered:true,additional:true};window.picks=[];window.labelCalls=0;window.mapCalls={create:0,open:0};
     const start=Date.parse('2026-11-05T00:00:00+09:00');window.testPlan={body:'moon',target:{id:'custom',name:'任意の建物',latitude:35.72,longitude:139.78},at:start,owner:'fixture'};

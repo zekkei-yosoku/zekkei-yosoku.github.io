@@ -39,7 +39,9 @@ export function createServerOpportunityScan({api,start,end,bodies,placeIds,sourc
    // The API exposes only settled days. complete=false means unknown pairs,
    // not an unfinished day; keep these visible with an explicit warning.
    if(!Array.isArray(day.rows)||!Number.isFinite(day.unknownPairs)||!Number.isFinite(day.checkedPairs))throw Error('invalid overlap coverage');
-   const rows=day.rows.map(row=>{if(!Number.isFinite(row.event?.at)||row.event.at<stamp||row.event.at>=stamp+dayMs||!row.place||!row.target||!bodies.includes(row.body)||(placeIds&&!placeIds.includes(row.sourcePlaceId)))throw Error('invalid overlap row');return {...row,id:row.id||JSON.stringify([row.pairId,row.event.at,row.place.latitude,row.place.longitude,row.place.groundManualM,row.place.eyeHeightAGL])};}).sort((a,b)=>a.event.at-b.event.at||String(a.place.name).localeCompare(String(b.place.name),'ja')||String(a.target.name).localeCompare(String(b.target.name),'ja'));
+   const rows=day.rows.map(row=>{if(!Number.isFinite(row.event?.at)||row.event.at<stamp||row.event.at>=stamp+dayMs||!row.place||!row.target||!bodies.includes(row.body)||(placeIds&&!placeIds.includes(row.sourcePlaceId)))throw Error('invalid overlap row');
+   return {...row,id:row.id||JSON.stringify([row.pairId,row.event.at,row.place.latitude,row.place.longitude,row.place.groundManualM,row.place.eyeHeightAGL])};
+   }).sort((a,b)=>a.event.at-b.event.at||String(a.place.name).localeCompare(String(b.place.name),'ja')||String(a.target.name).localeCompare(String(b.target.name),'ja'));
    accepted.push({day,stamp,rows});through=stamp+dayMs;
   }
   if(response.days.length){
@@ -75,6 +77,7 @@ export function createServerOpportunityScan({api,start,end,bodies,placeIds,sourc
   return state;
  }
  function extend(nextEnd){if(!state.done||state.running||state.error||state.cancelled||!state.nextCursor||nextEnd<=state.through)return false;cursor=state.nextCursor;state.end=nextEnd;end=nextEnd;state.done=false;action='extend';return true;}
- function retry(){if(state.running||state.cancelled)return false;state.rows=[];state.failures=[];state.checked=0;completedChecked=0;state.through=state.day=start;state.end=end=Math.max(end,start+7*dayMs);state.error=null;state.done=false;seen.clear();settled.clear();cursor=date(start);generation=null;action=state.viewId?'retry':'ensure';return true;}
+ function retry(){if(state.running||state.cancelled)return false;state.rows=[];state.failures=[];state.checked=0;completedChecked=0;state.through=state.day=start;state.end=end=Math.max(end,start+7*dayMs);state.error=null;state.done=false;seen.clear();settled.clear();cursor=date(start);
+ generation=null;action=state.viewId?'retry':'ensure';return true;}
  return {state,advance,extend,retry,cancel};
 }

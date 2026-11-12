@@ -426,4 +426,5 @@
 })(typeof globalThis !== "undefined" ? globalThis : this);
 
 /* Legacy global names remain aliases for cached integrations. */
-if(typeof AstroNotes!=='undefined')globalThis.Sorami=AstroNotes;if(typeof AstroNotesAstro!=='undefined')globalThis.SoramiAstro=AstroNotesAstro;if(typeof AstroNotesPlane!=='undefined')globalThis.SoramiPlane=AstroNotesPlane;if(typeof AstroNotesRoutes!=='undefined')globalThis.SoramiRoutes=AstroNotesRoutes;
+if(typeof AstroNotes!=='undefined')globalThis.Sorami=AstroNotes;if(typeof AstroNotesAstro!=='undefined')globalThis.SoramiAstro=AstroNotesAstro;if(typeof AstroNotesPlane!=='undefined')globalThis.SoramiPlane=AstroNotesPlane;
+if(typeof AstroNotesRoutes!=='undefined')globalThis.SoramiRoutes=AstroNotesRoutes;

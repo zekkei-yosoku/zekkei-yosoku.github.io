@@ -1239,7 +1239,8 @@ if(typeof AstroNotes!=='undefined')globalThis.Sorami=AstroNotes;if(typeof AstroN
       const out=[fallbackAir(z)];
       for(const r of sources){
         const used=r.rows.filter(v=>v.at>=msLo-HOUR*1.01&&v.at<=msHi+HOUR*1.01&&valid(v.pressureHPa,v.temperatureC));if(!used.length)continue;
-        const pLo=Math.min(...used.map(v=>v.pressureHPa)),pHi=Math.max(...used.map(v=>v.pressureHPa)),tLo=Math.min(...used.map(v=>v.temperatureC)),tHi=Math.max(...used.map(v=>v.temperatureC)),dz=z-(r.observer.elevation??0),scale=[tLo,tHi].map(t=>Math.exp(-9.80665*dz/(287.05*(t+273.15)))),lo=pLo*Math.min(...scale),hi=pHi*Math.max(...scale);
+        const pLo=Math.min(...used.map(v=>v.pressureHPa)),pHi=Math.max(...used.map(v=>v.pressureHPa)),tLo=Math.min(...used.map(v=>v.temperatureC)),tHi=Math.max(...used.map(v=>v.temperatureC)),dz=z-(r.observer.elevation??0),scale=[tLo,tHi].map(t=>Math.exp(-9.80665*dz/(287.05*(t+273.15)))),
+        lo=pLo*Math.min(...scale),hi=pHi*Math.max(...scale);
         if(hi>=200&&lo<=1100)for(const t of [tLo,tHi])for(const p of [Math.max(200,lo),Math.min(1100,hi)])out.push({pressureHPa:p,temperatureC:t});
       }
       return out;
@@ -1617,7 +1618,8 @@ return new kd(this.curr.time,a,b)};$jscomp.global.Object.defineProperties(H.prot
   function riseSet(id,start,end,observer){
     if(!engine) throw new Error('天体計算を読み込めませんでした');
     const site=new engine.Observer(observer.latitude,observer.longitude,observer.elevation??0),out=[];
-    for(const [direction,kind] of [[1,'rise'],[-1,'set']]){const hit=engine.SearchRiseSet(engine.Body[definition(id).engine],site,direction,new Date(start),(end-start)/86400000),at=hit?.date.getTime();if(Number.isFinite(at)&&at<end)out.push({at,kind,azimuth:state(id,at,observer,{refraction:false}).azimuth});}
+    for(const [direction,kind] of [[1,'rise'],[-1,'set']]){const hit=engine.SearchRiseSet(engine.Body[definition(id).engine],site,direction,new Date(start),(end-start)/86400000),at=hit?.date.getTime();
+    if(Number.isFinite(at)&&at<end)out.push({at,kind,azimuth:state(id,at,observer,{refraction:false}).azimuth});}
     return out.sort((a,b)=>a.at-b.at);
   }
   const api=Object.freeze({definitions,definition,ensure,ready:()=>!!engine,state,light,riseSet,siriusCatalog,sky,nearAngle:id=>definition(id)?.limbs?null:0.5});
@@ -3399,7 +3401,8 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
               { id: "top", name: "トップデッキの上端", m: 247.55 },
               { id: "main", name: "メインデッキの上端", m: 148.389 }] },
     // 出典：PLATEAU新宿区2025。LOD2を抽出・局所座標へ加工。本体頂部と屋上付属物を区別。
-    {"id":"tocho-building","name":"東京都庁 第一本庁舎","latitude":35.6895,"longitude":139.691694,"groundM":34.63,"note":"PLATEAU LOD2。屋上付属物を含む形状。本体頂部は地上243.05m","parts":[{"id":"north","name":"北塔の頂部","m":277.68,"latitude":35.68978611899479,"longitude":139.69164621437966},{"id":"south","name":"南塔の頂部","m":277.68,"latitude":35.68921795263166,"longitude":139.6917781156376}]},
+    {"id":"tocho-building","name":"東京都庁 第一本庁舎","latitude":35.6895,"longitude":139.691694,"groundM":34.63,"note":"PLATEAU LOD2。屋上付属物を含む形状。本体頂部は地上243.05m","parts":[{"id":"north","name":"北塔の頂部","m":277.68,"latitude":35.68978611899479,"longitude":139.69164621437966},{"id":"south","name":"南塔の頂部",
+    "m":277.68,"latitude":35.68921795263166,"longitude":139.6917781156376}]},
     // PLATEAU 2025の絶対座標を保持。部分の高さは海抜で、外形の一律リサイズは行わない。
     {"id":"shibuya-sky","name":"渋谷スカイ","latitude":35.65838377760082,"longitude":139.70226592899252,"groundM":14.61,"note":"PLATEAU LOD2の標高と輪郭。屋上付属物を含み、現地との高さ・細部の差はあります。","parts":[{"id":"tip","name":"屋上（SKY STAGE）","m":243.637,"latitude":35.65838377760082,"longitude":139.70226592899252}]},
     {"id":"azabudai-hills","name":"麻布台ヒルズ 森JPタワー","latitude":35.6608543555483,"longitude":139.7406558121773,"groundM":18.74,"note":"PLATEAU LOD2の標高と輪郭。屋上付属物を含み、現地との高さ・細部の差はあります。","parts":[{"id":"tip","name":"頂部","m":349.558,"latitude":35.6608543555483,"longitude":139.7406558121773}]},
@@ -3912,7 +3915,8 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
     const hasMountainRidge=!!mountainRidge;
     let centerAlt,project,polygons,hasOutline,approximate;
     {
-    const outline = mountainRidge ? {viewBaseAngle:ridgeBase,topAngle:g.angle,hitPolygons:[[...mountainRidge,[mountainRidge.at(-1)[0],ridgeBase],[mountainRidge[0][0],ridgeBase]]]} : opts.silhouette ? {viewBaseAngle:opts.silhouette.viewBaseAngle,topAngle:opts.silhouette.topAngle,approximate:!!opts.silhouette.approximate,hitPolygons:[opts.silhouette.polygon]} : towerOutline(observer, target, opts);
+    const outline = mountainRidge ? {viewBaseAngle:ridgeBase,topAngle:g.angle,hitPolygons:[[...mountainRidge,[mountainRidge.at(-1)[0],ridgeBase],[mountainRidge[0][0],ridgeBase]]]} : opts.silhouette ? {viewBaseAngle:opts.silhouette.viewBaseAngle,topAngle:opts.silhouette.topAngle,
+    approximate:!!opts.silhouette.approximate,hitPolygons:[opts.silhouette.polygon]} : towerOutline(observer, target, opts);
     centerAlt = outline ? (outline.viewBaseAngle + outline.topAngle) / 2 : g.angle;
     project = viewProjector(g.azimuth, centerAlt);
     polygons = outline ? (outline.hitPolygons || [outline.hitPoints || outline.points]).map(poly=>poly.map(([a,h])=>project(a,h)).filter(Boolean)).filter(poly=>poly.length>=3) : null;
@@ -5305,13 +5309,16 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
   const AstroNotesAlign = { heightVertices, TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, dailyView, prepareDailyView, alignmentAt, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, rimPoints, judge, buildingBlock,
-                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, get CITY_MODELS(){return global.AstroNotesCityModels || CM || {};},get TOWER_MODELS(){return global.AstroNotesTowerModels || TM || {};}, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, outlineBounds, viewWindow, viewPath, sceneTargets };
+                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, get CITY_MODELS(){return global.AstroNotesCityModels || CM || {};},get TOWER_MODELS(){return global.AstroNotesTowerModels || TM || {};
+                        }, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, outlineBounds, viewWindow, viewPath, sceneTargets };
   global.AstroNotesAlign = AstroNotesAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = AstroNotesAlign;
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 /* Legacy global names remain aliases for cached integrations. */
-if(typeof AstroNotes!=='undefined')globalThis.Sorami=AstroNotes;if(typeof AstroNotesAlign!=='undefined')globalThis.SoramiAlign=AstroNotesAlign;if(typeof AstroNotesAstro!=='undefined')globalThis.SoramiAstro=AstroNotesAstro;if(typeof AstroNotesAtmosphere!=='undefined')globalThis.SoramiAtmosphere=AstroNotesAtmosphere;if(typeof AstroNotesBodies!=='undefined')globalThis.SoramiBodies=AstroNotesBodies;if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNotesCityModels;if(typeof AstroNotesFuji!=='undefined')globalThis.SoramiFuji=AstroNotesFuji;if(typeof AstroNotesTerrain!=='undefined')globalThis.SoramiTerrain=AstroNotesTerrain;if(typeof AstroNotesTowerModels!=='undefined')globalThis.SoramiTowerModels=AstroNotesTowerModels;
+if(typeof AstroNotes!=='undefined')globalThis.Sorami=AstroNotes;if(typeof AstroNotesAlign!=='undefined')globalThis.SoramiAlign=AstroNotesAlign;if(typeof AstroNotesAstro!=='undefined')globalThis.SoramiAstro=AstroNotesAstro;
+if(typeof AstroNotesAtmosphere!=='undefined')globalThis.SoramiAtmosphere=AstroNotesAtmosphere;if(typeof AstroNotesBodies!=='undefined')globalThis.SoramiBodies=AstroNotesBodies;if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNotesCityModels;
+if(typeof AstroNotesFuji!=='undefined')globalThis.SoramiFuji=AstroNotesFuji;if(typeof AstroNotesTerrain!=='undefined')globalThis.SoramiTerrain=AstroNotesTerrain;if(typeof AstroNotesTowerModels!=='undefined')globalThis.SoramiTowerModels=AstroNotesTowerModels;
 
 /* Shooting conditions shared by map candidates and framing. No place discovery. */
 (function(global){
@@ -5402,7 +5409,8 @@ async function shapeCandidates(p,entry,deps){
   if(!Number.isFinite(ground)){missing++;memo.set(key,null);return null;}
   const f={...entry.place,...position,elevation:ground,groundManualM:ground,sourcePlaceId:entry.place.id};delete f.shape;
   const obs=observerAt(f,ground),o=searchOptions(p,isMountain),view=viewFor?await viewFor(obs,p):null;check();
-  const probes=view?view(start):align.dailyView?align.dailyView(obs,p.target,p.body,start,{partId:o.partId,eyeM:obs.eyeM}).map(e=>{const exact=align.alignmentAt?.(obs,p.target,p.body,e.at,{partId:o.partId,limb:o.limb,eyeM:obs.eyeM});return {...e,gap:exact?.gap??e.gap,...(!o.disc&&exact?{spatialMatched:exact.matched}:{})};}):eventsFor(p,obs,start,{align,isMountain});
+  const probes=view?view(start):align.dailyView?align.dailyView(obs,p.target,p.body,start,{partId:o.partId,eyeM:obs.eyeM}).map(e=>{const exact=align.alignmentAt?.(obs,p.target,p.body,e.at,{partId:o.partId,limb:o.limb,eyeM:obs.eyeM});
+  return {...e,gap:exact?.gap??e.gap,...(!o.disc&&exact?{spatialMatched:exact.matched}:{})};}):eventsFor(p,obs,start,{align,isMountain});
   const events=view?probes:(!o.disc||o.broad)&&align.dailyView?probes:eventsFor(p,obs,start,{align,isMountain});
   if(o.broad)for(const e of events){e.matchMode='overlap';e.partId=o.partId;}
   const result={place:f,events,probes};memo.set(key,result);
@@ -5475,7 +5483,7 @@ const distance=(a,b)=>Math.hypot((a.latitude-b.latitude)*111195,(a.longitude-b.l
 const nearby=(rows,p)=>point(p)?rows.find(t=>point(t)&&distance(t,p)<20):null;
 const matchingNames=(rows,name,exclude)=>{const key=nameKey(name);return key?rows.filter(t=>t.id!=='custom'&&t.id!==exclude&&nameKey(t.name)===key):[];};
 const keys=owner=>({observations:'sorami.observations.v1:'+encodeURIComponent(owner||'guest'),shapes:'sorami.placeShapes.v1:'+encodeURIComponent(owner||'guest')});
-function gate(){let generation=0;return {next:()=>++generation,current:ticket=>ticket===generation,cancel:()=>{generation++;}};}
+function gate(){let generation=0;return {next:()=>++generation,ticket:()=>generation,current:ticket=>ticket===generation,cancel:()=>{generation++;}};}
 function transaction(storage,entries){
  const before=new Map(entries.map(([k])=>[k,storage.getItem(k)])),written=[];
  try{for(const [k,v]of entries){storage.setItem(k,JSON.stringify(v));written.push(k);}}
@@ -5504,7 +5512,9 @@ function applyDrafts(favorites,drafts){
 function cleanObservation(r){
  const text=(v,max=2000)=>typeof v==='string'&&v.length<=max,t=r?.target;
  if(!r||!text(r.id,80)||!r.id||!text(r.placeId,200)||!r.placeId||!t||!text(t.key,200)||!t.key||!text(t.name,200)||!['seen','partial','hidden'].includes(r.result))return null;
- return {id:r.id,placeId:r.placeId,target:{key:t.key,name:t.name||'対象',latitude:Number.isFinite(t.latitude)?t.latitude:null,longitude:Number.isFinite(t.longitude)?t.longitude:null},observer:point(r.observer)?{latitude:r.observer.latitude,longitude:r.observer.longitude,elevation:Number.isFinite(r.observer.elevation)?r.observer.elevation:null,eyeHeightAGL:Number.isFinite(r.observer.eyeHeightAGL)?r.observer.eyeHeightAGL:1.5}:null,result:r.result,date:text(r.date,10)&&/^\d{4}-\d{2}-\d{2}$/.test(r.date)?r.date:'',note:text(r.note,500)?r.note:'',...(r.registration===true?{registration:true,removed:r.removed===true}:{}),createdAt:Number.isFinite(r.createdAt)?r.createdAt:0,updatedAt:Number.isFinite(r.updatedAt)?r.updatedAt:0};
+ return {id:r.id,placeId:r.placeId,target:{key:t.key,name:t.name||'対象',latitude:Number.isFinite(t.latitude)?t.latitude:null,longitude:Number.isFinite(t.longitude)?t.longitude:null},observer:point(r.observer)?{latitude:r.observer.latitude,longitude:r.observer.longitude,
+ elevation:Number.isFinite(r.observer.elevation)?r.observer.elevation:null,eyeHeightAGL:Number.isFinite(r.observer.eyeHeightAGL)?r.observer.eyeHeightAGL:1.5}:null,result:r.result,date:text(r.date,10)&&/^\d{4}-\d{2}-\d{2}$/.test(r.date)?r.date:'',note:text(r.note,500)?r.note:'',
+ ...(r.registration===true?{registration:true,removed:r.removed===true}:{}),createdAt:Number.isFinite(r.createdAt)?r.createdAt:0,updatedAt:Number.isFinite(r.updatedAt)?r.updatedAt:0};
 }
 function registrationChanges(place,before,after,now=Date.now()){
  const old=new Set(before.map(t=>t.key||t.id)),next=new Set(after.map(t=>t.key||t.id)),out=[];
@@ -5526,7 +5536,8 @@ function prepareRecord({owner,favorites,observations,shapes,place,isNew,initialT
  const changes=registrationChanges(place,initialTargets,targets);if(changes.some(r=>!r))throw Error('対象の情報を確認してください');
  const nextShapes=Object.assign(Object.create(null),shapes);if(shape)nextShapes[place.id]={latitude:place.latitude,longitude:place.longitude,shape};else delete nextShapes[place.id];
  const k=keys(owner),nextObservations=[...observations,...changes];
- return {favorites:nextFavorites,observations:nextObservations,shapes:nextShapes,changedFavorites:[...new Set([...(isNew||favorites.find(f=>f.id===place.id)?.name!==place.name?[place.id]:[]),...used.map(x=>x.entry.id)])],entries:[[k.observations,nextObservations],[k.shapes,nextShapes],['sorami.favorites',nextFavorites]]};
+ return {favorites:nextFavorites,observations:nextObservations,shapes:nextShapes,changedFavorites:[...new Set([...(isNew||favorites.find(f=>f.id===place.id)?.name!==place.name?[place.id]:[]),...used.map(x=>x.entry.id)])],entries:[[k.observations,nextObservations],[k.shapes,nextShapes],
+ ['sorami.favorites',nextFavorites]]};
 }
 // Notebook membership is records/shapes; favorite locations remain picker candidates.
 function prepareQuickRecord({owner,favorites,observations,shapes,observer,target,knownTargets=[],currentTargets,cleanShape}){
@@ -5561,7 +5572,8 @@ function prepareNotebookBulk({owner,favorites,observations,shapes,placeIds,mode,
  let nextFavorites=favorites,nextObservations=observations,nextShapes=Object.assign(Object.create(null),shapes),changedFavorites=[];
  if(mode==='delete'){
   nextObservations=observations.filter(r=>!ids.has(r.placeId));
-  for(const id of ids)delete nextShapes[id];nextFavorites=favorites.map(f=>{if(!ids.has(f.id)||(!f.recordRegistered&&!f.recordAlignments&&!f.planningBodies))return f;const next={...f};delete next.recordRegistered;delete next.recordAlignments;delete next.planningBodies;changedFavorites.push(f.id);return next;});
+  for(const id of ids)delete nextShapes[id];nextFavorites=favorites.map(f=>{if(!ids.has(f.id)||(!f.recordRegistered&&!f.recordAlignments&&!f.planningBodies))return f;const next={...f};delete next.recordRegistered;delete next.recordAlignments;delete next.planningBodies;changedFavorites.push(f.id);
+  return next;});
  }else if(mode==='add'){
   if(!targets.length||typeof currentTargets!=='function')throw Error('追加する対象を選んでください');
   const chosen=[...new Map(targets.map(t=>[t.key||t.id,t])).values()],used=drafts.filter(d=>chosen.some(t=>(t.key||t.id)==='fav:'+d.entry.id));
@@ -6180,7 +6192,8 @@ function aimIndexedCap(obs,eye,target){
   const note=cap=>{if(cap&&shared)shared.used.set(sharedKey,{ridge:cap.ridge,base:cap.base});return cap;};
   if(aimIndexedCaps.has(key)){const hit=aimIndexedCaps.get(key);aimIndexedCaps.delete(key);aimIndexedCaps.set(key,hit);return hit.then(note);}
   const known=shared?.known.get(sharedKey);
-  const pending=(async()=>{if(Array.isArray(known?.ridge)&&Number.isFinite(known?.base))return known;const saved=await aimCapStore?.get(key);if(saved)return saved;const cap=await trialSearchRidge(obs,eye,target);if(cap)void aimCapStore?.put(key,cap);return cap;})().then(cap=>{if(!cap&&aimIndexedCaps.get(key)===pending)aimIndexedCaps.delete(key);return cap;},error=>{if(aimIndexedCaps.get(key)===pending)aimIndexedCaps.delete(key);throw error;});
+  const pending=(async()=>{if(Array.isArray(known?.ridge)&&Number.isFinite(known?.base))return known;const saved=await aimCapStore?.get(key);if(saved)return saved;const cap=await trialSearchRidge(obs,eye,target);if(cap)void aimCapStore?.put(key,cap);return cap;
+  })().then(cap=>{if(!cap&&aimIndexedCaps.get(key)===pending)aimIndexedCaps.delete(key);return cap;},error=>{if(aimIndexedCaps.get(key)===pending)aimIndexedCaps.delete(key);throw error;});
   aimIndexedCaps.set(key,pending);while(aimIndexedCaps.size>AIM_INDEXED_CAP_LIMIT)aimIndexedCaps.delete(aimIndexedCaps.keys().next().value);
   return pending.then(note);
 }
@@ -6272,7 +6285,8 @@ const when = (r) => r.date ? Date.parse(r.date + 'T12:00:00+09:00') : r.createdA
 const placeOf = (id) => favorites.find((f) => f.id === id) || null;
 function statusOf(placeId, targetKey, list = load()) {
   let best = null;
-  for (const r of list) if (r.placeId === placeId && r.target.key === targetKey && (!best || (r.registration&&!best.registration) || (r.registration===best.registration && (when(r) > when(best) || (when(r) === when(best) && r.updatedAt >= best.updatedAt))) || (!r.registration&&!best.registration&&(when(r)>when(best)||(when(r)===when(best)&&r.updatedAt>=best.updatedAt))))) best = r;
+  for (const r of list) if (r.placeId === placeId && r.target.key === targetKey && (!best || (r.registration&&!best.registration) || (r.registration===best.registration && (when(r) > when(best) || (when(r) === when(best) && r.updatedAt >= best.updatedAt))) || (!r.registration&&!best.registration&&
+  (when(r)>when(best)||(when(r)===when(best)&&r.updatedAt>=best.updatedAt))))) best = r;
   const here = placeOf(placeId);
   if (best?.observer && here && (AstroNotesTerrain.distanceKm(here.latitude, here.longitude, best.observer.latitude, best.observer.longitude) >= NEAR_KM || Math.abs((here.eyeHeightAGL ?? 1.5) - best.observer.eyeHeightAGL) > 1)) return null;
   return best?.registration && best.removed ? null : best;
@@ -6310,7 +6324,8 @@ const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
  }
  const viewOf=(obs,p)=>{
   const k=JSON.stringify([obs,p.target,p.body,p.partId,p.limb,p.matchMode??null,atmosphere.dataKey?.()??null]);let v=views.get(k);
-  if(!v){v=Promise.resolve().then(async()=>{const prepared=viewFor?await viewFor(obs,p):null;if(prepared)return prepared;const o=shooting.searchOptions(p,isMountain);return o.broad&&o.disc||o.partId==='__whole'&&!isMountain(p.target)?align.prepareDailyView(obs,p.target,p.body,{partId:o.partId,eyeM:obs.eyeM}):null;}).catch(e=>{views.delete(k);throw e;});views.set(k,v);}
+  if(!v){v=Promise.resolve().then(async()=>{const prepared=viewFor?await viewFor(obs,p):null;if(prepared)return prepared;const o=shooting.searchOptions(p,isMountain);
+  return o.broad&&o.disc||o.partId==='__whole'&&!isMountain(p.target)?align.prepareDailyView(obs,p.target,p.body,{partId:o.partId,eyeM:obs.eyeM}):null;}).catch(e=>{views.delete(k);throw e;});views.set(k,v);}
   return v;
  };
  const closeness=(ctx,e)=>ctx.family==='overlap'?(Number.isFinite(e.distanceToTarget)?e.distanceToTarget-(e.radius||0):Infinity):(Number.isFinite(e.gap)?Math.abs(e.gap)-Math.max(1/60,.2*(e.radius||0)):Infinity);
@@ -6591,7 +6606,8 @@ const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
   const rows=[],windows=windowsOf(dayLeaves),single=groupOf([ctx]);let checked=0;
   for(const w of windows){
    const accept=r=>r.event.at>=w.from&&r.event.at<=w.to;
-   const evaluate=async h=>{await yieldTask();if(!ctl.isCurrent())throw cancelled();const x=await real(ctx,h),inside=x.events.filter(e=>e.at>=w.from&&e.at<=w.to);return {rows:x.rows.filter(accept),score:Math.min(Infinity,...inside.map(e=>closeness(ctx,e))),height:h,residual:await fitResidual(ctx,x,accept)};};
+   const evaluate=async h=>{await yieldTask();if(!ctl.isCurrent())throw cancelled();const x=await real(ctx,h),inside=x.events.filter(e=>e.at>=w.from&&e.at<=w.to);
+   return {rows:x.rows.filter(accept),score:Math.min(Infinity,...inside.map(e=>closeness(ctx,e))),height:h,residual:await fitResidual(ctx,x,accept)};};
    const mayOverlap=async(lo,hi)=>(await leaves(single,lo,hi,w.from,w.to,ctl)).length?(await envelopeClear(ctx,lo,hi,w)?false:null):false;
    try{
     const res=await scanHeights({min:ctx.range.min,max:ctx.range.max,evaluate,mayOverlap,isCurrent:ctl.isCurrent,limit:LIM.heights});checked+=res.checked||0;
@@ -6603,7 +6619,8 @@ const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
     else if(res.failed)issues.push({id:ctx.id,reason:'height-limit',from:w.from,to:w.to});
    }catch(error){if(!['height-limit','shape-limit'].includes(error.message))throw error;issues.push({id:ctx.id,reason:error.message==='shape-limit'?'limit':'height-limit'});break;}
   }
-  for(const h of ctx.heights){const x=await real(ctx,h);for(const r of x.rows)if(!windows.some(w=>r.event.at>=w.from&&r.event.at<=w.to)&&!rows.some(y=>y.event.side===r.event.side&&Math.abs(y.event.at-r.event.at)<3*3600000)){issues.push({id:ctx.id,reason:'height-certificate',at:r.event.at,height:h});const v=await verify(ctx,h,y=>Math.abs(y.event.at-r.event.at)<1000);rows.push(...v);}}
+  for(const h of ctx.heights){const x=await real(ctx,h);for(const r of x.rows)if(!windows.some(w=>r.event.at>=w.from&&r.event.at<=w.to)&&!rows.some(y=>y.event.side===r.event.side&&Math.abs(y.event.at-r.event.at)<3*3600000)){issues.push({id:ctx.id,reason:'height-certificate',at:r.event.at,height:h});
+  const v=await verify(ctx,h,y=>Math.abs(y.event.at-r.event.at)<1000);rows.push(...v);}}
   return {rows,checked};
  }
  function makeCtx(base,entry,place,ground,shape){
@@ -6645,7 +6662,8 @@ const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
    let result=await scanHeights({min:range.min,max:range.max,evaluate,isCurrent:ctl.isCurrent,limit:LIM.heights});bestRows=result.rows;
    if(result.rows?.length&&deps.preferHeights){result=await deps.preferHeights({min:range.min,max:range.max,seed:result,evaluate,isCurrent:ctl.isCurrent,clock,deadline});bestRows=result.rows;}
    if(result.failed)issues.push({id:entry.place.id,reason:'height-limit'});
-   return {rows:bestRows.map(row=>({...row,heightSearch:{...row.heightSearch,fit:Number.isFinite(row.heightSearch.residualDeg)&&Math.abs(row.heightSearch.residualDeg)<=.01?'centered':result.fit==='range-edge'?'range-edge':'candidate',preferenceChecked:result.fitChecked??0,preferenceIncomplete:!!result.fitIncomplete}})),checked,issues};
+   return {rows:bestRows.map(row=>({...row,heightSearch:{...row.heightSearch,fit:Number.isFinite(row.heightSearch.residualDeg)&&Math.abs(row.heightSearch.residualDeg)<=.01?'centered':result.fit==='range-edge'?'range-edge':'candidate',preferenceChecked:result.fitChecked??0,
+   preferenceIncomplete:!!result.fitIncomplete}})),checked,issues};
   }catch(e){if(e.message!=='shape-limit')throw e;return {rows:bestRows,checked,issues:[...issues,{id:entry.place.id,reason:'limit'}]};}
  }
  async function candidates(plan,entries,{isCurrent=()=>true,onProgress=()=>{}}={}){
@@ -6727,7 +6745,8 @@ const preferRecordHeight=async function preferRecordHeight({min,max,seed,evaluat
 const RecordAlignment=(function createRecordAlignmentPolicy({isMountain,limbs}){
  const parts=t=>(t?.parts||[]).filter(p=>typeof p.id==='string'&&p.id!=='__whole'&&Number.isFinite(p.m));
  const whole=t=>({partId:isMountain(t)?null:'__whole',limb:'center',matchMode:'overlap'});
- function clean(t,v){if(!v)return whole(t);if(v.matchMode==='overlap'||v.partId==='__whole')return whole(t);const part=v.partId==null?parts(t)[0]:parts(t).find(p=>p.id===v.partId);if(v.matchMode!=='limb'||!part||!limbs.some(l=>l.id===v.limb))return null;return {partId:part.id,limb:v.limb,matchMode:'limb'};}
+ function clean(t,v){if(!v)return whole(t);if(v.matchMode==='overlap'||v.partId==='__whole')return whole(t);const part=v.partId==null?parts(t)[0]:parts(t).find(p=>p.id===v.partId);if(v.matchMode!=='limb'||!part||!limbs.some(l=>l.id===v.limb))return null;
+ return {partId:part.id,limb:v.limb,matchMode:'limb'};}
  const map=p=>p?.recordAlignments==null?{}:typeof p.recordAlignments==='object'&&!Array.isArray(p.recordAlignments)?p.recordAlignments:null;
  const key=p=>map(p)===null?'invalid:'+JSON.stringify(p.recordAlignments):JSON.stringify(Object.entries(map(p)).sort(([a],[b])=>a.localeCompare(b)).map(([id,v])=>[id,v?.partId??null,v?.limb,v?.matchMode]));
  const text=(t,v)=>v?.matchMode==='overlap'?'全体':(parts(t).find(p=>p.id===v?.partId)?.name||'部位')+'・'+(limbs.find(l=>l.id===v?.limb)?.name||'真ん中');
@@ -6752,7 +6771,9 @@ const RecordHeight=(function createRecordHeightPolicy(){
  return {range,key,draft,parse};
 })();
 function recordHeightSolver(deps){
- return createRecordHeightCandidates({shooting:AstroNotesShooting,align:AstroNotesAlign,bodies:AstroNotesBodies,atmosphere:AstroNotesAtmosphere,astro:AstroNotesAstro,terrain:AstroNotesTerrain,scanHeights:scanRecordHeights,preferHeights:preferRecordHeight,rangeOf:p=>RecordHeight.range(p.eyeHeightRangeAGL),isMountain:aimIsMountain,ensureModels:()=>AstroNotesAssets.ensureModels(),mountainRidge:async(obs,target)=>{const eye=obs.elevation+obs.eyeM,ridge=await aimLookRidge(obs,eye,target,{});return ridge?{ridge,cap:aimSummitCap(ridge,obs,eye,target)}:null;},...deps});
+ return createRecordHeightCandidates({shooting:AstroNotesShooting,align:AstroNotesAlign,bodies:AstroNotesBodies,atmosphere:AstroNotesAtmosphere,astro:AstroNotesAstro,terrain:AstroNotesTerrain,scanHeights:scanRecordHeights,preferHeights:preferRecordHeight,
+ rangeOf:p=>RecordHeight.range(p.eyeHeightRangeAGL),isMountain:aimIsMountain,ensureModels:()=>AstroNotesAssets.ensureModels(),mountainRidge:async(obs,target)=>{const eye=obs.elevation+obs.eyeM,ridge=await aimLookRidge(obs,eye,target,{});
+ return ridge?{ridge,cap:aimSummitCap(ridge,obs,eye,target)}:null;},...deps});
 }
 const createRecordSearchCache=function createRecordSearchCache({limit=768,copy=structuredClone}={}){
  const results=new Map(),jobs=new Map(),cancelled=()=>({rows:[],failed:0,cancelled:true});
@@ -6822,7 +6843,8 @@ function recordSilhouette(obs,target,opts){
  if(recordGeometry.known.has(key)){const hit=recordGeometry.known.get(key);recordGeometry.used.set(key,hit);return hit;}
  const outline=AstroNotesAlign.towerOutline(obs,target,{eyeM:opts.eyeM??1.5,heightM:opts.heightM??null});
  let value=null;
- if(outline){const polygon=AstroNotesAlign.convexHull(outline.hitPolygons?outline.hitPolygons.flat():outline.hitPoints||outline.points||[]);if(polygon.length>=3&&Number.isFinite(outline.viewBaseAngle)&&Number.isFinite(outline.topAngle))value={viewBaseAngle:outline.viewBaseAngle,topAngle:outline.topAngle,approximate:!!outline.approximate,polygon};}
+ if(outline){const polygon=AstroNotesAlign.convexHull(outline.hitPolygons?outline.hitPolygons.flat():outline.hitPoints||outline.points||[]);
+ if(polygon.length>=3&&Number.isFinite(outline.viewBaseAngle)&&Number.isFinite(outline.topAngle))value={viewBaseAngle:outline.viewBaseAngle,topAngle:outline.topAngle,approximate:!!outline.approximate,polygon};}
  recordGeometry.known.set(key,value);recordGeometry.used.set(key,value);return value;
 }
 const RECORD_SHAPE_MIN_STEP_M=25;
@@ -6933,7 +6955,8 @@ async function recordShapeOpportunity(session,p,place,record,solver,live){
  const cancelled={rows:[],failed:0,cancelled:true};
  try{
   const step=recordShapeStep(s,target),{points,paths}=recordShapePoints(s,step),mountain=aimIsMountain(target);
-  const base=recordHash(JSON.stringify(['astronotes.shape-geometry.v1',s.type,s.vertices,step,target.id??null,target.latitude,target.longitude,target.groundM??null,(target.parts||[]).map(x=>[x.id,x.m]),!!target.rim,place.eyeHeightAGL??null,place.standAglM??null,place.stand??null,o.partId,aimIsMountain(target),AstroNotesAtmosphere.targetK()]));
+  const base=recordHash(JSON.stringify(['astronotes.shape-geometry.v1',s.type,s.vertices,step,target.id??null,target.latitude,target.longitude,target.groundM??null,(target.parts||[]).map(x=>[x.id,x.m]),!!target.rim,place.eyeHeightAGL??null,place.standAglM??null,place.stand??null,o.partId,
+  aimIsMountain(target),AstroNotesAtmosphere.targetK()]));
   let memo=recordShapeMemo.get(base);
   if(!memo||memo.count!==points.length){
    const blocks=[];
@@ -7085,7 +7108,8 @@ function recordPrepared(session,shaped,obs,target,body,opts){
 }
 function recordSolverFor(session,variant,shaped,override){
  const terrain=override||session.terrain,align=Object.create(AstroNotesAlign);
- const prepare=(obs,target,body,opts)=>{const silhouette=variant==='opportunity'&&!aimIsMountain(target)?recordSilhouette(obs,target,opts):null;if(variant==='discovery'&&!opts.ridge&&!opts.silhouette)return recordDiscoveryView(session,shaped,obs,target,body,opts);return recordPrepared(session,shaped,obs,target,body,silhouette?{...opts,silhouette}:opts);};
+ const prepare=(obs,target,body,opts)=>{const silhouette=variant==='opportunity'&&!aimIsMountain(target)?recordSilhouette(obs,target,opts):null;if(variant==='discovery'&&!opts.ridge&&!opts.silhouette)return recordDiscoveryView(session,shaped,obs,target,body,opts);
+ return recordPrepared(session,shaped,obs,target,body,silhouette?{...opts,silhouette}:opts);};
  align.prepareDailyView=prepare;
  align.dailyView=(obs,target,body,day,{at,...opts}={})=>prepare(obs,target,body,opts)(day,at);
  const viewFor=(obs,p,indexed=false)=>{
@@ -7159,12 +7183,14 @@ function opportunityPairs(bodies){
   for(const [targetKey,source] of targets){
    const group=source.slice().sort((a,b)=>Number(!!b.registration)-Number(!!a.registration)||when(b)-when(a)||b.updatedAt-a.updatedAt);
    const best=statusOf(favorite.id,targetKey,source);if(!best||best.result==='hidden')continue;
-   const target=resolveTarget(targetKey),seen=new Set(),heightRange=RecordHeight.range(favorite.eyeHeightRangeAGL);if(favorite.eyeHeightRangeAGL!=null&&!heightRange){unavailable.push({placeId:favorite.id,targetKey,reason:'height'});continue;}if(target&&!recordMatchOpts(target,favorite)){unavailable.push({placeId:favorite.id,targetKey,reason:'alignment'});continue;}
+   const target=resolveTarget(targetKey),seen=new Set(),heightRange=RecordHeight.range(favorite.eyeHeightRangeAGL);if(favorite.eyeHeightRangeAGL!=null&&!heightRange){unavailable.push({placeId:favorite.id,targetKey,reason:'height'});continue;
+   }if(target&&!recordMatchOpts(target,favorite)){unavailable.push({placeId:favorite.id,targetKey,reason:'alignment'});continue;}
    const savedTarget=best.target,targetMoved=target&&finite(savedTarget.latitude)&&finite(savedTarget.longitude)&&AstroNotesTerrain.distanceKm(savedTarget.latitude,savedTarget.longitude,target.latitude,target.longitude)>=NEAR_KM;
    if(!planningPairs([best],bodies).length){unavailable.push({placeId:favorite.id,targetKey,reason:'access'});continue;}if(!target||targetMoved){unavailable.push({placeId:favorite.id,targetKey,reason:'target'});continue;}
    for(const record of heightRange?[best]:group){
     if(record.removed||record.result==='hidden')continue;
-    const o=heightRange||shape?favorite:record.observer||favorite;if(!shape&&AstroNotesTerrain.distanceKm(o.latitude,o.longitude,favorite.latitude,favorite.longitude)>=NEAR_KM){continue;}const place={...saved,latitude:o.latitude,longitude:o.longitude,elevation:o.elevation??favorite.elevation,groundManualM:o.elevation??favorite.groundManualM??favorite.elevation,eyeHeightAGL:o.eyeHeightAGL??favorite.eyeHeightAGL??1.5};
+    const o=heightRange||shape?favorite:record.observer||favorite;if(!shape&&AstroNotesTerrain.distanceKm(o.latitude,o.longitude,favorite.latitude,favorite.longitude)>=NEAR_KM){continue;
+    }const place={...saved,latitude:o.latitude,longitude:o.longitude,elevation:o.elevation??favorite.elevation,groundManualM:o.elevation??favorite.groundManualM??favorite.elevation,eyeHeightAGL:o.eyeHeightAGL??favorite.eyeHeightAGL??1.5};
     place.standAglM=place.eyeHeightAGL;place.stand='ground';
     const observerKey=JSON.stringify([place.latitude,place.longitude,place.groundManualM,place.eyeHeightAGL,place.shape,heightRange]);
     if(seen.has(observerKey))continue;seen.add(observerKey);

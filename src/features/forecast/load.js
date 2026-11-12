@@ -40,7 +40,8 @@ async function load(force) {
   const forPlace = place;   // 取得開始時の地点で最後まで一貫して評価する
   $("status").hidden = false;
   // 実際の取得・計算の完了項目数を表示。残り時間の推定％は使わない。
-  $("status").innerHTML = `<div class="note-wait"><span class="note-wait-character" aria-hidden="true"></span><div class="note-wait-message"><span id="predictionProgressMessage" aria-live="polite">予測中です</span><div class="note-progress" id="predictionProgressBar" role="progressbar" aria-label="予測の進捗" aria-valuemin="0" aria-valuemax="100" data-indeterminate><span class="note-progress-fill" id="predictionProgressFill" aria-hidden="true"></span></div></div></div>`;
+  $("status").innerHTML = `<div class="note-wait"><span class="note-wait-character" aria-hidden="true"></span><div class="note-wait-message"><span id="predictionProgressMessage" aria-live="polite">予測中です</span>\
+<div class="note-progress" id="predictionProgressBar" role="progressbar" aria-label="予測の進捗" aria-valuemin="0" aria-valuemax="100" data-indeterminate><span class="note-progress-fill" id="predictionProgressFill" aria-hidden="true"></span></div></div></div>`;
   $("bestNote").hidden = true;
   // 最初の1回だけ骨組みを出す。地点を変えたときは、前の表を残したほうが落ち着く
   if (!bundle) { forecastSummary?.waiting(); $("cards").innerHTML = renderSkeleton(Date.now()); }

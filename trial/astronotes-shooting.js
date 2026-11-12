@@ -87,7 +87,8 @@ async function shapeCandidates(p,entry,deps){
   if(!Number.isFinite(ground)){missing++;memo.set(key,null);return null;}
   const f={...entry.place,...position,elevation:ground,groundManualM:ground,sourcePlaceId:entry.place.id};delete f.shape;
   const obs=observerAt(f,ground),o=searchOptions(p,isMountain),view=viewFor?await viewFor(obs,p):null;check();
-  const probes=view?view(start):align.dailyView?align.dailyView(obs,p.target,p.body,start,{partId:o.partId,eyeM:obs.eyeM}).map(e=>{const exact=align.alignmentAt?.(obs,p.target,p.body,e.at,{partId:o.partId,limb:o.limb,eyeM:obs.eyeM});return {...e,gap:exact?.gap??e.gap,...(!o.disc&&exact?{spatialMatched:exact.matched}:{})};}):eventsFor(p,obs,start,{align,isMountain});
+  const probes=view?view(start):align.dailyView?align.dailyView(obs,p.target,p.body,start,{partId:o.partId,eyeM:obs.eyeM}).map(e=>{const exact=align.alignmentAt?.(obs,p.target,p.body,e.at,{partId:o.partId,limb:o.limb,eyeM:obs.eyeM});
+  return {...e,gap:exact?.gap??e.gap,...(!o.disc&&exact?{spatialMatched:exact.matched}:{})};}):eventsFor(p,obs,start,{align,isMountain});
   const events=view?probes:(!o.disc||o.broad)&&align.dailyView?probes:eventsFor(p,obs,start,{align,isMountain});
   if(o.broad)for(const e of events){e.matchMode='overlap';e.partId=o.partId;}
   const result={place:f,events,probes};memo.set(key,result);

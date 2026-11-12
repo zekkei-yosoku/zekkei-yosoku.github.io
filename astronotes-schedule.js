@@ -14,7 +14,8 @@ function create({ read, write, validate, scope = () => 'guest', now = Date.now, 
   };
   const stored = () => { const s = read(key(), null); return Array.isArray(s) ? s : []; };
   const list = () => stored().map(clean).filter(Boolean).sort((a, b) => a.start - b.start);
-  const completeKey=v=>JSON.stringify([v.at,v.o?.slice(1),v.t&&[v.t.id,v.t.latitude,v.t.longitude,v.t.groundM??0,v.t.widthM??null,v.t.parts?.map(p=>[p.id,p.m,p.latitude??null,p.longitude??null])],v.body,v.part,v.limb,v.matchMode||'limb',v.air,v.l&&[v.l.on,v.l.mode,v.l.focal,v.l.sensor,v.l.portrait,v.l.grid],v.pan,v.timelapse&&[v.timelapse.interval,v.timelapse.count,v.timelapse.fps]||null]);
+  const completeKey=v=>JSON.stringify([v.at,v.o?.slice(1),v.t&&[v.t.id,v.t.latitude,v.t.longitude,v.t.groundM??0,v.t.widthM??null,v.t.parts?.map(p=>[p.id,p.m,p.latitude??null,p.longitude??null])],v.body,v.part,v.limb,v.matchMode||'limb',v.air,v.l&&[v.l.on,v.l.mode,v.l.focal,v.l.sensor,v.l.portrait,
+  v.l.grid],v.pan,v.timelapse&&[v.timelapse.interval,v.timelapse.count,v.timelapse.fps]||null]);
   const sameComplete=(a,b)=>completeKey(a)===completeKey(b);
   function add({ value, title, start, end, preserveExisting=false }) {
     value = validate(value);

@@ -89,7 +89,8 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   if(aimAirEnsure(aimFromPoint(),aim.dayMs))return false;
   $("aimKeySet").textContent = aimSideLabel("set");
   $("aimKeyRise").textContent = aimSideLabel("rise");
-  $("aimCalendarOpen").innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 2v6M17 2v6M3 11h18"/></svg>${$("aimDate").value.replaceAll("-", "/")}(${S.Cal.weekday(aim.dayMs)})`;
+  $("aimCalendarOpen").innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 2v6M17 2v6M3 11h18"/>\
+</svg>${$("aimDate").value.replaceAll("-", "/")}(${S.Cal.weekday(aim.dayMs)})`;
   $("aimCalendarOpen").setAttribute("aria-label", `${$("aimDate").value.replaceAll("-", "/")}(${S.Cal.weekday(aim.dayMs)})、重なる日カレンダーを開く`);
   // 目標が決まっていなければ線は引けない（高さが無い）
   if (!(aim.target.parts || []).length) {

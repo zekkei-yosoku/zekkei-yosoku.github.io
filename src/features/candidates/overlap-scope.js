@@ -46,7 +46,8 @@ const P=(function createOverlapPolicy(){
  const NEGATIVE=['unknown','model-blocked','outside-frame','no-overlap','excluded'];
  function mergeEvaluations(results,anchor,ids=[]){
   const positives=[],seen=new Set();let partial=false;
-  results.forEach((res,i)=>{partial=partial||!!res?.partial;for(const row of res?.recommend?[res,...(res.additionalCandidates||[])]:[]){if(!row.recommend)continue;const tagged=retag(row,i,anchor);tagged.event.overlapTargetId=ids[i]??null;delete tagged.additionalCandidates;if(seen.has(tagged.id))continue;seen.add(tagged.id);positives.push(tagged);}});
+  results.forEach((res,i)=>{partial=partial||!!res?.partial;for(const row of res?.recommend?[res,...(res.additionalCandidates||[])]:[]){if(!row.recommend)continue;const tagged=retag(row,i,anchor);tagged.event.overlapTargetId=ids[i]??null;delete tagged.additionalCandidates;
+  if(seen.has(tagged.id))continue;seen.add(tagged.id);positives.push(tagged);}});
   if(positives.length)return {...positives[0],additionalCandidates:positives.slice(1),partial};
   const statuses=results.map(r=>NEGATIVE.includes(r?.status)?r.status:'unknown'),status=NEGATIVE.find(s=>statuses.includes(s))||'unknown';
   return {status,recommend:false,partial,reason:results.find(r=>r?.status===status)?.reason||(status==='unknown'?'overlap-member-unknown':undefined)};
@@ -105,7 +106,8 @@ function ensureField(){
  if(field?.isConnected)return field;const source=document.getElementById('skyMapTarget'),home=source?.closest('.condition-field');if(!home)return null;
  field=document.createElement('div');field.id='skyMapOverlapField';field.className='aim-say condition-field overlap-target-field';field.hidden=true;
  select=document.createElement('select');select.id='skyMapOverlapTarget';select.className='fav-in overlap-target-select';select.setAttribute('aria-labelledby','skyMapOverlapLabel');
- const lab=document.createElement('span');lab.className='aim-say-v condition-label';lab.id='skyMapOverlapLabel';lab.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></svg><span>重ねる対象</span>';
+ const lab=document.createElement('span');lab.className='aim-say-v condition-label';lab.id='skyMapOverlapLabel';
+ lab.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></svg><span>重ねる対象</span>';
  noticeNode=document.createElement('p');noticeNode.id='skyMapOverlapNotice';noticeNode.className='tiny overlap-target-notice';noticeNode.setAttribute('role','status');noticeNode.hidden=true;
  field.append(select,lab,noticeNode);home.after(field);
  select.onchange=()=>choose(select.value);
@@ -167,7 +169,8 @@ function evaluate(plan,fn){if(!plan?.overlapMembers)return null;return (async()=
 // Registered places from 探す: union of the existing per-target solver.
 function discovery(plan,run){
  if(!plan?.overlapMembers)return null;
- return (async()=>{const out=[];for(const m of plan.overlapMembers){const r=await run({...plan,target:m.target,partId:m.partId,limb:'center',matchMode:'overlap',overlapMembers:undefined});if(r?.cancelled)return {cancelled:true};out.push(r);}return P.mergeRows(out,{partId:plan.overlapMembers[0].partId},plan.overlapMembers.map(m=>m.target.id));})();
+ return (async()=>{const out=[];for(const m of plan.overlapMembers){const r=await run({...plan,target:m.target,partId:m.partId,limb:'center',matchMode:'overlap',overlapMembers:undefined});if(r?.cancelled)return {cancelled:true};out.push(r);
+ }return P.mergeRows(out,{partId:plan.overlapMembers[0].partId},plan.overlapMembers.map(m=>m.target.id));})();
 }
 // Figure accent: the selected member's silhouette, or the outline of the union
 // (internal borders removed) when 全て. Drawn only when several targets are shown.
