@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-+yKFqpoApZ66FHlgZ9BiOAoq9vNDZcMzK30VCCVNgwY=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=18096173220502742430">
-<meta name="app-version" content="8698800856223694443">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-56jmg3BuQK9ZbzaCr6EG5R+se0UIaJmcbxe0qnaV8D0=' 'sha256-XnkxL+31Hx09oZeO9sriA/FwZyogJfEg5OgDo5tTME0=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-rJ8/DFAaqH9reDa067MjpXi3mA4OLFSRMqIkA7tQFTY=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-Qo5F12QCeY7v8png7TvA6hLxgs5tnzcy2odqdN+UYWU=' 'sha256-NSQqzYsjjiiJ4lZZ2YaF0C8P/xWZwErXUrQc6h2Da5A=' 'sha256-OJlkVP9hufrghSR3MJ27wX9WVke/fnQnW0IaBWJlsM8=' 'sha256-PXfRim6e5oUuXkRxfWkVR4w8BPzm/BAMc94/yPcXf0M=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787 https://api.openstreetmap.org; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="10162481931081395947">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-56jmg3BuQK9ZbzaCr6EG5R+se0UIaJmcbxe0qnaV8D0=' 'sha256-XnkxL+31Hx09oZeO9sriA/FwZyogJfEg5OgDo5tTME0=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-yw7aqpWHwpLJLoPIl16xOIaPGcnuyL4AxTRpPRB0MSs=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-Qo5F12QCeY7v8png7TvA6hLxgs5tnzcy2odqdN+UYWU=' 'sha256-NSQqzYsjjiiJ4lZZ2YaF0C8P/xWZwErXUrQc6h2Da5A=' 'sha256-OJlkVP9hufrghSR3MJ27wX9WVke/fnQnW0IaBWJlsM8=' 'sha256-PXfRim6e5oUuXkRxfWkVR4w8BPzm/BAMc94/yPcXf0M=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787 https://api.openstreetmap.org; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=17512682572335991690">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -11051,7 +11051,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
   const sceneCenters = scene.map(item => proj(item.azimuth, item.topAngle)).filter(p => p && Math.abs(p[0]) < 330);
   const panLimit = Math.max(1, ...sceneCenters.map(p => Math.abs(p[0]) / (2 * win.halfW) + .5));
   let sceneVersion=0;
-  let shape = null, ridgePending = null, hidden = null;
+  let shape = null, ridgePending = null, hidden = null, hiddenUnread = false;
   // 塔・建物：手前の地面がどこまで隠すか。探索の視線と同じ計算を呼ぶので、一覧の文と図の線が同じ数字になる
   // （2026-11-13 ユーザー「その建物が立ってるところの地面をグランドラインにして天体の軌道は関係なくラインで出せばいいんじゃないの?」）
   const hiddenPending = outline && typeof AstroNotesCandidatePicker === "object" && typeof AstroNotesCandidatePicker.hiddenView === "function"
@@ -11101,7 +11101,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
   let groundEdge = footY, fillEdge = footY, groundLabel = mountain ? "水平（0°）" : "地上";
   const placeGround = () => {
     if (mountain) return;
-    groundEdge = fillEdge = footY; groundLabel = "地上";
+    groundEdge = fillEdge = footY; groundLabel = hiddenUnread ? "地上（手前の地形は未確認）" : "地上";
     const hy = hidden ? toPx(proj(az, aimAirAngle(D, eye, hidden.m)))?.[1] : null;
     if (Number.isFinite(hy) && hy < footY) { groundEdge = fillEdge = hy; groundLabel = hidden.label; }
     const far = showHorizon ? horizonAt(az) : null, fy = far === null ? null : toPx(proj(az, far))?.[1];
@@ -11611,9 +11611,9 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
   });
   if (hiddenPending) hiddenPending.catch(() => null).then((r) => {
     if (seq !== host._lookSeq) return;
-    // 線と文は同じ数字。読めなかったときは足元に線を引き、そう書く
-    hidden = r?.note ? { m: r.note.m, label: r.note.label } : null;
-    note.dataset.terrain = r?.read ? r.note?.text || "" : "手前の地形を読み込めませんでした";
+    // 線と文は同じ数字。読めなかったときは足元に線を引き、線の名前でそう示す（図の下に後から行を足すと下の欄が押し下がる）
+    hidden = r?.note ? { m: r.note.m, label: r.note.label } : null; hiddenUnread = !r?.read;
+    note.dataset.terrain = r?.read ? r.note?.text || "" : "";
     placeGround(); sceneVersion++;
     note.textContent = [note.dataset.primary || "", note.dataset.terrain, ...scene.filter(x => x.failed).map(x => `${x.target.name}の稜線を読み込めませんでした`)].filter(Boolean).join(" / ");
     note.hidden = !note.textContent;

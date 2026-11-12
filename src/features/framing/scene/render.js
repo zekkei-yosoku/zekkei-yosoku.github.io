@@ -175,7 +175,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
   const sceneCenters = scene.map(item => proj(item.azimuth, item.topAngle)).filter(p => p && Math.abs(p[0]) < 330);
   const panLimit = Math.max(1, ...sceneCenters.map(p => Math.abs(p[0]) / (2 * win.halfW) + .5));
   let sceneVersion=0;
-  let shape = null, ridgePending = null, hidden = null;
+  let shape = null, ridgePending = null, hidden = null, hiddenUnread = false;
   // 塔・建物：手前の地面がどこまで隠すか。探索の視線と同じ計算を呼ぶので、一覧の文と図の線が同じ数字になる
   // （2026-11-13 ユーザー「その建物が立ってるところの地面をグランドラインにして天体の軌道は関係なくラインで出せばいいんじゃないの?」）
   const hiddenPending = outline && typeof AstroNotesCandidatePicker === "object" && typeof AstroNotesCandidatePicker.hiddenView === "function"
@@ -225,7 +225,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
   let groundEdge = footY, fillEdge = footY, groundLabel = mountain ? "水平（0°）" : "地上";
   const placeGround = () => {
     if (mountain) return;
-    groundEdge = fillEdge = footY; groundLabel = "地上";
+    groundEdge = fillEdge = footY; groundLabel = hiddenUnread ? "地上（手前の地形は未確認）" : "地上";
     const hy = hidden ? toPx(proj(az, aimAirAngle(D, eye, hidden.m)))?.[1] : null;
     if (Number.isFinite(hy) && hy < footY) { groundEdge = fillEdge = hy; groundLabel = hidden.label; }
     const far = showHorizon ? horizonAt(az) : null, fy = far === null ? null : toPx(proj(az, far))?.[1];
@@ -735,9 +735,9 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
   });
   if (hiddenPending) hiddenPending.catch(() => null).then((r) => {
     if (seq !== host._lookSeq) return;
-    // 線と文は同じ数字。読めなかったときは足元に線を引き、そう書く
-    hidden = r?.note ? { m: r.note.m, label: r.note.label } : null;
-    note.dataset.terrain = r?.read ? r.note?.text || "" : "手前の地形を読み込めませんでした";
+    // 線と文は同じ数字。読めなかったときは足元に線を引き、線の名前でそう示す（図の下に後から行を足すと下の欄が押し下がる）
+    hidden = r?.note ? { m: r.note.m, label: r.note.label } : null; hiddenUnread = !r?.read;
+    note.dataset.terrain = r?.read ? r.note?.text || "" : "";
     placeGround(); sceneVersion++;
     note.textContent = [note.dataset.primary || "", note.dataset.terrain, ...scene.filter(x => x.failed).map(x => `${x.target.name}の稜線を読み込めませんでした`)].filter(Boolean).join(" / ");
     note.hidden = !note.textContent;
