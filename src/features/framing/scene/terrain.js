@@ -8,14 +8,13 @@ const AIM_FRONT_SPAN = 20, AIM_SKY_ZOOM = 10, aimFrontCache = new Map(), aimFron
 async function aimTerrainFront(obs, eye, target, span = AIM_FRONT_SPAN) {
   const D = AstroNotesTerrain.distanceKm(obs.latitude, obs.longitude, target.latitude, target.longitude);
   const az0 = AstroNotesTerrain.bearing(obs.latitude, obs.longitude, target.latitude, target.longitude);
-  // 2026-11-12 目の前の堤防・土手も塔の下を隠すので30m先から読む（前は300m先から）。行を増やして1km先の間隔を前と同じくらいに保つ
-  const near = 0.03, far = D - 0.3, airK = AstroNotesAtmosphere.targetK();
+  const near = 0.3, far = D - 0.3, airK = AstroNotesAtmosphere.targetK();
   if (!(far > near + 0.5)) return { ridge: [], block: null };
   const key = [obs.latitude, obs.longitude, eye, target.latitude, target.longitude, span].map((v) => v.toFixed(5)).join(",") + "|" + airK;
   if (aimFrontCache.has(key)) return aimFrontCache.get(key);
   if (aimFrontPending.has(key)) return aimFrontPending.get(key);
   const task = (async () => {
-    const cols = span > AIM_FRONT_SPAN ? 120 : 80, n = 120, pts = [];
+    const cols = span > AIM_FRONT_SPAN ? 120 : 80, n = 80, pts = [];
     for (let i = 0; i <= cols; i++) {
       const az = az0 - span + (2 * span * i) / cols;
       // 近いほど細かく（見かけの高さは近い地形ほど大きく変わる）
@@ -27,14 +26,14 @@ async function aimTerrainFront(obs, eye, target, span = AIM_FRONT_SPAN) {
     if (airK !== AstroNotesAtmosphere.targetK()) return null;
     const ridge = []; let block = null;
     for (let i = 0; i <= cols; i++) {
-      let best = -90, at = null, atM = null;
+      let best = -90, at = null;
       for (let j = 0; j <= n; j++) {
         const k = i * (n + 1) + j; if (!Number.isFinite(el[k])) continue;
-        const a = aimAirAngle(pts[k].d, eye, el[k]); if (a > best) { best = a; at = pts[k].d; atM = el[k]; }
+        const a = aimAirAngle(pts[k].d, eye, el[k]); if (a > best) { best = a; at = pts[k].d; }
       }
       if (best === -90) return null;
       ridge.push([pts[i * (n + 1)].az, best]);
-      if (i === cols / 2) block = { angle: best, km: at, m: atM, azimuth: pts[i * (n + 1)].az };
+      if (i === cols / 2) block = { angle: best, km: at };
     }
     const out = { ridge, block };
     aimFrontCache.set(key, out);

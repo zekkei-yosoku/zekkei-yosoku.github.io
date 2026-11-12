@@ -10,20 +10,6 @@ import {auth} from '../../account/session-and-access.js';
 const AIM_HORIZON_SPAN = 20, AIM_HORIZON_MIN_DEG = 0.2, AIM_MOUNTAIN_SKY_SPAN = 45;
 // 天体に寄る is for a body on or near the target: within the height of the target plus 10 deg of its top.
 function aimComposeNear(st,az,topAngle,baseAngle){const R=Math.PI/180,d=Math.acos(Math.max(-1,Math.min(1,Math.sin(st.apparentAltitude*R)*Math.sin(topAngle*R)+Math.cos(st.apparentAltitude*R)*Math.cos(topAngle*R)*Math.cos((st.azimuth-az)*R))))/R;return d<=Math.max(15,topAngle-baseAngle+10);}
-/// 手前の地形が目標をどこまで隠すかの文。b は目標の方位で一番高く見える地面（見上げ角・距離km・標高）。
-/// その手前と向こう80mを10mごとに読み、上がって下がる細い高まりなら堤防か土手と分かる
-async function aimHiddenNote(obs, eye, t, D, b) {
-  let lo = -500, hi = 10000;
-  for (let i = 0; i < 50; i++) { const m = (lo + hi) / 2; if (aimAirAngle(D, eye, m) < b.angle) lo = m; else hi = m; }
-  const offsets = [-80, -70, -60, -50, -40, -30, -20, -10, 10, 20, 30, 40, 50, 60, 70, 80].filter((m) => b.km * 1000 + m > 0);
-  const pts = offsets.map((m) => AstroNotesTerrain.destination(obs.latitude, obs.longitude, b.azimuth, b.km + m / 1000));
-  let el = [];
-  try { el = await AstroNotesTerrain.elevations(pts, { zoom: 15, from: obs }); } catch { el = []; }
-  const fall = (side) => Number.isFinite(b.m) ? el.reduce((most, h, i) => Number.isFinite(h) && side * offsets[i] > 0 ? Math.max(most, b.m - h) : most, 0) : 0;
-  const kind = await AstroNotesTerrain.obstacleKind(obs, b.azimuth, { distanceM: b.km * 1000, terrainM: b.m, riseM: fall(-1), dropM: fall(1) }, eye);
-  return AstroNotesAlign.hiddenBelowText(t, (lo + hi) / 2, kind);
-}
-
 async function aimLookRender(host, spec) {
   if (!host) return;
   globalThis.AstroNotesCameraUI?.invalidate(host);
@@ -189,8 +175,11 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
   const sceneCenters = scene.map(item => proj(item.azimuth, item.topAngle)).filter(p => p && Math.abs(p[0]) < 330);
   const panLimit = Math.max(1, ...sceneCenters.map(p => Math.abs(p[0]) / (2 * win.halfW) + .5));
   let sceneVersion=0;
-  let shape = null, ridgePending = null, front = null;
-  const frontPending = outline ? aimTerrainFront(spec.obs, eye, t) : null;
+  let shape = null, ridgePending = null, hidden = null;
+  // 塔・建物：手前の地面がどこまで隠すか。探索の視線と同じ計算を呼ぶので、一覧の文と図の線が同じ数字になる
+  // （2026-11-13 ユーザー「その建物が立ってるところの地面をグランドラインにして天体の軌道は関係なくラインで出せばいいんじゃないの?」）
+  const hiddenPending = outline && typeof AstroNotesCandidatePicker === "object" && typeof AstroNotesCandidatePicker.hiddenView === "function"
+    ? AstroNotesCandidatePicker.hiddenView({ latitude: spec.obs.latitude, longitude: spec.obs.longitude, elevation: ground, eyeM: spec.eyeM }, t, aim.partId) : null;
   if (outline) shape = outline.points.map(([a, h]) => toPx(proj(a, h))).filter(Boolean);
   else {
     // 稜線を待つ間も新しい目標の図を先に描く。前の建物や時刻を残さない。
@@ -225,11 +214,24 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
   const baseY = toPx(proj(az, baseAngle))[1];
   const hiddenY = outline && outline.hiddenAngle !== null ? toPx(proj(az, outline.hiddenAngle))[1] : null;
   // 山は仮の表示下端でなく水平0度、建物は地上の基準へ吸着する。
-  const groundEdge = mountain ? toPx(proj(az, 0))[1] : (hiddenY !== null ? Math.min(hiddenY, baseY) : baseY);
-  // 塔の足元を見下ろすほど高い所では、足元より上に地平線がある。天体はここから昇るので、線より下には描かない
-  // （2026-11-01 ユーザー「地上と地平線の間は別に塗りつぶさなくてもよくない？」。線だけにした）
+  const footY = mountain ? toPx(proj(az, 0))[1] : (hiddenY !== null ? Math.min(hiddenY, baseY) : baseY);
+  // 塔の足元を見下ろすほど高い所では、足元より上に遠くの地平がある。天体はそこから昇る
+  // （2026-11-01 ユーザー「地上と地平線の間は別に塗りつぶさなくてもよくない？」。その間は塗らない）
   const showHorizon = !mountain && seaAngle - Math.max(baseAngle, outline.hiddenAngle ?? baseAngle) >= AIM_HORIZON_MIN_DEG;
   const beyondPending = showHorizon ? aimTerrainBeyond(spec.obs, eye, t) : null;
+  // 線は1本だけ、まっすぐ引く（2026-11-13 ユーザー「水平線が、地平線が、とか…堂々巡りしてる」）。塔の方向で空が始まる高さ：
+  // 足元、手前の地面が隠す高さ（探索と同じ数字）、高い所から見た遠くの地平の高い方。天体は線より下に描かない。
+  // 地面の塗り（fillEdge）は足元か手前の地面までで、遠くの地平との間は塗らない
+  let groundEdge = footY, fillEdge = footY, groundLabel = mountain ? "水平（0°）" : "地上";
+  const placeGround = () => {
+    if (mountain) return;
+    groundEdge = fillEdge = footY; groundLabel = "地上";
+    const hy = hidden ? toPx(proj(az, aimAirAngle(D, eye, hidden.m)))?.[1] : null;
+    if (Number.isFinite(hy) && hy < footY) { groundEdge = fillEdge = hy; groundLabel = hidden.label; }
+    const far = showHorizon ? horizonAt(az) : null, fy = far === null ? null : toPx(proj(az, far))?.[1];
+    if (Number.isFinite(fy) && fy < groundEdge) { groundEdge = fy; groundLabel = far > seaAngle + 1e-6 ? "遠くの山並み" : "水平線"; }
+  };
+  placeGround();
   // 山の稜線は山の幅しか読まない。広角ではその外も実際の地形でつなぎ、山を黒い箱にしない。山の幅の内側は稜線のまま
   const mountainHorizonY = mountain ? toPx(proj(az, seaAngle))[1] : null;
   let skyline = null;
@@ -243,11 +245,6 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     const merged = rows.map(([a, h], i) => [a, Math.max(seaAngle, h, near?.ridge?.[i]?.[1] ?? -90)]), side = (keep) => merged.filter(([a]) => keep(rel(a))).map(([a, h]) => toPx(proj(a, h))).filter(Boolean);
     skyline = { left: side((r) => r < from), right: side((r) => r > to) };
     sceneVersion++; draw(cur);
-  };
-  const horizonPoints = () => {
-    const span = Math.min(85, win.halfW * (1 + 2 * panLimit) + 5), pts = [];
-    for (let i = 0; i <= 240; i++) { const a = az - span + (2 * span * i) / 240, q = toPx(proj(a, horizonAt(a))); if (q) pts.push([q[0], Math.min(q[1], groundEdge)]); }
-    return pts;
   };
   // 時刻の目盛り。道のりの長さに合わせて1〜60分ごとに、多くても10個
   const span = (path[path.length - 1].at - path[0].at) / 60000;
@@ -356,20 +353,13 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     }
 
     // 地下を無限に補完しない。山の稜線自体は切らず、その下に小さい余白だけを残す。
-    const ridgeBottom = mountain && shape?.length ? Math.max(...shape.map(p => p[1])) : groundEdge;
-    const sceneBottom = Math.max(groundEdge, ridgeBottom) + Math.max(12, Math.min(24, H * 0.04));
+    const ridgeBottom = mountain && shape?.length ? Math.max(...shape.map(p => p[1])) : footY;
+    const sceneBottom = Math.max(footY, ridgeBottom) + Math.max(12, Math.min(24, H * 0.04));
     const clipBottom = Math.max(0, Math.min(H, sceneBottom + panY));
     host._lookSceneBottom = clipBottom;
     ctx=bodyLayer.ctx;resetLayer(ctx,bodyLayer.canvas);layerStats.body++;
     clipWorld(ctx,panX,panY,clipBottom);
-    if (showHorizon) {
-      const pts = horizonPoints();
-      if (pts.length >= 2) {
-        ctx.beginPath(); ctx.moveTo(pts[0][0], -panY - H);
-        for (const [x, y] of pts) ctx.lineTo(x, y);
-        ctx.lineTo(pts[pts.length - 1][0], -panY - H); ctx.closePath(); ctx.clip();
-      }
-    }
+    if (!mountain) { ctx.beginPath(); ctx.rect(-panX, -panY - H, W, groundEdge + panY + H); ctx.clip(); }
     // 道と時刻の目盛り
     ctx.strokeStyle = ink; ctx.globalAlpha = 0.55; ctx.lineWidth = 1.5; ctx.setLineDash([]);
     ctx.beginPath();
@@ -404,9 +394,8 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     // 形は空より暗く塗り、暗い空では縁を明るい線でなぞる（ユーザー「シルエットが背景と色が被って見えづらくなってる」。夜空と同じ紺だった）
     ctx.fillStyle = "#020306";
     const rim = "rgba(200,212,240,0.28)";
-    const groundY = groundEdge;
+    const groundY = groundEdge, fillY = fillEdge;
     const visibleTargets = [];
-    let horizonText = null;
     if (mountain) {
       ctx.fillStyle = "#020306";
       ctx.fillRect(-panX, mountainHorizonY, W, Math.max(0, sceneBottom - mountainHorizonY));
@@ -417,15 +406,6 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
         for (const [x, y] of pts) ctx.lineTo(x, y);
         ctx.lineTo(pts[pts.length - 1][0], sceneBottom); ctx.closePath(); ctx.fill();
         ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke();
-      }
-    }
-    if (showHorizon) {
-      const pts = horizonPoints();
-      if (pts.length >= 2) {
-        ctx.strokeStyle = "rgba(200,212,240,0.7)"; ctx.lineWidth = 1; ctx.lineJoin = "round";
-        ctx.beginPath(); pts.forEach(([x, y], i) => { i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
-        const left = pts.reduce((best, q) => Math.abs(q[0] + panX - 8) < Math.abs(best[0] + panX - 8) ? q : best, pts[0]);
-        if (left[1] + panY >= 12 && left[1] + panY <= H - 4 && groundY - left[1] >= 18) horizonText = { str: "地平線", y: left[1] - 4 + panY };
       }
     }
     for (const item of scene) {
@@ -456,7 +436,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
         // 地上の線は選んだ目標の足元なので、それより近い建物の足元は線より上に来る。実際は手前の街並みに隠れる所
         if(!selected){
           let bottom=-Infinity;for(const poly of item.polygons)for(const q of poly)if(q[1]>bottom)bottom=q[1];
-          const footY=mountain?mountainHorizonY:groundY;
+          const footY=mountain?mountainHorizonY:fillY;
           if(bottom<footY-0.5){
             let l=Infinity,r=-Infinity;for(const poly of item.polygons)for(const q of poly)if(q[1]>=bottom-1.5){l=Math.min(l,q[0]);r=Math.max(r,q[0]);}
             if(r>l){ctx.fillRect(l,bottom-0.5,r-l,footY-bottom+0.5);ctx.strokeStyle=rim;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(l,bottom);ctx.lineTo(l,footY);ctx.moveTo(r,bottom);ctx.lineTo(r,footY);ctx.stroke();}
@@ -478,21 +458,12 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
       }
       if (selected && !mountain) {
         ctx.fillStyle = "#020306";
-        ctx.fillRect(-panX, groundY, W, Math.max(0, sceneBottom - groundY));
-        if (rim) { ctx.strokeStyle = rim; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-panX, groundY); ctx.lineTo(W - panX, groundY); ctx.stroke(); }
+        ctx.fillRect(-panX, fillY, W, Math.max(0, sceneBottom - fillY));
+        if (rim) { ctx.strokeStyle = rim; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-panX, fillY); ctx.lineTo(W - panX, fillY); ctx.stroke(); }
       }
       const anchor = toPx(proj(item.azimuth, item.topAngle));
       if (anchor && !(item.distanceKm > D && !mountain && anchor[1] >= groundY) && anchor[0] + panX >= 0 && anchor[0] + panX <= W && anchor[1] + panY >= 0 && anchor[1] + panY <= clipBottom)
         visibleTargets.push({ item, anchor });
-    }
-    // 手前の地形（塔・建物のとき）。目標より手前にあるので、建物の上に重ねて描く。地上の線より上に出る所があるときだけ
-    if (front?.length >= 2 && front.some((q) => q[1] < groundY - 0.5)) {
-      ctx.fillStyle = "#020306";
-      ctx.beginPath(); ctx.moveTo(front[0][0], sceneBottom);
-      for (const [x, y] of front) ctx.lineTo(x, Math.min(y, sceneBottom));
-      ctx.lineTo(front[front.length - 1][0], sceneBottom); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = rim; ctx.lineWidth = 1; ctx.lineJoin = "round";
-      ctx.beginPath(); front.forEach(([x, y], i) => i ? ctx.lineTo(x, Math.min(y, sceneBottom)) : ctx.moveTo(x, Math.min(y, sceneBottom))); ctx.stroke();
     }
     // 地上と余白の境界を昼夜とも見分けられるようにする。
     let groundText = null;
@@ -500,12 +471,12 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
       ctx.strokeStyle = "#b8c8dd"; ctx.lineWidth = 1.5;
       ctx.setLineDash(mountain ? [5, 4] : []);
       ctx.beginPath(); ctx.moveTo(-panX, groundY); ctx.lineTo(W - panX, groundY); ctx.stroke(); ctx.setLineDash([]);
-      groundText = { str: mountain ? "水平（0°）" : "地上", y: groundY - 4 + panY };
+      groundText = { str: groundLabel, y: groundY - 4 + panY };
     }
     // 図中に目標名は重ねない。visibleTargetsは読み上げに使用する。
-      globalThis.AstroNotesTrialOverlap?.accent?.(ctx,{scene,t,shape,sceneBottom});ctx.restore();buildingCache={key:nextBuildingKey,visibleTargets,groundText,horizonText};layerStats.buildings++;
+      globalThis.AstroNotesTrialOverlap?.accent?.(ctx,{scene,t,shape,sceneBottom});ctx.restore();buildingCache={key:nextBuildingKey,visibleTargets,groundText};layerStats.buildings++;
     }
-    const {visibleTargets,groundText,horizonText}=buildingCache;
+    const {visibleTargets,groundText}=buildingCache;
     ctx=displayCtx;resetLayer(ctx,cv);
     ctx.drawImage(skyLayer.canvas,0,0,W,H);ctx.drawImage(bodyLayer.canvas,0,0,W,H);ctx.drawImage(buildingLayer.canvas,0,0,W,H);
     clipWorld(ctx,panX,panY,clipBottom);
@@ -543,7 +514,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
       ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.strokeRect(fx, fy, fw, fh);
     }
     // 地上の字は画角枠より後に描く。先に描くと枠の縦線が字を横切った（2026-10-05 総点検、200mmで「水平（0°）」の「平」が欠けた）
-    for (const label of [groundText, horizonText]) {
+    for (const label of [groundText]) {
       if (!label) continue;
       ctx.font = `600 ${Math.max(11, Math.min(16, W / 40))}px system-ui, sans-serif`; ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.lineJoin = "round";
       ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.65)"; ctx.strokeText(label.str, 8, label.y);
@@ -759,23 +730,18 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
   });
   if (beyondPending) beyondPending.then((ridge) => {
     if (seq !== host._lookSeq || !ridge) return;
-    beyondRidge = ridge; sceneVersion++;
+    beyondRidge = ridge; placeGround(); sceneVersion++;
     draw(cur);
   });
-  if (frontPending) frontPending.then((r) => {
-    if (seq !== host._lookSeq || !r) return;
-    front = r.ridge.map(([a, h]) => toPx(proj(a, h))).filter(Boolean); sceneVersion++;
-    // 目標の方位で、手前の地形が目標の先端より高ければ見えない。下の部分だけ隠れるときは、どこから下が何に隠れるかを書く
-    // （2026-11-12 ユーザー「〇〇の〇〇から下が〇〇に隠れますとかでいい」「何メートル先のとかいらない」「堤防なのか土手なのか建物なのか」）
-    const b = r.block, low = outline.hiddenAngle ?? outline.baseAngle;
+  if (hiddenPending) hiddenPending.catch(() => null).then((r) => {
+    if (seq !== host._lookSeq) return;
+    // 線と文は同じ数字。読めなかったときは足元に線を引き、そう書く
+    hidden = r?.note ? { m: r.note.m, label: r.note.label } : null;
+    note.dataset.terrain = r?.read ? r.note?.text || "" : "手前の地形を読み込めませんでした";
+    placeGround(); sceneVersion++;
+    note.textContent = [note.dataset.primary || "", note.dataset.terrain, ...scene.filter(x => x.failed).map(x => `${x.target.name}の稜線を読み込めませんでした`)].filter(Boolean).join(" / ");
+    note.hidden = !note.textContent;
     draw(cur);
-    if (!b || b.angle <= low + 0.01) return;
-    void aimHiddenNote(spec.obs, eye, t, D, b).then((text) => {
-      if (seq !== host._lookSeq) return;
-      note.dataset.terrain = text;
-      note.textContent = [note.dataset.primary || "", text, ...scene.filter(x => x.failed).map(x => `${x.target.name}の稜線を読み込めませんでした`)].filter(Boolean).join(" / ");
-      note.hidden = !note.textContent;
-    });
   });
 }
 

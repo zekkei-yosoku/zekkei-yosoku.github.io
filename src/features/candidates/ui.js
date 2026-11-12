@@ -41,13 +41,21 @@ const groundPort={...AstroNotesTerrain,resetBudget:()=>live.resetBudget(),ground
 // Places, woods and bridges from the bundled OSM extract (Overpass only if it cannot be read).
  const osmPlaces=globalThis.AstroNotesOsmPlaces?.create({load:loaded,base:dataBase+'osm-places/'})||null;
  const provider=AstroNotesCandidateDiscovery.createPlaceProvider({terrain:groundPort,fetchImpl:fetch.bind(globalThis),loadViewpoints:()=>loaded('candidate-viewpoints.json'),places:osmPlaces});
-let modelPromise=null;
+let modelPromise=null,staticPromise=null,viewModelPromise=null;
+const staticTerrain=()=>staticPromise||=loaded('candidate-terrain.json').then(d=>d?AstroNotesCandidateTerrain.decode(d):null).catch(()=>null);
+// The composition's ground line comes from the search's own sight line to the target (2026-11-13): one calculation
+// for the list and the figure. Its own tile budget, so a figure never starves a running search.
+const viewLive=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxTiles:300,maxDurationMs:60000});
+AstroNotesCandidatePicker.hiddenView=async(observer,target,partId)=>{
+ if(!viewModelPromise)viewModelPromise=staticTerrain().then(dem=>AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:viewLive,staticTerrain:dem}));
+ viewLive.resetBudget();return (await viewModelPromise).hiddenView(observer,target,{partId});
+};
 async function loadModel(){
  // Buildings: PLATEAU top heights (every city PLATEAU covers) along each line, GSI footprints elsewhere; the 3D band model is no longer loaded.
- if(!modelPromise)modelPromise=(async()=>{await AstroNotesAssets.ensureModels();const dem=await loaded('candidate-terrain.json').catch(()=>null);
+ if(!modelPromise)modelPromise=(async()=>{await AstroNotesAssets.ensureModels();const dem=await staticTerrain();
   const heights=AstroNotesCandidateHeights.create({base:dataBase+'building-heights/',loadIndex:()=>loaded('building-heights/index.json'),ownFootprint:key=>plateauShapes?.footprint(key)||null,obstacles:osmPlaces?(a,b)=>osmPlaces.obstaclesAlong(a,b):null,gsiAlong:(a,
   b)=>AstroNotesTerrain.gsiBuildingsAlong(a,b),groundAt:p=>footprintGround.sample(p).then(r=>r.height)});
-  return AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:live,heights,staticTerrain:dem?await AstroNotesCandidateTerrain.decode(dem):null,sidewalks:await loaded('candidate-sidewalks.json').catch(()=>null)});
+  return AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:live,heights,staticTerrain:dem,sidewalks:await loaded('candidate-sidewalks.json').catch(()=>null)});
   })().catch(e=>{modelPromise=null;throw e;});
  return modelPromise;
 }

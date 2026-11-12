@@ -8,12 +8,13 @@ test('隠れる所は部分の名前で書き、距離も割合も書かない',
  assert.equal(A.hiddenBelowText(sky,500,'山'),'東京スカイツリーの天望回廊（第二展望台）から下が手前の山に隠れます');
  assert.equal(A.hiddenBelowText(sky,640,'堤防'),'東京スカイツリーは手前の堤防に隠れて見えません');
  assert.equal(A.hiddenBelowText(sky,33,'土手'),'東京スカイツリーの地上約30mから下が手前の土手に隠れます');
- assert.equal(A.hiddenBelowText(sky,14,'地平線'),'東京スカイツリーの地上約10mから下が地平線に隠れます');
+ assert.equal(A.hiddenBelowText(sky,14,'地球の丸み'),'東京スカイツリーの地上約10mから下は地球の丸みで隠れます');
+ assert.equal(A.hiddenBelowText(sky,700,'地球の丸み'),'東京スカイツリーは地球の丸みで隠れて見えません');
  assert.equal(A.hiddenBelowText(sky,8,'高台'),'');
  assert.equal(A.hiddenBelowText(sky,372,null),'');
  assert.doesNotMatch(A.hiddenBelowText(sky,372,'高台'),/[0-9]+(m|km)先|割|%/);
 });
-test('上がって下がる細い高まりは堤防か土手、高い遠くの地形は山、目より高い地面は高台、それより低い地面は地平線',async()=>{
+test('上がって下がる細い高まりは堤防か土手、高い遠くの地形は山、目より高い地面は高台、それより低い地面は地球の丸み',async()=>{
  const obs={latitude:35.8,longitude:139.5},wet=async pts=>pts.map((_,i)=>i===3),dry=async pts=>pts.map(()=>false);
  // 河川敷から見る堤防：川は見る人の後ろ（高まりの手前）にある
  assert.equal(await G.obstacleKind(obs,234,{distanceM:15,terrainM:6.4,riseM:2.4,dropM:6.3},4.7,{waterAt:wet}),'堤防');
@@ -24,7 +25,7 @@ test('上がって下がる細い高まりは堤防か土手、高い遠くの�
  assert.equal(await G.obstacleKind(obs,244,{distanceM:2960,terrainM:28.9,riseM:8.1,dropM:1.2},22.4,{waterAt:wet}),'高台');
  assert.equal(await G.obstacleKind(obs,116,{distanceM:950,terrainM:26.7,riseM:10,dropM:0.4},15.6,{waterAt:wet}),'高台');
  assert.equal(await G.obstacleKind(obs,116,{distanceM:9000,terrainM:420,riseM:30,dropM:0},15.6),'山');
- assert.equal(await G.obstacleKind(obs,116,{distanceM:15000,terrainM:3,riseM:0,dropM:0},15.6),'地平線');
+ assert.equal(await G.obstacleKind(obs,116,{distanceM:15000,terrainM:3,riseM:0,dropM:0},15.6),'地球の丸み');
  assert.equal(await G.obstacleKind(obs,116,null,15.6),null);
  let asked=[];await G.obstacleKind(obs,90,{distanceM:100,terrainM:9,riseM:4,dropM:4},5,{waterAt:async pts=>{asked=pts;return pts.map(()=>false);}});
  assert.equal(asked.length,24);assert.ok(asked.some(p=>p.longitude<obs.longitude),'見る人の後ろの水域も見る');
@@ -37,4 +38,17 @@ test('地形の線は、一番高く見える地面と、その向こうで下�
  const r=raster.trace({...observer,longitude:(Math.floor(px)+.5)/world*360-180},{azimuth:90,altitude:60,maxM:200});
  assert.equal(r.hit,null);assert.equal(r.skyline.terrainM,18);assert.ok(r.skyline.distanceM>8&&r.skyline.distanceM<14,String(r.skyline.distanceM));
  assert.equal(r.skyline.dropM,18);assert.equal(r.skyline.riseM,18);assert.ok(r.skyline.toM>18,String(r.skyline.toM));
+});
+test('図の線は探索と同じ視線・同じ地形から：一覧の文と同じ数字と名前を返す',async()=>{
+ const {createGeneric}=require('./src/features/candidates/generic-evaluator.js');
+ const rays=[],terrain={trace:async(observer,ray)=>{rays.push({observer,ray});return {status:'model-clear',hit:null,skyline:{distanceM:950,terrainM:26.7,riseM:10,dropM:0.4,toM:375.3}};}};
+ const geo={...G,obstacleKind:async()=> '高台'};
+ const model=createGeneric({align:A,bodies:{},geo,terrain});
+ const obs={latitude:35.8151902,longitude:139.5469209,elevation:14.14,eyeM:1.5};
+ const r=await model.hiddenView(obs,sky,{partId:'__whole'});
+ assert.equal(r.read,true);assert.equal(r.note.text,'東京スカイツリーの天望デッキから下が手前の高台に隠れます');assert.equal(r.note.label,'手前の高台');assert.equal(r.note.m,375.3);
+ const g=A.geometryFrom(obs,sky,{eyeM:1.5});
+ assert.equal(rays[0].ray.azimuth,g.azimuth);assert.equal(rays[0].ray.maxM,g.distanceKm*1000);assert.equal(rays[0].ray.endpoint.elevation,g.topM);
+ const none=createGeneric({align:A,bodies:{},geo,terrain:{trace:async()=>({status:'unknown',reason:'terrain-budget'})}});
+ assert.deepEqual(await none.hiddenView(obs,sky),{status:'unknown',read:false,note:null});
 });

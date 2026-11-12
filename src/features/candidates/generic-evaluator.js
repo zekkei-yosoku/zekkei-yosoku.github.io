@@ -113,7 +113,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   if(!hiddenNotes.has(sky))hiddenNotes.set(sky,(async()=>{
    if(!align.hiddenBelowText(target,sky.toM,'高台'))return null;
    const kind=await geo.obstacleKind(observer,azimuth,sky,observer.elevation+observer.eyeM),text=kind?align.hiddenBelowText(target,sky.toM,kind):'';
-   return text?{m:sky.toM,kind,text}:null;
+   return text?{m:sky.toM,kind,text,label:kind==='地球の丸み'?kind:'手前の'+kind}:null;
   })().catch(()=>null));
   return hiddenNotes.get(sky);
  }
@@ -135,6 +135,16 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   const unresolvedTargetContacts=!!ray.endpoint&&contacts.some(c=>!permitted.has(c.polygonId)||!Number.isFinite(c.distanceM)||Math.abs(c.distanceM-ray.maxM)>.1);
   const selfBlocked=!ray.endpoint&&contacts.length>0;
   return {...result,complete:coverage.complete,evaluated,unresolvedTargetContacts,status:result.hit||selfBlocked?'blocked':coverage.complete&&evaluated&&!unresolvedTargetContacts?'model-clear':'unknown'};
+ }
+ // The composition draws its ground line from the same line and the same ground as the search (2026-11-13,
+ // user: one ground line where the building stands), so the list and the figure give one number.
+ async function hiddenView(observer,target,{partId=null,isCurrent}={}){
+  const obs={...observer,eyeM:observer.eyeM??1.5},g=align.geometryFrom(obs,target,{eyeM:obs.eyeM,partId:partId==='__whole'?null:partId});
+  if(!g||![g.azimuth,g.angle,g.topM,g.distanceKm].every(Number.isFinite))return null;
+  const k=root.AstroNotesAtmosphere?.targetK?.()??7/6;
+  const tg=await terrainRay(obs,{azimuth:g.azimuth,altitude:g.angle,maxM:g.distanceKm*1000,endpoint:{...target,elevation:g.topM},targetKey:target.id,refractionK:k},{isCurrent});
+  if(!tg?.skyline)return {status:tg?.status||'unknown',read:false,note:null};
+  return {status:tg.status,read:true,note:await hiddenNote(target,obs,g.azimuth,tg.skyline)};
  }
  async function visibility(plan,solution,options={}){
   const obs=solution.observer,g=solution.geometry,at=solution.event.at,eye={...obs,elevation:obs.elevation+obs.eyeM};
@@ -252,7 +262,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   lastUnverified.target?.buildings?.status,lastUnverified.target?.buildings?.reason],rays:(lastUnverified.rays||[]).map(r=>r.intentionalTarget?'target':[r.status,r.terrain?.reason||r.terrain?.status,r.buildings?.reason||r.buildings?.status].join('/'))}:null,partial:solved.partial,
   reason:solved.reason};
  }
- return {evaluate,visibility,clear:()=>{visibilityCache.clear();targetLines.clear();}};
+ return {evaluate,visibility,hiddenView,clear:()=>{visibilityCache.clear();targetLines.clear();}};
 }
 Model.createGeneric=createGeneric;Model.standingMetadata=standingMetadata;Model.lensCheck=lensCheck;Model.photographability=photographability;Model.skyRange=skyRange;
 if(typeof module==='object'&&module.exports)module.exports={createGeneric,lensCheck,photographability,skyRange,angularDistance,standingMetadata};

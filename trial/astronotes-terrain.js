@@ -1696,7 +1696,7 @@ function createExactTerrainBatch({inJapan,tileXf,tileYf,loadTile,pixelToElevatio
   /// eye は目の海抜。上がった分の半分以上（1.5m以上）向こうで下がる細い高まりは、前後300m以内に国土地理院の水域があれば堤防、無ければ土手
   /// （河川敷から見る堤防は、川が見る人の後ろにある）。向こうで8m以上かつ上がった分の2倍以上下がるのは台地の崖の縁（里見公園から江戸川側）。
   /// 3km以上先で目より100m以上高ければ山、目より2m以上高ければ高台、
-  /// それより低い地面に隠れるのは地球の丸みなので地平線
+  /// それより低い地面に隠れるのは地球の丸み（2026-11-13 ユーザー「そもそも地平線とかって必要?」。地平線という言葉は使わない）
   async function obstacleKind(observer, azimuth, sky, eye, opts = {}) {
     if (!sky || !Number.isFinite(sky.distanceM) || !Number.isFinite(sky.terrainM)) return null;
     if (sky.dropM >= Math.max(1.5, 0.5 * (sky.riseM || 0))) {
@@ -1711,7 +1711,7 @@ function createExactTerrainBatch({inJapan,tileXf,tileYf,loadTile,pixelToElevatio
       return wet.some((v) => v === true) ? "堤防" : "土手";
     }
     if (sky.distanceM >= 3000 && sky.terrainM - eye >= 100) return "山";
-    return sky.terrainM >= eye + 2 ? "高台" : "地平線";
+    return sky.terrainM >= eye + 2 ? "高台" : "地球の丸み";
   }
 
   async function waterAt(points, { fetchImpl = (typeof fetch === "function" ? (u) => fetch(u, { mode: "cors", signal: global.AbortSignal?.timeout(8000) }) : null),

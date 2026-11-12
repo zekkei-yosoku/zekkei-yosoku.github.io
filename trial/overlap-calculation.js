@@ -3327,7 +3327,7 @@ function createExactTerrainBatch({inJapan,tileXf,tileYf,loadTile,pixelToElevatio
   /// eye は目の海抜。上がった分の半分以上（1.5m以上）向こうで下がる細い高まりは、前後300m以内に国土地理院の水域があれば堤防、無ければ土手
   /// （河川敷から見る堤防は、川が見る人の後ろにある）。向こうで8m以上かつ上がった分の2倍以上下がるのは台地の崖の縁（里見公園から江戸川側）。
   /// 3km以上先で目より100m以上高ければ山、目より2m以上高ければ高台、
-  /// それより低い地面に隠れるのは地球の丸みなので地平線
+  /// それより低い地面に隠れるのは地球の丸み（2026-11-13 ユーザー「そもそも地平線とかって必要?」。地平線という言葉は使わない）
   async function obstacleKind(observer, azimuth, sky, eye, opts = {}) {
     if (!sky || !Number.isFinite(sky.distanceM) || !Number.isFinite(sky.terrainM)) return null;
     if (sky.dropM >= Math.max(1.5, 0.5 * (sky.riseM || 0))) {
@@ -3342,7 +3342,7 @@ function createExactTerrainBatch({inJapan,tileXf,tileYf,loadTile,pixelToElevatio
       return wet.some((v) => v === true) ? "堤防" : "土手";
     }
     if (sky.distanceM >= 3000 && sky.terrainM - eye >= 100) return "山";
-    return sky.terrainM >= eye + 2 ? "高台" : "地平線";
+    return sky.terrainM >= eye + 2 ? "高台" : "地球の丸み";
   }
 
   async function waterAt(points, { fetchImpl = (typeof fetch === "function" ? (u) => fetch(u, { mode: "cors", signal: global.AbortSignal?.timeout(8000) }) : null),
@@ -5354,18 +5354,19 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
     return boxOf([g.azimuth,...rays.map(r=>r.azimuth)],g.azimuth,Math.min(lo,g.angle),Math.max(hi,g.angle),dLo);
   }
   /// 手前の地形で目標の下が隠れるときの文（2026-11-12 ユーザー「何割とかいらない。〇〇の〇〇から下が〇〇に隠れますとかでいい」
-  /// 「何メートル先のとかいらない」）。hiddenM は目標の所で地形の線が通る海抜、kind は隠すもの（堤防・土手・崖の縁・高台・山・地平線）。
+  /// 「何メートル先のとかいらない」）。hiddenM は目標の所で地形の線が通る海抜、kind は隠すもの（堤防・土手・崖の縁・高台・山・地球の丸み）。
   /// 先端まで隠れれば見えない。先端より下の部分の名前があれば「〇〇から下」、無ければ地上の高さ（10m単位、10m未満は出さない）
   function hiddenBelowText(target, hiddenM, kind) {
     const parts = (target?.parts || []).filter((p) => Number.isFinite(p.m)).sort((a, b) => b.m - a.m);
     if (!parts.length || !Number.isFinite(hiddenM) || !kind) return "";
-    const by = kind === "地平線" ? kind : `手前の${kind}`;
-    if (hiddenM >= parts[0].m) return `${target.name}は${by}に隠れて見えません`;
+    const round = kind === "地球の丸み";
+    if (hiddenM >= parts[0].m) return round ? `${target.name}は地球の丸みで隠れて見えません` : `${target.name}は手前の${kind}に隠れて見えません`;
+    const tail = round ? "は地球の丸みで隠れます" : `が手前の${kind}に隠れます`;
     const part = parts.slice(1).find((p) => p.m <= hiddenM);
-    if (part) return `${target.name}の${part.name}から下が${by}に隠れます`;
+    if (part) return `${target.name}の${part.name}から下${tail}`;
     if (!Number.isFinite(target.groundM)) return "";
     const agl = hiddenM - target.groundM;
-    return agl >= 10 ? `${target.name}の地上約${Math.round(agl / 10) * 10}mから下が${by}に隠れます` : "";
+    return agl >= 10 ? `${target.name}の地上約${Math.round(agl / 10) * 10}mから下${tail}` : "";
   }
   const AstroNotesAlign = { heightVertices, TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, dailyView, prepareDailyView, alignmentAt, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,

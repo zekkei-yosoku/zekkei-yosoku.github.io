@@ -1638,7 +1638,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   if(!hiddenNotes.has(sky))hiddenNotes.set(sky,(async()=>{
    if(!align.hiddenBelowText(target,sky.toM,'高台'))return null;
    const kind=await geo.obstacleKind(observer,azimuth,sky,observer.elevation+observer.eyeM),text=kind?align.hiddenBelowText(target,sky.toM,kind):'';
-   return text?{m:sky.toM,kind,text}:null;
+   return text?{m:sky.toM,kind,text,label:kind==='地球の丸み'?kind:'手前の'+kind}:null;
   })().catch(()=>null));
   return hiddenNotes.get(sky);
  }
@@ -1660,6 +1660,16 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   const unresolvedTargetContacts=!!ray.endpoint&&contacts.some(c=>!permitted.has(c.polygonId)||!Number.isFinite(c.distanceM)||Math.abs(c.distanceM-ray.maxM)>.1);
   const selfBlocked=!ray.endpoint&&contacts.length>0;
   return {...result,complete:coverage.complete,evaluated,unresolvedTargetContacts,status:result.hit||selfBlocked?'blocked':coverage.complete&&evaluated&&!unresolvedTargetContacts?'model-clear':'unknown'};
+ }
+ // The composition draws its ground line from the same line and the same ground as the search (2026-11-13,
+ // user: one ground line where the building stands), so the list and the figure give one number.
+ async function hiddenView(observer,target,{partId=null,isCurrent}={}){
+  const obs={...observer,eyeM:observer.eyeM??1.5},g=align.geometryFrom(obs,target,{eyeM:obs.eyeM,partId:partId==='__whole'?null:partId});
+  if(!g||![g.azimuth,g.angle,g.topM,g.distanceKm].every(Number.isFinite))return null;
+  const k=root.AstroNotesAtmosphere?.targetK?.()??7/6;
+  const tg=await terrainRay(obs,{azimuth:g.azimuth,altitude:g.angle,maxM:g.distanceKm*1000,endpoint:{...target,elevation:g.topM},targetKey:target.id,refractionK:k},{isCurrent});
+  if(!tg?.skyline)return {status:tg?.status||'unknown',read:false,note:null};
+  return {status:tg.status,read:true,note:await hiddenNote(target,obs,g.azimuth,tg.skyline)};
  }
  async function visibility(plan,solution,options={}){
   const obs=solution.observer,g=solution.geometry,at=solution.event.at,eye={...obs,elevation:obs.elevation+obs.eyeM};
@@ -1777,7 +1787,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   lastUnverified.target?.buildings?.status,lastUnverified.target?.buildings?.reason],rays:(lastUnverified.rays||[]).map(r=>r.intentionalTarget?'target':[r.status,r.terrain?.reason||r.terrain?.status,r.buildings?.reason||r.buildings?.status].join('/'))}:null,partial:solved.partial,
   reason:solved.reason};
  }
- return {evaluate,visibility,clear:()=>{visibilityCache.clear();targetLines.clear();}};
+ return {evaluate,visibility,hiddenView,clear:()=>{visibilityCache.clear();targetLines.clear();}};
 }
 Model.createGeneric=createGeneric;Model.standingMetadata=standingMetadata;Model.lensCheck=lensCheck;Model.photographability=photographability;Model.skyRange=skyRange;
 if(typeof module==='object'&&module.exports)module.exports={createGeneric,lensCheck,photographability,skyRange,angularDistance,standingMetadata};
@@ -2351,13 +2361,21 @@ const groundPort={...AstroNotesTerrain,resetBudget:()=>live.resetBudget(),ground
 // Places, woods and bridges from the bundled OSM extract (Overpass only if it cannot be read).
  const osmPlaces=globalThis.AstroNotesOsmPlaces?.create({load:loaded,base:dataBase+'osm-places/'})||null;
  const provider=AstroNotesCandidateDiscovery.createPlaceProvider({terrain:groundPort,fetchImpl:fetch.bind(globalThis),loadViewpoints:()=>loaded('candidate-viewpoints.json'),places:osmPlaces});
-let modelPromise=null;
+let modelPromise=null,staticPromise=null,viewModelPromise=null;
+const staticTerrain=()=>staticPromise||=loaded('candidate-terrain.json').then(d=>d?AstroNotesCandidateTerrain.decode(d):null).catch(()=>null);
+// The composition's ground line comes from the search's own sight line to the target (2026-11-13): one calculation
+// for the list and the figure. Its own tile budget, so a figure never starves a running search.
+const viewLive=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxTiles:300,maxDurationMs:60000});
+AstroNotesCandidatePicker.hiddenView=async(observer,target,partId)=>{
+ if(!viewModelPromise)viewModelPromise=staticTerrain().then(dem=>AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:viewLive,staticTerrain:dem}));
+ viewLive.resetBudget();return (await viewModelPromise).hiddenView(observer,target,{partId});
+};
 async function loadModel(){
  // Buildings: PLATEAU top heights (every city PLATEAU covers) along each line, GSI footprints elsewhere; the 3D band model is no longer loaded.
- if(!modelPromise)modelPromise=(async()=>{await AstroNotesAssets.ensureModels();const dem=await loaded('candidate-terrain.json').catch(()=>null);
+ if(!modelPromise)modelPromise=(async()=>{await AstroNotesAssets.ensureModels();const dem=await staticTerrain();
   const heights=AstroNotesCandidateHeights.create({base:dataBase+'building-heights/',loadIndex:()=>loaded('building-heights/index.json'),ownFootprint:key=>plateauShapes?.footprint(key)||null,obstacles:osmPlaces?(a,b)=>osmPlaces.obstaclesAlong(a,b):null,gsiAlong:(a,
   b)=>AstroNotesTerrain.gsiBuildingsAlong(a,b),groundAt:p=>footprintGround.sample(p).then(r=>r.height)});
-  return AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:live,heights,staticTerrain:dem?await AstroNotesCandidateTerrain.decode(dem):null,sidewalks:await loaded('candidate-sidewalks.json').catch(()=>null)});
+  return AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:live,heights,staticTerrain:dem,sidewalks:await loaded('candidate-sidewalks.json').catch(()=>null)});
   })().catch(e=>{modelPromise=null;throw e;});
  return modelPromise;
 }

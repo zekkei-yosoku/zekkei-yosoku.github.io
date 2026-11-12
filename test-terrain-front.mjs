@@ -24,11 +24,12 @@ test('山の外の地形は広い幅で読む。幅を変えても既定の幅�
  assert.equal(wide.ridge.length,121);assert.equal(wide.ridge[0][0],45);assert.equal(wide.ridge[120][0],135);
  assert.equal(base.ridge.length,81);assert.equal(base.ridge[0][0],70);
 });
-test('見え方：手前の地形に隠れる文を出し、選んでいない建物を地上まで下ろす',()=>{
- assert.match(html,/const frontPending = outline \? aimTerrainFront\(spec\.obs, eye, t\) : null;/);
- // 2026-11-12 距離でなく、どこから下が何に隠れるかを書く（文は AstroNotesAlign.hiddenBelowText、種類は AstroNotesTerrain.obstacleKind）
- assert.match(html,/void aimHiddenNote\(spec\.obs, eye, t, D, b\)/);
- assert.doesNotMatch(html,/km先の地形に隠れ/);
+test('見え方：線は1本。手前の地面は探索と同じ計算で、影や別の地平線は描かない',()=>{
+ // 2026-11-13 ユーザー「その建物が立ってるところの地面をグランドラインにして天体の軌道は関係なくラインで出せばいいんじゃないの?」
+ assert.match(html,/AstroNotesCandidatePicker\.hiddenView\(\{ latitude: spec\.obs\.latitude, longitude: spec\.obs\.longitude, elevation: ground, eyeM: spec\.eyeM \}, t, aim\.partId\)/);
+ assert.doesNotMatch(html,/frontPending|horizonPoints|aimHiddenNote|horizonText/);
+ assert.doesNotMatch(html,/str: "地平線"/);
+ assert.match(html,/groundText = \{ str: groundLabel, y: groundY - 4 \+ panY \};/);
+ assert.match(html,/if \(!mountain\) \{ ctx\.beginPath\(\); ctx\.rect\(-panX, -panY - H, W, groundEdge \+ panY \+ H\); ctx\.clip\(\); \}/);
  assert.match(html,/if\(!selected\)\{\s*let bottom=-Infinity;/);
- assert.match(html,/front\.some\(\(q\) => q\[1\] < groundY - 0\.5\)/);
 });
