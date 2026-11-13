@@ -1,3 +1,5 @@
+// 2026-11-13: 古い画面（場所選びシートの「この日の候補」タブ #placeTab-candidates、#skyMapDates の帯）向けで、今の画面では動かない（変更前の4c1092c8でも同じ所で止まる）。
+// 今の画面の同じ中身は常時の19本（tools/run-trial-checks.sh の unified・workspace・date・preview-swipe など）が確かめる。
 require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 // Synthetic search only. At the strip's right end, x proximity snap must not re-snap after appended candidates.
 const{chromium,webkit}=require('playwright'),fs=require('fs'),assert=require('assert/strict');

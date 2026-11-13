@@ -233,6 +233,9 @@ const R=6371008.8,RM=6378137,RAD=Math.PI/180,ZOOM=10,HEAD_BYTES=131072;
 // Trees nearer than NEAR_M (30 m, the building grid's near zone) are stepped around; past RANGE_M a 25 m crown is under 0.3 degrees and the terrain decides.
 // The last END_M before the target is its own ground (a summit's slope, a tower's park). Crowns under MIN_M are shrubs.
 const NEAR_M=30,RANGE_M=5000,END_M=300,MIN_M=3,MARGIN_M=2,TALLEST_M=45,GROUND_BIN_M=25;
+// The map puts crown tops 2-3 m low: against Tokyo's 2023 airborne laser survey over 新宿御苑 (two 1/500 sheets, 23,000
+// pixels outside buildings) the highest laser return within 1.5 m was 1.03 x map + 2.3 m. Crowns are raised by 2 m.
+const CROWN_ADD_M=2;
 // A step of one 2.4 m pixel near the stand point, wider where a crown spans several steps anyway.
 const stepAt=d=>d<500?2:d<2000?4:8;
 const BASE='https://data.source.coop/tge-labs/meta-chm-v2/chm/';
@@ -316,7 +319,7 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
     const ground=grounds.get(bin);if(!Number.isFinite(ground))return {status:'unread',reason:'ground-unavailable'};
     if(low(d)-ground>TALLEST_M)continue;
     const p=destination(observer.latitude,observer.longitude,az,d),now=canopyNow(p.latitude,p.longitude),crown=now===undefined?await canopy(p.latitude,p.longitude):now;if(crown<MIN_M)continue;
-    const top=ground+crown,at=h(d);
+    const top=ground+crown+CROWN_ADD_M,at=h(d);
     if(ray.endpoint){const m=hide(top,d);if(!sky||m>sky.toM)sky={toM:m,distanceM:d,topM:top,crownM:crown};}
     if(status==='blocked'||at>top+MARGIN_M)continue;
     if(at<top-MARGIN_M){status='blocked';hit={distanceM:d,topM:top,crownM:crown,rayM:at};if(!ray.endpoint)break;}
@@ -327,7 +330,7 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
  }
  return {sight,canopy};
 }
-return {create,directories,quadkey,tileOf,NEAR_M,RANGE_M,END_M,MARGIN_M};
+return {create,directories,quadkey,tileOf,NEAR_M,RANGE_M,END_M,MARGIN_M,CROWN_ADD_M};
 });
 
 /* PLATEAU building shapes (tools/build-plateau-models.py) for targets the user adds. A saved target that stands

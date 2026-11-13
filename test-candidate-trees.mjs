@@ -31,13 +31,13 @@ function world(paint,{fail=false}={}){
 const north=(altitude,maxM=1500)=>({azimuth:0,altitude,maxM,refractionK:7/6});
 const grove=put=>{for(let n=100;n<=130;n+=2)for(let e=-12;e<=12;e+=2)put(n,e,20);};
 
-test('木の先端（地面＋樹高）より下を通る線は木に遮られ、上を通る線は通る',async()=>{
+test('木の先端（地面＋樹高＋2m）より下を通る線は木に遮られ、上を通る線は通る',async()=>{
  const {trees}=world(grove);
  assert.equal(await trees.canopy(observer.latitude+115/110540,observer.longitude),20);
- const low=await trees.sight(observer,north(5));assert.equal(low.status,'blocked');assert(Math.abs(low.hit.distanceM-100)<6,String(low.hit.distanceM));assert.equal(low.hit.topM,25);
+ const low=await trees.sight(observer,north(5));assert.equal(low.status,'blocked');assert(Math.abs(low.hit.distanceM-100)<6,String(low.hit.distanceM));assert.equal(low.hit.topM,27,'航空レーザとの比較で樹高地図の先端は2m低い');
  assert.equal((await trees.sight(observer,north(20))).status,'clear');
  // 先端の上2m以内は確かめられない
- const graze=await trees.sight(observer,north(Math.atan((25.5-6.5)/100)*180/Math.PI));assert.equal(graze.status,'unknown');
+ const graze=await trees.sight(observer,north(Math.atan((27.5-6.5)/100)*180/Math.PI));assert.equal(graze.status,'unknown');
 });
 test('立つ所のすぐ脇の木と、対象の足元の木は線の判定に数えない',async()=>{
  const near=world(put=>{for(let n=-4;n<=6;n+=2)put(n,0,20);}).trees;assert.equal((await near.sight(observer,north(5))).status,'clear');
@@ -47,8 +47,8 @@ test('立つ所のすぐ脇の木と、対象の足元の木は線の判定に�
 test('対象への線では、木が対象のどの高さまで隠すかを返す',async()=>{
  const {trees}=world(grove),D=1000,target={latitude:observer.latitude+D/110540,longitude:observer.longitude,elevation:300};
  const r=await trees.sight(observer,{...north(0,D),endpoint:target,footM:5});assert.equal(r.status,'clear');
- const c=1/(2*6371008.8*7/6),s=r.skyline.distanceM,expect=6.5+(25-6.5-c*s*s)/s*D+c*D*D;
- assert(Math.abs(r.skyline.toM-expect)<1e-6);assert(r.skyline.toM>170&&r.skyline.toM<200,String(r.skyline.toM));
+ const c=1/(2*6371008.8*7/6),s=r.skyline.distanceM,expect=6.5+(27-6.5-c*s*s)/s*D+c*D*D;
+ assert(Math.abs(r.skyline.toM-expect)<1e-6);assert(r.skyline.toM>190&&r.skyline.toM<220,String(r.skyline.toM));
 });
 test('樹高地図が読めない、地面が読めないときは「読めない」で、遮るとも通るとも言わない。ファイルの無い所（海）は木が無い',async()=>{
  assert.equal((await world(grove,{fail:true}).trees.sight(observer,north(5))).status,'unread');
