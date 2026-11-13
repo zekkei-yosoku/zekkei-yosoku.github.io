@@ -108,7 +108,11 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
  const visibilityCache=new Map(),targetLines=new Map();
  // What hides the lower part of the target on its line (2026-11-12, user: name it, not a distance).
  const hiddenNotes=new WeakMap();
- function hiddenNote(target,observer,azimuth,sky){
+ function hiddenNote(target,observer,azimuth,sky,built){
+  // Buildings higher on the target than the ground in front (2026-11-13): named as buildings, from the same line.
+  if(Number.isFinite(built?.toM)&&!(built.toM<=(sky?.toM??-Infinity))&&typeof align.hiddenBelowText==='function'){
+   const text=align.hiddenBelowText(target,built.toM,'建物');return Promise.resolve(text?{m:built.toM,kind:'建物',text,label:'手前の建物'}:null);
+  }
   if(!sky||typeof align.hiddenBelowText!=='function'||typeof geo?.obstacleKind!=='function')return null;
   if(!hiddenNotes.has(sky))hiddenNotes.set(sky,(async()=>{
    if(!align.hiddenBelowText(target,sky.toM,'高台'))return null;
@@ -117,13 +121,26 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   })().catch(()=>null));
   return hiddenNotes.get(sky);
  }
+ // How high up the target the ground or the buildings in front hide it, whichever is higher.
+ const hiddenTop=(sky,built)=>Math.max(sky?.toM??-Infinity,built?.toM??-Infinity);
+ // A place that sees none of the target's named parts over what is in front is no candidate (2026-11-13, user's
+ // choice: 東京タワー needs the top of its トップデッキ in sight). A target named by its tip alone keeps the tip rule.
+ function partsHidden(target,m){
+  const tops=(target?.parts||[]).map(p=>p.m).filter(Number.isFinite).sort((a,b)=>b-a);return tops.length>1&&Number.isFinite(m)&&m>=tops[1];
+ }
+ const skylineOf=async(observer,ray,options)=>{
+  if(!heights?.skyline||!ray.endpoint)return null;
+  const s=await heights.skyline(observer,ray,{isCurrent:options.isCurrent}).catch(e=>{if(e?.message==='candidate-cancelled')throw e;return null;});
+  return s?.status==='ok'?s:null;
+ };
  async function terrainRay(observer,ray,options){
   if(staticTerrain){const tested=staticTerrain.trace(observer,ray);if(tested.hit||tested.checked>0&&tested.missing===0)return {...tested,status:tested.hit?'blocked':'model-clear',nativeRaster:true};}
   return terrain?terrain.trace(observer,{...ray,...options}):{status:'unknown',reason:'terrain-unavailable',missing:1};
  }
  async function buildingRay(observer,ray,options={}){
   // Building tops along the whole line (PLATEAU heights, GSI footprints elsewhere). Unknown is never clear.
-  if(heights){const r=await heights.trace(observer,ray,{isCurrent:options.isCurrent});return {...r,status:r.status==='clear'?'model-clear':r.status,complete:r.status!=='unknown',evaluated:r.status!=='unknown',unresolvedTargetContacts:false};}
+  if(heights){const r=await heights.trace(observer,ray,{isCurrent:options.isCurrent}),skyline=r.status==='blocked'?null:await skylineOf(observer,ray,options);
+   return {...r,skyline,status:r.status==='clear'?'model-clear':r.status,complete:r.status!=='unknown',evaluated:r.status!=='unknown',unresolvedTargetContacts:false};}
   if(!index)return {status:'unknown',complete:false};
   const end=ray.endpoint||geo.destination(observer.latitude,observer.longitude,ray.azimuth,ray.maxM/1000);
   const coverage=Model.covers(index,observer,end),result=Model.trace(index,observer,ray);
@@ -142,9 +159,10 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   const obs={...observer,eyeM:observer.eyeM??1.5},g=align.geometryFrom(obs,target,{eyeM:obs.eyeM,partId:partId==='__whole'?null:partId});
   if(!g||![g.azimuth,g.angle,g.topM,g.distanceKm].every(Number.isFinite))return null;
   const k=root.AstroNotesAtmosphere?.targetK?.()??7/6;
-  const tg=await terrainRay(obs,{azimuth:g.azimuth,altitude:g.angle,maxM:g.distanceKm*1000,endpoint:{...target,elevation:g.topM},targetKey:target.id,refractionK:k},{isCurrent});
-  if(!tg?.skyline)return {status:tg?.status||'unknown',read:false,note:null};
-  return {status:tg.status,read:true,note:await hiddenNote(target,obs,g.azimuth,tg.skyline)};
+  const ray={azimuth:g.azimuth,altitude:g.angle,maxM:g.distanceKm*1000,endpoint:{...target,elevation:g.topM},targetKey:target.id,refractionK:k};
+  const tg=await terrainRay(obs,ray,{isCurrent}),built=await skylineOf(obs,ray,{isCurrent});
+  if(!tg?.skyline)return {status:tg?.status||'unknown',read:false,note:built?await hiddenNote(target,obs,g.azimuth,null,built):null};
+  return {status:tg.status,read:true,note:await hiddenNote(target,obs,g.azimuth,tg.skyline,built)};
  }
  async function visibility(plan,solution,options={}){
   const obs=solution.observer,g=solution.geometry,at=solution.event.at,eye={...obs,elevation:obs.elevation+obs.eyeM};
@@ -204,7 +222,8 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
     const pre=await heights.trace(obs,line,{isCurrent:options.isCurrent});
     if(pre.status==='blocked')return {status:'model-blocked',recommend:false,reason:'target-line-blocked',partial:true};
     if(pre.status!=='clear')return {status:'unverified',recommend:false,heightUnknown:missingHeights(pre),nearBuilding:pre.reason==='near-building',obstacle:['trees','elevated-structure'].includes(pre.reason),reason:'target-line-unverified',partial:true};
-    const land=await terrainRay(obs,line,options);if(!land.hit)break;
+    const land=await terrainRay(obs,line,options);
+    if(!land.hit){if(partsHidden(plan.target,hiddenTop(land.skyline,await skylineOf(obs,line,options))))return {status:'model-blocked',recommend:false,reason:'target-parts-hidden',partial:true};break;}
     const d=land.hit.distanceM,movable=Number.isFinite(d)&&d<=60&&step<3&&!obs.nonTerrainStructure&&!Number.isFinite(point.surfaceElevationM)&&!Number.isFinite(point.standingElevationM);
     // The highest ground on the first 60 m towards the target: the top of the bank in front.
     let up=null,ground=-Infinity;if(movable&&terrain?.at)for(let m=3;m<=60;m+=3){const q=geo.destination(obs.latitude,obs.longitude,inv.azimuth,m/1000),h=await terrain.at(q,options);if(Number.isFinite(h)&&h>ground+.05){ground=h;up=q;}}
@@ -223,6 +242,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    const frame=plan.overlapAnchor?lensCheck({...plan,target:plan.overlapAnchor.target,partId:plan.overlapAnchor.partId},solution.observer,state,align.geometryFrom(solution.observer,plan.overlapAnchor.target,{eyeM:solution.observer.eyeM})||solution.geometry,align):lensCheck(plan,solution.observer,
    state,solution.geometry,align);if(!frame.fits){outside++;continue;}
    const los=await visibility(plan,solution,options);if(los.status==='blocked'){blocked++;continue;}
+   if(partsHidden(plan.target,hiddenTop(los.target?.terrain?.skyline,los.target?.buildings?.skyline))){blocked++;continue;}
    const at=solution.event.at,position=solution.observer,finalGround=Number.isFinite(position.groundM)?position.groundM:ground;
    const sun=bodies.state('sun',at,{...position,elevation:position.elevation+position.eyeM});
    const photo=photographability(plan.body,state,sun.apparentAltitude);
@@ -246,7 +266,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    // Only a sight line shown clear of terrain and buildings is a candidate (design note 21): unknown is not shown.
    if(los.status!=='model-clear'||plan.requireAllTargets&&!combinedClear){unverified++;lastUnverified=los;if(missingHeights(los.target?.buildings)||los.rays?.some(r=>missingHeights(r.buildings)))heightUnknown++;continue;}
    const usedBuildings=[los.target?.buildings,...(los.rays||[]).filter(r=>r.status==='model-clear').map(r=>r.buildings)],buildingHeights=usedBuildings.some(b=>b?.heights==='estimated')?'estimated':usedBuildings.every(b=>b?.heights==='plateau')?'plateau':'model';
-   const hiddenBelow=await hiddenNote(plan.target,position,solution.geometry.azimuth,los.target?.terrain?.skyline);
+   const hiddenBelow=await hiddenNote(plan.target,position,solution.geometry.azimuth,los.target?.terrain?.skyline,los.target?.buildings?.skyline);
    const kind=position.placeKind||point.placeKind;
    accepted.push({id,requestKey:plan.requestKey,status:combinedClear&&frame.status!=='unknown'?'model-visible':'visible-partial',recommend:true,aligned:true,placeKind:kind==='sidewalk'?'road':kind||'unknown',surfaceId:point.surfaceId,
     place:{id,name:position.name||point.name||'撮影候補地点',latitude:position.latitude,longitude:position.longitude,elevation:finalGround,groundManualM:finalGround,stand:'ground',standAglM:position.elevation-finalGround+position.eyeM,eyeHeightAGL:position.elevation-finalGround+position.eyeM,decks:[],

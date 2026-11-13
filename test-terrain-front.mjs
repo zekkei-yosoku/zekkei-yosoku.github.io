@@ -29,7 +29,9 @@ test('見え方：線は1本。手前の地面は探索と同じ計算で、影�
  assert.match(html,/AstroNotesCandidatePicker\.hiddenView\(\{ latitude: spec\.obs\.latitude, longitude: spec\.obs\.longitude, elevation: ground, eyeM: spec\.eyeM \}, t, aim\.partId\)/);
  assert.doesNotMatch(html,/frontPending|horizonPoints|aimHiddenNote|horizonText/);
  assert.doesNotMatch(html,/str: "地平線"/);
- assert.match(html,/groundText = \{ str: groundLabel, y: groundY - 4 \+ panY \};/);
+ assert.match(html,/groundText = \{ str: groundLabel, y: groundY - 4 \+ panY, sub: hidden && groundLabel === hidden\.label \? hiddenText : "", subY: groundY \+ 6 \+ panY \};/);
+ // 隠れる文は図の中に書く。図の下の行に後から足すと下の欄が押し下がる（2026-11-13）
+ assert.doesNotMatch(html,/dataset\.terrain/);
  assert.match(html,/if \(!mountain\) \{ ctx\.beginPath\(\); ctx\.rect\(-panX, -panY - H, W, groundEdge \+ panY \+ H\); ctx\.clip\(\); \}/);
  assert.match(html,/if\(!selected\)\{\s*let bottom=-Infinity;/);
 });

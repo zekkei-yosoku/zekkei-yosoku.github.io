@@ -135,7 +135,8 @@ function mount(panel,plan){
 function currentEntry(e){return !!e&&e.group===groups.get(e.box)&&e.box.isConnected&&e.group.current()&&control?.isConnected;}
 async function apply(){
  const token=revision.next(),selection={time,kind,sort},status=control?.querySelector('[data-filter-status]');if(!status||!list)return;
- status.hidden=false;status.textContent='候補の絞り込みを確認しています…';
+ // The count already shown stays while the list is placed again, so the line does not flicker.
+ if(status.hidden||!status.textContent){status.hidden=false;status.textContent='候補の絞り込みを確認しています…';}
  let labels={};try{if([...groups.values()].some(g=>g.rows.length))labels=await loadLabels()||{};}catch(e){globalThis.AstroNotesErrors?.note('candidates.labels',e);}
  if(!revision.current(token)||!control?.isConnected)return;
  const entries=[];let unknownTime=0,index=0;
@@ -173,13 +174,15 @@ async function apply(){
  ports.onRendered?.(visibleEntries.length);return visibleEntries.map(e=>e.row);
 }
 function unregister(box){const g=groups.get(box);if(g){for(const node of g.nodes)node.remove();groups.delete(box);}return apply();}
-function register(box,rows,plan,current){
+function register(box,rows,plan,current,nodes=null){
  // Registered results can resolve before the adapter's animation-frame mount.
  // Establish the same scope first so that the later mount cannot discard them.
  // The same panel the page mounts (ui.js): in 探す the results list sits under the tab panel's #recentCandidates.
  const tab=box.closest('[role=tabpanel]'),panel=box.closest('#recentCandidates')||tab?.querySelector('#recentCandidates')||tab;if(panel&&box.isConnected)mount(panel,plan);
- const previous=groups.get(box);if(previous)for(const node of previous.nodes)if(!box.contains(node))node.remove();
- groups.set(box,{rows,plan,current:typeof current==='function'?current:()=>true,nodes:[...box.children].filter(n=>n.tagName==='BUTTON'&&n.classList.contains('list-item'))});
+ // A caller that keeps its buttons across updates passes them; only buttons it dropped leave the list.
+ const own=nodes||[...box.children].filter(n=>n.tagName==='BUTTON'&&n.classList.contains('list-item')),keep=new Set(own);
+ const previous=groups.get(box);if(previous)for(const node of previous.nodes)if(!keep.has(node))node.remove();
+ groups.set(box,{rows,plan,current:typeof current==='function'?current:()=>true,nodes:own});
  box.querySelector('[data-candidate-headers]')?.remove();return apply();
 }
 function mapSelection(){return visibleEntries.find(e=>e.id===selectedId)||null;}

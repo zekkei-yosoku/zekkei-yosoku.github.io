@@ -46,16 +46,19 @@ const staticTerrain=()=>staticPromise||=loaded('candidate-terrain.json').then(d=
 // The composition's ground line comes from the search's own sight line to the target (2026-11-13): one calculation
 // for the list and the figure. Its own tile budget, so a figure never starves a running search.
 const viewLive=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxTiles:300,maxDurationMs:60000});
+// Buildings: PLATEAU top heights (every city PLATEAU covers) along each line, GSI footprints elsewhere. One instance, so
+// the figure's buildings in front and the search's share their tiles.
+let heightsModel=null;
+const sharedHeights=()=>heightsModel||=AstroNotesCandidateHeights.create({base:dataBase+'building-heights/',loadIndex:()=>loaded('building-heights/index.json'),ownFootprint:key=>plateauShapes?.footprint(key)||null,
+ obstacles:osmPlaces?(a,b)=>osmPlaces.obstaclesAlong(a,b):null,gsiAlong:(a,b)=>AstroNotesTerrain.gsiBuildingsAlong(a,b),groundAt:p=>footprintGround.sample(p).then(r=>r.height)});
 AstroNotesCandidatePicker.hiddenView=async(observer,target,partId)=>{
- if(!viewModelPromise)viewModelPromise=staticTerrain().then(dem=>AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:viewLive,staticTerrain:dem}));
+ if(!viewModelPromise)viewModelPromise=staticTerrain().then(dem=>AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:viewLive,heights:sharedHeights(),staticTerrain:dem}));
  viewLive.resetBudget();return (await viewModelPromise).hiddenView(observer,target,{partId});
 };
 async function loadModel(){
- // Buildings: PLATEAU top heights (every city PLATEAU covers) along each line, GSI footprints elsewhere; the 3D band model is no longer loaded.
+ // The 3D band model is no longer loaded.
  if(!modelPromise)modelPromise=(async()=>{await AstroNotesAssets.ensureModels();const dem=await staticTerrain();
-  const heights=AstroNotesCandidateHeights.create({base:dataBase+'building-heights/',loadIndex:()=>loaded('building-heights/index.json'),ownFootprint:key=>plateauShapes?.footprint(key)||null,obstacles:osmPlaces?(a,b)=>osmPlaces.obstaclesAlong(a,b):null,gsiAlong:(a,
-  b)=>AstroNotesTerrain.gsiBuildingsAlong(a,b),groundAt:p=>footprintGround.sample(p).then(r=>r.height)});
-  return AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:live,heights,staticTerrain:dem,sidewalks:await loaded('candidate-sidewalks.json').catch(()=>null)});
+  return AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:live,heights:sharedHeights(),staticTerrain:dem,sidewalks:await loaded('candidate-sidewalks.json').catch(()=>null)});
   })().catch(e=>{modelPromise=null;throw e;});
  return modelPromise;
 }
@@ -213,21 +216,25 @@ function mount(){
  panel.append(section);syncWorkspaceSection(panel);
  if(editing&&['candidateSearchMode','candidateSearchStart','candidateSearchEnd'].includes(editing))section.querySelector('#'+editing)?.focus({preventScroll:true});
  const valid=p&&AstroNotesBodies.definition(p.body)&&!p.compositionInvalid&&AstroNotesCandidateComposition.timeRange(p);button.disabled=!valid;status.textContent=!p?'天体・対象・日付を選んでください。':!valid?'指定した日時と構図を確認してください。':'';
- let continuation=false,hasRun=false,searching=false,failed=false;
+ let continuation=false,hasRun=false,searching=false,failed=false,items=new Map();
  function renderAction(){button.dataset.state=searching?'searching':'idle';button.textContent=searching?'キャンセル':failed?'再試行':continuation?'続きを探す':hasRun?(main?'候補を探し直す':'もう一度確認'):main?'候補を探す':'ほかの候補地点を探す';button.disabled=!valid;resultList.setAttribute('aria-busy',String(searching));}
  renderAction();
  // partial: rows found so far while the search goes on; the list is replaced, the progress and the action stay.
  async function present(result,selected,node,token,{cancelled=false,interrupted=false,partial=false}={}){
    const labels=result.rows.length?await loadLabels():{};if(!current(token,selected,node)||partial&&!searching)return;
-   AstroNotesCandidatePicker.unregister?.(resultList);resultList.replaceChildren();const rows=[];
-   for(const raw of result.rows){const row=AstroNotesCandidateLabels.enrich(raw,labels);if(raw.place.name&&!/^(?:撮影候補|モデル候補)/.test(raw.place.name))row.place.name=raw.place.name;rows.push(row);const item=document.createElement('button');item.type='button';item.className='list-item';
-   item.dataset.modelBasis=row.modelEvidence?.kind||'unknown';item.dataset.candidateName=row.place.name;item.dataset.candidateId=row.id;item.textContent=row.place.name;
+   // Rows already shown keep their buttons and new ones wait hidden until the list places them: emptying and
+   // refilling the list for every place found made the page jump while searching (2026-11-13, seen on the iPhone).
+   const rows=[],nodes=[],kept=new Map();
+   for(const raw of result.rows){const row=AstroNotesCandidateLabels.enrich(raw,labels);if(raw.place.name&&!/^(?:撮影候補|モデル候補)/.test(raw.place.name))row.place.name=raw.place.name;rows.push(row);
+   let item=items.get(row.id);if(!item){item=document.createElement('button');item.type='button';item.className='list-item';item.hidden=true;item.textContent=row.place.name;resultList.append(item);}
+   kept.set(row.id,item);nodes.push(item);item.dataset.modelBasis=row.modelEvidence?.kind||'unknown';item.dataset.candidateName=row.place.name;item.dataset.candidateId=row.id;
     item.onclick=()=>{if(mainWorkspace()&&!mainWorkspace().selectable()||!current(token,selected,node)||row.requestKey!==key(snapshot()))return;const event={...row.event};delete event.matchMode;const candidate={...row,event};const host=document.getElementById('aimLook'),previous=host?._compose;
     if(host)host._compose={mode:'whole',apply:true};
     if(SkyMapUI.selectCandidate(candidate,context(SkyMapUI.selectionState()))){returnSearch=selected.timeSpec?.kind==='window'&&AstroNotesCandidateDiscovery.day(row.event.at)!==AstroNotesCandidateDiscovery.day(selected.at)?{plan:selected,key:key(selected),rowId:row.id,viewAt:row.event.at}:null;
-    sheet.close();}else if(host)host._compose=previous;};resultList.append(item);
+    sheet.close();}else if(host)host._compose=previous;};
    }
-   AstroNotesCandidatePicker.registerAdditional(resultList,rows,selected,()=>current(token,selected,node));
+   for(const [id,old] of items)if(!kept.has(id))old.remove();items=kept;
+   AstroNotesCandidatePicker.registerAdditional(resultList,rows,selected,()=>current(token,selected,node),nodes);
    if(partial){visibleCredits.hidden=!rows.length;main?.reveal();return;}
    const incomplete=!!result.stalled||interrupted||result.coverage.loaded?.some(c=>c.failedRegions?.length||c.missing?.includes('time-budget'));
    continuation=cancelled||interrupted||!!result.canContinue;failed=!cancelled&&incomplete;
@@ -244,7 +251,8 @@ function mount(){
   const selected=snapshot();if(!selected)return;if(condition!==uiKey(selected)){mount();return;}
   if(!button.isConnected||!contextActive()||main&&!main.selectable())return;dateRefreshPending=false;main?.reveal();
   if(searching){stop();const token=++run;hasSearched=false;continuation=true;failed=false;searching=false;renderAction();setStatus('探索をキャンセルしました。続きから探せます。');const completed=engine.cached(selected);if(completed)present(completed,selected,section,token,{cancelled:true}).catch(()=>{});return;}
-  if(hasRun&&!continuation&&!engine.restart(selected))return;AstroNotesCandidatePicker.unregister?.(resultList);resultList.replaceChildren();hasRun=true;hasSearched=true;const node=section,token=++run;stop();controller=new AbortController();const signal=controller.signal;live.resetBudget();
+  if(hasRun&&!continuation&&!engine.restart(selected))return;
+  AstroNotesCandidatePicker.unregister?.(resultList);resultList.replaceChildren();items=new Map();hasRun=true;hasSearched=true;const node=section,token=++run;stop();controller=new AbortController();const signal=controller.signal;live.resetBudget();
   footprintGround.resetBudget();evaluationBudgetStarted=false;watch=setInterval(()=>{if(!current(token,selected,node)){stop();mount();}},250);
   searching=true;failed=false;renderAction();
   const label='撮影できる地域を計算しています…',progress=globalThis.MyPlacesUI.recordProgress(status,label);

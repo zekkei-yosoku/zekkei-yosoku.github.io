@@ -52,3 +52,16 @@ test('図の線は探索と同じ視線・同じ地形から：一覧の文と�
  const none=createGeneric({align:A,bodies:{},geo,terrain:{trace:async()=>({status:'unknown',reason:'terrain-budget'})}});
  assert.deepEqual(await none.hiddenView(obs,sky),{status:'unknown',read:false,note:null});
 });
+test('手前の建物が地形より高く隠すときは建物と書き、図の線もその高さにする',async()=>{
+ const {createGeneric}=require('./src/features/candidates/generic-evaluator.js'),tower=A.targetById('tokyotower');
+ const terrain={trace:async()=>({status:'model-clear',hit:null,skyline:{distanceM:600,terrainM:40,riseM:2,dropM:2,toM:60}})};
+ const heights=toM=>({skyline:async(o,ray)=>{assert.equal(ray.targetKey,'tokyotower');return {status:'ok',toM,distanceM:3706,topM:257,complete:true};}});
+ const obs={latitude:35.683518,longitude:139.7083195,elevation:34.34,eyeM:1.5};
+ const r=await createGeneric({align:A,bodies:{},geo:{...G,obstacleKind:async()=> '高台'},terrain,heights:heights(296)}).hiddenView(obs,tower,{partId:'__whole'});
+ assert.equal(r.note.text,'東京タワーのトップデッキの上端から下が手前の建物に隠れます');assert.equal(r.note.label,'手前の建物');assert.equal(r.note.m,296);
+ const low=await createGeneric({align:A,bodies:{},geo:{...G,obstacleKind:async()=> '高台'},terrain,heights:heights(30)}).hiddenView(obs,tower,{partId:'__whole'});
+ assert.equal(low.note.label,'手前の高台');assert.equal(low.note.m,60);
+ // 地形が読めなくても、建物で隠れる所は出す
+ const unread=await createGeneric({align:A,bodies:{},geo:G,terrain:{trace:async()=>({status:'unknown'})},heights:heights(296)}).hiddenView(obs,tower,{partId:'__whole'});
+ assert.equal(unread.read,false);assert.equal(unread.note.label,'手前の建物');
+});

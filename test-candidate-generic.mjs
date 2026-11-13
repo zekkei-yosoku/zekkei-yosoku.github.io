@@ -167,6 +167,17 @@ test('a point whose line to the target top is blocked or unconfirmed is ruled ou
  const moved=await createGeneric({align:outlined,bodies,geo:G,terrain:openTerrain,heights:heights('blocked'),yieldTask:async()=>{}}).evaluate({...plan,strict:true},point,{});
  assert.notEqual(moved.reason,'target-line-blocked');
 });
+// 2026-11-13 ユーザー選択「名前のある部分が1つも見えない地点は外す」: 新宿御苑から東京タワーはビルでアンテナしか出ない。
+test('a place whose buildings in front hide every named part below the tip is no candidate; the tip-only target keeps the tip rule',async()=>{
+ const named={...target,parts:[{id:'tip',name:'先端',m:110},{id:'deck',name:'展望台',m:80}]},p={...plan,target:named};
+ const heights=toM=>({trace:async()=>({status:'clear',heights:'plateau'}),skyline:async()=>({status:'ok',toM,distanceM:500,topM:60,complete:true})});
+ const make=toM=>createGeneric({align:outlined,bodies,geo:G,terrain:openTerrain,heights:heights(toM),yieldTask:async()=>{}});
+ const hidden=await make(90).evaluate(p,point,{});assert.equal(hidden.status,'model-blocked');assert.equal(hidden.reason,'target-parts-hidden');
+ const seen=await make(70).evaluate(p,point,{});assert(seen.recommend);assert.equal(seen.visibility.target.buildings.skyline.toM,70);
+ // A composition skips the early check; the event's own line rules the place out the same way.
+ assert.equal((await make(90).evaluate({...p,strict:true},point,{})).recommend,false);
+ assert((await make(90).evaluate(plan,point,{})).recommend,'先端しか名前のない対象は先端まで線が通れば候補');
+});
 test('a valid absolute or AGL standing height does not depend on the deprecated surfaceHeightM alias',async()=>{
  const model=createGeneric({align:outlined,bodies,geo:G,terrain:openTerrain,heights:openHeights,yieldTask:async()=>{}}),p={...point};delete p.surfaceHeightM;
  const r=await model.evaluate(plan,p,{});assert(r.recommend);assert.equal(r.assumedObserver.elevation,70);assert.equal(r.place.standAglM,21.5);

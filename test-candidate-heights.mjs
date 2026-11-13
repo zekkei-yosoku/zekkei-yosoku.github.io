@@ -89,3 +89,15 @@ test('a part list or mesh file that does not match its index is not used',async(
  const badPart=H.create({fetchImpl:serve(part),loadIndex:async()=>({grid:{offsetM:20},parts:{[CODE.slice(0,4)]:['ffffffffffffffff',1,10]},targets:{}}),gsiAlong:async()=>[]});
  assert.equal((await badPart.trace(observer,north(5))).reason,'height-data-unavailable');
 });
+
+test('the skyline says how high up the target the building tops along the whole line hide it',async()=>{
+ const h=world({buildings:[{north:100,top:30},{north:400,top:20},{north:10,top:90}],target:[{north:560,top:600}]});
+ const end={latitude:observer.latitude+600/110540,longitude:observer.longitude,elevation:600},c=1/(2*6371008.8*7/6),eye=6.5;
+ const ray={azimuth:0,altitude:0,maxM:600,endpoint:end,targetKey:'tower',refractionK:7/6};
+ const s=await h.skyline(observer,ray);assert.equal(s.status,'ok');assert.equal(s.complete,true);assert.equal(s.topM,30);
+ // The nearest building, 100 m away and 30 m high, hides the most: eye + (30 - eye) * 600 / 100, and the earth's curve.
+ const at=s.distanceM,expect=eye+(30-eye-c*at*at)/at*600+c*600*600;assert(Math.abs(s.toM-expect)<1e-6);assert(s.toM>130&&s.toM<160,String(s.toM));
+ // The building right beside the stand point (10 m) and the aimed target's own cells are not counted.
+ assert(Math.abs(at-100)<6);
+ assert.equal((await h.skyline(observer,{...north(5)})).status,'unknown');
+});

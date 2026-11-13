@@ -167,7 +167,40 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   if(status==='unknown')return {status:'unknown',reason:hit?.reason||'within-margin',hit,cellsChecked,source:'plateau-grid'};
   return {status:'clear',cellsChecked,gsiChecked:gsiCount,heights:estimated?'estimated':'plateau',source:estimated?'gsi-type-bound':'plateau-grid',reachM:reach};
  }
- return {trace,index};
+ // How high up the target's axis the building tops along the whole line hide it (2026-11-13, user: from 新宿御苑 the
+ // buildings leave only Tokyo Tower's mast, so it is no candidate). PLATEAU tops only: GSI footprints have no height.
+ async function skyline(observer,ray,{isCurrent=()=>true}={}){
+  if(!ray.endpoint||![observer.latitude,observer.longitude,observer.elevation,ray.maxM].every(Number.isFinite)||!(ray.maxM>0))return {status:'unknown',reason:'invalid-ray'};
+  const data=await index(),offset=data.grid.offsetM,D=ray.maxM,c=1/(2*R*(ray.refractionK||1)),eye=observer.elevation+(observer.eyeM??1.5),own=ownSet(ray.targetKey);
+  const az=bearingM(observer,ray.endpoint).azimuth,hide=(top,s)=>eye+(top-eye-c*s*s)/s*D+c*D*D;
+  let best=null,uncovered=0,pending=null,lastKey=null,code=null;
+  const visit=(gx,gy,a,z)=>{
+   if(a<NEAR_M||own?.has(gx+','+gy))return;
+   const my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS);if(my*1e5+mx!==lastKey){lastKey=my*1e5+mx;code=meshCode(my,mx);}
+   const p4=code.slice(0,4),list=data.parts?.[p4]?parts.get(p4):null;
+   if(data.parts?.[p4]&&!list){pending={part:p4};return false;}
+   const entry=list?.[code];if(!entry){uncovered++;return;}
+   const grid=ready.get(code);if(!grid){pending={code,entry};return false;}
+   const i=(gy-my*ROWS)*COLS+(gx-mx*COLS),others=overlay(code,data,ray.targetKey);if(others.own.has(i))return;
+   const v=Math.max(grid[i],others.get(i)||0);if(!v)return;
+   const top=v-offset,toM=Math.max(hide(top,a),hide(top,Math.max(z,a+.01)));
+   if(!best||toM>best.toM)best={toM,distanceM:a,topM:top};
+  };
+  let from={latitude:observer.latitude,longitude:observer.longitude},d=0;
+  while(d<D){
+   if(!isCurrent())throw Error('candidate-cancelled');
+   const e=Math.min(D,d+NODE_M),to=e>=D?{latitude:ray.endpoint.latitude,longitude:ray.endpoint.longitude}:destination(observer.latitude,observer.longitude,az,e),mark=[best,uncovered];
+   for(;;){
+    pending=null;const done=cells(from,to,d,e,visit);
+    if(done!==false||!pending)break;
+    [best,uncovered]=mark;
+    try{if(pending.part)await part(pending.part,data);else await mesh(pending.code,pending.entry);}catch{return {status:'unknown',reason:'height-data-unavailable'};}
+   }
+   from=to;d=e;
+  }
+  return {status:'ok',toM:best?.toM??-Infinity,distanceM:best?.distanceM??null,topM:best?.topM??null,complete:uncovered===0};
+ }
+ return {trace,skyline,index};
 }
 return {create,decode,meshCode,profile,cells,GSI_MAX_M,MARGIN_M};
 });
