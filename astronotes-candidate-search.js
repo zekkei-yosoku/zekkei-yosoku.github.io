@@ -95,7 +95,8 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   const m=new Map(),own=new Set();for(const [id,byMesh] of Object.entries(data.targets||{})){if(!byMesh[code])continue;if(id===targetKey){for(const [i] of byMesh[code].cells)own.add(i);continue;}for(const [i,v] of byMesh[code].cells)if(v>(m.get(i)||0))m.set(i,v);}
   m.own=own;overlays.set(key,m);if(overlays.size>64)overlays.delete(overlays.keys().next().value);return m;
  }
- async function trace(observer,ray,{isCurrent=()=>true}={}){
+ // skipTrees: the caller read the trees' own heights on this line (tree-heights.js), so OSM woods add nothing.
+ async function trace(observer,ray,{isCurrent=()=>true,skipTrees=false}={}){
   if(![observer.latitude,observer.longitude,observer.elevation,ray.maxM].every(Number.isFinite)||!(ray.maxM>0))return {status:'unknown',reason:'invalid-ray'};
   const data=await index(),offset=data.grid.offsetM,pr=profile(observer,ray);
   // Walk until the line is above every PLATEAU top and above any GSI footprint's bound, whichever is later.
@@ -163,7 +164,7 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
    if(obsEnd>0){
     const end=destination(observer.latitude,observer.longitude,az,obsEnd);let list;try{list=await obstacles(observer,end);}catch{return {status:'unknown',reason:'obstacles-unavailable',cellsChecked,source:'osm'};}
     const cos=Math.cos(observer.latitude*RAD),ux=Math.sin(az*RAD),uy=Math.cos(az*RAD),xy=([la,lo])=>[(lo-observer.longitude)*111320*cos,(la-observer.latitude)*110540];
-    for(const o of list||[]){let a=Infinity,z=-Infinity;
+    for(const o of list||[]){if(skipTrees&&o.kind==='tree')continue;let a=Infinity,z=-Infinity;
      const take=t=>{if(t>=0&&t<=obsEnd){a=Math.min(a,t);z=Math.max(z,t);}};
      for(const ring of o.rings||[]){const p=ring.map(xy);let inside=false;
       for(let i=0,j=p.length-1;i<p.length;j=i++){const [x1,y1]=p[j],[x2,y2]=p[i];if((y1>0)!==(y2>0)&&0<(x2-x1)*(0-y1)/(y2-y1)+x1)inside=!inside;const ex=x2-x1,ey=y2-y1,den=ux*ey-uy*ex;if(Math.abs(den)<1e-9)continue;const t=(x1*ey-y1*ex)/den,u=(x1*uy-y1*ux)/den;if(u>=0&&u<=1)take(t);}
@@ -220,6 +221,113 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
  return {trace,skyline,index};
 }
 return {create,decode,meshCode,profile,cells,GSI_MAX_M,MARGIN_M};
+});
+
+/* Tree tops along a sight line (2026-11-13, user: 新宿御苑's trees were not judged; "必要ならば全部やって"). The Meta/WRI
+   canopy height map v2 (CC BY 4.0) is read where a line needs it: Cloud Optimized GeoTIFFs on Source Cooperative, one
+   file per zoom-10 quadkey (Web Mercator), 512 px DEFLATE blocks of uint8 metres above the ground. The 2.39 m overview is
+   the mean of 2x2 full pixels and keeps crown tops within a metre (checked over 新宿御苑). */
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AstroNotesTreeHeights=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
+'use strict';
+const R=6371008.8,RM=6378137,RAD=Math.PI/180,ZOOM=10,HEAD_BYTES=131072;
+// Trees nearer than NEAR_M (30 m, the building grid's near zone) are stepped around; past RANGE_M a 25 m crown is under 0.3 degrees and the terrain decides.
+// The last END_M before the target is its own ground (a summit's slope, a tower's park). Crowns under MIN_M are shrubs.
+const NEAR_M=30,RANGE_M=5000,END_M=300,MIN_M=3,MARGIN_M=2,TALLEST_M=45,GROUND_BIN_M=25;
+// A step of one 2.4 m pixel near the stand point, wider where a crown spans several steps anyway.
+const stepAt=d=>d<500?2:d<2000?4:8;
+const BASE='https://data.source.coop/tge-labs/meta-chm-v2/chm/';
+function quadkey(x,y,z=ZOOM){let q='';for(let i=z;i>0;i--){const m=1<<(i-1);q+=((x&m)?1:0)+((y&m)?2:0);}return q;}
+function tileOf(lat,lon){const n=2**ZOOM;return {x:Math.floor((lon+180)/360*n),y:Math.floor((1-Math.asinh(Math.tan(lat*RAD))/Math.PI)/2*n)};}
+const merc=(lat,lon)=>[RM*lon*RAD,RM*Math.log(Math.tan(Math.PI/4+lat*RAD/2))];
+function destination(lat,lon,az,m){const d=m/R,a=lat*RAD,t=az*RAD,b=Math.asin(Math.sin(a)*Math.cos(d)+Math.cos(a)*Math.sin(d)*Math.cos(t));
+ return {latitude:b/RAD,longitude:lon+Math.atan2(Math.sin(t)*Math.sin(d)*Math.cos(a),Math.cos(d)-Math.sin(a)*Math.sin(b))/RAD};}
+function bearingM(a,b){const p=a.latitude*RAD,q=b.latitude*RAD,dl=(b.longitude-a.longitude)*RAD;
+ const az=(Math.atan2(Math.sin(dl)*Math.cos(q),Math.cos(p)*Math.sin(q)-Math.sin(p)*Math.cos(q)*Math.cos(dl))/RAD+360)%360;
+ const h=Math.sin((q-p)/2)**2+Math.cos(p)*Math.cos(q)*Math.sin(dl/2)**2;return {azimuth:az,m:2*R*Math.asin(Math.min(1,Math.sqrt(h)))};}
+// The TIFF directories a COG needs (classic TIFF, either byte order). An array that lies past the bytes read is returned
+// as {at,count,size} for the caller to fetch.
+function directories(buf){
+ const v=new DataView(buf),le=v.getUint16(0)===0x4949,u16=o=>v.getUint16(o,le),u32=o=>v.getUint32(o,le);
+ if(u16(2)!==42)throw Error('canopy-not-classic-tiff');
+ const SIZE={1:1,3:2,4:4,5:8,12:8,16:8},out=[];let off=u32(4);
+ for(let guard=0;off&&off+2<=buf.byteLength&&guard<64;guard++){
+  const n=u16(off),d={};
+  for(let i=0;i<n;i++){
+   const e=off+2+i*12,tag=u16(e),type=u16(e+2),count=u32(e+4),size=(SIZE[type]||1)*count,at=size<=4?e+8:u32(e+8);
+   const read=k=>type===3?u16(at+2*k):type===12?v.getFloat64(at+8*k,le):u32(at+4*k);
+   if(at+size>buf.byteLength){d[tag]={at,count,size:SIZE[type]||1};continue;}
+   d[tag]=count===1?read(0):Array.from({length:count},(_,k)=>read(k));
+  }
+  out.push(d);off=u32(off+2+n*12);
+ }
+ return out;
+}
+function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):null),base=BASE,groundAt=null,level=1,maxBlocks=96}={}){
+ const heads=new Map(),blocks=new Map(),infos=new Map(),ready=new Map();
+ const range=async(url,a,b)=>{const r=await fetchImpl(url,{headers:{Range:`bytes=${a}-${b}`},signal:globalThis.AbortSignal?.timeout?.(20000)});
+  if(r.status===404)return null;if(!r.ok)throw Error('canopy-fetch');return r.arrayBuffer();};
+ // One file per quadkey: its directory once. A missing file (open sea) holds no trees.
+ function head(q){
+  if(!heads.has(q))heads.set(q,(async()=>{
+   const url=base+q+'.tif',buf=await range(url,0,HEAD_BYTES-1);if(!buf)return null;
+   const dirs=directories(buf).filter(d=>d[258]===8&&Number.isFinite(d[256])).sort((a,b)=>b[256]-a[256]),full=dirs[0];
+   const pick=dirs[Math.min(level,dirs.length-1)];if(!full||!pick||pick[259]!==8||pick[322]!==512)throw Error('canopy-format');
+   for(const tag of [324,325])if(typeof pick[tag]==='number')pick[tag]=[pick[tag]];else if(!Array.isArray(pick[tag])){const p=pick[tag],more=await range(url,p.at,p.at+p.count*p.size-1),dv=new DataView(more),le=new DataView(buf).getUint16(0)===0x4949;
+    pick[tag]=Array.from({length:p.count},(_,k)=>p.size===2?dv.getUint16(2*k,le):dv.getUint32(4*k,le));}
+   const scale=full[33550][0]*full[256]/pick[256];
+   const info={url,x0:full[33922][3],y0:full[33922][4],scale,across:Math.ceil(pick[256]/512),offsets:pick[324],counts:pick[325]};infos.set(q,info);return info;
+  })().catch(e=>{heads.delete(q);throw e;}));
+  return heads.get(q);
+ }
+ async function block(info,bx,by){
+  const key=info.url+'#'+bx+','+by;if(blocks.has(key)){const b=blocks.get(key);blocks.delete(key);blocks.set(key,b);return b;}
+  const p=(async()=>{const i=by*info.across+bx,raw=await range(info.url,info.offsets[i],info.offsets[i]+info.counts[i]-1);
+   const out=new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate'))).arrayBuffer());
+   if(out.length!==512*512)throw Error('canopy-block-size');ready.set(key,out);return out;})().catch(e=>{blocks.delete(key);throw e;});
+  blocks.set(key,p);while(blocks.size>maxBlocks){const old=blocks.keys().next().value;blocks.delete(old);ready.delete(old);}return p;
+ }
+ // Without waiting when the file's directory and the block are already read (most steps of a walk).
+ function canopyNow(lat,lon){
+  const t=tileOf(lat,lon),q=quadkey(t.x,t.y),info=infos.get(q);if(!info)return undefined;
+  const [X,Y]=merc(lat,lon),col=Math.floor((X-info.x0)/info.scale),row=Math.floor((info.y0-Y)/info.scale);
+  if(col<0||row<0||col>=info.across*512||row>=info.across*512)return 0;
+  const b=ready.get(info.url+'#'+(col>>9)+','+(row>>9));return b?b[(row&511)*512+(col&511)]:undefined;
+ }
+ async function canopy(lat,lon){
+  const t=tileOf(lat,lon),info=await head(quadkey(t.x,t.y));if(!info)return 0;
+  const [X,Y]=merc(lat,lon),col=Math.floor((X-info.x0)/info.scale),row=Math.floor((info.y0-Y)/info.scale);
+  if(col<0||row<0||col>=info.across*512||row>=info.across*512)return 0;
+  const b=await block(info,col>>9,row>>9);return b[(row&511)*512+(col&511)];
+ }
+ // One walk gives the line's verdict and how high up the target the crowns hide it. The ray is the parabola the building
+ // grid uses (eye + b d + d^2 / (2 R k)); crowns stand on the DEM ground. `footM` bounds the walk for the hidden part.
+ async function sight(observer,ray,{isCurrent=()=>true}={}){
+  if(!groundAt||![observer.latitude,observer.longitude,observer.elevation,ray.maxM].every(Number.isFinite))return {status:'unread',reason:'no-ground'};
+  const eye=observer.elevation+(observer.eyeM??1.5),c=1/(2*R*(ray.refractionK||1)),D=ray.maxM;
+  const b=ray.endpoint?(ray.endpoint.elevation-eye)/D-D*c:Math.tan(ray.altitude*RAD),h=d=>eye+b*d+c*d*d;
+  const foot=ray.endpoint&&Number.isFinite(ray.footM)?(ray.footM-eye)/D-D*c:null,low=d=>foot===null?h(d):Math.min(h(d),eye+foot*d+c*d*d);
+  const az=ray.endpoint?bearingM(observer,ray.endpoint).azimuth:ray.azimuth,end=Math.min(RANGE_M,ray.endpoint?D-END_M:D),grounds=new Map();
+  const hide=(top,s)=>eye+(top-eye-c*s*s)/s*D+c*D*D;
+  let status='clear',hit=null,sky=null;
+  try{
+   for(let d=NEAR_M;d<=end;d+=stepAt(d)){
+    if(!isCurrent())throw Error('candidate-cancelled');
+    const bin=Math.floor(d/GROUND_BIN_M);if(!grounds.has(bin)){const q=destination(observer.latitude,observer.longitude,az,(bin+.5)*GROUND_BIN_M);grounds.set(bin,await groundAt(q));}
+    const ground=grounds.get(bin);if(!Number.isFinite(ground))return {status:'unread',reason:'ground-unavailable'};
+    if(low(d)-ground>TALLEST_M)continue;
+    const p=destination(observer.latitude,observer.longitude,az,d),now=canopyNow(p.latitude,p.longitude),crown=now===undefined?await canopy(p.latitude,p.longitude):now;if(crown<MIN_M)continue;
+    const top=ground+crown,at=h(d);
+    if(ray.endpoint){const m=hide(top,d);if(!sky||m>sky.toM)sky={toM:m,distanceM:d,topM:top,crownM:crown};}
+    if(status==='blocked'||at>top+MARGIN_M)continue;
+    if(at<top-MARGIN_M){status='blocked';hit={distanceM:d,topM:top,crownM:crown,rayM:at};if(!ray.endpoint)break;}
+    else if(status==='clear'){status='unknown';hit={distanceM:d,topM:top,crownM:crown,rayM:at,reason:'trees-margin'};}
+   }
+  }catch(e){if(e?.message==='candidate-cancelled')throw e;return {status:'unread',reason:'canopy-unavailable'};}
+  return {status,hit,skyline:sky,source:'meta-wri-chm-v2'};
+ }
+ return {sight,canopy};
+}
+return {create,directories,quadkey,tileOf,NEAR_M,RANGE_M,END_M,MARGIN_M};
 });
 
 /* PLATEAU building shapes (tools/build-plateau-models.py) for targets the user adds. A saved target that stands
@@ -1661,15 +1769,16 @@ function memoOutlines(align){
  };
  return Object.assign(Object.create(align),{towerOutline,__memoOutlines:true});
 }
-function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,staticTerrain=null,sidewalks=null,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
+function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,trees=null,staticTerrain=null,sidewalks=null,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
  const align=memoOutlines(rawAlign);
  const visibilityCache=new Map(),targetLines=new Map();
  // What hides the lower part of the target on its line (2026-11-12, user: name it, not a distance).
  const hiddenNotes=new WeakMap();
- function hiddenNote(target,observer,azimuth,sky,built){
-  // Buildings higher on the target than the ground in front (2026-11-13): named as buildings, from the same line.
-  if(Number.isFinite(built?.toM)&&!(built.toM<=(sky?.toM??-Infinity))&&typeof align.hiddenBelowText==='function'){
-   const text=align.hiddenBelowText(target,built.toM,'建物');return Promise.resolve(text?{m:built.toM,kind:'建物',text,label:'手前の建物'}:null);
+ function hiddenNote(target,observer,azimuth,sky,built,tree){
+  // Buildings or trees higher on the target than the ground in front (2026-11-13): named as such, from the same line.
+  const front=[['建物',built],['木',tree]].filter(([,s])=>Number.isFinite(s?.toM)).sort((a,b)=>b[1].toM-a[1].toM)[0];
+  if(front&&!(front[1].toM<=(sky?.toM??-Infinity))&&typeof align.hiddenBelowText==='function'){
+   const [kind,{toM}]=front,text=align.hiddenBelowText(target,toM,kind);return Promise.resolve(text?{m:toM,kind,text,label:'手前の'+kind}:null);
   }
   if(!sky||typeof align.hiddenBelowText!=='function'||typeof geo?.obstacleKind!=='function')return null;
   if(!hiddenNotes.has(sky))hiddenNotes.set(sky,(async()=>{
@@ -1680,7 +1789,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   return hiddenNotes.get(sky);
  }
  // How high up the target the ground or the buildings in front hide it, whichever is higher.
- const hiddenTop=(sky,built)=>Math.max(sky?.toM??-Infinity,built?.toM??-Infinity);
+ const hiddenTop=(...lines)=>Math.max(...lines.map(s=>s?.toM??-Infinity));
  // A place that sees none of the target's named parts over what is in front is no candidate (2026-11-13, user's
  // choice: 東京タワー needs the top of its トップデッキ in sight). A target named by its tip alone keeps the tip rule.
  function partsHidden(target,m){
@@ -1691,13 +1800,26 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   const s=await heights.skyline(observer,ray,{isCurrent:options.isCurrent}).catch(e=>{if(e?.message==='candidate-cancelled')throw e;return null;});
   return s?.status==='ok'?s:null;
  };
+ // Tree tops on the line (tree-heights.js). Unread (offline, the map's server) leaves trees as before: OSM woods only.
+ const treesOf=async(observer,ray,options)=>trees?trees.sight(observer,ray,{isCurrent:options.isCurrent}):null;
  async function terrainRay(observer,ray,options){
   if(staticTerrain){const tested=staticTerrain.trace(observer,ray);if(tested.hit||tested.checked>0&&tested.missing===0)return {...tested,status:tested.hit?'blocked':'model-clear',nativeRaster:true};}
   return terrain?terrain.trace(observer,{...ray,...options}):{status:'unknown',reason:'terrain-unavailable',missing:1};
  }
  async function buildingRay(observer,ray,options={}){
+  if(!trees)return buildingsOnly(observer,ray,options,false);
+  // Buildings first (local data): a line they stop needs no trees. Unread trees: OSM woods judge as before.
+  const first=await buildingsOnly(observer,ray,options,true);if(first.status==='blocked')return first;
+  const t=await treesOf(observer,ray,options);
+  if(t.status==='unread')return {...await buildingsOnly(observer,ray,options,false),trees:t};
+  const b=first;
+  const status=b.status==='blocked'||t.status==='blocked'?'blocked':b.status==='model-clear'&&t.status==='unknown'?'unknown':b.status;
+  const byTrees=t.status==='blocked'&&b.status!=='blocked'||t.status==='unknown'&&b.status==='model-clear';
+  return {...b,status,trees:t,treeSkyline:t.skyline||null,...(byTrees?{reason:'trees',hit:t.hit}:{})};
+ }
+ async function buildingsOnly(observer,ray,options,skipTrees){
   // Building tops along the whole line (PLATEAU heights, GSI footprints elsewhere). Unknown is never clear.
-  if(heights){const r=await heights.trace(observer,ray,{isCurrent:options.isCurrent}),skyline=r.status==='blocked'?null:await skylineOf(observer,ray,options);
+  if(heights){const r=await heights.trace(observer,ray,{isCurrent:options.isCurrent,skipTrees}),skyline=r.status==='blocked'?null:await skylineOf(observer,ray,options);
    return {...r,skyline,status:r.status==='clear'?'model-clear':r.status,complete:r.status!=='unknown',evaluated:r.status!=='unknown',unresolvedTargetContacts:false};}
   if(!index)return {status:'unknown',complete:false};
   const end=ray.endpoint||geo.destination(observer.latitude,observer.longitude,ray.azimuth,ray.maxM/1000);
@@ -1717,10 +1839,10 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   const obs={...observer,eyeM:observer.eyeM??1.5},g=align.geometryFrom(obs,target,{eyeM:obs.eyeM,partId:partId==='__whole'?null:partId});
   if(!g||![g.azimuth,g.angle,g.topM,g.distanceKm].every(Number.isFinite))return null;
   const k=root.AstroNotesAtmosphere?.targetK?.()??7/6;
-  const ray={azimuth:g.azimuth,altitude:g.angle,maxM:g.distanceKm*1000,endpoint:{...target,elevation:g.topM},targetKey:target.id,refractionK:k};
-  const tg=await terrainRay(obs,ray,{isCurrent}),built=await skylineOf(obs,ray,{isCurrent});
-  if(!tg?.skyline)return {status:tg?.status||'unknown',read:false,note:built?await hiddenNote(target,obs,g.azimuth,null,built):null};
-  return {status:tg.status,read:true,note:await hiddenNote(target,obs,g.azimuth,tg.skyline,built)};
+  const ray={azimuth:g.azimuth,altitude:g.angle,maxM:g.distanceKm*1000,endpoint:{...target,elevation:g.topM},footM:target.groundM,targetKey:target.id,refractionK:k};
+  const tg=await terrainRay(obs,ray,{isCurrent}),built=await skylineOf(obs,ray,{isCurrent}),tr=await treesOf(obs,ray,{isCurrent}),tree=tr?.skyline||null;
+  if(!tg?.skyline)return {status:tg?.status||'unknown',read:false,note:built||tree?await hiddenNote(target,obs,g.azimuth,null,built,tree):null};
+  return {status:tg.status,read:true,note:await hiddenNote(target,obs,g.azimuth,tg.skyline,built,tree)};
  }
  async function visibility(plan,solution,options={}){
   const obs=solution.observer,g=solution.geometry,at=solution.event.at,eye={...obs,elevation:obs.elevation+obs.eyeM};
@@ -1728,7 +1850,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   const stateKey=[state.azimuth,state.apparentAltitude,state.angularRadius,state.upperAltitude,state.lowerAltitude];
   const cacheKey=JSON.stringify([obs,at,plan.body,plan.target,plan.partId,target,g,plan.atmosphere,root.AstroNotesAtmosphere?.dataKey?.()??null,stateKey,k]);
   if(visibilityCache.has(cacheKey))return visibilityCache.get(cacheKey);
-  const targetRay={azimuth:g.azimuth,altitude:g.angle,maxM:distance,endpoint:{...target,elevation:g.topM},targetKey:plan.target.id,refractionK:k};
+  const targetRay={azimuth:g.azimuth,altitude:g.angle,maxM:distance,endpoint:{...target,elevation:g.topM},footM:target.groundM,targetKey:plan.target.id,refractionK:k};
   // Events of one point share their line to the target's anchor; it decides before any sky line can.
   const lineKey=JSON.stringify([obs.latitude,obs.longitude,obs.elevation,obs.eyeM,targetRay.endpoint.latitude,targetRay.endpoint.longitude,targetRay.endpoint.elevation,distance,k,plan.target.id]);
   let line=targetLines.get(lineKey);
@@ -1776,12 +1898,23 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    for(let step=0;Number.isFinite(top);step++){
     if(options.isCurrent?.()===false)throw Error('candidate-cancelled');
     const inv=geo.inverse(obs.latitude,obs.longitude,plan.target.latitude,plan.target.longitude);if(!(inv.km>0))break;
-    const line={azimuth:inv.azimuth,altitude:0,maxM:inv.km*1000,endpoint:{latitude:plan.target.latitude,longitude:plan.target.longitude,elevation:top},targetKey:plan.target.id,refractionK:k};
-    const pre=await heights.trace(obs,line,{isCurrent:options.isCurrent});
+    const line={azimuth:inv.azimuth,altitude:0,maxM:inv.km*1000,endpoint:{latitude:plan.target.latitude,longitude:plan.target.longitude,elevation:top},footM:plan.target.groundM,targetKey:plan.target.id,refractionK:k};
+    // Buildings and terrain first (local data); the trees' walk only for a line they leave open.
+    const lineUnverified=pre=>({status:'unverified',recommend:false,heightUnknown:missingHeights(pre),nearBuilding:pre.reason==='near-building',obstacle:['trees','elevated-structure'].includes(pre.reason),reason:'target-line-unverified',partial:true});
+    const pre=await heights.trace(obs,line,{isCurrent:options.isCurrent,skipTrees:!!trees});
     if(pre.status==='blocked')return {status:'model-blocked',recommend:false,reason:'target-line-blocked',partial:true};
-    if(pre.status!=='clear')return {status:'unverified',recommend:false,heightUnknown:missingHeights(pre),nearBuilding:pre.reason==='near-building',obstacle:['trees','elevated-structure'].includes(pre.reason),reason:'target-line-unverified',partial:true};
+    if(pre.status!=='clear')return lineUnverified(pre);
     const land=await terrainRay(obs,line,options);
-    if(!land.hit){if(partsHidden(plan.target,hiddenTop(land.skyline,await skylineOf(obs,line,options))))return {status:'model-blocked',recommend:false,reason:'target-parts-hidden',partial:true};break;}
+    if(!land.hit){
+     const built=await skylineOf(obs,line,options),partsGone={status:'model-blocked',recommend:false,reason:'target-parts-hidden',partial:true};
+     if(partsHidden(plan.target,hiddenTop(land.skyline,built)))return partsGone;
+     const tr=await treesOf(obs,line,options);
+     if(tr?.status==='blocked')return {status:'model-blocked',recommend:false,reason:'target-line-trees',partial:true};
+     if(tr?.status==='unknown')return {status:'unverified',recommend:false,obstacle:true,reason:'target-line-unverified',partial:true};
+     if(tr?.status==='unread'){const osm=await heights.trace(obs,line,{isCurrent:options.isCurrent});if(osm.status==='blocked')return {status:'model-blocked',recommend:false,reason:'target-line-blocked',partial:true};if(osm.status!=='clear')return lineUnverified(osm);}
+     if(partsHidden(plan.target,hiddenTop(land.skyline,built,tr?.skyline)))return partsGone;
+     break;
+    }
     const d=land.hit.distanceM,movable=Number.isFinite(d)&&d<=60&&step<3&&!obs.nonTerrainStructure&&!Number.isFinite(point.surfaceElevationM)&&!Number.isFinite(point.standingElevationM);
     // The highest ground on the first 60 m towards the target: the top of the bank in front.
     let up=null,ground=-Infinity;if(movable&&terrain?.at)for(let m=3;m<=60;m+=3){const q=geo.destination(obs.latitude,obs.longitude,inv.azimuth,m/1000),h=await terrain.at(q,options);if(Number.isFinite(h)&&h>ground+.05){ground=h;up=q;}}
@@ -1800,7 +1933,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    const frame=plan.overlapAnchor?lensCheck({...plan,target:plan.overlapAnchor.target,partId:plan.overlapAnchor.partId},solution.observer,state,align.geometryFrom(solution.observer,plan.overlapAnchor.target,{eyeM:solution.observer.eyeM})||solution.geometry,align):lensCheck(plan,solution.observer,
    state,solution.geometry,align);if(!frame.fits){outside++;continue;}
    const los=await visibility(plan,solution,options);if(los.status==='blocked'){blocked++;continue;}
-   if(partsHidden(plan.target,hiddenTop(los.target?.terrain?.skyline,los.target?.buildings?.skyline))){blocked++;continue;}
+   if(partsHidden(plan.target,hiddenTop(los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline))){blocked++;continue;}
    const at=solution.event.at,position=solution.observer,finalGround=Number.isFinite(position.groundM)?position.groundM:ground;
    const sun=bodies.state('sun',at,{...position,elevation:position.elevation+position.eyeM});
    const photo=photographability(plan.body,state,sun.apparentAltitude);
@@ -1824,13 +1957,14 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    // Only a sight line shown clear of terrain and buildings is a candidate (design note 21): unknown is not shown.
    if(los.status!=='model-clear'||plan.requireAllTargets&&!combinedClear){unverified++;lastUnverified=los;if(missingHeights(los.target?.buildings)||los.rays?.some(r=>missingHeights(r.buildings)))heightUnknown++;continue;}
    const usedBuildings=[los.target?.buildings,...(los.rays||[]).filter(r=>r.status==='model-clear').map(r=>r.buildings)],buildingHeights=usedBuildings.some(b=>b?.heights==='estimated')?'estimated':usedBuildings.every(b=>b?.heights==='plateau')?'plateau':'model';
-   const hiddenBelow=await hiddenNote(plan.target,position,solution.geometry.azimuth,los.target?.terrain?.skyline,los.target?.buildings?.skyline);
+   const hiddenBelow=await hiddenNote(plan.target,position,solution.geometry.azimuth,los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline);
+   const treesRead=!!los.target?.buildings?.trees&&los.target.buildings.trees.status!=='unread';
    const kind=position.placeKind||point.placeKind;
    accepted.push({id,requestKey:plan.requestKey,status:combinedClear&&frame.status!=='unknown'?'model-visible':'visible-partial',recommend:true,aligned:true,placeKind:kind==='sidewalk'?'road':kind||'unknown',surfaceId:point.surfaceId,
     place:{id,name:position.name||point.name||'撮影候補地点',latitude:position.latitude,longitude:position.longitude,elevation:finalGround,groundManualM:finalGround,stand:'ground',standAglM:position.elevation-finalGround+position.eyeM,eyeHeightAGL:position.elevation-finalGround+position.eyeM,decks:[],
     surfaceId:point.surfaceId},
     assumedObserver:{...position},event:{...solution.event,sunAltitude:sun.apparentAltitude},quality:{visibility:los.status,extraTargets:visibilityQuality,buildingHeights,targetAngleDeg:solution.geometry.angle,frame:frame.status,photographyClass:photo,
-    geometry:solution.event.targetGeometryKind||'anchor',datum:'source-epoch-unverified',hiddenBelow},rank:[Math.round(solution.geometry.angle*10)/10,solution.event.gapAngleDeg??0],
+    geometry:solution.event.targetGeometryKind||'anchor',datum:'source-epoch-unverified',hiddenBelow,trees:trees?(treesRead?'checked':'unread'):'not-modeled'},rank:[Math.round(solution.geometry.angle*10)/10,solution.event.gapAngleDeg??0],
     frame,extraTargets:extras,visibility:los,sourceEvidence:position.sourceEvidence||point.sourceEvidence,modelEvidence:{kind:combinedClear?'terrain-and-building-model-los':'geometry-with-partial-los',scope:'target-and-celestial-rays',actualVisibilityGuaranteed:false,treesModeled:false,
     terrainNumericComplete:!!los.rays?.every(r=>r.intentionalTarget||r.terrain?.status==='model-clear'),buildingRangeComplete:!!los.rays?.every(r=>r.intentionalTarget||r.buildings?.complete&&r.buildings?.evaluated),
     targetSelfGeometryComplete:los.shapeKnown&&los.target?.buildings?.evaluated&&!los.target?.buildings?.unresolvedTargetContacts,extraTargetsAssessed:extras.length,datumUncertainty:true}});
@@ -2177,7 +2311,7 @@ let visibleEntries=[],selectedId=null,mapPanel=null,mapInstance=null,mapMode=fal
 const columns='minmax(0,1fr) 50px 64px 40px';
 const day=at=>globalThis.AstroNotesCandidateDiscovery?.day(at)??Math.floor((at+32400000)/86400000)*86400000-32400000;
 const clockText=at=>Number.isFinite(at)?new Date(at+32400000).toISOString().slice(11,16):'時刻未確認';
-const uncertainty=row=>[row.quality?.hiddenBelow?.text||'',row.quality?.visibility==='unknown'?'見通し未確認':'',row.quality?.buildingHeights==='estimated'?'建物の高さは推定':'',row.frame?.status==='unknown'?'全体の画角未確認':''].filter(Boolean);
+const uncertainty=row=>[row.quality?.hiddenBelow?.text||'',row.quality?.visibility==='unknown'?'見通し未確認':'',row.quality?.buildingHeights==='estimated'?'建物の高さは推定':'',row.quality?.trees==='unread'?'木の高さ未確認':'',row.frame?.status==='unknown'?'全体の画角未確認':''].filter(Boolean);
 function configure(value){if(typeof value==='function')loadLabels=value;else if(value){ports={...ports,...value};if(typeof value.loadLabels==='function')loadLabels=value.loadLabels;}}
 function planKey(plan){return typeof ports.requestKey==='function'?ports.requestKey(plan):JSON.stringify([plan.requestKey,plan.owner,plan.body,plan.target,plan.partId,plan.limb,plan.matchMode,plan.composition,plan.compositionInvalid,plan.timeSpec||null,day(plan.at),plan.atmosphere,
 plan.cameraHeight]);}
@@ -2425,22 +2559,26 @@ const viewLive=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxT
 // Buildings: PLATEAU top heights (every city PLATEAU covers) along each line, GSI footprints elsewhere. One instance, so
 // the figure's buildings in front and the search's share their tiles.
 let heightsModel=null;
+// Trees: the canopy map read where a line needs it, standing on the 10 m DEM. Its own tile budget for the ground.
+const treeGround=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxTiles:200,maxDurationMs:120000,layers:[['dem',14]]});
+const treeHeights=globalThis.AstroNotesTreeHeights?.create({groundAt:p=>treeGround.sample(p).then(r=>r.height)})||null;
 const sharedHeights=()=>heightsModel||=AstroNotesCandidateHeights.create({base:dataBase+'building-heights/',loadIndex:()=>loaded('building-heights/index.json'),ownFootprint:key=>plateauShapes?.footprint(key)||null,
  obstacles:osmPlaces?(a,b)=>osmPlaces.obstaclesAlong(a,b):null,gsiAlong:(a,b)=>AstroNotesTerrain.gsiBuildingsAlong(a,b),groundAt:p=>footprintGround.sample(p).then(r=>r.height)});
 AstroNotesCandidatePicker.hiddenView=async(observer,target,partId)=>{
- if(!viewModelPromise)viewModelPromise=staticTerrain().then(dem=>AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:viewLive,heights:sharedHeights(),staticTerrain:dem}));
- viewLive.resetBudget();return (await viewModelPromise).hiddenView(observer,target,{partId});
+ if(!viewModelPromise)viewModelPromise=staticTerrain().then(dem=>AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:viewLive,heights:sharedHeights(),trees:treeHeights,staticTerrain:dem}));
+ viewLive.resetBudget();treeGround.resetBudget();return (await viewModelPromise).hiddenView(observer,target,{partId});
 };
 async function loadModel(){
  // The 3D band model is no longer loaded.
  if(!modelPromise)modelPromise=(async()=>{await AstroNotesAssets.ensureModels();const dem=await staticTerrain();
-  return AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:live,heights:sharedHeights(),staticTerrain:dem,sidewalks:await loaded('candidate-sidewalks.json').catch(()=>null)});
+  return AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:live,heights:sharedHeights(),trees:treeHeights,staticTerrain:dem,sidewalks:await loaded('candidate-sidewalks.json').catch(()=>null)});
   })().catch(e=>{modelPromise=null;throw e;});
  return modelPromise;
 }
 let evaluationBudgetStarted=false;
 const engine=AstroNotesCandidateDiscovery.createGenericSearch({provider,bodies:AstroNotesBodies,loadStatic:()=>loaded('candidate-sidewalks.json'),evaluate:async(p,point,data,options)=>{const model=await loadModel();
-if(plateauShapes&&String(p.target?.id||'').startsWith('fav:')&&!plateauShapes.attachedTo(p.target.id))await plateauShapes.prepare([p.target]).catch(()=>{});if(!options.isCurrent())throw Error('candidate-cancelled');if(!evaluationBudgetStarted){live.resetBudget();footprintGround.resetBudget();
+if(plateauShapes&&String(p.target?.id||'').startsWith('fav:')&&!plateauShapes.attachedTo(p.target.id))await plateauShapes.prepare([p.target]).catch(()=>{});if(!options.isCurrent())throw Error('candidate-cancelled');
+if(!evaluationBudgetStarted){live.resetBudget();footprintGround.resetBudget();treeGround.resetBudget();
 evaluationBudgetStarted=true;}return model.evaluate(p,point,data,options);}});
 const stop=()=>{if(autoSearchTimer!==null)clearTimeout(autoSearchTimer);autoSearchTimer=null;if(watch!==null)clearInterval(watch);watch=null;controller?.abort();controller=null;};
 // The refraction settings only: weather the view loads later for a chosen place (気象予報) must not discard the places
@@ -2585,9 +2723,12 @@ function mount(){
  const resultNotes=document.createElement('p');resultNotes.className='tiny';evidence.append(resultNotes);
  const credits=document.createElement('p');credits.className='tiny';
  for(const [label,url]of [['© OpenStreetMap contributors (ODbL)','https://www.openstreetmap.org/copyright'],['国土地理院 標高タイル','https://maps.gsi.go.jp/development/demtile.html'],['3D都市モデル（Project PLATEAU）全国の整備都市（2020〜2025年度・国土交通省）を加工して作成','https://www.mlit.go.jp/plateau/site-policy/'],
- ['国土地理院 ベクトルタイル（建物）','https://maps.gsi.go.jp/development/vt.html'],['町丁目：CODH/e-Stat（2020）','https://geoshape.ex.nii.ac.jp/ka/resource/']]){const a=document.createElement('a');a.textContent=label;a.href=url;a.target='_blank';a.rel='noopener';credits.append(a,' ');}evidence.append(credits);
+ ['国土地理院 ベクトルタイル（建物）','https://maps.gsi.go.jp/development/vt.html'],
+ ['樹高：Meta・WRI High Resolution Canopy Height Maps v2（CC BY 4.0、衛星画像 © Vantor）','https://registry.opendata.aws/dataforgood-fb-forestsv2/'],['町丁目：CODH/e-Stat（2020）','https://geoshape.ex.nii.ac.jp/ka/resource/']]){
+ const a=document.createElement('a');a.textContent=label;a.href=url;a.target='_blank';a.rel='noopener';credits.append(a,' ');}evidence.append(credits);
  const visibleCredits=document.createElement('p');visibleCredits.className='tiny';visibleCredits.hidden=true;const osm=document.createElement('a');osm.href='https://www.openstreetmap.org/copyright';osm.textContent='© OpenStreetMap contributors';osm.target='_blank';osm.rel='noopener';
- const plateau=document.createElement('a');plateau.href='https://www.mlit.go.jp/plateau/site-policy/';plateau.textContent='3D都市モデル（Project PLATEAU）国土交通省 を加工';plateau.target='_blank';plateau.rel='noopener';visibleCredits.append(osm,' ',plateau);
+ const plateau=document.createElement('a');plateau.href='https://www.mlit.go.jp/plateau/site-policy/';plateau.textContent='3D都市モデル（Project PLATEAU）国土交通省 を加工';plateau.target='_blank';plateau.rel='noopener';
+ const canopy=document.createElement('a');canopy.href='https://registry.opendata.aws/dataforgood-fb-forestsv2/';canopy.textContent='樹高：Meta・WRI（CC BY 4.0）';canopy.target='_blank';canopy.rel='noopener';visibleCredits.append(osm,' ',plateau,' ',canopy);
  if(main){section.append(evidence,button);document.getElementById('candidateSearchFeedback').replaceChildren(status,resultList);document.getElementById('candidateSearchCredits').replaceChildren(visibleCredits);}else section.append(button,status,visibleCredits,resultList,evidence);
  panel.append(section);syncWorkspaceSection(panel);
  if(editing&&['candidateSearchMode','candidateSearchStart','candidateSearchEnd'].includes(editing))section.querySelector('#'+editing)?.focus({preventScroll:true});
@@ -2620,7 +2761,7 @@ function mount(){
    const c=result.counts,unverifiedWhy=[c.nearBuilding?`立つ点のすぐ脇に建物${c.nearBuilding}`:'',c.heightUnknown?`建物の高さが分からない${c.heightUnknown}`:'',c.obstacle?`木・橋・高架${c.obstacle}`:''].filter(Boolean).join('・');
    resultNotes.textContent=`見通しを地形と建物で確かめられた地点だけを候補にしています。${c.checked}地点を確認：遮られる${c.blocked}、`
     +`見通しを確かめられない${c.unverified||0}${unverifiedWhy?`（うち${unverifiedWhy}）`:''}、構図に合わない${c.outsideFrame||0}、立つ高さが分からない${c.unknown}。`
-    +'建物の高さはPLATEAUを整備した都市はその高さ、ほかは国土地理院の建物の形と種類から見積もります。木・橋・高架はOpenStreetMapにあるものだけ、高さが分からないものとして判定します。'
+    +'建物の高さはPLATEAUを整備した都市はその高さ、ほかは国土地理院の建物の形と種類から見積もります。木はMeta・WRIの樹高地図（衛星写真からの推定、約2.4m刻み）の高さで判定し、読めないときはOpenStreetMapにある木だけを高さが分からないものとして扱います。橋・高架はOpenStreetMapにあるものだけ、高さが分からないものとして判定します。'
     +`探索地域 ${result.coverage.regions}区画。全地域・全時刻の網羅や実写成功は保証していません。`;
  }
  button.onclick=async()=>{
@@ -2629,7 +2770,7 @@ function mount(){
   if(searching){stop();const token=++run;hasSearched=false;continuation=true;failed=false;searching=false;renderAction();setStatus('探索をキャンセルしました。続きから探せます。');const completed=engine.cached(selected);if(completed)present(completed,selected,section,token,{cancelled:true}).catch(()=>{});return;}
   if(hasRun&&!continuation&&!engine.restart(selected))return;
   AstroNotesCandidatePicker.unregister?.(resultList);resultList.replaceChildren();items=new Map();hasRun=true;hasSearched=true;const node=section,token=++run;stop();controller=new AbortController();const signal=controller.signal;live.resetBudget();
-  footprintGround.resetBudget();evaluationBudgetStarted=false;watch=setInterval(()=>{if(!current(token,selected,node)){stop();mount();}},250);
+  footprintGround.resetBudget();treeGround.resetBudget();evaluationBudgetStarted=false;watch=setInterval(()=>{if(!current(token,selected,node)){stop();mount();}},250);
   searching=true;failed=false;renderAction();
   const label='撮影できる地域を計算しています…',progress=globalThis.MyPlacesUI.recordProgress(status,label);
   progress.node.classList.add('candidate-wait');
@@ -2639,7 +2780,8 @@ function mount(){
    // every 250 ms (a change of conditions also restarts the search through mount()).
    let checkedAt=-Infinity,stillCurrent=true,shown=0;const searchCurrent=()=>{if(token!==run||!node.isConnected)return false;const now=performance.now();if(now-checkedAt>=250){checkedAt=now;stillCurrent=current(token,selected,node);}return stillCurrent;};
    const result=await engine.searchAll(selected,{more:continuation,signal,isCurrent:searchCurrent,onPage:page=>{if(page.rows?.length>shown&&searchCurrent()){shown=page.rows.length;present(page,selected,node,token,{partial:true}).catch(()=>{});}},onBatchStart:()=>{live.resetBudget();
-   footprintGround.resetBudget();evaluationBudgetStarted=false;},onProgress:counts=>{if(!searchCurrent())return;const checked=counts.checked||0;const message=counts.stage==='inverse'?label:counts.stage==='evaluate'?'構図と見通しを確認中 ・ '+checked+'地点':'撮影場所の情報を取得中'+(checked?' ・ '+checked+'地点確認済み':'');
+   footprintGround.resetBudget();treeGround.resetBudget();evaluationBudgetStarted=false;},
+   onProgress:counts=>{if(!searchCurrent())return;const checked=counts.checked||0;const message=counts.stage==='inverse'?label:counts.stage==='evaluate'?'構図と見通しを確認中 ・ '+checked+'地点':'撮影場所の情報を取得中'+(checked?' ・ '+checked+'地点確認済み':'');
    progress.update(undefined,undefined,message);}});
    if(!current(token,selected,node))return;if(result.cancelled){failed=true;continuation=true;setStatus('候補の情報を取得できませんでした。');return;}
    await present(result,selected,node,token);

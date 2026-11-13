@@ -78,7 +78,8 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   const m=new Map(),own=new Set();for(const [id,byMesh] of Object.entries(data.targets||{})){if(!byMesh[code])continue;if(id===targetKey){for(const [i] of byMesh[code].cells)own.add(i);continue;}for(const [i,v] of byMesh[code].cells)if(v>(m.get(i)||0))m.set(i,v);}
   m.own=own;overlays.set(key,m);if(overlays.size>64)overlays.delete(overlays.keys().next().value);return m;
  }
- async function trace(observer,ray,{isCurrent=()=>true}={}){
+ // skipTrees: the caller read the trees' own heights on this line (tree-heights.js), so OSM woods add nothing.
+ async function trace(observer,ray,{isCurrent=()=>true,skipTrees=false}={}){
   if(![observer.latitude,observer.longitude,observer.elevation,ray.maxM].every(Number.isFinite)||!(ray.maxM>0))return {status:'unknown',reason:'invalid-ray'};
   const data=await index(),offset=data.grid.offsetM,pr=profile(observer,ray);
   // Walk until the line is above every PLATEAU top and above any GSI footprint's bound, whichever is later.
@@ -146,7 +147,7 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
    if(obsEnd>0){
     const end=destination(observer.latitude,observer.longitude,az,obsEnd);let list;try{list=await obstacles(observer,end);}catch{return {status:'unknown',reason:'obstacles-unavailable',cellsChecked,source:'osm'};}
     const cos=Math.cos(observer.latitude*RAD),ux=Math.sin(az*RAD),uy=Math.cos(az*RAD),xy=([la,lo])=>[(lo-observer.longitude)*111320*cos,(la-observer.latitude)*110540];
-    for(const o of list||[]){let a=Infinity,z=-Infinity;
+    for(const o of list||[]){if(skipTrees&&o.kind==='tree')continue;let a=Infinity,z=-Infinity;
      const take=t=>{if(t>=0&&t<=obsEnd){a=Math.min(a,t);z=Math.max(z,t);}};
      for(const ring of o.rings||[]){const p=ring.map(xy);let inside=false;
       for(let i=0,j=p.length-1;i<p.length;j=i++){const [x1,y1]=p[j],[x2,y2]=p[i];if((y1>0)!==(y2>0)&&0<(x2-x1)*(0-y1)/(y2-y1)+x1)inside=!inside;const ex=x2-x1,ey=y2-y1,den=ux*ey-uy*ex;if(Math.abs(den)<1e-9)continue;const t=(x1*ey-y1*ex)/den,u=(x1*uy-y1*ux)/den;if(u>=0&&u<=1)take(t);}

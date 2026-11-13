@@ -103,15 +103,16 @@ function memoOutlines(align){
  };
  return Object.assign(Object.create(align),{towerOutline,__memoOutlines:true});
 }
-function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,staticTerrain=null,sidewalks=null,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
+function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,trees=null,staticTerrain=null,sidewalks=null,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
  const align=memoOutlines(rawAlign);
  const visibilityCache=new Map(),targetLines=new Map();
  // What hides the lower part of the target on its line (2026-11-12, user: name it, not a distance).
  const hiddenNotes=new WeakMap();
- function hiddenNote(target,observer,azimuth,sky,built){
-  // Buildings higher on the target than the ground in front (2026-11-13): named as buildings, from the same line.
-  if(Number.isFinite(built?.toM)&&!(built.toM<=(sky?.toM??-Infinity))&&typeof align.hiddenBelowText==='function'){
-   const text=align.hiddenBelowText(target,built.toM,'建物');return Promise.resolve(text?{m:built.toM,kind:'建物',text,label:'手前の建物'}:null);
+ function hiddenNote(target,observer,azimuth,sky,built,tree){
+  // Buildings or trees higher on the target than the ground in front (2026-11-13): named as such, from the same line.
+  const front=[['建物',built],['木',tree]].filter(([,s])=>Number.isFinite(s?.toM)).sort((a,b)=>b[1].toM-a[1].toM)[0];
+  if(front&&!(front[1].toM<=(sky?.toM??-Infinity))&&typeof align.hiddenBelowText==='function'){
+   const [kind,{toM}]=front,text=align.hiddenBelowText(target,toM,kind);return Promise.resolve(text?{m:toM,kind,text,label:'手前の'+kind}:null);
   }
   if(!sky||typeof align.hiddenBelowText!=='function'||typeof geo?.obstacleKind!=='function')return null;
   if(!hiddenNotes.has(sky))hiddenNotes.set(sky,(async()=>{
@@ -122,7 +123,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   return hiddenNotes.get(sky);
  }
  // How high up the target the ground or the buildings in front hide it, whichever is higher.
- const hiddenTop=(sky,built)=>Math.max(sky?.toM??-Infinity,built?.toM??-Infinity);
+ const hiddenTop=(...lines)=>Math.max(...lines.map(s=>s?.toM??-Infinity));
  // A place that sees none of the target's named parts over what is in front is no candidate (2026-11-13, user's
  // choice: 東京タワー needs the top of its トップデッキ in sight). A target named by its tip alone keeps the tip rule.
  function partsHidden(target,m){
@@ -133,13 +134,26 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   const s=await heights.skyline(observer,ray,{isCurrent:options.isCurrent}).catch(e=>{if(e?.message==='candidate-cancelled')throw e;return null;});
   return s?.status==='ok'?s:null;
  };
+ // Tree tops on the line (tree-heights.js). Unread (offline, the map's server) leaves trees as before: OSM woods only.
+ const treesOf=async(observer,ray,options)=>trees?trees.sight(observer,ray,{isCurrent:options.isCurrent}):null;
  async function terrainRay(observer,ray,options){
   if(staticTerrain){const tested=staticTerrain.trace(observer,ray);if(tested.hit||tested.checked>0&&tested.missing===0)return {...tested,status:tested.hit?'blocked':'model-clear',nativeRaster:true};}
   return terrain?terrain.trace(observer,{...ray,...options}):{status:'unknown',reason:'terrain-unavailable',missing:1};
  }
  async function buildingRay(observer,ray,options={}){
+  if(!trees)return buildingsOnly(observer,ray,options,false);
+  // Buildings first (local data): a line they stop needs no trees. Unread trees: OSM woods judge as before.
+  const first=await buildingsOnly(observer,ray,options,true);if(first.status==='blocked')return first;
+  const t=await treesOf(observer,ray,options);
+  if(t.status==='unread')return {...await buildingsOnly(observer,ray,options,false),trees:t};
+  const b=first;
+  const status=b.status==='blocked'||t.status==='blocked'?'blocked':b.status==='model-clear'&&t.status==='unknown'?'unknown':b.status;
+  const byTrees=t.status==='blocked'&&b.status!=='blocked'||t.status==='unknown'&&b.status==='model-clear';
+  return {...b,status,trees:t,treeSkyline:t.skyline||null,...(byTrees?{reason:'trees',hit:t.hit}:{})};
+ }
+ async function buildingsOnly(observer,ray,options,skipTrees){
   // Building tops along the whole line (PLATEAU heights, GSI footprints elsewhere). Unknown is never clear.
-  if(heights){const r=await heights.trace(observer,ray,{isCurrent:options.isCurrent}),skyline=r.status==='blocked'?null:await skylineOf(observer,ray,options);
+  if(heights){const r=await heights.trace(observer,ray,{isCurrent:options.isCurrent,skipTrees}),skyline=r.status==='blocked'?null:await skylineOf(observer,ray,options);
    return {...r,skyline,status:r.status==='clear'?'model-clear':r.status,complete:r.status!=='unknown',evaluated:r.status!=='unknown',unresolvedTargetContacts:false};}
   if(!index)return {status:'unknown',complete:false};
   const end=ray.endpoint||geo.destination(observer.latitude,observer.longitude,ray.azimuth,ray.maxM/1000);
@@ -159,10 +173,10 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   const obs={...observer,eyeM:observer.eyeM??1.5},g=align.geometryFrom(obs,target,{eyeM:obs.eyeM,partId:partId==='__whole'?null:partId});
   if(!g||![g.azimuth,g.angle,g.topM,g.distanceKm].every(Number.isFinite))return null;
   const k=root.AstroNotesAtmosphere?.targetK?.()??7/6;
-  const ray={azimuth:g.azimuth,altitude:g.angle,maxM:g.distanceKm*1000,endpoint:{...target,elevation:g.topM},targetKey:target.id,refractionK:k};
-  const tg=await terrainRay(obs,ray,{isCurrent}),built=await skylineOf(obs,ray,{isCurrent});
-  if(!tg?.skyline)return {status:tg?.status||'unknown',read:false,note:built?await hiddenNote(target,obs,g.azimuth,null,built):null};
-  return {status:tg.status,read:true,note:await hiddenNote(target,obs,g.azimuth,tg.skyline,built)};
+  const ray={azimuth:g.azimuth,altitude:g.angle,maxM:g.distanceKm*1000,endpoint:{...target,elevation:g.topM},footM:target.groundM,targetKey:target.id,refractionK:k};
+  const tg=await terrainRay(obs,ray,{isCurrent}),built=await skylineOf(obs,ray,{isCurrent}),tr=await treesOf(obs,ray,{isCurrent}),tree=tr?.skyline||null;
+  if(!tg?.skyline)return {status:tg?.status||'unknown',read:false,note:built||tree?await hiddenNote(target,obs,g.azimuth,null,built,tree):null};
+  return {status:tg.status,read:true,note:await hiddenNote(target,obs,g.azimuth,tg.skyline,built,tree)};
  }
  async function visibility(plan,solution,options={}){
   const obs=solution.observer,g=solution.geometry,at=solution.event.at,eye={...obs,elevation:obs.elevation+obs.eyeM};
@@ -170,7 +184,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   const stateKey=[state.azimuth,state.apparentAltitude,state.angularRadius,state.upperAltitude,state.lowerAltitude];
   const cacheKey=JSON.stringify([obs,at,plan.body,plan.target,plan.partId,target,g,plan.atmosphere,root.AstroNotesAtmosphere?.dataKey?.()??null,stateKey,k]);
   if(visibilityCache.has(cacheKey))return visibilityCache.get(cacheKey);
-  const targetRay={azimuth:g.azimuth,altitude:g.angle,maxM:distance,endpoint:{...target,elevation:g.topM},targetKey:plan.target.id,refractionK:k};
+  const targetRay={azimuth:g.azimuth,altitude:g.angle,maxM:distance,endpoint:{...target,elevation:g.topM},footM:target.groundM,targetKey:plan.target.id,refractionK:k};
   // Events of one point share their line to the target's anchor; it decides before any sky line can.
   const lineKey=JSON.stringify([obs.latitude,obs.longitude,obs.elevation,obs.eyeM,targetRay.endpoint.latitude,targetRay.endpoint.longitude,targetRay.endpoint.elevation,distance,k,plan.target.id]);
   let line=targetLines.get(lineKey);
@@ -218,12 +232,23 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    for(let step=0;Number.isFinite(top);step++){
     if(options.isCurrent?.()===false)throw Error('candidate-cancelled');
     const inv=geo.inverse(obs.latitude,obs.longitude,plan.target.latitude,plan.target.longitude);if(!(inv.km>0))break;
-    const line={azimuth:inv.azimuth,altitude:0,maxM:inv.km*1000,endpoint:{latitude:plan.target.latitude,longitude:plan.target.longitude,elevation:top},targetKey:plan.target.id,refractionK:k};
-    const pre=await heights.trace(obs,line,{isCurrent:options.isCurrent});
+    const line={azimuth:inv.azimuth,altitude:0,maxM:inv.km*1000,endpoint:{latitude:plan.target.latitude,longitude:plan.target.longitude,elevation:top},footM:plan.target.groundM,targetKey:plan.target.id,refractionK:k};
+    // Buildings and terrain first (local data); the trees' walk only for a line they leave open.
+    const lineUnverified=pre=>({status:'unverified',recommend:false,heightUnknown:missingHeights(pre),nearBuilding:pre.reason==='near-building',obstacle:['trees','elevated-structure'].includes(pre.reason),reason:'target-line-unverified',partial:true});
+    const pre=await heights.trace(obs,line,{isCurrent:options.isCurrent,skipTrees:!!trees});
     if(pre.status==='blocked')return {status:'model-blocked',recommend:false,reason:'target-line-blocked',partial:true};
-    if(pre.status!=='clear')return {status:'unverified',recommend:false,heightUnknown:missingHeights(pre),nearBuilding:pre.reason==='near-building',obstacle:['trees','elevated-structure'].includes(pre.reason),reason:'target-line-unverified',partial:true};
+    if(pre.status!=='clear')return lineUnverified(pre);
     const land=await terrainRay(obs,line,options);
-    if(!land.hit){if(partsHidden(plan.target,hiddenTop(land.skyline,await skylineOf(obs,line,options))))return {status:'model-blocked',recommend:false,reason:'target-parts-hidden',partial:true};break;}
+    if(!land.hit){
+     const built=await skylineOf(obs,line,options),partsGone={status:'model-blocked',recommend:false,reason:'target-parts-hidden',partial:true};
+     if(partsHidden(plan.target,hiddenTop(land.skyline,built)))return partsGone;
+     const tr=await treesOf(obs,line,options);
+     if(tr?.status==='blocked')return {status:'model-blocked',recommend:false,reason:'target-line-trees',partial:true};
+     if(tr?.status==='unknown')return {status:'unverified',recommend:false,obstacle:true,reason:'target-line-unverified',partial:true};
+     if(tr?.status==='unread'){const osm=await heights.trace(obs,line,{isCurrent:options.isCurrent});if(osm.status==='blocked')return {status:'model-blocked',recommend:false,reason:'target-line-blocked',partial:true};if(osm.status!=='clear')return lineUnverified(osm);}
+     if(partsHidden(plan.target,hiddenTop(land.skyline,built,tr?.skyline)))return partsGone;
+     break;
+    }
     const d=land.hit.distanceM,movable=Number.isFinite(d)&&d<=60&&step<3&&!obs.nonTerrainStructure&&!Number.isFinite(point.surfaceElevationM)&&!Number.isFinite(point.standingElevationM);
     // The highest ground on the first 60 m towards the target: the top of the bank in front.
     let up=null,ground=-Infinity;if(movable&&terrain?.at)for(let m=3;m<=60;m+=3){const q=geo.destination(obs.latitude,obs.longitude,inv.azimuth,m/1000),h=await terrain.at(q,options);if(Number.isFinite(h)&&h>ground+.05){ground=h;up=q;}}
@@ -242,7 +267,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    const frame=plan.overlapAnchor?lensCheck({...plan,target:plan.overlapAnchor.target,partId:plan.overlapAnchor.partId},solution.observer,state,align.geometryFrom(solution.observer,plan.overlapAnchor.target,{eyeM:solution.observer.eyeM})||solution.geometry,align):lensCheck(plan,solution.observer,
    state,solution.geometry,align);if(!frame.fits){outside++;continue;}
    const los=await visibility(plan,solution,options);if(los.status==='blocked'){blocked++;continue;}
-   if(partsHidden(plan.target,hiddenTop(los.target?.terrain?.skyline,los.target?.buildings?.skyline))){blocked++;continue;}
+   if(partsHidden(plan.target,hiddenTop(los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline))){blocked++;continue;}
    const at=solution.event.at,position=solution.observer,finalGround=Number.isFinite(position.groundM)?position.groundM:ground;
    const sun=bodies.state('sun',at,{...position,elevation:position.elevation+position.eyeM});
    const photo=photographability(plan.body,state,sun.apparentAltitude);
@@ -266,13 +291,14 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    // Only a sight line shown clear of terrain and buildings is a candidate (design note 21): unknown is not shown.
    if(los.status!=='model-clear'||plan.requireAllTargets&&!combinedClear){unverified++;lastUnverified=los;if(missingHeights(los.target?.buildings)||los.rays?.some(r=>missingHeights(r.buildings)))heightUnknown++;continue;}
    const usedBuildings=[los.target?.buildings,...(los.rays||[]).filter(r=>r.status==='model-clear').map(r=>r.buildings)],buildingHeights=usedBuildings.some(b=>b?.heights==='estimated')?'estimated':usedBuildings.every(b=>b?.heights==='plateau')?'plateau':'model';
-   const hiddenBelow=await hiddenNote(plan.target,position,solution.geometry.azimuth,los.target?.terrain?.skyline,los.target?.buildings?.skyline);
+   const hiddenBelow=await hiddenNote(plan.target,position,solution.geometry.azimuth,los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline);
+   const treesRead=!!los.target?.buildings?.trees&&los.target.buildings.trees.status!=='unread';
    const kind=position.placeKind||point.placeKind;
    accepted.push({id,requestKey:plan.requestKey,status:combinedClear&&frame.status!=='unknown'?'model-visible':'visible-partial',recommend:true,aligned:true,placeKind:kind==='sidewalk'?'road':kind||'unknown',surfaceId:point.surfaceId,
     place:{id,name:position.name||point.name||'撮影候補地点',latitude:position.latitude,longitude:position.longitude,elevation:finalGround,groundManualM:finalGround,stand:'ground',standAglM:position.elevation-finalGround+position.eyeM,eyeHeightAGL:position.elevation-finalGround+position.eyeM,decks:[],
     surfaceId:point.surfaceId},
     assumedObserver:{...position},event:{...solution.event,sunAltitude:sun.apparentAltitude},quality:{visibility:los.status,extraTargets:visibilityQuality,buildingHeights,targetAngleDeg:solution.geometry.angle,frame:frame.status,photographyClass:photo,
-    geometry:solution.event.targetGeometryKind||'anchor',datum:'source-epoch-unverified',hiddenBelow},rank:[Math.round(solution.geometry.angle*10)/10,solution.event.gapAngleDeg??0],
+    geometry:solution.event.targetGeometryKind||'anchor',datum:'source-epoch-unverified',hiddenBelow,trees:trees?(treesRead?'checked':'unread'):'not-modeled'},rank:[Math.round(solution.geometry.angle*10)/10,solution.event.gapAngleDeg??0],
     frame,extraTargets:extras,visibility:los,sourceEvidence:position.sourceEvidence||point.sourceEvidence,modelEvidence:{kind:combinedClear?'terrain-and-building-model-los':'geometry-with-partial-los',scope:'target-and-celestial-rays',actualVisibilityGuaranteed:false,treesModeled:false,
     terrainNumericComplete:!!los.rays?.every(r=>r.intentionalTarget||r.terrain?.status==='model-clear'),buildingRangeComplete:!!los.rays?.every(r=>r.intentionalTarget||r.buildings?.complete&&r.buildings?.evaluated),
     targetSelfGeometryComplete:los.shapeKnown&&los.target?.buildings?.evaluated&&!los.target?.buildings?.unresolvedTargetContacts,extraTargetsAssessed:extras.length,datumUncertainty:true}});

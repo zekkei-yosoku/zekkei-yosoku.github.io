@@ -472,6 +472,9 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
       ctx.setLineDash(mountain ? [5, 4] : []);
       ctx.beginPath(); ctx.moveTo(-panX, groundY); ctx.lineTo(W - panX, groundY); ctx.stroke(); ctx.setLineDash([]);
       groundText = { str: groundLabel, y: groundY - 4 + panY, sub: hidden && groundLabel === hidden.label ? hiddenText : "", subY: groundY + 6 + panY };
+    } else if (groundY + panY < 12 && hidden && groundLabel === hidden.label) {
+      // 手前の木や建物が図の上端より上まで隠す：線は描けないので、名前と文を図の上の方に書く（図が黒いだけにしない）
+      groundText = { str: groundLabel, y: 30, sub: hiddenText, subY: 36 };
     }
     // 図中に目標名は重ねない。visibleTargetsは読み上げに使用する。
       globalThis.AstroNotesTrialOverlap?.accent?.(ctx,{scene,t,shape,sceneBottom});ctx.restore();buildingCache={key:nextBuildingKey,visibleTargets,groundText};layerStats.buildings++;

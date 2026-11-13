@@ -1,5 +1,6 @@
 @@include:src/features/candidates/building-model.js@@
 @@include:src/features/candidates/height-grid.js@@
+@@include:src/features/candidates/tree-heights.js@@
 @@include:src/features/candidates/plateau-buildings.js@@
 @@include:src/features/candidates/osm-places.js@@
 @@include:src/features/candidates/terrain-model.js@@

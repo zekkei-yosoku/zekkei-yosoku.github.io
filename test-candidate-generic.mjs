@@ -178,6 +178,23 @@ test('a place whose buildings in front hide every named part below the tip is no
  assert.equal((await make(90).evaluate({...p,strict:true},point,{})).recommend,false);
  assert((await make(90).evaluate(plan,point,{})).recommend,'先端しか名前のない対象は先端まで線が通れば候補');
 });
+// 2026-11-13 木の高さ（樹高地図）: 新宿御苑の園内の木が判定に入っていなかった。
+test('trees on the line rule a place out like buildings; unread trees leave the old judgement and say so',async()=>{
+ const named={...target,parts:[{id:'tip',name:'先端',m:110},{id:'deck',name:'展望台',m:80}]},p={...plan,target:named};
+ const skipped=[],heights={trace:async(o,ray,opt)=>{skipped.push(!!opt?.skipTrees);return {status:'clear',heights:'plateau'};},skyline:async()=>({status:'ok',toM:20,complete:true})};
+ const make=trees=>createGeneric({align:outlined,bodies,geo:G,terrain:openTerrain,heights,trees,yieldTask:async()=>{}});
+ const blocked=await make({sight:async()=>({status:'blocked',hit:{distanceM:120,topM:75,crownM:25,rayM:60}})}).evaluate(p,point,{});
+ assert.equal(blocked.status,'model-blocked');assert.equal(blocked.reason,'target-line-trees');
+ const hidden=await make({sight:async(o,ray)=>({status:'clear',skyline:ray.endpoint?{toM:95,distanceM:200}:null})}).evaluate(p,point,{});
+ assert.equal(hidden.status,'model-blocked');assert.equal(hidden.reason,'target-parts-hidden');
+ skipped.length=0;const clear=await make({sight:async()=>({status:'clear',skyline:null})}).evaluate(p,point,{});
+ assert(clear.recommend);assert.equal(clear.quality.trees,'checked');assert(skipped.length&&skipped.every(Boolean),'樹高を読めた線ではOSMの木を重ねない');
+ skipped.length=0;const unread=await make({sight:async()=>({status:'unread',reason:'canopy-unavailable'})}).evaluate(p,point,{});
+ assert(unread.recommend);assert.equal(unread.quality.trees,'unread');assert(skipped.includes(false),'読めないときはOSMの木で判定し直す');
+ // 天体への線（端点なし）も木で遮られる
+ const sky=await make({sight:async(o,ray)=>ray.endpoint?{status:'clear',skyline:null}:{status:'blocked',hit:{distanceM:40}}}).evaluate({...p,strict:true},point,{});
+ assert.equal(sky.recommend,false);
+});
 test('a valid absolute or AGL standing height does not depend on the deprecated surfaceHeightM alias',async()=>{
  const model=createGeneric({align:outlined,bodies,geo:G,terrain:openTerrain,heights:openHeights,yieldTask:async()=>{}}),p={...point};delete p.surfaceHeightM;
  const r=await model.evaluate(plan,p,{});assert(r.recommend);assert.equal(r.assumedObserver.elevation,70);assert.equal(r.place.standAglM,21.5);

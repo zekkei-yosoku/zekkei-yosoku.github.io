@@ -65,3 +65,13 @@ test('手前の建物が地形より高く隠すときは建物と書き、図�
  const unread=await createGeneric({align:A,bodies:{},geo:G,terrain:{trace:async()=>({status:'unknown'})},heights:heights(296)}).hiddenView(obs,tower,{partId:'__whole'});
  assert.equal(unread.read,false);assert.equal(unread.note.label,'手前の建物');
 });
+test('手前の木が建物や地形より高く隠すときは木と書く',async()=>{
+ const {createGeneric}=require('./src/features/candidates/generic-evaluator.js'),tower=A.targetById('tokyotower');
+ const terrain={trace:async()=>({status:'model-clear',hit:null,skyline:{distanceM:600,terrainM:40,riseM:2,dropM:2,toM:60}})};
+ const heights={skyline:async()=>({status:'ok',toM:200,complete:true})},seen=[];
+ const trees={sight:async(o,ray)=>{seen.push(ray);return {status:'clear',skyline:{toM:300,distanceM:150,crownM:25}};}};
+ const obs={latitude:35.683518,longitude:139.7083195,elevation:34.34,eyeM:1.5};
+ const r=await createGeneric({align:A,bodies:{},geo:{...G,obstacleKind:async()=> '高台'},terrain,heights,trees}).hiddenView(obs,tower,{partId:'__whole'});
+ assert.equal(r.note.text,'東京タワーのトップデッキの上端から下が手前の木に隠れます');assert.equal(r.note.label,'手前の木');
+ assert.equal(seen[0].footM,18,'木は対象の足元までの線で見る');
+});

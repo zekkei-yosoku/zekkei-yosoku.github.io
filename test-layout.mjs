@@ -2489,6 +2489,7 @@ console.log("== CSP で、漏れたときの持ち出し先を塞ぐ ==");
     "https://djlorenz.github.io",            // 光害
     "https://zekkei-api.okayu-sorami.workers.dev", // 同期
     "https://cyberjapandata2.gsi.go.jp",     // 立つ場所の標高（国土地理院の標高API、2026-10-05）
+    "https://data.source.coop",              // 木の高さ（Meta・WRIの樹高地図、範囲読み、2026-11-13）
   ];
   for (const host of needed) {
     ok((dir["connect-src"] || []).includes(host), `${host} へ通信できる`);
