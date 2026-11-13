@@ -2874,7 +2874,9 @@ async function opportunityDbPrune(owner,engine){
  const today=opportunityDateAt(Date.now());
  await opportunityDbDo('readwrite',store=>{const request=store.openCursor();request.onsuccess=()=>{const cursor=request.result;if(!cursor)return;const v=cursor.value;if(v.owner!==owner||v.engine!==engine||v.day<today)cursor.delete();cursor.continue();};return null;}).catch(()=>{});
 }
-function opportunityDeviceForget(){opportunityDbDo('readwrite',store=>store.clear()).catch(()=>{});opportunityGeometryDo('readwrite',store=>store.clear()).catch(()=>{});try{indexedDB.deleteDatabase('astronotes-ridge-caps');}catch{/* Unavailable storage has nothing to forget. */}}
+function opportunityDeviceForget(){opportunityDbDo('readwrite',store=>store.clear()).catch(()=>{});opportunityGeometryDo('readwrite',store=>store.clear()).catch(()=>{});
+ // 2026-11-13 見える場所の地図（探す・新しい撮影地点）も、登録した対象の位置から作るのでアカウントと一緒に消す。
+ try{indexedDB.deleteDatabase('astronotes-ridge-caps');indexedDB.deleteDatabase('astronotes-visibility-map');}catch{/* Unavailable storage has nothing to forget. */}}
 // 2026-11-09 Date-independent geometry (one building outline or summit ridge per
 // point, target and eye height) is kept per pair, sent with the records as
 // rec:geom:<id> and received from them, so a later day or another device does not

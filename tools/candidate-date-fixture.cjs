@@ -8,7 +8,8 @@ function fixture(tools){
    AstroNotesCandidateComposition.windowEvents=plan=>[{at:AstroNotesCandidateDiscovery.day(plan.at)+12*3600000,kind:'rise'}];
    // 2026-11-10 New places are parks, squares, viewpoints and riverbanks only (no plain sidewalks).
    const points=[{id:'park',placeKind:'park',latitude:35.6903,longitude:139.7304},{id:'river',placeKind:'riverbank',latitude:35.6900,longitude:139.7300}].map(p=>({...p,surfaceId:p.id,standingSurfaceKnown:true}));
-   const engine=original({...options,loadStatic:null,provider:{load:async(plan,options)=>{
+   // The synthetic places stand anywhere; the real visibility map (2026-11-13) would drop them, so it is left out here.
+   const engine=original({...options,loadStatic:null,prefilter:null,provider:{load:async(plan,options)=>{
     const day=new Date(plan.at+32400000).toISOString().slice(0,10),nextCursor=!dateFixture.autoPages||options.cursor===0||dateFixture.repeatCursor?dateFixture.nextCursor:null;dateFixture.lastPlan=structuredClone(plan);dateFixture.loads.push({day,at:plan.at,cursor:options.cursor,timeSpec:structuredClone(plan.timeSpec)});options.signal?.addEventListener('abort',()=>dateFixture.aborted.push(day),{once:true});
     // failAlways: every load fails (a search now retries a failed region within the same run).
     if(dateFixture.failNext||dateFixture.failAlways){dateFixture.failNext=false;throw Error('synthetic provider failure');}

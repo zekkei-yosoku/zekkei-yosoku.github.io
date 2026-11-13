@@ -61,6 +61,10 @@
 #exploreScenePanel #trialRecordSaveSheet .sheet-head button{width:auto;min-width:44px;height:auto;min-height:44px;margin:0;padding:8px 12px;display:block;border:0;background:transparent;color:var(--accent);font-size:14px}
 #trialRecordSaveSheet [data-quick-save] svg{width:24px;height:24px;flex:none;stroke-width:1.8}
 #exploreScenePanel #exploreExternalMap svg{width:24px;height:24px;stroke-width:1.8}
+#exploreScenePanel #aimLook .trial-scene-toolbar:has(#exploreStreetPhoto){grid-template-columns:repeat(5,minmax(0,1fr))}
+#exploreScenePanel #aimLook .trial-scene-toolbar:has(#exploreStreetPhoto) [data-plan-action=share]{grid-column:5}
+#exploreScenePanel #exploreStreetPhoto{grid-column:4;grid-row:1;width:100%;min-width:0;height:56px;box-sizing:border-box;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:10px;font-size:12px;line-height:1.2;font-weight:600;text-decoration:none}
+#exploreScenePanel #exploreStreetPhoto svg{width:24px;height:24px;stroke-width:1.8}
 #exploreScenePanel .trial-composition-tool{position:absolute;right:8px;z-index:4;width:44px;min-width:44px;height:44px;min-height:44px;margin:0;padding:0;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);box-shadow:none}
 #exploreScenePanel #trialCompositionToggle{top:64px}
 #exploreScenePanel #trialCompositionAdjust{top:118px}

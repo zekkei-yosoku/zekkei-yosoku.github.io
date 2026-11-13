@@ -136,6 +136,24 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
  };
  // Tree tops on the line (tree-heights.js). Unread (offline, the map's server) leaves trees as before: OSM woods only.
  const treesOf=async(observer,ray,options)=>trees?trees.sight(observer,ray,{isCurrent:options.isCurrent}):null;
+ // How the place frames the target (2026-11-13, user's choice for the order: 天体と対象の大きさの比・対象がよく見える・
+ // 高い所・見晴らし・背景がすっきり): how much of the target shows over what is in front, how big the body is beside the part
+ // that shows, how far the place stands above the ground around it, and how many bearings beside the target have other
+ // buildings rising into the sky above the target's hidden line.
+ async function compositionOf(plan,position,solution,state,los,options){
+  const t=plan.target,groundT=Number.isFinite(t.groundM)?t.groundM:0,tops=(t.parts||[]).map(p=>p.m).filter(Number.isFinite);if(!tops.length)return null;
+  const top=Math.max(...tops),eye=position.elevation+position.eyeM,Dm=solution.geometry.distanceKm*1000,c=1/(2*R*(root.AstroNotesAtmosphere?.targetK?.()??7/6));
+  const angleTo=h=>Math.atan2(h-eye-c*Dm*Dm,Dm)/D,hidden=Math.min(top,Math.max(groundT,hiddenTop(los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline)));
+  const visibleAngle=Math.max(1e-6,angleTo(top)-angleTo(hidden)),body=2*(state.angularRadius||0);
+  let gain=null;
+  if(terrain?.at){const hs=[];for(let k=0;k<8;k++){const q=geo.destination(position.latitude,position.longitude,k*45,.2),h=await terrain.at(q,options).catch(e=>{if(e?.message==='candidate-cancelled')throw e;return null;});if(Number.isFinite(h))hs.push(h);}
+   if(hs.length>=4){hs.sort((a,b)=>a-b);gain=position.elevation-hs[Math.floor(hs.length/2)];}}
+  let clean=null;
+  if(heights?.angles){const halfW=Math.max(3*body,2*Math.atan2((t.widthM||40)/2,Dm)/D,.5),az=solution.geometry.azimuth,floor=angleTo(hidden)+.05;
+   const seen=await heights.angles(position,[-1,-.75,-.5,-.3,.3,.5,.75,1].map(f=>(az+f*halfW+360)%360),Dm+3000,{targetKey:t.id,isCurrent:options.isCurrent});
+   if(seen)clean=seen.filter(a=>!(a>floor)).length/seen.length;}
+  return {visibleFraction:Math.max(0,Math.min(1,(top-hidden)/Math.max(1,top-groundT))),visibleAngleDeg:visibleAngle,bodyDiameterDeg:body,sizeRatio:body>0?body/visibleAngle:null,heightGainM:gain,cleanSky:clean};
+ }
  async function terrainRay(observer,ray,options){
   if(staticTerrain){const tested=staticTerrain.trace(observer,ray);if(tested.hit||tested.checked>0&&tested.missing===0)return {...tested,status:tested.hit?'blocked':'model-clear',nativeRaster:true};}
   return terrain?terrain.trace(observer,{...ray,...options}):{status:'unknown',reason:'terrain-unavailable',missing:1};
@@ -293,12 +311,13 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    const usedBuildings=[los.target?.buildings,...(los.rays||[]).filter(r=>r.status==='model-clear').map(r=>r.buildings)],buildingHeights=usedBuildings.some(b=>b?.heights==='estimated')?'estimated':usedBuildings.every(b=>b?.heights==='plateau')?'plateau':'model';
    const hiddenBelow=await hiddenNote(plan.target,position,solution.geometry.azimuth,los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline);
    const treesRead=!!los.target?.buildings?.trees&&los.target.buildings.trees.status!=='unread';
+   const composition=await compositionOf(plan,position,solution,state,los,options).catch(e=>{if(e?.message==='candidate-cancelled')throw e;globalThis.AstroNotesErrors?.note('candidates.composition',e);return null;});
    const kind=position.placeKind||point.placeKind;
    accepted.push({id,requestKey:plan.requestKey,status:combinedClear&&frame.status!=='unknown'?'model-visible':'visible-partial',recommend:true,aligned:true,placeKind:kind==='sidewalk'?'road':kind||'unknown',surfaceId:point.surfaceId,
     place:{id,name:position.name||point.name||'撮影候補地点',latitude:position.latitude,longitude:position.longitude,elevation:finalGround,groundManualM:finalGround,stand:'ground',standAglM:position.elevation-finalGround+position.eyeM,eyeHeightAGL:position.elevation-finalGround+position.eyeM,decks:[],
     surfaceId:point.surfaceId},
     assumedObserver:{...position},event:{...solution.event,sunAltitude:sun.apparentAltitude},quality:{visibility:los.status,extraTargets:visibilityQuality,buildingHeights,targetAngleDeg:solution.geometry.angle,frame:frame.status,photographyClass:photo,
-    geometry:solution.event.targetGeometryKind||'anchor',datum:'source-epoch-unverified',hiddenBelow,trees:trees?(treesRead?'checked':'unread'):'not-modeled'},rank:[Math.round(solution.geometry.angle*10)/10,solution.event.gapAngleDeg??0],
+    geometry:solution.event.targetGeometryKind||'anchor',datum:'source-epoch-unverified',hiddenBelow,trees:trees?(treesRead?'checked':'unread'):'not-modeled',composition},rank:[Math.round(solution.geometry.angle*10)/10,solution.event.gapAngleDeg??0],
     frame,extraTargets:extras,visibility:los,sourceEvidence:position.sourceEvidence||point.sourceEvidence,modelEvidence:{kind:combinedClear?'terrain-and-building-model-los':'geometry-with-partial-los',scope:'target-and-celestial-rays',actualVisibilityGuaranteed:false,treesModeled:false,
     terrainNumericComplete:!!los.rays?.every(r=>r.intentionalTarget||r.terrain?.status==='model-clear'),buildingRangeComplete:!!los.rays?.every(r=>r.intentionalTarget||r.buildings?.complete&&r.buildings?.evaluated),
     targetSelfGeometryComplete:los.shapeKnown&&los.target?.buildings?.evaluated&&!los.target?.buildings?.unresolvedTargetContacts,extraTargetsAssessed:extras.length,datumUncertainty:true}});

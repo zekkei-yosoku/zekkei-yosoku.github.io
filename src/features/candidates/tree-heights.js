@@ -65,11 +65,15 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   blocks.set(key,p);while(blocks.size>maxBlocks){const old=blocks.keys().next().value;blocks.delete(old);ready.delete(old);}return p;
  }
  // Without waiting when the file's directory and the block are already read (most steps of a walk).
+ let lastTile=null,lastBlock=null;
  function canopyNow(lat,lon){
-  const t=tileOf(lat,lon),q=quadkey(t.x,t.y),info=infos.get(q);if(!info)return undefined;
+  const t=tileOf(lat,lon);let info;
+  if(lastTile&&lastTile.x===t.x&&lastTile.y===t.y)info=lastTile.info;else{info=infos.get(quadkey(t.x,t.y));if(!info)return undefined;lastTile={x:t.x,y:t.y,info};}
   const [X,Y]=merc(lat,lon),col=Math.floor((X-info.x0)/info.scale),row=Math.floor((info.y0-Y)/info.scale);
   if(col<0||row<0||col>=info.across*512||row>=info.across*512)return 0;
-  const b=ready.get(info.url+'#'+(col>>9)+','+(row>>9));return b?b[(row&511)*512+(col&511)]:undefined;
+  const bx=col>>9,by=row>>9;let b;
+  if(lastBlock&&lastBlock.info===info&&lastBlock.bx===bx&&lastBlock.by===by)b=lastBlock.b;else{b=ready.get(info.url+'#'+bx+','+by);if(!b)return undefined;lastBlock={info,bx,by,b};}
+  return b[(row&511)*512+(col&511)];
  }
  async function canopy(lat,lon){
   const t=tileOf(lat,lon),info=await head(quadkey(t.x,t.y));if(!info)return 0;
@@ -103,7 +107,7 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   }catch(e){if(e?.message==='candidate-cancelled')throw e;return {status:'unread',reason:'canopy-unavailable'};}
   return {status,hit,skyline:sky,source:'meta-wri-chm-v2'};
  }
- return {sight,canopy};
+ return {sight,canopy,canopyNow};
 }
 return {create,directories,quadkey,tileOf,NEAR_M,RANGE_M,END_M,MARGIN_M,CROWN_ADD_M};
 });

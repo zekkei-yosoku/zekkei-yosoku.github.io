@@ -23,3 +23,5 @@ data/*
 !data/building-heights/
 !data/building-shapes/
 !data/osm-places/
+# 2026-11-13 探す（新しい撮影地点）の見える場所の地図（組み込みの対象。tools/build-visibility-maps.mjs で作る。画面が読む）
+!data/visibility/

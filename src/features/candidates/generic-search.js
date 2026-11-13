@@ -28,9 +28,10 @@ function regionsFor(seeds){
  return [...map.values()].sort((a,b)=>a.priority-b.priority||a.id.localeCompare(b.id));
 }
 const placeKinds=new Set(['viewpoint','plaza','park','riverbank']);
-function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPointsPerBatch=40,inverseOptions={},yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
+function createGenericSearch({provider,evaluate,bodies,loadStatic=null,prefilter=null,maxPointsPerBatch=40,inverseOptions={},yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
  const sessions=new Map();
- const fresh=(key,inverse,lastResult=null)=>({key,regions:regionsFor(inverse.seeds),inverse,lastResult,rows:[],queue:[],seen:new Set(),seenRows:new Set(),cursor:0,started:false,counts:{checked:0,unknown:0,blocked:0,noOverlap:0,unverified:0,heightUnknown:0,nearBuilding:0,obstacle:0,outsideFrame:0,
+ const fresh=(key,inverse,lastResult=null)=>({key,regions:regionsFor(inverse.seeds),inverse,lastResult,rows:[],queue:[],seen:new Set(),seenRows:new Set(),cursor:0,started:false,
+ counts:{checked:0,unknown:0,blocked:0,noOverlap:0,unverified:0,heightUnknown:0,nearBuilding:0,obstacle:0,outsideFrame:0,mapRegions:0,mapPoints:0,
  deferred:0},coverage:[],busy:false});
  // Rechecking the same conditions replaces only working progress. The last
  // complete result remains available when a recheck fails or is cancelled.
@@ -59,6 +60,12 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
   if(!more&&session.started)return {...result(session),cached:true};
   session.busy=true;session.current=wanted;
   try{
+   // The target's visibility map (visibility-map.js) drops the regions and places it shows seeing none of the target's
+   // named parts before any place is loaded or checked; what it keeps is still checked exactly. Once per session.
+   if(prefilter&&!session.mapChecked&&!session.started){
+    try{const f=await prefilter.regions(plan,session.regions,{isCurrent:wanted});if(!wanted())return {cancelled:true};session.mapChecked=true;
+     if(f){session.counts.mapRegions=session.regions.length-f.regions.length;session.regions=f.regions;session.mapContext=f.context||null;}}
+    catch(e){if(e?.message==='candidate-cancelled')return {cancelled:true};session.mapChecked=true;globalThis.AstroNotesErrors?.note('candidates.visibility-map',e);}}
    if(!session.queue.length&&(session.cursor!==null||!session.started)){
     onProgress({stage:'places',...session.counts});
     const data=await provider.load(plan,{regions:session.regions,cursor:session.cursor??0,isCurrent:wanted,onProgress,signal,retryFailed});
@@ -81,7 +88,9 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
    session.started=true;let count=0;
    while(session.queue.length&&count<maxPointsPerBatch){
     if(!wanted())return {cancelled:true};
-    const point=session.queue[0];onProgress({stage:'evaluate',...session.counts,pending:session.queue.length});
+    const point=session.queue[0];
+    if(session.mapContext&&prefilter.point(plan,point,session.mapContext)===false){session.queue.shift();session.counts.checked++;session.counts.blocked++;session.counts.mapPoints++;continue;}
+    onProgress({stage:'evaluate',...session.counts,pending:session.queue.length});
     const tested=await (root.AstroNotesTrialOverlap?.evaluate?.(plan,p=>evaluate({...p,requestKey:key},point,session.data,{isCurrent:wanted,signal}))??evaluate({...plan,requestKey:key},point,session.data,{isCurrent:wanted,signal}));
     if(!wanted())return {cancelled:true};
     session.queue.shift();count++;session.counts.checked++;

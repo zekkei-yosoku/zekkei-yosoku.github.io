@@ -35,6 +35,11 @@ const base=process.env.VIEW_FIRST_BASE||'http://127.0.0.1:8992/trial/',tools=['r
   assert.equal(state.now,false,'the view stays after the weather answers');
   assert.ok(state.hidden.filter(h=>h===true).length<=1,'the view is not blanked again when the weather arrives: '+JSON.stringify(state.hidden));
   assert.ok(!/計算中|できませんでした/.test(state.status),'no waiting or failure message is left: '+state.status);
+  // 2026-11-13 ユーザー「やって」（候補から現地の写真を開く）: ストリートビューを撮影地点で対象（東京タワー、南西）の方向に向けて開く。
+  const street=await page.evaluate(()=>{const a=document.getElementById('exploreStreetPhoto');if(!a)return null;const u=new URL(a.href),r=a.getBoundingClientRect();return {params:Object.fromEntries(u.searchParams),host:u.host,target:a.target,rel:a.rel,label:a.textContent,w:r.width,h:r.height};});
+  assert.ok(street,'現地写真のリンクがある');assert.equal(street.host,'www.google.com');assert.equal(street.params.map_action,'pano');assert.equal(street.params.viewpoint,'35.669650,139.764050');
+  const heading=+street.params.heading;assert.ok(heading>180&&heading<270,'東京タワーの方向（南西）を向く: '+heading);assert.equal(street.target,'_blank');assert.match(street.rel,/noopener/);assert.equal(street.label,'現地写真');
+  assert.ok(street.w>=44&&street.h>=44,'押せる大きさ: '+street.w+'x'+street.h);
   const back=await page.evaluate(()=>{const b=document.getElementById('exploreBackToCandidates'),c=getComputedStyle(b),r=b.getBoundingClientRect();return {hidden:b.hidden,border:c.borderTopWidth,background:c.backgroundColor,radius:c.borderRadius,w:r.width,h:r.height,label:b.getAttribute('aria-label')};});
   assert.equal(back.hidden,false);assert.equal(back.border,'0px','no ring around the back chevron');
   assert.ok(/rgba\(0, 0, 0, 0\)|transparent/.test(back.background),'no filled disc behind the back chevron: '+back.background);

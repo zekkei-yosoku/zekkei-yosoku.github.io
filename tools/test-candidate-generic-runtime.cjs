@@ -20,7 +20,8 @@ function installFixture(granted){
     {id:'deck-low',name:'同じ展望地点 下層',placeKind:'viewpoint',latitude:35.6906,longitude:139.7308,groundM:31,eyeM:2,rank:100},
     {id:'deck-high',name:'同じ展望地点 上層',placeKind:'viewpoint',latitude:35.6906,longitude:139.7308,groundM:31,eyeM:101.5,rank:101}
    ].map(p=>({...p,surfaceId:p.id,standingSurfaceKnown:true,accessKnown:true}));
-   return original({...options,loadStatic:null,provider:{load:async plan=>{candidateFixture.loads++;candidateFixture.plans.push(structuredClone(plan));return {points,coverage:{nextCursor:null},partial:false};}},evaluate:async(plan,point)=>{
+   // Synthetic places: the real visibility map (2026-11-13) is left out.
+   return original({...options,loadStatic:null,prefilter:null,provider:{load:async plan=>{candidateFixture.loads++;candidateFixture.plans.push(structuredClone(plan));return {points,coverage:{nextCursor:null},partial:false};}},evaluate:async(plan,point)=>{
     const range=AstroNotesCandidateComposition.timeRange(plan),at=range.start===range.end?range.start:Math.min(range.end,range.start+12*3600000);
     const row={id:plan.body+'-'+point.id+'-'+at,requestKey:plan.requestKey,recommend:true,aligned:true,status:'model-visible',placeKind:point.placeKind,surfaceId:point.surfaceId,rank:point.rank,
      place:{name:point.name,latitude:point.latitude,longitude:point.longitude,elevation:point.groundM,groundManualM:point.groundM,standAglM:point.eyeM,eyeHeightAGL:point.eyeM,decks:[],stand:'ground'},

@@ -4,7 +4,7 @@
 const api=root.AstroNotesCandidateTerrain||(typeof require==='function'?require('./terrain-model.js'):null);
 const RAD=Math.PI/180,R=6371008.8;
 function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96,timeoutMs=7000,maxDurationMs=35000,layers=[['dem5a',15],['dem5b',15],['dem5c',15],['dem',14]]}={}){
- const cache=new Map();let fetched=0,started=Date.now();
+ const cache=new Map(),done=new Map();let fetched=0,started=Date.now();
  const pixel=(p,z)=>[(p.longitude+180)/360*256*2**z,(1-Math.asinh(Math.tan(p.latitude*RAD))/Math.PI)/2*256*2**z];
  async function tile(layer,z,x,y,options){
   const key=[layer,z,x,y].join('/');
@@ -26,10 +26,23 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
    }catch{return {missing:true,reason:'terrain-fetch'};}
    finally{clearTimeout(timer);options.signal?.removeEventListener('abort',abort);}
   })();
-  cache.set(key,pending);const result=await pending;
+  cache.set(key,pending);const result=await pending;done.set(key,result);
   // A failed request is retryable, unlike an authoritative absent tile.
-  if(result.reason==='terrain-fetch'||result.reason==='terrain-size')cache.delete(key);
+  if(result.reason==='terrain-fetch'||result.reason==='terrain-size'){cache.delete(key);done.delete(key);}
   return result;
+ }
+ // The height where every tile it needs is already read; undefined when one is still to be read (see sample), null when
+ // no layer holds the point. Lets a sweep over many points wait only once per tile (visibility-map.js). seaAsZero: a
+ // point every layer leaves empty (an absent tile or a no-value pixel; the 10 m DEM covers all land) is the sea at 0 m,
+ // as far along a line (sampleFar).
+ const last=new Map();
+ function peek(point,{seaAsZero=false}={}){
+  let sea=true;
+  for(const [layer,z]of layers){const [px,py]=pixel(point,z),x=Math.floor(px/256),y=Math.floor(py/256),memo=last.get(layer);
+   let d=memo&&memo.x===x&&memo.y===y?memo.d:done.get(layer+'/'+z+'/'+x+'/'+y);if(!d)return undefined;if(!memo||memo.d!==d)last.set(layer,{x,y,d});
+   if(d.missing){if(d.reason!=='missing-tile')sea=false;if(d.reason==='terrain-budget')return null;continue;}
+   const h=d.heights[(Math.floor(py)%256+256)%256*256+(Math.floor(px)%256+256)%256];if(Number.isFinite(h))return h;}
+  return seaAsZero&&sea?0:null;
  }
  async function sample(point,options={}){
   if(!Number.isFinite(point?.latitude)||!Number.isFinite(point?.longitude)||Math.abs(point.latitude)>=85)return {height:null,reason:'invalid-dem-position'};
@@ -98,7 +111,7 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
   return {status:hit?'blocked':missing||endpointUncertain||farUncertain?'unknown':'model-clear',reason:!hit&&farUncertain?'coarse-terrain-margin':undefined,hit,checked,missing,minMarginM:Number.isFinite(minMarginM)?minMarginM:null,source:lastSource,scopeM:d,nativeRaster:true,
   endpointContactUncertain:endpointUncertain,datumUncertainty:true,skyline};
  }
- return {sample,at:async(p,o)=>(await sample(p,o)).height,trace,resetBudget:()=>{fetched=0;started=Date.now();},stats:()=>({tiles:cache.size,fetched}),clearFailures:()=>{fetched=0;}};
+ return {sample,peek,at:async(p,o)=>(await sample(p,o)).height,trace,resetBudget:()=>{fetched=0;started=Date.now();},stats:()=>({tiles:cache.size,fetched}),clearFailures:()=>{fetched=0;}};
 }
 api.createLive=createLive;
 if(typeof module==='object'&&module.exports)module.exports={createLive};

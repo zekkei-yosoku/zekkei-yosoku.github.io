@@ -54,6 +54,29 @@ const treeGround=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,ma
 const treeHeights=globalThis.AstroNotesTreeHeights?.create({groundAt:p=>treeGround.sample(p).then(r=>r.height)})||null;
 const sharedHeights=()=>heightsModel||=AstroNotesCandidateHeights.create({base:dataBase+'building-heights/',loadIndex:()=>loaded('building-heights/index.json'),ownFootprint:key=>plateauShapes?.footprint(key)||null,
  obstacles:osmPlaces?(a,b)=>osmPlaces.obstaclesAlong(a,b):null,gsiAlong:(a,b)=>AstroNotesTerrain.gsiBuildingsAlong(a,b),groundAt:p=>footprintGround.sample(p).then(r=>r.height)});
+// 見える場所の地図 (visibility-map.js). Built-in targets carry a map made beforehand (tools/build-visibility-maps.mjs);
+// a saved target's map is made on this device while searching (at most MAP_BUDGET_MS a search, to 20 km) and kept here.
+const MAP_BUDGET_MS=20000;
+const visibilityStore=(()=>{let db=null;
+ const open=()=>db||=new Promise((resolve,reject)=>{if(typeof indexedDB==='undefined'){reject(Error('indexedDB unavailable'));return;}const r=indexedDB.open('astronotes-visibility-map',1);
+  r.onupgradeneeded=()=>r.result.createObjectStore('maps');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);}).catch(e=>{db=null;throw e;});
+ const run=(mode,fn)=>open().then(d=>new Promise((resolve,reject)=>{const tx=d.transaction('maps',mode),req=fn(tx.objectStore('maps'));tx.oncomplete=()=>resolve(req?.result);tx.onerror=()=>reject(tx.error);}));
+ return {get:key=>run('readonly',s=>s.get(key)),set:(key,value)=>run('readwrite',s=>s.put(value,key))};})();
+const mapGround=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxTiles:3000,maxDurationMs:600000,layers:[['dem',14]]});
+const builtInMaps=new Set(Object.keys(dataHashes).filter(n=>n.startsWith('visibility/')).map(n=>n.slice(11,-5)));
+const visibilityMap=globalThis.AstroNotesVisibilityMap?.create({ground:mapGround,buildings:sharedHeights(),trees:treeHeights,store:visibilityStore,capM:20000,
+ builtIn:target=>builtInMaps.has(target.id)?loaded('visibility/'+target.id+'.json'):null})||null;
+const mapEligible=plan=>!!plan?.target&&!(plan.composition||plan.strict||plan.profile==='summit-contact'||plan.target.rim)&&(plan.target.parts||[]).some(p=>Number.isFinite(p.m));
+const prefilter=visibilityMap&&{
+ async regions(plan,regions,{isCurrent}){
+  if(!mapEligible(plan))return null;const t=plan.target,inv=(lat,lon)=>AstroNotesTerrain.inverse(t.latitude,t.longitude,lat,lon).azimuth;
+  const bearings=regions.flatMap(r=>{const [w,s,e,n]=r.bbox;return [inv((s+n)/2,(w+e)/2),inv(s,w),inv(s,e),inv(n,w),inv(n,e)];});
+  const m=await visibilityMap.ensure(t,bearings,{isCurrent,deadline:Date.now()+MAP_BUDGET_MS});if(!m?.levels?.length||!m.sectors.size)return null;
+  const need=AstroNotesVisibilityMap.needFor(m);
+  return {regions:regions.filter(r=>!AstroNotesVisibilityMap.regionHidden(m,t,r.bbox,need)),context:{map:m,need}};
+ },
+ point(plan,point,{map,need}){const r=AstroNotesVisibilityMap.lookup(map,plan.target,point.latitude,point.longitude);return !(r.known&&r.count<need);}
+};
 AstroNotesCandidatePicker.hiddenView=async(observer,target,partId)=>{
  if(!viewModelPromise)viewModelPromise=staticTerrain().then(dem=>AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:viewLive,heights:sharedHeights(),trees:treeHeights,staticTerrain:dem}));
  viewLive.resetBudget();treeGround.resetBudget();return (await viewModelPromise).hiddenView(observer,target,{partId});
@@ -66,7 +89,7 @@ async function loadModel(){
  return modelPromise;
 }
 let evaluationBudgetStarted=false;
-const engine=AstroNotesCandidateDiscovery.createGenericSearch({provider,bodies:AstroNotesBodies,loadStatic:()=>loaded('candidate-sidewalks.json'),evaluate:async(p,point,data,options)=>{const model=await loadModel();
+const engine=AstroNotesCandidateDiscovery.createGenericSearch({provider,bodies:AstroNotesBodies,prefilter,loadStatic:()=>loaded('candidate-sidewalks.json'),evaluate:async(p,point,data,options)=>{const model=await loadModel();
 if(plateauShapes&&String(p.target?.id||'').startsWith('fav:')&&!plateauShapes.attachedTo(p.target.id))await plateauShapes.prepare([p.target]).catch(()=>{});if(!options.isCurrent())throw Error('candidate-cancelled');
 if(!evaluationBudgetStarted){live.resetBudget();footprintGround.resetBudget();treeGround.resetBudget();
 evaluationBudgetStarted=true;}return model.evaluate(p,point,data,options);}});
@@ -151,10 +174,29 @@ function syncRecordSave(host,toolbar){
  option.title=text;}if(option.parentElement!==choices)choices.append(option);}
  const hidden=!!host.closest('#exploreScenePanel')?.hidden;if(button.hidden!==hidden)button.hidden=hidden;button.disabled=place.disabled&&plan.disabled;
 }
+// 2026-11-13 ユーザー「やって」（候補から現地の写真を開く）: Googleマップのストリートビューを、撮影地点で対象の方位と高さへ
+// 向けて開く（公開のURL形式でキー不要）。写真は道路沿いが中心で、公園の中では一番近くの写真になるので、確かめる手がかりにとどまる。
+function streetUrl(s){
+ const o=s?.observer,t=s?.target;if(!o||!t||![o.latitude,o.longitude,t.latitude,t.longitude].every(Number.isFinite))return null;
+ const ground=[o.elevation,o.groundManualM].find(Number.isFinite)??0,eyeM=[o.eyeHeightAGL,o.standAglM].find(Number.isFinite)??1.5;
+ const g=AstroNotesAlign.geometryFrom({latitude:o.latitude,longitude:o.longitude,elevation:ground},t,{eyeM,partId:s.partId&&s.partId!=='__whole'?s.partId:null});
+ const az=Number.isFinite(g?.azimuth)?g.azimuth:AstroNotesTerrain.inverse(o.latitude,o.longitude,t.latitude,t.longitude).azimuth,up=Number.isFinite(g?.angle)?g.angle:0;
+ const pitch=Math.max(-10,Math.min(60,up*.6)),fov=Math.max(20,Math.min(90,up*2.2));
+ return 'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+o.latitude.toFixed(6)+'%2C'+o.longitude.toFixed(6)+'&heading='+((az%360+360)%360).toFixed(1)
+  +'&pitch='+pitch.toFixed(1)+'&fov='+Math.round(fov);
+}
+function syncStreetPhoto(toolbar,s){
+ const old=document.getElementById('exploreStreetPhoto'),url=streetUrl(s);if(!url){old?.remove();return;}
+ const link=old||document.createElement('a');
+ if(!old){link.id='exploreStreetPhoto';link.className='trial-map-action';link.target='_blank';link.rel='noopener';link.setAttribute('aria-label','撮影地点の現地の写真（ストリートビュー）を対象の方向で開く');link.title='現地の写真を開く';
+  link.innerHTML=UI_ICONS.photo+'<span>現地写真</span>';}
+ if(link.href!==url)link.href=url;if(link.parentElement!==toolbar)toolbar.append(link);
+}
 function syncObserverMap(){
  watchPreview();
- const old=document.getElementById('exploreExternalMap'),point=snapshot()?.observer,toolbar=document.querySelector('#exploreScenePanel #aimLook .trial-scene-toolbar');
- if(!toolbar||!point){old?.remove();return;}syncRecordSave(toolbar.closest('#aimLook'),toolbar);const next=mapAnchor(point);if(!next){old?.remove();return;}
+ const old=document.getElementById('exploreExternalMap'),s=snapshot(),point=s?.observer,toolbar=document.querySelector('#exploreScenePanel #aimLook .trial-scene-toolbar');
+ if(!toolbar||!point){old?.remove();document.getElementById('exploreStreetPhoto')?.remove();return;}syncRecordSave(toolbar.closest('#aimLook'),toolbar);syncStreetPhoto(toolbar,s);
+ const next=mapAnchor(point);if(!next){old?.remove();return;}
  if(old?.href===next.href){if(old.parentElement!==toolbar)toolbar.append(old);return;}
  old?.remove();next.id='exploreExternalMap';next.className='trial-map-action';next.setAttribute('aria-label','撮影地点を地図アプリで開く');next.title='地図アプリで開く';next.innerHTML=UI_ICONS.map+'<span>地図</span>';toolbar.append(next);
 }
@@ -251,6 +293,7 @@ function mount(){
    const c=result.counts,unverifiedWhy=[c.nearBuilding?`立つ点のすぐ脇に建物${c.nearBuilding}`:'',c.heightUnknown?`建物の高さが分からない${c.heightUnknown}`:'',c.obstacle?`木・橋・高架${c.obstacle}`:''].filter(Boolean).join('・');
    resultNotes.textContent=`見通しを地形と建物で確かめられた地点だけを候補にしています。${c.checked}地点を確認：遮られる${c.blocked}、`
     +`見通しを確かめられない${c.unverified||0}${unverifiedWhy?`（うち${unverifiedWhy}）`:''}、構図に合わない${c.outsideFrame||0}、立つ高さが分からない${c.unknown}。`
+    +(c.mapRegions||c.mapPoints?`見える場所の地図で、対象の名前のある部分が見えない区画${c.mapRegions||0}を探す前に外し、地点${c.mapPoints||0}を確かめる前に外しました（遮られるに含む）。`:'')
     +'建物の高さはPLATEAUを整備した都市はその高さ、ほかは国土地理院の建物の形と種類から見積もります。木はMeta・WRIの樹高地図（衛星写真からの推定、約2.4m刻み）の高さで判定し、読めないときはOpenStreetMapにある木だけを高さが分からないものとして扱います。橋・高架はOpenStreetMapにあるものだけ、高さが分からないものとして判定します。'
     +`探索地域 ${result.coverage.regions}区画。全地域・全時刻の網羅や実写成功は保証していません。`;
  }

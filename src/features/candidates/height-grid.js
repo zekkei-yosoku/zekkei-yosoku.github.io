@@ -56,8 +56,9 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   ownCells.set(targetKey,set);if(ownCells.size>32)ownCells.delete(ownCells.keys().next().value);return set;
  }
  // The main index lists one part per 1st-order mesh (about 80 km); a part lists its meshes. Only parts a line reaches are read.
+ let indexData=null;
  const index=()=>indexPromise||(indexPromise=(async()=>{const data=loadIndex?structuredClone(await loadIndex()):await (async()=>{const r=await fetchImpl(base+'index.json');if(!r.ok)throw Error('height-index');return r.json();})();
-  data.highestM=Math.max(0,...Object.values(data.parts||{}).map(v=>v[2]??0),...Object.values(data.targets||{}).flatMap(t=>Object.values(t).map(v=>v.topM)));return data;})().catch(e=>{indexPromise=null;throw e;}));
+  data.highestM=Math.max(0,...Object.values(data.parts||{}).map(v=>v[2]??0),...Object.values(data.targets||{}).flatMap(t=>Object.values(t).map(v=>v.topM)));indexData=data;return data;})().catch(e=>{indexPromise=null;throw e;}));
  function part(p4,data){
   if(!partLoads.has(p4))partLoads.set(p4,(async()=>{const r=await fetchImpl(base+p4+'/index.json?v='+data.parts[p4][0],{signal:globalThis.AbortSignal?.timeout?.(20000)});if(!r.ok)throw Error('height-part');
    const bytes=await r.arrayBuffer();if(!(await sha(bytes)).startsWith(data.parts[p4][0]))throw Error('height-part-version');
@@ -201,7 +202,41 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   }
   return {status:'ok',toM:best?.toM??-Infinity,distanceM:best?.distanceM??null,topM:best?.topM??null,complete:uncovered===0};
  }
- return {trace,skyline,index};
+ // The building top (sea-level metres) at a point without waiting: 0 for no building or the aimed target's own cells,
+ // null where no PLATEAU mesh covers it, undefined while the index, part or mesh is still to be read (loadAt reads it).
+ let lastMesh=null;
+ function topNow(lat,lon,targetKey){
+  const data=indexData;if(!data)return undefined;const gy=Math.floor(lat*LAT),gx=Math.floor(lon*LON),own=ownSet(targetKey);if(own?.has(gx+','+gy))return 0;
+  const my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS);let m=lastMesh;
+  if(!m||m.my!==my||m.mx!==mx||m.targetKey!==targetKey){
+   const code=meshCode(my,mx),p4=code.slice(0,4);if(!data.parts?.[p4])return null;const list=parts.get(p4);if(!list)return undefined;const entry=list[code];if(!entry)return null;
+   const grid=ready.get(code);if(!grid)return undefined;m=lastMesh={my,mx,targetKey,grid,others:overlay(code,data,targetKey)};
+  }
+  const i=(gy-my*ROWS)*COLS+(gx-mx*COLS);if(m.others.own.has(i))return 0;const v=Math.max(m.grid[i],m.others.get(i)||0);return v?v-data.grid.offsetM:0;
+ }
+ async function loadAt(lat,lon){
+  const data=await index(),gy=Math.floor(lat*LAT),gx=Math.floor(lon*LON),my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS),code=meshCode(my,mx),p4=code.slice(0,4);
+  if(!data.parts?.[p4])return;const list=parts.get(p4)||await part(p4,data);if(list[code])await mesh(code,list[code]);
+ }
+ // The highest a building top rises above the eye along each bearing (deg, with the earth's curve), up to maxM: whether
+ // other buildings stand into the sky beside the target in the photograph (generic-evaluator.js compositionOf). PLATEAU
+ // tops only; the aimed target's own cells are left out.
+ async function angles(observer,azimuths,maxM,{targetKey=null,isCurrent=()=>true,refractionK=7/6}={}){
+  const eye=observer.elevation+(observer.eyeM??1.5),c=1/(2*R*refractionK),out=[];
+  for(const az of azimuths){
+   let best=-Infinity,d=NEAR_M;
+   while(d<maxM){
+    if(!isCurrent())throw Error('candidate-cancelled');
+    const p=destination(observer.latitude,observer.longitude,az,d);let top=topNow(p.latitude,p.longitude,targetKey);
+    if(top===undefined){try{await loadAt(p.latitude,p.longitude);}catch{return null;}top=topNow(p.latitude,p.longitude,targetKey);}
+    if(Number.isFinite(top)&&top>0)best=Math.max(best,Math.atan2(top-eye-c*d*d,d)/RAD);
+    d+=d<1000?5:d<5000?10:20;
+   }
+   out.push(best);
+  }
+  return out;
+ }
+ return {trace,skyline,index,topNow,loadAt,angles};
 }
 return {create,decode,meshCode,profile,cells,GSI_MAX_M,MARGIN_M};
 });
