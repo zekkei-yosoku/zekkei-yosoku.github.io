@@ -35,13 +35,13 @@ function installFixture(granted){
 const state=p=>p.evaluate(()=>{const s=SkyMapUI.selectionState(),o=s.observer,eye=o?aimObserverAt(o,SkyMapUI.workspaceHost().session.ground):null;return {body:s.body,target:s.target?.id,observer:o&&{name:o.name,latitude:o.latitude,longitude:o.longitude},at:s.at,ground:eye?.elevation,eyeM:eye?.eyeM,partId:s.partId,limb:s.limb};});
 const saved=p=>p.evaluate(()=>JSON.stringify({favorites,records:MyPlacesUI.load(),schedule:schedule().list()}));
 async function openCandidates(p){
- // 2026-11-11 新しい地点は「探す」の検索画面のタブ（見え方からは戻るボタンで戻る）。
+ // 2026-11-11 新しい撮影地点は「探す」の検索画面のタブ（見え方からは戻るボタンで戻る）。
  if(await p.locator('#exploreBackToCandidates').isVisible())await p.locator('#exploreBackToCandidates').click();
  await p.locator('#exploreDiscovery-new').click();await p.waitForFunction(()=>{const button=document.getElementById('candidateSearchAction');return button?.dataset.state==='idle'&&!button.disabled&&button.getBoundingClientRect().width>0;});
 }
 async function search(p,visibleCount=3){
  await p.locator('#candidateSearchAction').click();
- await p.waitForFunction(n=>document.querySelector('#candidateSearchFeedback [role=status]')?.textContent.includes(n+'件の候補があります'),visibleCount);
+ await p.waitForFunction(n=>document.querySelector('#candidateSearchFeedback [role=status]')?.textContent.includes(n+'件の新たな撮影地点の候補があります'),visibleCount);
  await p.waitForFunction(n=>AstroNotesCandidatePicker.visibleRows().length===n&&document.getElementById('candidateSearchAction')?.dataset.state==='idle'&&document.getElementById('additionalCandidateResults')?.getAttribute('aria-busy')==='false',visibleCount);
 }
 async function prepare(p,body){

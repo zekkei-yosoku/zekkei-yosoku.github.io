@@ -97,7 +97,7 @@ async function assertFooterClearance(page,selector='#candidateUnifiedResults>.li
     await page.locator('#candidateSearchAction').click();await settled(page,2);await assertColumns(page);await assertFieldLayout(page);
     assert(await page.locator('#exploreResultsHeading').isVisible());
     assert(await page.locator('#candidateSearchFeedback [role=status]').isVisible());
-    assert((await page.locator('#candidateSearchFeedback [role=status]').innerText()).includes('新たな地点で2件'));
+    assert((await page.locator('#candidateSearchFeedback [role=status]').innerText()).includes('2件の新たな撮影地点の候補があります'));
     const registeredText=await page.locator('#recentCandidates .my-picker').innerText();
     assert(!registeredText.includes('登録した地点に候補がありません')&&!registeredText.includes('絞り込み前'),registeredText);
     await assertFooterClearance(page);await page.screenshot({path:out+'/'+tag+'-results.png',fullPage:true});
