@@ -1979,15 +1979,15 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
  };
  // Tree tops on the line (tree-heights.js). Unread (offline, the map's server) leaves trees as before: OSM woods only.
  const treesOf=async(observer,ray,options)=>trees?trees.sight(observer,ray,{isCurrent:options.isCurrent}):null;
- // How the place frames the target (2026-11-13, user's choice for the order: 天体と対象の大きさの比・対象がよく見える・
- // 高い所・見晴らし・背景がすっきり): how much of the target shows over what is in front, how big the body is beside the part
- // that shows, how far the place stands above the ground around it, and how many bearings beside the target have other
- // buildings rising into the sky above the target's hidden line.
+ // How the place frames the target (2026-11-13, user's choice for the order: 対象がよく見える・高い所・見晴らし・
+ // 背景がすっきり; the size beside the body was dropped on 2026-11-14, "月との比率はいらないよ"): how much of the target shows
+ // over what is in front, how far the place stands above the ground around it, and how many bearings beside the target
+ // have other buildings rising into the sky above the target's hidden line (a window of three body diameters).
  async function compositionOf(plan,position,solution,state,los,options){
   const t=plan.target,groundT=Number.isFinite(t.groundM)?t.groundM:0,tops=(t.parts||[]).map(p=>p.m).filter(Number.isFinite);if(!tops.length)return null;
   const top=Math.max(...tops),eye=position.elevation+position.eyeM,Dm=solution.geometry.distanceKm*1000,c=1/(2*R*(root.AstroNotesAtmosphere?.targetK?.()??7/6));
   const angleTo=h=>Math.atan2(h-eye-c*Dm*Dm,Dm)/D,hidden=Math.min(top,Math.max(groundT,hiddenTop(los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline)));
-  const visibleAngle=Math.max(1e-6,angleTo(top)-angleTo(hidden)),body=2*(state.angularRadius||0);
+  const body=2*(state.angularRadius||0);
   let gain=null;
   if(terrain?.at){const hs=[];for(let k=0;k<8;k++){const q=geo.destination(position.latitude,position.longitude,k*45,.2),h=await terrain.at(q,options).catch(e=>{if(e?.message==='candidate-cancelled')throw e;return null;});if(Number.isFinite(h))hs.push(h);}
    if(hs.length>=4){hs.sort((a,b)=>a-b);gain=position.elevation-hs[Math.floor(hs.length/2)];}}
@@ -1995,7 +1995,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   if(heights?.angles){const halfW=Math.max(3*body,2*Math.atan2((t.widthM||40)/2,Dm)/D,.5),az=solution.geometry.azimuth,floor=angleTo(hidden)+.05;
    const seen=await heights.angles(position,[-1,-.75,-.5,-.3,.3,.5,.75,1].map(f=>(az+f*halfW+360)%360),Dm+3000,{targetKey:t.id,isCurrent:options.isCurrent});
    if(seen)clean=seen.filter(a=>!(a>floor)).length/seen.length;}
-  return {visibleFraction:Math.max(0,Math.min(1,(top-hidden)/Math.max(1,top-groundT))),visibleAngleDeg:visibleAngle,bodyDiameterDeg:body,sizeRatio:body>0?body/visibleAngle:null,heightGainM:gain,cleanSky:clean};
+  return {visibleFraction:Math.max(0,Math.min(1,(top-hidden)/Math.max(1,top-groundT))),heightGainM:gain,cleanSky:clean};
  }
  async function terrainRay(observer,ray,options){
   if(staticTerrain){const tested=staticTerrain.trace(observer,ray);if(tested.hit||tested.checked>0&&tested.missing===0)return {...tested,status:tested.hit?'blocked':'model-clear',nativeRaster:true};}
@@ -2454,21 +2454,18 @@ return {resolve,enrich,edgeDistance};
 const names={viewpoint:'展望地点',park:'公園',plaza:'広場',riverbank:'河川敷',garden:'庭園',facility:'その他の施設',road:'道路・歩道',unknown:'種類未確認'};
 const photoOrder={normal:0,conditional:1,unfavorable:2,unknown:3};
 // 2026-11-13 ユーザーの選択: おすすめ順は構図の良さで並べる。見える部分の割合、周りの地面より高いこと（20mで満点）、背景のすっきり
-// （対象の横の空に他のビルが出ていない方位の割合）、天体の大きさ（見える部分に対する直径の比）は好みを選んだ時だけ加える。
-const SIZE={large:[.5,Infinity],medium:[.15,.5],small:[0,.15]};let sizePref='any';
+// （対象の横の空に他のビルが出ていない方位の割合）。2026-11-14 ユーザー「月との比率はいらないよ」: 天体の大きさの比は使わない。
 function compositionScore(row){
  const c=row.quality?.composition;if(!c)return null;const parts=[];
  if(Number.isFinite(c.visibleFraction))parts.push(c.visibleFraction);
  if(Number.isFinite(c.heightGainM))parts.push(Math.max(0,Math.min(1,c.heightGainM/20)));
  if(Number.isFinite(c.cleanSky))parts.push(c.cleanSky);
- if(SIZE[sizePref]&&Number.isFinite(c.sizeRatio)&&c.sizeRatio>0){const [lo,hi]=SIZE[sizePref],r=c.sizeRatio;parts.push(r>=lo&&r<hi?1:Math.exp(-1.5*Math.abs(Math.log(r<lo?r/lo:r/hi))));}
  return parts.length?parts.reduce((a,b)=>a+b,0)/parts.length:null;
 }
-// The same in words under the row: what shows, how big the body is beside it, how high the place stands, the sky beside it.
-function compositionText(row,bodyName){
+// The same in words under the row: what shows, how high the place stands, the sky beside it.
+function compositionText(row){
  const c=row.quality?.composition;if(!c)return '';const out=[];
  if(Number.isFinite(c.visibleFraction))out.push('見える部分'+Math.round(c.visibleFraction*100)+'%');
- if(Number.isFinite(c.sizeRatio)&&c.sizeRatio>0){const r=c.sizeRatio;out.push((bodyName||'天体')+'は見える部分の'+(r>=1?(r<10?r.toFixed(1):Math.round(r))+'倍':'1/'+Math.max(2,Math.round(1/r))));}
  if(Number.isFinite(c.heightGainM)&&c.heightGainM>=3)out.push('周りより'+Math.round(c.heightGainM)+'m高い');
  if(Number.isFinite(c.cleanSky))out.push(c.cleanSky>=.75?'背景すっきり':c.cleanSky<=.35?'横に他のビル':'');
  return out.filter(Boolean).join(' ・ ');
@@ -2541,7 +2538,7 @@ const uncertainty=row=>[row.quality?.hiddenBelow?.text||'',row.quality?.visibili
 function configure(value){if(typeof value==='function')loadLabels=value;else if(value){ports={...ports,...value};if(typeof value.loadLabels==='function')loadLabels=value.loadLabels;}}
 function planKey(plan){return typeof ports.requestKey==='function'?ports.requestKey(plan):JSON.stringify([plan.requestKey,plan.owner,plan.body,plan.target,plan.partId,plan.limb,plan.matchMode,plan.composition,plan.compositionInvalid,plan.timeSpec||null,day(plan.at),plan.atmosphere,
 plan.cameraHeight]);}
-function formatRow(node,row,types,plan){
+function formatRow(node,row,types){
  if(!node.hasAttribute('data-candidate-columns')){
   const notes=[...node.querySelectorAll('.sub-line')].filter(n=>!n.hasAttribute('data-place-kind')).map(n=>n.textContent.replace(/^\d{2}:\d{2}・/,'').replace(/ · \d{2}:\d{2}/,''));
   node.replaceChildren();node.dataset.candidateColumns='';
@@ -2555,7 +2552,7 @@ function formatRow(node,row,types,plan){
  node.querySelector('[data-place-kind]').textContent=types.map(t=>names[t]).join('・');
  node.querySelector('[data-candidate-time]').textContent=clockText(row.event?.at);
  const angleCell=node.querySelector('[data-candidate-angle]');if(angleCell){const a=angleOf(row);angleCell.textContent=Number.isFinite(a)?Math.round(a)+'°':'—';angleCell.setAttribute('aria-label',Number.isFinite(a)?'見上げる角度 '+Math.round(a)+'度':'見上げる角度 不明');}
- const framed=compositionText(row,plan&&typeof AstroNotesBodies!=='undefined'&&typeof AstroNotesBodies.definition==='function'?AstroNotesBodies.definition(plan.body)?.name:null);let line=node.querySelector('[data-candidate-composition]');
+ const framed=compositionText(row);let line=node.querySelector('[data-candidate-composition]');
  if(framed){if(!line){line=document.createElement('span');line.dataset.candidateComposition='';line.className='tiny sub-line';Object.assign(line.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});
   const before=node.querySelector('[data-candidate-uncertainty]');if(before)node.insertBefore(line,before);else node.append(line);}line.textContent=framed;}else line?.remove();
  const unconfirmed=uncertainty(row);let note=node.querySelector('[data-candidate-uncertainty]');
@@ -2597,8 +2594,6 @@ function mount(panel,plan){
   };l.append(s);filters.append(l);};
   add('時間帯','candidateTimeFilter',[['all','すべての時間'],['rise','出の前後1時間'],['set','入の前後1時間']],time,v=>time=v);
   add('場所の種類','candidateKindFilter',[['all','すべての種類'],...Object.entries(names)],kind,v=>kind=v);
-  // Choosing a size orders the list by it (おすすめ順).
-  add('天体の大きさ','candidateSizeFilter',[['any','こだわらない'],['large','大きく（見える部分の1/2以上）'],['medium','中くらい（1/7〜1/2）'],['small','小さく（1/7未満）']],sizePref,v=>{sizePref=v;if(v!=='any'){sort='recommended';updateHeaders();}});
   const actions=document.createElement('div');actions.className='candidate-list-actions';Object.assign(actions.style,{display:'flex',gap:'8px',flexWrap:'wrap'});
   const reset=button('おすすめ順にする',()=>{sort='recommended';updateHeaders();apply();});reset.dataset.candidateRecommended='';
   const toggle=button('地図で見る',()=>showMap(!mapMode));toggle.id='candidateMapToggle';toggle.disabled=true;actions.append(toggle,reset);control.append(actions);
@@ -2628,7 +2623,7 @@ async function apply(){
     }
     if(!events)unknownTime++;
    }
-   const id=candidateKey(row);formatRow(node,row,types,g.plan);node.dataset.candidateKinds=types.join(',');node.dataset.candidateId=id;
+   const id=candidateKey(row);formatRow(node,row,types);node.dataset.candidateKinds=types.join(',');node.dataset.candidateId=id;
    if(!boundNodes.has(node)){boundNodes.add(node);node.addEventListener('click',()=>{selectedId=node.dataset.candidateId;},true);}
    entries.push({row,node,types,index:index++,id,box,group:g,show:accepts(row,selection.time,selection.kind,types,events)});
    if(i%12===11){await new Promise(r=>setTimeout(r,0));if(!revision.current(token)||!g.current())return;}
