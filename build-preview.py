@@ -20,7 +20,8 @@ for pattern in ['astronotes-*.js','overlap-calculation*.js','sorami-*.js','sky-r
  runtime_assets.update(root.glob(pattern))
 for f in sorted(runtime_assets):emit(out/f.name,f.read_bytes())
 # 探すの大きなデータは本体の data/ に1つだけ置き、試用版は ../data/ から読む（Pages の容量。上の meta で指す）。
-shared=lambda p:p.parts[1] in ('building-heights','building-shapes','osm-places') or p.parts[1].startswith('candidate-')
+# 2026-11-13 見える場所の地図（data/visibility/）も同じく本体の data/ だけに置く。
+shared=lambda p:p.parts[1] in ('building-heights','building-shapes','osm-places','visibility') or p.parts[1].startswith('candidate-')
 tracked=set(subprocess.check_output(['git','ls-files','data','vendor'],cwd=root,text=True).splitlines())
 for name in ['data','vendor']:
  for f in (root/name).rglob('*'):
