@@ -2515,13 +2515,47 @@ function mergeEntries(entries,sort){
   if(!previous||(previous.show===false&&e.show!==false)||(previous.show===false)===(e.show===false)&&compare(e,previous,'recommended')<0)unique.set(key,e);
  }
  // 2026-11-12 実機: 同じ公園や川沿いで30m隣の点が、同じ名前・同じ分・同じ種類のまま2行ずつ並び、見分けがつかなかった。
- // 250m以内・高さの差5m以内で見た目が同じ行は、表示中で、おすすめ順が上の1行だけを残す（残す行は自分の根拠だけを持つ）。
- const kept=[],looks=e=>[e.row.place?.name??'',e.types.join(','),Number.isFinite(e.row.event?.at)?Math.floor((e.row.event.at+32400000)/60000):'?'].join('|');
+ // 2026-11-14 ユーザー「同じような地点が複数出てたり」「エリア化から」: 計測（太陽×東京スカイツリー 11/20）で107行が
+ // 300m以内のまとまり9つだった。隣の点は重なる時刻が数秒〜数分ずれるだけで、同じ公園の中を歩けば時刻は続けて移る。
+ // おすすめ順が上の行をエリアの中心にし、同じ種類で、中心からAREA_M以内・立つ高さの差AREA_RISE_M以内、時刻がエリアの時刻の幅から
+ // AREA_MS以内の行をそのエリアにまとめる。名前は見ず、種類は1つでも同じならよい（同じ岸の「河川沿いの歩道」と、公園の名前で公園・河川敷の
+ // 両方が付く行が並んでいた）。高さの差はAREA_RISE_Mまで（同じ公園の斜面で5m強違う隣の点が分かれた。展望台の床と地上は
+ // これより離れる）。AREA_MSは1時間（対象のすぐ近くでは、70m隣の点の時刻が25分ずれて別の行になった。朝と夕方は何時間も
+ // 離れる）。時刻が続かない朝と夕方、別の高さ、別の種類は別のエリア。
+ // エリアで出す行（代表）は、対象が一番下まで見える立ち位置（ユーザー「土手の上を候補に出せばいいのに土手の下とかを候補に
+ // 出して」）: 隠れる高さがAREA_SEES_M以上低い行があればそちらを代表にし、差がなければおすすめ順が上の行。代表は自分の根拠
+ // だけを持ち、エリアは立つ位置の数と時刻の幅だけを持つ。
+ // The height one stands at: the ground and the floor above it (a deck's floor and the ground below it are two areas).
+ const standM=e=>{const p=e.row.place||{},o=e.row.assumedObserver||{},g=p.groundManualM??p.elevation??o.elevation,up=p.standAglM??p.eyeHeightAGL??o.eyeM;return (Number.isFinite(g)?g:0)+(Number.isFinite(up)?up:0);};
+ // How high up the target is hidden from the place (m); nothing hidden is the best there is.
+ const hiddenM=e=>Number.isFinite(e.row.quality?.hiddenBelow?.m)?e.row.quality.hiddenBelow.m:-Infinity,sees=(a,b)=>hiddenM(a)<hiddenM(b)-AREA_SEES_M?a:b;
+ const kept=[],timeOf=e=>Number.isFinite(e.row.event?.at)?e.row.event.at:null,spot=e=>e.row.place?.latitude+','+e.row.place?.longitude;
+ const near=(k,e)=>k.e.types.some(t=>e.types.includes(t))&&metres(k.e.row.place,e.row.place)<=AREA_M
+  &&!(Math.abs(standM(k.e)-standM(e))>AREA_RISE_M);
+ const touches=(k,from,to)=>k.fromAt===null?from===null:from!==null&&from<=k.toAt+AREA_MS&&to>=k.fromAt-AREA_MS;
  for(const e of [...unique.values()].sort((a,b)=>(a.show===false)-(b.show===false)||compare(a,b,'recommended'))){
-  const look=looks(e),h=e.row.place?.elevation;
-  if(kept.some(k=>k.look===look&&metres(k.e.row.place,e.row.place)<=250&&!(Math.abs((k.e.row.place?.elevation??h)-(h??k.e.row.place?.elevation))>5)))continue;kept.push({e,look});
+  const at=timeOf(e),home=kept.find(k=>near(k,e)&&touches(k,at,at));
+  if(!home){kept.push({e,best:e,spots:new Set([spot(e)]),fromAt:at,toAt:at});continue;}
+  // A row the filters hide does not widen what the shown representative says.
+  if((home.e.show===false)!==(e.show===false))continue;
+  home.spots.add(spot(e));home.best=sees(e,home.best);if(at!==null){home.fromAt=Math.min(home.fromAt,at);home.toAt=Math.max(home.toAt,at);}
  }
- return kept.map(k=>k.e).sort((a,b)=>compare(a,b,sort));
+ // Areas whose times have grown to meet join the better-ranked one (kept is in recommended order).
+ for(let again=true;again;){again=false;
+  for(let i=0;i<kept.length&&!again;i++)for(let j=i+1;j<kept.length;j++){const a=kept[i],b=kept[j];
+   if((a.e.show===false)!==(b.e.show===false)||!near(a,b.e)||!touches(a,b.fromAt,b.toAt))continue;
+   for(const p of b.spots)a.spots.add(p);a.best=sees(b.best,a.best);if(b.fromAt!==null){a.fromAt=Math.min(a.fromAt,b.fromAt);a.toAt=Math.max(a.toAt,b.toAt);}kept.splice(j,1);again=true;break;}
+ }
+ for(const k of kept)areas.set(k.best,{count:k.spots.size,fromAt:k.fromAt,toAt:k.toAt});
+ return kept.map(k=>k.best).sort((a,b)=>compare(a,b,sort));
+}
+// The area a representative stands for (mergeEntries): how many places it gathers and the span of their times.
+const AREA_M=300,AREA_RISE_M=10,AREA_MS=60*60000,AREA_SEES_M=10,areas=new WeakMap(),areaOf=entry=>areas.get(entry)||null;
+function areaText(area){
+ if(!area)return '';const clock=at=>new Date(at+32400000).toISOString().slice(11,16);
+ const from=Number.isFinite(area.fromAt)?clock(area.fromAt):'',to=Number.isFinite(area.toAt)?clock(area.toAt):'',span=from&&to&&from!==to?from+'〜'+to:'';
+ // One place with several times still says its times; one place with one time says nothing.
+ return area.count>1?'この付近'+area.count+'地点'+(span?' ・ '+span:''):span;
 }
 function metres(a,b){
  if(![a?.latitude,a?.longitude,b?.latitude,b?.longitude].every(Number.isFinite))return Infinity;
@@ -2558,6 +2592,14 @@ function formatRow(node,row,types){
  const unconfirmed=uncertainty(row);let note=node.querySelector('[data-candidate-uncertainty]');
  if(unconfirmed.length){if(!note){note=document.createElement('span');note.dataset.candidateUncertainty='';note.className='tiny sub-line';Object.assign(note.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});node.append(note);}note.textContent=unconfirmed.join(' ・ ');
  }else note?.remove();
+}
+// Under a representative row: the places and times of its area (2026-11-14).
+function showArea(node,area){
+ const text=areaText(area);let line=node.querySelector('[data-candidate-area]');
+ if(!text){line?.remove();return;}
+ if(!line){line=document.createElement('span');line.dataset.candidateArea='';line.className='tiny sub-line';Object.assign(line.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});
+  const before=node.querySelector('[data-candidate-composition],[data-candidate-uncertainty]');if(before)node.insertBefore(line,before);else node.append(line);}
+ line.textContent=text;
 }
 function createHeader(){
  const header=document.createElement('div');header.className='candidate-list-heading';header.dataset.candidateHeaders='';header.setAttribute('role','group');header.setAttribute('aria-label','候補の並べ替え');
@@ -2632,7 +2674,7 @@ async function apply(){
  if(!revision.current(token))return;
  const merged=mergeEntries(entries,selection.sort),chosen=new Set(merged.map(e=>e.node));
  for(const e of entries)if(!chosen.has(e.node))e.node.remove();
- for(const e of merged){e.node.hidden=!e.show;e.node.style.display=e.show?'grid':'none';list.append(e.node);}
+ for(const e of merged){e.node.hidden=!e.show;e.node.style.display=e.show?'grid':'none';showArea(e.node,areaOf(e));list.append(e.node);}
  // Remove orphaned nodes left by a source re-render or cancelled job.
  for(const node of [...list.children])if(!chosen.has(node))node.remove();
  visibleEntries=merged.filter(e=>e.show);visibleEntries.forEach((e,i)=>e.node.dataset.candidateNumber=String(i+1));
@@ -2731,7 +2773,7 @@ function reset(){if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setW
 mapScroll=null;suspendedView=null;}
 const api={mount,configure,registerRegistered:register,registerAdditional:register,unregister,apply,kinds,accepts,compare,showMap,suspend,reset,visibleRows:()=>visibleEntries.filter(currentEntry).map(e=>e.row)};
 globalThis.AstroNotesCandidatePicker=api;
-if(typeof module!=='undefined')module.exports={kinds,accepts,compare,candidateKey,mergeEntries,placePriority};
+if(typeof module!=='undefined')module.exports={kinds,accepts,compare,candidateKey,mergeEntries,placePriority,areaOf,areaText};
 })();
 
 // Trial adapter. Existing session owns selection; discovery owns search jobs.

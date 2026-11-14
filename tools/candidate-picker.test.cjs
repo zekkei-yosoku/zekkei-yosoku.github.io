@@ -44,7 +44,7 @@ test('explicit place kinds remain authoritative and missing quality is not promo
 });
 test('identical candidates merge without mixing evidence, but time and deck remain independent',()=>{
  const base={place:{latitude:35,longitude:139,elevation:10,eyeHeightAGL:1.5},event:{at:100},quality:{photographyClass:'normal'}};
- const a={row:structuredClone(base),types:['road'],index:0},b={row:{...structuredClone(base),rank:0},types:['park'],index:1},deck={row:{...structuredClone(base),place:{...base.place,elevation:100}},types:['viewpoint'],index:2},later={row:{...structuredClone(base),event:{at:100+60000}},types:['park'],index:3};
+ const a={row:structuredClone(base),types:['road'],index:0},b={row:{...structuredClone(base),rank:0},types:['park'],index:1},deck={row:{...structuredClone(base),place:{...base.place,elevation:100}},types:['viewpoint'],index:2},later={row:{...structuredClone(base),event:{at:100+90*60000}},types:['park'],index:3};
  const before=JSON.stringify([a,b,deck,later]);const out=F.mergeEntries([a,b,deck,later],'recommended');
  assert.equal(out.length,3);assert(out.includes(b));assert(!out.includes(a));assert(out.includes(deck));assert(out.includes(later));assert.equal(JSON.stringify([a,b,deck,later]),before);
 });
@@ -59,11 +59,31 @@ test('deduplication retains a source row that satisfies the selected kind filter
  assert.deepEqual(F.mergeEntries([park,road],'recommended'),[road]);
  assert.deepEqual(F.mergeEntries([road,park],'recommended'),[road]);
 });
-test('look-alike rows (same name, kind and minute within 250 m) collapse to the best shown one',()=>{
+test('rows of one area (a shared kind, within 300 m and 10 m, times that follow on within an hour) collapse to the best shown one',()=>{
  const at=Date.parse('2026-11-20T15:38:20+09:00'),row=(lat,extra={})=>({place:{name:'西ヶ原みんなの公園',latitude:lat,longitude:139.74,elevation:20},event:{at},quality:{photographyClass:'normal'},...extra});
  const a={row:row(35.7400,{rank:[5]}),types:['park'],index:0},b={row:row(35.7402,{rank:[3],event:{at:at+20000}}),types:['park'],index:1};
- const far={row:row(35.7450),types:['park'],index:2},next={row:row(35.7400,{event:{at:at+60000}}),types:['park'],index:3},deck={row:row(35.7400,{place:{name:'西ヶ原みんなの公園',latitude:35.74,longitude:139.74,elevation:40}}),types:['park'],index:4};
- const out=F.mergeEntries([a,b,far,next,deck],'time');
- assert(out.includes(b)&&!out.includes(a),'the better ranked of two look-alikes stays');assert(out.includes(far),'over 250 m stays');assert(out.includes(next),'another minute stays');assert(out.includes(deck),'another height stays');
+ const far={row:row(35.7450),types:['park'],index:2},next={row:row(35.7400,{rank:[6],event:{at:at+4*60000}}),types:['park'],index:3};
+ const evening={row:row(35.7400,{event:{at:at+90*60000}}),types:['park'],index:4};
+ const deck={row:row(35.7400,{place:{name:'西ヶ原みんなの公園',latitude:35.74,longitude:139.74,elevation:40}}),types:['park'],index:5};
+ const other={row:row(35.7400,{place:{name:'河川沿いの歩道',latitude:35.74005,longitude:139.74,elevation:20}}),types:['park','riverbank'],index:6},road={row:row(35.74006),types:['road'],index:7};
+ const all=[a,b,far,next,evening,deck,other,road],before=JSON.stringify(all),out=F.mergeEntries(all,'time');
+ assert(out.includes(b)&&!out.includes(a),'the better ranked of the area stays');assert(!out.includes(next),'a few minutes later in the same area is the same area');
+ assert(out.includes(far),'over 300 m stays');assert(out.includes(evening),'over an hour from the area\'s times stays');assert(out.includes(deck),'another height stays');
+ assert(!out.includes(other),'another name on the same ground is the same area');assert(out.includes(road),'another kind stays');assert.equal(JSON.stringify(all),before,'entries are not changed');
+ assert.deepEqual(F.areaOf(b),{count:3,fromAt:at,toAt:at+4*60000},'places are counted once, whatever their number of times');assert.equal(F.areaText(F.areaOf(b)),'この付近3地点 ・ 15:38〜15:42');
+ // Times that follow on from place to place make one area, however long the walk takes; the best ranked stands for it.
+ const walk=[0,50,100,150].map((m,i)=>({row:row(35.7400+i*.0002,{rank:[[0,2,3,1][i]],event:{at:at+m*60000}}),types:['park'],index:i})),joined=F.mergeEntries([walk[0],walk[3],walk[1],walk[2]],'time');
+ assert.deepEqual(joined,[walk[0]]);assert.deepEqual(F.areaOf(walk[0]),{count:4,fromAt:at,toAt:at+150*60000});
+ const slope={row:row(35.7401,{rank:[9],place:{name:'西ヶ原みんなの公園',latitude:35.7401,longitude:139.74,elevation:26}}),types:['park'],index:8};
+ assert(!F.mergeEntries([a,slope],'time').includes(slope),'6 m up the same slope is the same area');
+ const floor={row:row(35.7400,{place:{name:'西ヶ原みんなの公園',latitude:35.74,longitude:139.74,elevation:20,eyeHeightAGL:60}}),types:['park'],index:9};
+ assert(F.mergeEntries([a,floor],'time').includes(floor),'a floor high above the same ground is another area');
+ assert.equal(F.areaText({count:1,fromAt:at,toAt:at+4*60000}),'15:38〜15:42','one place with several times says its times');
+ assert.equal(F.areaOf(far).count,1);assert.equal(F.areaText(F.areaOf(far)),'');assert.equal(F.areaText({count:2,fromAt:at,toAt:at+20000}),'この付近2地点');
+ // 土手の下（おすすめ順は上、対象の290mから下が隠れる）と土手の上（60mから下が隠れる）: 上を出す。差が10m未満ならおすすめ順のまま。
+ const below={row:row(35.7400,{rank:[1],quality:{photographyClass:'normal',hiddenBelow:{m:290}}}),types:['riverbank'],index:0},top={row:row(35.7403,{rank:[2],place:{name:'河川沿いの歩道',latitude:35.7403,longitude:139.74,elevation:27},quality:{photographyClass:'normal',hiddenBelow:{m:60}}}),types:['riverbank'],index:1};
+ assert.deepEqual(F.mergeEntries([below,top],'time'),[top],'the place that sees further down the target stands for the area');assert.equal(F.areaOf(top).count,2);
+ const alike={...top,row:{...top.row,quality:{photographyClass:'normal',hiddenBelow:{m:285}}}};assert.deepEqual(F.mergeEntries([below,alike],'time'),[below]);
  const hidden={...b,show:false},shown={...a,show:true};assert.deepEqual(F.mergeEntries([hidden,shown],'time'),[shown]);
+ assert.equal(F.areaOf(shown).count,1,'a row the filters hide is not counted in the shown area');
 });
