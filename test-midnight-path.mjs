@@ -1,6 +1,6 @@
 import {sourceHtml} from './tools/test-source.mjs';
 // 日付をまたぐ通り道と画角内の時刻（2026-10-20 ユーザー「日付を跨ぐ際に線が途切れる問題に対処して」）
-import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import {createRequire} from 'node:module';
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url),Al=require('./astronotes-align.js');
 const html=sourceHtml();
 test('frameDayPath は前日・翌日へ広げられ、既定はその日の0〜24時',()=>{
@@ -12,7 +12,7 @@ test('図は見ている時刻の通り道を日境界へつなげ、画角内�
  assert.match(html,/const fullPath = \[\.\.\.pathBefore, \.\.\.path, \.\.\.pathAfter\];/);
  assert.match(html,/const run = runAt\(p\.at\)/);assert.match(html,/for \(const q of run \? fullPath\.slice\(run\[0\], run\[1\] \+ 1\) : path\)/);
  assert.match(html,/startMs: frameDay - 6 \* 3600000, endMs: frameDay \+ 30 \* 3600000/);
- assert.match(html,/times.hidden = !frame/);assert.match(html,/AstroNotesAlign.framePassages\(framePoints\.map\(q=>q\.altitude\+q\.radius<horizonAt\(q\.azimuth\)\?\{\.\.\.q,x:null,y:null\}:q\),frame,\{x:panX\/k,y:-panY\/k\}\)/);assert.match(html,/host._uiTime.frameSpans=spans/);
+ assert.match(html,/times.hidden = !frame/);assert.match(html,/AstroNotesAlign.framePassages\(framePoints\.map\(q=>mountain&&q\.altitude\+q\.radius<seaAngle\?\{\.\.\.q,x:null,y:null\}:q\),frame,\{x:panX\/k,y:-panY\/k\}\)/);assert.match(html,/host._uiTime.frameSpans=spans/);
 });
 test('構図の図の操作で触っていない部品を動かさない（2026-10-20 ユーザー「なんで触ってないボタンがズレるの?」）',()=>{
  const c=fs.readFileSync(new URL('./astronotes-flair.css',import.meta.url),'utf8');
@@ -42,4 +42,12 @@ test('天体の位置調整と逆算入口を撤去し、Undoと残像を出さ�
  const finish=html.slice(html.indexOf('if (host._pick && placeMode)'),html.indexOf('if (host._pick) {',html.indexOf('if (host._pick && placeMode)')));
  assert.match(finish,/placeFromGhost\(editing\.ghost\)/);
  assert.doesNotMatch(finish,/aimLineSheetOpen/);
+});
+
+test('塔の画角時刻は遠方の地平で切らず、山の従来の海面基準は保つ',()=>{
+ const expr=html.match(/framePoints\.map\(q=>mountain&&q\.altitude\+q\.radius<seaAngle\?\{\.\.\.q,x:null,y:null\}:q\)/)?.[0];assert(expr);
+ const points=[{altitude:-1,radius:.2,x:10,y:20},{altitude:1,radius:.2,x:11,y:21}];
+ const c=vm.createContext({framePoints:points,mountain:false,seaAngle:0});
+ assert.deepEqual(JSON.parse(JSON.stringify(vm.runInContext(expr,c))),points);
+ c.mountain=true;const mapped=vm.runInContext(expr,c);assert.equal(mapped[0].x,null);assert.equal(mapped[1].x,11);
 });

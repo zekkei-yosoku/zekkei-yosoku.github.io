@@ -31,5 +31,6 @@ run auto CANDIDATE_AUTO_BASE=${B}index.html node tools/test-candidate-auto-searc
 run date CANDIDATE_DATE_BASE=$B node tools/test-candidate-date-navigation.cjs
 run compose COMPOSE_BASE=$B node tools/test-explore-compose.cjs
 run view-first VIEW_FIRST_BASE=$B node tools/test-explore-view-first.cjs
+run obstruction-display OBSTRUCTION_BASE=${B}index.html OBSTRUCTION_OUT="$OUT/obstruction" node tools/test-preview-obstruction-display.cjs
 run error-log ERROR_LOG_BASE=$B node tools/test-trial-error-log.cjs
 exit $failed

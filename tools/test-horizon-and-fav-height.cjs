@@ -1,5 +1,5 @@
 require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
-// From high up the horizon sits above a tower's foot: bodies rise from that line, and favorites take typed heights.
+// Tower previews keep their foot instead of a floating distant horizon; searches still respect the horizon, and favorites take typed heights.
 const {chromium}=require('playwright'),assert=require('assert/strict');
 const base=process.env.HORIZON_BASE||'http://127.0.0.1:8931/',tools=['records','tower','diamond','pearl','skymap'],shots=process.env.HORIZON_SHOTS;
 const headers={'access-control-allow-origin':'*','access-control-allow-headers':'*','access-control-allow-methods':'*'};
@@ -12,22 +12,21 @@ const EBISU={name:'恵比寿',latitude:35.6425,longitude:139.7135,groundManualM:
  await c.route(/(?:zekkei-api|localhost:8787)/,r=>r.fulfill({status:200,headers,json:{allowed:true,tool:'skymap',loginId:'horizon-test',tools,credentials:[],hasPassword:true,recoveryCodes:10,favorites:[],items:[]}}));
  const p=await c.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));
  await p.goto(base);await p.waitForFunction(ready);
- await p.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>30.2;navigationHistory.pushRoute('#/explore');});
+ await p.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>30.2;AstroNotesCandidatePicker.hiddenView=async()=>({read:true,note:null});navigationHistory.pushRoute('#/explore');});
  await p.locator('#exploreDatesToggle').waitFor({state:'attached'});
- const show=async(observer,target)=>{await p.evaluate(([o,t])=>{aimAirSettings.mode='standard';AstroNotesAtmosphere.configure('standard',aimAirSettings);SkyMapUI.setObserver(o);SkyMapUI.setTarget(t);const b=document.getElementById('skyMapBody');b.value='moon';b.onchange();},[observer,target]);await p.locator('#skyMapDates [data-from-day]').first().waitFor({timeout:60000});await p.locator('#skyMapDates [data-from-day]').first().click();await p.waitForTimeout(600);};
- const land=()=>p.evaluate(()=>{const h=document.getElementById('aimLook'),cv=h.querySelector('[data-look-canvas]'),l=h._lookLayers.buildings,x=l.getContext('2d'),col=Math.round(l.width*.12),rows=x.getImageData(col,0,1,l.height).data,alpha=[];for(let y=0;y<l.height;y++)alpha.push(rows[y*4+3]);const top=alpha.findIndex(a=>a>60),dpr=l.width/cv.clientWidth;return {top:top/dpr,clear:alpha.slice(top+6,top+40).every(a=>a<10),h:l.height/dpr};});
- const waitHorizon=()=>p.waitForFunction(()=>document.getElementById('aimLook')?._lookLayers?.stats?.buildings>0);
- await show({...EBISU,standAglM:1.5},'tokyotower');await waitHorizon();
+ const show=async(observer,target)=>{await p.evaluate(([o,t])=>{aimAirSettings.mode='standard';AstroNotesAtmosphere.configure('standard',aimAirSettings);SkyMapUI.setObserver(o);SkyMapUI.setTarget(t);const b=document.getElementById('skyMapBody');b.value='moon';b.onchange();SkyMapUI.setTime(Date.parse('2026-11-25T16:58:00+09:00'));},[observer,target]);await p.locator('#exploreShowResult').click();await p.waitForFunction(()=>{const h=document.getElementById('aimLook');return h&&!h.hidden&&h._lookLayers?.stats?.frames>0;});};
+ const land=()=>p.evaluate(()=>{const h=document.getElementById('aimLook'),cv=h.querySelector('[data-look-canvas]'),l=h._lookLayers.buildings,x=l.getContext('2d'),col=Math.round(l.width*.12),rows=x.getImageData(col,0,1,l.height).data,alpha=[];for(let y=0;y<l.height;y++)alpha.push(rows[y*4+3]);const top=alpha.findIndex(a=>a>60),below=alpha.slice(top+6,top+40),dpr=l.width/cv.clientWidth;return {top:top/dpr,filled:below.length>=8&&below.every(a=>a>60),h:l.height/dpr};});
+ const waitScene=()=>p.waitForFunction(()=>document.getElementById('aimLook')?._lookLayers?.stats?.buildings>0);
+ await show({...EBISU,standAglM:1.5},'tokyotower');await waitScene();
  const low=await land();const lowText=await p.locator('[data-look-canvas]').first().getAttribute('aria-label');assert(lowText);
  await p.evaluate(()=>{const i=document.getElementById('skyMapStandHeight');i.value='160';i.dispatchEvent(new Event('change',{bubbles:true}));});
  await p.waitForFunction(()=>document.getElementById('aimLook')?._lookSpec?.eyeM===160,null,{timeout:30000});await p.waitForTimeout(800);
- const high=await land();assert(high.top<low.top-20,`the horizon line sits above the foot from 160m (${high.top} vs ${low.top})`);assert(high.clear,'only a line, no fill under the horizon');
+ // 2026-11-15: a tower preview shows its ground, without the separate distant-horizon line.
+ // Keep this height-control smoke check small; obstruction contours and labels have their own browser test.
+ const high=await land();for(const [name,ground] of [['low',low],['high',high]]){assert(ground.top>=0,`${name}: the ground is drawn`);assert(ground.filled,`${name}: ground fill begins at the line, without a floating horizon above it`);}
  const day=Date.parse('2026-11-25T00:00:00+09:00');
- const seen=at=>p.evaluate(ms=>{SkyMapUI.setTime(ms);},at).then(()=>p.waitForTimeout(700)).then(()=>p.evaluate(()=>{const h=document.getElementById('aimLook'),cv=h.querySelector('[data-look-canvas]'),l=h._lookLayers.body,d=l.getContext('2d').getImageData(0,0,l.width,l.height).data,b=h._lookLayers.buildings.getContext('2d').getImageData(0,0,l.width,l.height).data,S=AstroNotesBodies.state('moon',h._lookAt,{latitude:35.6425,longitude:139.7135,elevation:190.2});let open=0;for(let i=3;i<d.length;i+=4)if(d[i]>200)open++;return {open,altitude:S.apparentAltitude};}));
- const under=await seen(day+16*3600e3+35*60e3),over=await seen(day+16*3600e3+58*60e3);
- assert(under.altitude<-1,`below the horizon at 16:35 (${under.altitude})`);assert.equal(under.open,0,'the moon is not drawn under the horizon');assert(over.open>100,'the risen moon is drawn');
- const frameText=await p.locator('#aimLook [data-look-frame-times]').innerText();const m=frameText.match(/(\d+):(\d+):(\d+)に入る/);
- if(m){const at=day+(+m[1])*3600e3+(+m[2])*60e3+(+m[3])*1e3;const alt=await p.evaluate(ms=>AstroNotesBodies.state('moon',ms,{latitude:35.6425,longitude:139.7135,elevation:190.2}).apparentAltitude,at);assert(alt>-1.2,`the frame time starts at the horizon (${alt})`);}
+ const seen=at=>p.evaluate(ms=>{SkyMapUI.setTime(ms);},at).then(()=>p.waitForTimeout(700)).then(()=>p.evaluate(()=>{const h=document.getElementById('aimLook'),l=h._lookLayers.body,d=l.getContext('2d').getImageData(0,0,l.width,l.height).data;let open=0;for(let i=3;i<d.length;i+=4)if(d[i]>200)open++;return {open};}));
+ const over=await seen(day+16*3600e3+58*60e3);assert(over.open>100,'the moon is drawn after changing observer height');
  if(shots)await p.screenshot({path:`${shots}/horizon.png`});
  const rows=await p.evaluate(()=>{const o={latitude:35.6425,longitude:139.7135,elevation:30.2},h=AstroNotesAstro.seaHorizonAngle(190.2);return {h,rows:AstroNotesAlign.upcoming(o,AstroNotesAlign.targetById('tokyotower'),'moon',{eyeM:160,from:Date.parse('2026-11-01T00:00:00+09:00'),days:365,limit:Infinity,groupDays:false,partId:'__whole'}).map(r=>r.altitude+r.radius)};});
  assert(rows.rows.length>0);assert(rows.rows.every(v=>v>=rows.h-.01),'no overlap is offered below the horizon');

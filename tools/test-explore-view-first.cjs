@@ -35,11 +35,15 @@ const base=process.env.VIEW_FIRST_BASE||'http://127.0.0.1:8992/trial/',tools=['r
   assert.equal(state.now,false,'the view stays after the weather answers');
   assert.ok(state.hidden.filter(h=>h===true).length<=1,'the view is not blanked again when the weather arrives: '+JSON.stringify(state.hidden));
   assert.ok(!/計算中|できませんでした/.test(state.status),'no waiting or failure message is left: '+state.status);
-  // 2026-11-13 ユーザー「やって」（候補から現地の写真を開く）: ストリートビューを撮影地点で対象（東京タワー、南西）の方向に向けて開く。
-  const street=await page.evaluate(()=>{const a=document.getElementById('exploreStreetPhoto');if(!a)return null;const u=new URL(a.href),r=a.getBoundingClientRect();return {params:Object.fromEntries(u.searchParams),host:u.host,target:a.target,rel:a.rel,label:a.textContent,w:r.width,h:r.height};});
-  assert.ok(street,'現地写真のリンクがある');assert.equal(street.host,'www.google.com');assert.equal(street.params.map_action,'pano');assert.equal(street.params.viewpoint,'35.669650,139.764050');
-  const heading=+street.params.heading;assert.ok(heading>180&&heading<270,'東京タワーの方向（南西）を向く: '+heading);assert.equal(street.target,'_blank');assert.match(street.rel,/noopener/);assert.equal(street.label,'現地写真');
-  assert.ok(street.w>=44&&street.h>=44,'押せる大きさ: '+street.w+'x'+street.h);
+  // 2026-11-15 ユーザー「地図を押せば地図に飛ぶから現地写真ってボタンいらなくね」:
+  // 地図の既存導線を残し、同じ目的の現地写真ボタンだけを取り除く。
+  assert.equal(await page.locator('#exploreStreetPhoto').count(),0,'現地写真の重複ボタンはない');
+  const map=await page.evaluate(()=>{const a=document.getElementById('exploreExternalMap');if(!a)return null;const u=new URL(a.href),r=a.getBoundingClientRect();return {href:a.href,params:Object.fromEntries(u.searchParams),host:u.host,target:a.target,rel:a.rel,label:a.textContent,w:r.width,h:r.height};});
+  assert.ok(map,'既存の地図ボタンがある');assert.equal(map.host,'www.google.com');assert.equal(map.params.query,'35.6696500, 139.7640500');assert.equal(map.target,'_blank');assert.match(map.rel,/noopener/);assert.equal(map.label,'地図');
+  assert.ok(map.w>=44&&map.h>=44,'地図のタッチ領域: '+map.w+'x'+map.h);
+  await page.evaluate(()=>AstroNotesPlan.externalApps.set('map','google'));
+  await context.route('https://www.google.com/maps/**',r=>r.fulfill({contentType:'text/html',body:'<!doctype html><title>Synthetic map destination</title>'}));
+  const opened=page.waitForEvent('popup');await page.locator('#exploreExternalMap').click();const destination=await opened;await destination.waitForURL(map.href);assert.equal(destination.url(),map.href,'地図を押すと撮影地点の地図へ移る');await destination.close();
   const back=await page.evaluate(()=>{const b=document.getElementById('exploreBackToCandidates'),c=getComputedStyle(b),r=b.getBoundingClientRect();return {hidden:b.hidden,border:c.borderTopWidth,background:c.backgroundColor,radius:c.borderRadius,w:r.width,h:r.height,label:b.getAttribute('aria-label')};});
   assert.equal(back.hidden,false);assert.equal(back.border,'0px','no ring around the back chevron');
   assert.ok(/rgba\(0, 0, 0, 0\)|transparent/.test(back.background),'no filled disc behind the back chevron: '+back.background);
@@ -50,6 +54,6 @@ const base=process.env.VIEW_FIRST_BASE||'http://127.0.0.1:8992/trial/',tools=['r
   if(icon)assert.ok(icon[0]<=24&&icon[1]<=24,'the 重ね方 heading icon is small in the preview: '+icon);
   const big=await page.evaluate(()=>[...document.querySelectorAll('#exploreConditions svg')].map(s=>s.getBoundingClientRect()).filter(r=>r.width>64||r.height>64).length);
   assert.equal(big,0,'no oversized icon in the opened conditions');
-  console.log(JSON.stringify({drawnMs:drawn,icon,back}));
+  console.log(JSON.stringify({drawnMs:drawn,icon,back,map}));
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1);});

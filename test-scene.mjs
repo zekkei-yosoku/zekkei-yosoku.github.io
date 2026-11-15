@@ -44,7 +44,7 @@ test('実レンダーが周囲の東京タワーを描き、古い主目標へ�
  await c.render(host,{obs:observer,eyeM:1.5,at,title:'試験地点から'});
  assert.equal(host._planKey, vm.runInContext('aimLookKey()',c));
  assert.ok(!calls.includes('東京タワー'));assert.ok(!calls.includes('東京スカイツリー'));assert.ok(canvas['aria-label'].includes('東京タワー'));assert.equal(aim.target.id,'skytree');
- assert.ok(calls.includes('地上'));assert.ok(operations.some(x=>x.method==='clip'));
+ assert.ok(!calls.includes('地上'));assert.ok(operations.some(x=>x.method==='clip'));
  const bands=operations.filter(x=>x.method==='fillRect'&&x.args[1]!==0);assert.ok(bands.some(x=>x.args[3]>0&&x.args[3]<=24));
  const clip=operations.find(x=>x.method==='rect');assert.ok(clip.args[3]>=0&&clip.args[3]<=440);
  const clipAt=operations.findIndex(x=>x.method==='clip'),fillAt=operations.findIndex((x,i)=>i>clipAt&&x.method==='fill');assert.ok(clipAt<fillAt);

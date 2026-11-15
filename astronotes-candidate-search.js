@@ -3026,28 +3026,10 @@ function syncRecordSave(host,toolbar){
  option.title=text;}if(option.parentElement!==choices)choices.append(option);}
  const hidden=!!host.closest('#exploreScenePanel')?.hidden;if(button.hidden!==hidden)button.hidden=hidden;button.disabled=place.disabled&&plan.disabled;
 }
-// 2026-11-13 ユーザー「やって」（候補から現地の写真を開く）: Googleマップのストリートビューを、撮影地点で対象の方位と高さへ
-// 向けて開く（公開のURL形式でキー不要）。写真は道路沿いが中心で、公園の中では一番近くの写真になるので、確かめる手がかりにとどまる。
-function streetUrl(s){
- const o=s?.observer,t=s?.target;if(!o||!t||![o.latitude,o.longitude,t.latitude,t.longitude].every(Number.isFinite))return null;
- const ground=[o.elevation,o.groundManualM].find(Number.isFinite)??0,eyeM=[o.eyeHeightAGL,o.standAglM].find(Number.isFinite)??1.5;
- const g=AstroNotesAlign.geometryFrom({latitude:o.latitude,longitude:o.longitude,elevation:ground},t,{eyeM,partId:s.partId&&s.partId!=='__whole'?s.partId:null});
- const az=Number.isFinite(g?.azimuth)?g.azimuth:AstroNotesTerrain.inverse(o.latitude,o.longitude,t.latitude,t.longitude).azimuth,up=Number.isFinite(g?.angle)?g.angle:0;
- const pitch=Math.max(-10,Math.min(60,up*.6)),fov=Math.max(20,Math.min(90,up*2.2));
- return 'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+o.latitude.toFixed(6)+'%2C'+o.longitude.toFixed(6)+'&heading='+((az%360+360)%360).toFixed(1)
-  +'&pitch='+pitch.toFixed(1)+'&fov='+Math.round(fov);
-}
-function syncStreetPhoto(toolbar,s){
- const old=document.getElementById('exploreStreetPhoto'),url=streetUrl(s);if(!url){old?.remove();return;}
- const link=old||document.createElement('a');
- if(!old){link.id='exploreStreetPhoto';link.className='trial-map-action';link.target='_blank';link.rel='noopener';link.setAttribute('aria-label','撮影地点の現地の写真（ストリートビュー）を対象の方向で開く');link.title='現地の写真を開く';
-  link.innerHTML=UI_ICONS.photo+'<span>現地写真</span>';}
- if(link.href!==url)link.href=url;if(link.parentElement!==toolbar)toolbar.append(link);
-}
 function syncObserverMap(){
  watchPreview();
  const old=document.getElementById('exploreExternalMap'),s=snapshot(),point=s?.observer,toolbar=document.querySelector('#exploreScenePanel #aimLook .trial-scene-toolbar');
- if(!toolbar||!point){old?.remove();document.getElementById('exploreStreetPhoto')?.remove();return;}syncRecordSave(toolbar.closest('#aimLook'),toolbar);syncStreetPhoto(toolbar,s);
+ if(!toolbar||!point){old?.remove();return;}syncRecordSave(toolbar.closest('#aimLook'),toolbar);
  const next=mapAnchor(point);if(!next){old?.remove();return;}
  if(old?.href===next.href){if(old.parentElement!==toolbar)toolbar.append(old);return;}
  old?.remove();next.id='exploreExternalMap';next.className='trial-map-action';next.setAttribute('aria-label','撮影地点を地図アプリで開く');next.title='地図アプリで開く';next.innerHTML=UI_ICONS.map+'<span>地図</span>';toolbar.append(next);
