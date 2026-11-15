@@ -2105,7 +2105,10 @@ function recordSortShown(){
  return recordSortState.shown&&recordSortState.shown!=='near'?recordSortState.shown:recordSort.DEFAULT;
 }
 function sortRecordPlaces(places){const mode=recordSortShown();recordSortState.shown=mode;return recordSort.sort(places,mode,recordSortState.origin);}
-function recordSortRefresh(id,rerender){const had=document.activeElement?.id===id;rerender();if(had)document.getElementById(id)?.focus({preventScroll:true});}
+function recordSortRefresh(id,rerender){
+ const had=document.activeElement?.id===id&&document.activeElement._sortKeyboard===true;rerender();
+ if(had){const next=document.getElementById(id);if(next){next._sortKeyboard=true;next.focus({preventScroll:true});}}
+}
 function chooseRecordSort(mode,id,rerender){
  const request=++recordSortState.request;recordSortState.status='';recordSortState.pending=false;
  if(!recordSort.valid(mode))mode=recordSort.DEFAULT;
@@ -2125,7 +2128,10 @@ function recordSortControl(id,rerender){
  for(const o of recordSort.options)select.append(new Option(o.label,o.value));
  const choice=recordSortChoice(),shown=recordSortShown();
  select.value=recordSortState.pending?'near':recordSortState.status?shown:choice;
- select.onchange=()=>chooseRecordSort(select.value,id,rerender);
+ // Focusing a replacement select during a touch change reopens the native iOS picker.
+ // Keep keyboard navigation across redraws, including the asynchronous location result.
+ select._sortKeyboard=false;select.onkeydown=select.onkeyup=()=>{select._sortKeyboard=true;};select.onpointerdown=()=>{select._sortKeyboard=false;};
+ select.onchange=()=>{if(!select._sortKeyboard)select.blur();chooseRecordSort(select.value,id,rerender);};
  const nodes=[select];
  if(choice==='near'&&shown!=='near'&&!recordSortState.pending&&!recordSortState.status){const locate=document.createElement('button');locate.type='button';locate.className='chip record-sort-locate';locate.id=id+'Locate';locate.textContent='現在地で並べる';
  locate.onclick=()=>chooseRecordSort('near',id,rerender);nodes.push(locate);}

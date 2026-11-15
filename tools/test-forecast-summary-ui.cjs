@@ -133,6 +133,32 @@ async function verifyCalendarTimes(page,day,tag){
  }),'next-day time bands remain inside their column');
 }
 
+async function verifySortFocus(page){
+ await page.evaluate(()=>{
+  window.forecastSortFocus=[];const focus=HTMLElement.prototype.focus;
+  HTMLElement.prototype.focus=function(...args){if(this.id==='sortSelect')window.forecastSortFocus.push(this.id);return focus.apply(this,args);};
+ });
+ for(const [value,input]of [['score','touch'],['standard','keyboard'],['score','keyboard'],['standard','mouse'],['score','touch']]){
+  const select=page.locator('#sortSelect');
+  await select.evaluate((node,input)=>{
+   node.focus();node.dispatchEvent(input==='keyboard'?new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}):new PointerEvent('pointerdown',{pointerType:input,bubbles:true}));window.forecastSortFocus=[];
+  },input);
+  await select.selectOption(value);
+  const focus=await page.evaluate(()=>({calls:window.forecastSortFocus.length,id:document.activeElement?.id,keyboard:document.getElementById('sortSelect')?._sortKeyboard}));
+  if(input==='keyboard'){assert.equal(focus.calls,1);assert.equal(focus.id,'sortSelect');assert.equal(focus.keyboard,true,'forecast replacement inherits keyboard intent');}
+  else {assert.equal(focus.calls,0,'forecast pointer changes never reopen the native select');assert.notEqual(focus.id,'sortSelect');}
+ }
+ const select=page.locator('#sortSelect');await select.focus();await page.keyboard.press('Shift+Tab');
+ assert.notEqual(await page.evaluate(()=>document.activeElement?.id),'sortSelect','Tab starts at the preceding forecast control');
+ await select.evaluate(node=>{node._sortKeyboard=false;});await page.keyboard.press('Tab');
+ assert.equal(await page.evaluate(()=>document.activeElement?.id),'sortSelect','real Tab enters the forecast sort');
+ assert.equal(await select.evaluate(node=>node._sortKeyboard),true,'Tab keyup marks the destination select');
+ await page.evaluate(()=>{window.forecastSortFocus=[];render();});
+ assert.equal(await page.evaluate(()=>document.activeElement?.id),'sortSelect','forecast arrival or synchronization retains Tab focus');
+ assert.equal(await select.evaluate(node=>node._sortKeyboard),true,'replacement inherits Tab intent');
+ assert.equal(await page.evaluate(()=>window.forecastSortFocus.length),1);
+}
+
 (async()=>{
  fs.mkdirSync(out,{recursive:true});
  const {renderIndex}=await import('./build-index.mjs');
@@ -179,7 +205,7 @@ async function verifyCalendarTimes(page,day,tag){
     assert.equal(await page.locator('#cards [data-cell^="capCloud|"]').count(),0,'late arrivals do not revive the capCloud row');
     assert.equal(await page.locator(selector).getAttribute('aria-pressed'),'true');assert(Math.abs(await page.locator('#cards .mxscroll').evaluate(n=>n.scrollLeft)-horizontal)<1,'late arrivals preserve horizontal position');
     assert.equal(await page.evaluate(()=>document.activeElement.dataset.cell),'sunset|'+target,'late arrivals preserve keyboard focus');
-    await page.locator('#sortSelect').selectOption('score');
+    await verifySortFocus(page);
     assert.equal(await page.locator(selector).getAttribute('aria-pressed'),'true');assert(Math.abs(await page.locator('#cards .mxscroll').evaluate(n=>n.scrollLeft)-horizontal)<1,'sort preserves horizontal position');
     await page.locator('#forecastSelection .forecast-selection-open').click();await page.locator('#detailView').waitFor({state:'visible'});assert.equal(await page.evaluate(()=>picked),'sunset');
     await page.locator('#backLink').click();await page.locator('#listView').waitFor({state:'visible'});

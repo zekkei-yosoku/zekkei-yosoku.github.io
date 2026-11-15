@@ -1097,8 +1097,8 @@ ok(!/short:/.test(html), "札用の別名を持たない（一覧と札で同じ
 ok(html.indexOf('$("cards").innerHTML = renderMatrix(order, now);')
    < html.indexOf('const sel = $("sortSelect");'), "表を描いてから select をつなぐ");
 // 描き直しは並べ替え以外（予報の到着・同期）でも走る。焦点はそこで戻す。
-ok(/const sortHadFocus = document\.activeElement && document\.activeElement\.id === "sortSelect";/.test(html)
-  && /if \(sortHadFocus\) sel\.focus\(\);/.test(html), "表を作り直しても select の焦点を戻す");
+ok(/const sortHadFocus = document\.activeElement\?\.id === "sortSelect" && document\.activeElement\._sortKeyboard === true;/.test(html)
+  && /if \(sortHadFocus\) sel\.focus\(\{preventScroll:true\}\);/.test(html), "表を作り直してもキーボード操作の select の焦点だけ戻す");
 
 console.log("== 一覧と詳細は別画面 ==");
 // 同じページにスクロールで並べていたが、表と詳細が混ざって読みにくかった。

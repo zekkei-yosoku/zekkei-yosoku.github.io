@@ -680,9 +680,8 @@ function render() {
     $("cards").innerHTML = renderSkeleton(now);
   } else {
     renderBestNote(best, now);
-    // 表ごと作り直すと、選んでいた並び替えから焦点が外れる。描き直しは
-    // 並べ替えたとき以外（予報の到着・同期）にも走るので、ここで見て戻す。
-    const sortHadFocus = document.activeElement && document.activeElement.id === "sortSelect";
+    // キーボード操作の焦点だけ戻す。タップ選択中に新しいselectへfocusするとiOSのメニューが再度開く。
+    const sortHadFocus = document.activeElement?.id === "sortSelect" && document.activeElement._sortKeyboard === true;
     $("cards").innerHTML = renderMatrix(order, now);
     // 並び替えは表の左上にある。表ごと作り直されるので、毎回つなぎ直す
     const sel = $("sortSelect");
@@ -690,7 +689,8 @@ function render() {
       sel.innerHTML = Object.entries(SORTS).map(([id, o]) =>
         `<option value="${id}">${o.label}</option>`).join("");
       sel.value = sortMode;
-      if (sortHadFocus) sel.focus();
+      sel._sortKeyboard=sortHadFocus;sel.onkeydown=sel.onkeyup=()=>{sel._sortKeyboard=true;};sel.onpointerdown=()=>{sel._sortKeyboard=false;};
+      if (sortHadFocus) sel.focus({preventScroll:true});
     }
     for (const el of $("bestNote").querySelectorAll("[data-cell]")) {
       el.onclick = () => { const [id, d] = el.dataset.cell.split("|"); pick(id, now, +d); };
@@ -712,6 +712,7 @@ function render() {
     }
     forecastSummary.restore();
     if (sel) sel.onchange = () => {
+      if (!sel._sortKeyboard) sel.blur();
       sortMode = SORTS[sel.value] ? sel.value : "standard";
       store.set("sorami.sort", sortMode);
       render();
