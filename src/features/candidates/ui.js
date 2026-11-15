@@ -185,6 +185,7 @@ function syncRecordSave(host,toolbar){
 function syncObserverMap(){
  watchPreview();
  const old=document.getElementById('exploreExternalMap'),s=snapshot(),point=s?.observer,toolbar=document.querySelector('#exploreScenePanel #aimLook .trial-scene-toolbar');
+ if(toolbar)globalThis.AstroNotesTrialComposition?.syncToolbar?.(toolbar.closest('#aimLook'));
  if(!toolbar||!point){old?.remove();return;}syncRecordSave(toolbar.closest('#aimLook'),toolbar);
  const next=mapAnchor(point);if(!next){old?.remove();return;}
  if(old?.href===next.href){if(old.parentElement!==toolbar)toolbar.append(old);return;}

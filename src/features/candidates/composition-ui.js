@@ -13,9 +13,14 @@ function capabilities(s,obs){
  const definition=typeof AstroNotesBodies==='undefined'?null:AstroNotesBodies.definition(s?.body),limbs=definition?.limbs===true;
  return {surface:!!model,bounds,limbs,limbOptions:limbs?[['center','中心'],['upper','上の縁'],['lower','下の縁']]:[['center','中心']]};
 }
+function syncToolbar(host){const st=states.get(host);if(!st)return;const toolbar=host.closest('#exploreScenePanel')&&host.querySelector('.trial-scene-toolbar');
+ if(toolbar&&st.button.parentElement!==toolbar)toolbar.append(st.button);const hidden=!toolbar||!st.available;if(st.button.hidden!==hidden)st.button.hidden=hidden;
+}
 function update(st){
- const s=syncContext(),t=s?.target;if(!t||!st.host.closest('#exploreScenePanel')||globalThis.AstroNotesTrialOverlap?.isAll?.(s)){closePanel(st,false);st.button.hidden=st.adjust.hidden=st.note.hidden=true;return;}st.button.hidden=false;
+ const s=syncContext(),t=s?.target;if(!t||!st.host.closest('#exploreScenePanel')||globalThis.AstroNotesTrialOverlap?.isAll?.(s)){
+ st.available=false;st.active=st.dragging=false;if(editing===st)editing=null;closePanel(st,false);syncToolbar(st.host);st.adjust.hidden=st.overlay.hidden=st.note.hidden=true;redraw(st.host);return;}
  const obs=st.host._trialCompositionView?.spec.obs,cap=capabilities(s,obs),bearing=obs&&AstroNotesTerrain.inverse(t.latitude,t.longitude,obs.latitude,obs.longitude).azimuth*Math.PI/180;
+ st.available=cap.surface;syncToolbar(st.host);
  if(st.bodyKey!==s.body){st.bodyKey=s.body;st.limb.replaceChildren();for(const [v,n]of cap.limbOptions)st.limb.add(new Option(n,v));st.limb.value='center';}
  if(!cap.limbs&&config.composition?.limb!=='center'&&config.composition)config.composition={...config.composition,limb:'center'};
  const c=config.composition,localX=c?.basis==='scene-surface'&&Number.isFinite(bearing)?-Math.cos(bearing)*c.eastM+Math.sin(bearing)*c.northM:c?.xM,ground=t.groundM??0,pk=JSON.stringify([t.id,t.parts]);
@@ -24,6 +29,7 @@ function update(st){
  else field.removeAttribute('max');}
  st.button.disabled=!cap.surface;st.button.setAttribute('aria-description',cap.surface?'':'この対象は面を指定できません。');if(!cap.surface){st.active=false;st.dragging=false;if(editing===st)editing=null;}
  st.button.setAttribute('aria-label',st.active?'指定を終了':'重ねる位置を指定');st.button.title=st.active?'指定を終了':'重ねる位置を指定';st.button.setAttribute('aria-pressed',String(!!st.active));st.adjust.hidden=!st.active;st.clear.disabled=!c;st.limb.disabled=!cap.limbs;
+ const buttonLabel=st.active?'指定を<wbr>終了':'重ねる<wbr>位置';if(st.buttonLabel.innerHTML!==buttonLabel)st.buttonLabel.innerHTML=buttonLabel;
  const message=st.error||(config.compositionInvalid?'対象の面を選び直してください。':'');
  for(const note of [st.note,st.inputNote]){if(note.textContent!==message)note.textContent=message;note.hidden=!message;}
  for(const field of [st.height,st.x])field.setAttribute('aria-invalid',String(!!config.invalidDraft));
@@ -38,11 +44,13 @@ function addLabel(parent,text,field){const l=document.createElement('label');l.c
 function closePanel(st,restoreFocus=true){st.restoreFocus=restoreFocus;if(st.panel.open)st.panel.close();}
 function dispose(st){closePanel(st,false);for(const node of [st.panel,st.button,st.adjust,st.overlay,st.note])node.remove();statesList.delete(st);states.delete(st.host);}
 const icon=paths=>'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+paths+'</svg>';
-function bind(host,view){host._trialCompositionView=view;let st=states.get(host);if(!host.closest('#exploreScenePanel')){if(st){closePanel(st,false);st.button.hidden=st.adjust.hidden=st.overlay.hidden=st.note.hidden=true;}return;}if(st&&(!st.panel.isConnected||st.cv!==view.cv)){dispose(st);st=null;
+function bind(host,view){host._trialCompositionView=view;let st=states.get(host);if(!host.closest('#exploreScenePanel')){
+ if(st){st.available=false;closePanel(st,false);syncToolbar(host);st.adjust.hidden=st.overlay.hidden=st.note.hidden=true;}return;}if(st&&(!st.panel.isConnected||st.cv!==view.cv)){dispose(st);st=null;
 }if(st){update(st);return;}
  const figure=host.querySelector('.aim-look-figure');
- const button=document.createElement('button');button.type='button';button.id='trialCompositionToggle';button.className='trial-composition-tool';
+ const button=document.createElement('button');button.type='button';button.id='trialCompositionToggle';button.className='trial-composition-action';button.hidden=true;
  button.innerHTML=icon('<circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/>');
+ const buttonLabel=document.createElement('span');button.append(buttonLabel);host.append(button);
  const adjust=document.createElement('button');adjust.type='button';adjust.id='trialCompositionAdjust';adjust.className='trial-composition-tool';adjust.hidden=true;adjust.setAttribute('aria-label','重ねる位置を数値で指定');adjust.title='数値で指定';adjust.setAttribute('aria-haspopup','dialog');
  adjust.setAttribute('aria-expanded','false');adjust.setAttribute('aria-controls','trialComposition');adjust.innerHTML=icon('<path d="M4 7h5m4 0h7M4 17h9m4 0h3"/><circle cx="11" cy="7" r="2"/><circle cx="15" cy="17" r="2"/>');
  const panel=document.createElement('dialog');panel.id='trialComposition';panel.className='sheet trial-composition-dialog';panel.setAttribute('aria-label','重ねる位置');panel.tabIndex=-1;
@@ -60,8 +68,8 @@ function bind(host,view){host._trialCompositionView=view;let st=states.get(host)
  Object.assign(note.style,{position:'absolute',left:'12px',right:'64px',top:'12px',zIndex:'3',margin:'0',padding:'8px 12px',border:'1px solid var(--line)',borderRadius:'10px',background:'var(--card)',color:'var(--text)',fontSize:'14px',lineHeight:'1.5',textAlign:'center',pointerEvents:'none'});
  const overlay=document.createElement('div');overlay.setAttribute('aria-hidden','true');Object.assign(overlay.style,{position:'absolute',inset:'0',pointerEvents:'none',overflow:'hidden'});const marker=document.createElement('span'),disc=document.createElement('span');
  Object.assign(marker.style,{position:'absolute',width:'12px',height:'12px',border:'2px solid var(--accent)',borderRadius:'50%',transform:'translate(-50%,-50%)'});
- Object.assign(disc.style,{position:'absolute',border:'2px dashed var(--accent)',borderRadius:'50%',transform:'translate(-50%,-50%)',background:'rgba(180,190,200,.12)'});overlay.append(disc,marker);figure.append(overlay,note,button,adjust);
- st={normalTouchAction:view.cv.style.touchAction,host,cv:view.cv,panel,button,adjust,clear,note,inputNote,fields,height,x,limb,presets,overlay,marker,disc,active:false,restoreFocus:true};states.set(host,st);statesList.add(st);
+ Object.assign(disc.style,{position:'absolute',border:'2px dashed var(--accent)',borderRadius:'50%',transform:'translate(-50%,-50%)',background:'rgba(180,190,200,.12)'});overlay.append(disc,marker);figure.append(overlay,note,adjust);
+ st={normalTouchAction:view.cv.style.touchAction,host,cv:view.cv,panel,button,buttonLabel,adjust,clear,note,inputNote,fields,height,x,limb,presets,overlay,marker,disc,active:false,available:false,restoreFocus:true};states.set(host,st);statesList.add(st);
  button.onclick=()=>{st.dragging=false;st.active=!st.active;if(!st.active&&!config.compositionInvalid)st.error='';editing=st.active?st:null;if(st.active&&!config.composition){const s=syncContext();setPreset(st,s.target.parts[0].m,0);}notify();};
  adjust.onclick=()=>{if(!st.active||panel.open&&panel.matches(':modal'))return;if(panel.open)panel.close();st.dragging=false;st.restoreFocus=true;adjust.setAttribute('aria-expanded','true');showSheet(panel);};
  close.onclick=()=>closePanel(st);panel.addEventListener('close',()=>{if(panel.open)return;adjust.setAttribute('aria-expanded','false');if(st.restoreFocus&&button.isConnected&&!button.hidden)(st.active?adjust:button).focus({preventScroll:true});});
@@ -83,10 +91,10 @@ function bind(host,view){host._trialCompositionView=view;let st=states.get(host)
  update(st);
 }
 function redraw(host){const st=states.get(host),v=host._trialCompositionView,c=config.composition;if(!st||!v)return;if(st.active){if(!st.wasEditing)st.normalTouchAction=v.cv.style.touchAction;v.cv.style.touchAction='none';st.wasEditing=true;
-}else if(st.wasEditing){v.cv.style.touchAction=st.normalTouchAction;st.wasEditing=false;}st.overlay.hidden=!c||!host.closest('#exploreScenePanel');if(st.overlay.hidden)return;if(!c)return;const s=current();if(!s?.target)return;
+}else if(st.wasEditing){v.cv.style.touchAction=st.normalTouchAction;st.wasEditing=false;}st.overlay.hidden=!c||!st.available||!host.closest('#exploreScenePanel');if(st.overlay.hidden)return;if(!c)return;const s=current();if(!s?.target)return;
 const g=C.geometry({...v.spec.obs,eyeM:v.spec.eyeM},s.target,c,AstroNotesAlign),xy=AstroNotesAlign.viewProjector(v.win.az0,v.win.alt0)(g.azimuth,g.angle);if(!xy){st.overlay.hidden=true;return;
 }const r=v.cv.getBoundingClientRect(),off=host._lensOffset||[0,0],x=(v.W/2+xy[0]*v.k+off[0]*v.W)*r.width/v.W,y=(v.H/2-xy[1]*v.k+off[1]*v.H)*r.height/v.H,rad=Math.max(2,(host._bodyRadius||.25)*v.k*r.width/v.W);Object.assign(st.marker.style,{left:x+'px',top:y+'px'});
 Object.assign(st.disc.style,{left:x+'px',top:(y+(c.limb==='upper'?rad:c.limb==='lower'?-rad:0))+'px',width:2*rad+'px',height:2*rad+'px'});st.disc.hidden=!st.active||!capabilities(s,v.spec.obs).limbs;}
 document.addEventListener('astronotes-preview-leave',()=>{editing=null;for(const st of statesList){st.active=false;st.dragging=false;closePanel(st,false);update(st);}});
-globalThis.AstroNotesTrialComposition={bind,redraw,plan,label,capabilities};const host=document.getElementById('aimLook');if(host?._trialCompositionView)bind(host,host._trialCompositionView);
+globalThis.AstroNotesTrialComposition={bind,redraw,plan,label,capabilities,syncToolbar};const host=document.getElementById('aimLook');if(host?._trialCompositionView)bind(host,host._trialCompositionView);
 })();

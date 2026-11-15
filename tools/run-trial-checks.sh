@@ -19,6 +19,7 @@ run build-check python3 build-preview.py --check
 run generic CANDIDATE_GENERIC_BASE=$B CANDIDATE_GENERIC_OUT="$OUT/generic" node tools/test-candidate-generic-runtime.cjs
 run continuation CANDIDATE_BASE=${B}index.html CANDIDATE_OUT="$OUT/continuation" CANDIDATE_WIDTHS=320,390 node tools/check-trial-candidate-continuation.cjs
 run composition COMPOSITION_BASE=${B}index.html COMPOSITION_OUT="$OUT/composition" node tools/test-candidate-composition.cjs
+run composition-layout COMPOSITION_STABILITY_BASE=${B}index.html COMPOSITION_STABILITY_OUT="$OUT/composition-layout" COMPOSITION_STABILITY_WIDTH=320 COMPOSITION_STABILITY_THEME=dark node tools/test-composition-layout-stability.cjs
 run workspace CANDIDATE_FLOW_BASE=$B node tools/test-candidate-workspace-flow.cjs
 run unified node tools/test-candidate-unified-ui.cjs
 run search-design SEARCH_DESIGN_BASE=$B node tools/test-explore-search-design.cjs
