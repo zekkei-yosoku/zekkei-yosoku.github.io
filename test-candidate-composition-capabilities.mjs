@@ -37,7 +37,9 @@ class Element {
  removeAttribute(k){delete this.attrs[k];delete this[k];}
  cloneNode(){return new Element(this.tagName);}
  add(x){this.append(x);if(!this.value)this.value=x.value;}
- addEventListener(){}
+ addEventListener(type,fn){(this.listeners??={})[type]=fn;}
+ fire(type,event={}){this.listeners?.[type]?.({clientX:500,clientY:250,pointerId:1,preventDefault(){},stopImmediatePropagation(){},...event});}
+ focus(){}
  after(x){this.parent?.append(x);}
  before(x){this.parent?.append(x);}
  remove(){this.isConnected=false;}
@@ -48,17 +50,26 @@ class Element {
 }
 function ui(){
  let selection={body:'moon',target:{id:'arbitrary-model',latitude:35,longitude:139,groundM:10,parts:[{id:'tip',name:'先端',m:910}],hasShape:true}};
- const listeners={};const document={createElement:t=>new Element(t),getElementById:()=>null,addEventListener(type,fn){(listeners[type]??=[]).push(fn);},dispatchEvent(event){for(const fn of listeners[event.type]||[])fn(event);},activeElement:null},surface={model:(a,t)=>t.hasShape?{}:null,bounds:()=>({heightMinM:10,heightMaxM:910,xMinM:-500,xMaxM:500}),preset:({target,heightM,limb})=>({basis:'scene-surface',eastM:0,northM:0,xM:0,heightM,limb}),geometry:()=>({azimuth:0,angle:20}),pick:({limb})=>({basis:'scene-surface',eastM:0,northM:0,xM:0,heightM:910,limb})},sandbox={AstroNotesCandidateComposition:{geometry:surface.geometry},AstroNotesTrialSurface:surface,AstroNotesAlign:{viewProjector:()=>()=>[0,0]},AstroNotesBodies:B,AstroNotesTerrain:{inverse:()=>({azimuth:180})},SkyMapUI:{selectionState:()=>selection},document,Option:function(text,value){this.textContent=text;this.value=value;},Event:function(type){this.type=type;},structuredClone};
+ const listeners={};const document={createElement:t=>new Element(t),getElementById:()=>null,addEventListener(type,fn){(listeners[type]??=[]).push(fn);},dispatchEvent(event){for(const fn of listeners[event.type]||[])fn(event);},activeElement:null},surface={model:(a,t)=>t.hasShape?{}:null,bounds:()=>({heightMinM:10,heightMaxM:910,xMinM:-500,xMaxM:500}),preset:({target,heightM,limb})=>({basis:'scene-surface',eastM:0,northM:0,xM:0,heightM,limb}),geometry:()=>({azimuth:0,angle:20}),pick:({limb})=>({basis:'scene-surface',eastM:0,northM:0,xM:0,heightM:910,limb})},sandbox={AstroNotesCandidateComposition:{geometry:surface.geometry},AstroNotesTrialSurface:surface,AstroNotesAlign:{viewProjector:()=>()=>[0,0],viewUnprojector:()=>()=>[0,20]},AstroNotesBodies:B,AstroNotesTerrain:{inverse:()=>({azimuth:180})},SkyMapUI:{selectionState:()=>selection},document,Option:function(text,value){this.textContent=text;this.value=value;},Event:function(type){this.type=type;},structuredClone};
  vm.runInNewContext(fs.readFileSync(new URL('./src/features/candidates/composition-ui.js',import.meta.url),'utf8'),sandbox);
  const api=sandbox.AstroNotesTrialComposition,host=new Element('div'),figure=new Element('figure'),cv=new Element('canvas');host.scene=true;host.figure=figure;host.append(figure);const view={spec:{obs:{latitude:34.99,longitude:139,elevation:10},eyeM:1.5},cv,W:1000,H:500,k:20,win:{az0:0,alt0:20}};api.bind(host,view);
  const walk=e=>[e,...(e.children||[]).filter(x=>x&&typeof x==='object').flatMap(walk)],all=()=>walk(host),find=label=>all().find(e=>e.attrs['aria-label']===label);
- return {api,host,view,find,all,leave:()=>document.dispatchEvent({type:'astronotes-preview-leave'}),select:(body,hasShape=true)=>{selection={...selection,body,target:{...selection.target,hasShape}};api.bind(host,view);}};
+ return {api,host,view,find,all,leave:()=>document.dispatchEvent({type:'astronotes-preview-leave'}),select:(body,hasShape=true,limb='center')=>{selection={...selection,body,limb,target:{...selection.target,hasShape}};api.bind(host,view);}};
 }
 
-test('composition UI enables every body by shape capability and uses model bounds with point-only centres',()=>{
- const u=ui(),button=u.all().find(e=>e.attrs['aria-label']==='重ねる位置を指定'),height=u.find('重ねる対象の高さ（地上からm）'),x=u.find('対象の中心から左右の位置（m）'),limb=u.find('天体の合わせる位置');
- assert.equal(button.disabled,false);assert.equal(height.max,'900');assert.equal(x.max,'500');assert.equal(x.min,'-500');assert.equal(limb.children.length,3);
- button.onclick();assert.equal(u.api.plan().composition,null,'opening does not silently choose a point');u.all().find(e=>e.textContent==='先端').onclick();assert(u.api.plan().composition);assert.equal(u.api.plan().composition.limb,'center');u.leave();assert.equal(button.attrs['aria-pressed'],'false');assert.equal(u.view.cv.style.touchAction,undefined);button.onclick();
- for(const body of B.definitions){u.select(body.id);assert.equal(button.disabled,false,body.id);assert.equal(limb.children.length,body.limbs?3:1,body.id);assert.equal(limb.disabled,!body.limbs,body.id);}
- u.select('sirius',false);assert.equal(button.disabled,true);assert.equal(u.api.plan().composition,null);assert.equal(u.api.plan().compositionInvalid,false);assert.equal(button.attrs['aria-description'],'この対象は図から位置を選べません。');assert.equal(u.all().find(e=>e.id==='trialCompositionStatus').hidden,true,'unsupported surface does not cover the diagram');
+test('drawing selection inherits shooting conditions without duplicate position fields',()=>{
+ const u=ui(),button=u.all().find(e=>e.attrs['aria-label']==='重ねる位置を選ぶ');
+ assert.equal(button.disabled,false);
+ assert.equal(u.all().filter(e=>['input','select','dialog'].includes(e.tagName)).length,0);
+ button.onclick();assert.equal(u.api.plan().composition,null,'opening does not silently choose a point');
+ assert.equal(button.attrs['aria-label'],'確定して撮影地点を探す');
+ for(const [setting,expected] of [['center','center'],['onTop','lower'],['behind','upper']]){
+  u.select('moon',true,setting);button.onclick();u.view.cv.fire('pointerdown');u.view.cv.fire('pointerup');
+  assert.equal(u.api.plan().composition.limb,expected);
+  assert.equal(u.api.plan().composition.heightM,910);assert(u.api.label().startsWith('高さ 900.0 m'));
+  u.leave();assert.equal(u.api.plan().composition,null,'leaving without confirmation restores the prior choice');
+ }
+ for(const body of B.definitions){u.select(body.id,true,'behind');assert.equal(button.disabled,false,body.id);button.onclick();u.view.cv.fire('pointerdown');u.view.cv.fire('pointerup');assert.equal(u.api.plan().composition.limb,body.limbs?'upper':'center',body.id);}
+ u.api.clear();assert.equal(u.api.plan().composition,null);assert.equal(button.attrs['aria-pressed'],'false');assert.equal(u.view.cv.style.touchAction,undefined);
+ u.select('sirius',false);assert.equal(button.disabled,true);assert.equal(u.api.plan().compositionInvalid,false);assert.equal(button.attrs['aria-description'],'この対象は図から位置を選べません。');assert.equal(u.all().find(e=>e.id==='trialCompositionStatus').hidden,true);
 });

@@ -48,6 +48,8 @@ function conditionText(s){
 function updateConditions(){
  if(!layout.mounted||!layout.conditions)return;const s=SkyMapUI.selectionState(),text=conditionText(s);
  for(const [id,value] of [['exploreConditionTitle',text.title],['exploreConditionDetail',text.detail]])if($(id).textContent!==value)$(id).textContent=value;
+ const composition=globalThis.AstroNotesTrialComposition?.label?.(s),selection=$('exploreCompositionSelection');
+ if(selection){selection.hidden=!composition;const value=composition?'図で指定：'+composition:'';if($('exploreCompositionLabel').textContent!==value)$('exploreCompositionLabel').textContent=value;}
  syncWorkspace();const confirm=$('exploreShowResult');confirm.disabled=false;
  if(!confirm.firstElementChild)confirm.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><span>検索</span>';
  const actionLabel=!s?.target?'検索：対象を選ぶ':!s?.observer?'検索：撮影地点を選ぶ':'この撮影条件で検索';if(confirm.getAttribute('aria-label')!==actionLabel)confirm.setAttribute('aria-label',actionLabel);
@@ -363,7 +365,7 @@ document.addEventListener('astronotes-candidate-selecting',()=>{if(mainCandidate
 document.addEventListener('astronotes-candidate-selected',()=>{if(selectionPending&&returnIntent?.owner===auth?.loginId&&returnIntent.generation===accessState.generation)showResult();});
 
 const layout=AstroNotesExploreLayout.create({$,node,store,mapView,aimView,skyInfo,tabs,scene,map,aimState:()=>aim,requestAnimationFrame:cb=>requestAnimationFrame(cb),getMode:()=>mode,isAimActive:()=>viewState.aim,
- showResult,candidateChosen,addSaveAction,updateConditions,editConditions,choose,invalidate,placePins,updateSkyInfo});
+ showResult,candidateChosen,addSaveAction,updateConditions,editConditions,clearComposition:()=>{globalThis.AstroNotesTrialComposition?.clear?.();$('skyMapAlignmentDetails')?.querySelector('select')?.focus({preventScroll:true});},choose,invalidate,placePins,updateSkyInfo});
 function choose(next,focus=false){
  mode='scene';
  tabs.hidden=true;scene.setAttribute('aria-label','見え方');scene.removeAttribute('aria-labelledby');scene.tabIndex=-1;

@@ -3,7 +3,7 @@
 'use strict';
 const DATES_OPEN_KEY='astronotes.exploreDatesOpen';
 function create(deps){
- const {$,node,store,mapView,aimView,skyInfo,tabs,scene,map,aimState,requestAnimationFrame,getMode,isAimActive,showResult,candidateChosen,addSaveAction,updateConditions,editConditions,choose,invalidate,placePins,updateSkyInfo}=deps;
+ const {$,node,store,mapView,aimView,skyInfo,tabs,scene,map,aimState,requestAnimationFrame,getMode,isAimActive,showResult,candidateChosen,addSaveAction,updateConditions,editConditions,clearComposition,choose,invalidate,placePins,updateSkyInfo}=deps;
  let mounted=false,aimHome=null,aimChildren=[],mapHomes=[],buffer=null,workspaceHome=null,heightWasOpen=false,heightFields=null;
  let conditions=null,conditionHomes=[];
  // Candidate dates live in the fixed time bar so choosing one never scrolls them away from under the finger.
@@ -35,7 +35,10 @@ function create(deps){
   fields.append(controls,observer,alignment,discovery);
   conditions.append(fields);
   const confirm=node('button',{id:'exploreShowResult',type:'button',className:'chip explore-show-result'},'結果を確認');confirm.onclick=showResult;const placeTools=node('div',{className:'explore-place-tools'});placeTools.append($('skyMapObserverDetails'),confirm);
-  fields.insertBefore(placeTools,discovery);fields.insertBefore(alignment,observer);conditions.addEventListener('toggle',()=>{
+  fields.insertBefore(placeTools,discovery);fields.insertBefore(alignment,observer);
+  const composition=node('div',{id:'exploreCompositionSelection',hidden:true}),compositionText=node('span',{id:'exploreCompositionLabel'}),clear=node('button',{id:'exploreCompositionClear',type:'button',className:'chip'},'指定を解除');
+  clear.onclick=()=>clearComposition?.();composition.append(compositionText,clear);fields.insertBefore(composition,observer);
+  conditions.addEventListener('toggle',()=>{
    if(!mounted||!conditions)return;summary.querySelector('.explore-condition-edit').textContent=conditions.open?'条件を閉じる':'条件を編集';
    if(conditions.open)editConditions?.();
   });

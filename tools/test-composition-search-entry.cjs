@@ -42,7 +42,9 @@ async function readyPreview(page){
 }
 async function preview(page){await page.locator('#exploreShowResult').click();await readyPreview(page);}
 async function pickSurface(page){
- await page.locator('#trialCompositionToggle').click();
+ await page.getByRole('button',{name:'重ねる位置を選ぶ',exact:true}).click();
+ assert.equal(await page.locator('#trialComposition,#trialCompositionAdjust').count(),0,'duplicate numeric/limb dialog is absent');
+ assert.equal(await page.locator('#trialCompositionToggle').getAttribute('aria-label'),'確定して撮影地点を探す');
  const point=await page.evaluate(()=>{
   const h=document.getElementById('aimLook'),v=h._trialCompositionView,s=SkyMapUI.selectionState(),obs={...v.spec.obs,eyeM:v.spec.eyeM};
   const c=AstroNotesTrialSurface.preset({obs,target:s.target,align:AstroNotesAlign,heightM:452,xM:0,limb:'center'});
@@ -125,6 +127,12 @@ async function complete(page,kind){
     await page.evaluate(()=>navigationHistory.pushRoute('#/records'));await page.waitForFunction(()=>!document.getElementById('exploreShowResult'));await page.evaluate(()=>{compositionEntryFixture.release();navigationHistory.pushRoute('#/explore');});
     await page.locator('#candidateSearchAction').waitFor({state:'attached'});await frames(page);
     assert.equal(await page.evaluate(()=>compositionEntryFixture.searches.length),3,'leaving and returning does not resurrect a waiting request');
+    // Leaving the Explore route may clear its transient composition. Make a fresh selection before testing its explicit clear action.
+    await preview(page);await pickSurface(page);await page.getByRole('button',{name:'確定して撮影地点を探す',exact:true}).click();await waitSearch(page,4);await complete(page,'empty');
+    const selectedHeight=page.locator('#exploreCompositionSelection');await selectedHeight.waitFor({state:'visible'});
+    const heightText=await page.evaluate(()=>{const s=SkyMapUI.selectionState(),c=AstroNotesTrialComposition.plan().composition;return '高さ '+(c.heightM-(s.target.groundM??0)).toFixed(1)+' m';});
+    assert((await selectedHeight.innerText()).includes(heightText),'the search conditions show the selected height above ground');await page.screenshot({path:prefix+'-selected-height.png',fullPage:true});
+    await page.locator('#exploreCompositionClear').click();assert.equal(await page.evaluate(()=>AstroNotesTrialComposition.plan().composition),null);assert(await selectedHeight.isHidden());
     assert.equal(await saved(page),savedBefore);assert.equal(writes,0);assert.deepEqual(errors,[]);
     Object.assign(result,{passed:true,recordsAndNewVisible:true,currentSelectionRetained:true,progressEmptyAndFailureVisible:true,delayedMountStartsOnce:true,conditionChangeCancelsPending:true,routeExitCancelsPending:true,writes,errors});
     results.push(result);fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log('PASS',engine,width);
