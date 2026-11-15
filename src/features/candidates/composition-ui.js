@@ -70,7 +70,7 @@ function bind(host,view){host._trialCompositionView=view;let st=states.get(host)
  // Feedback never participates in the drawing's layout or intercepts a pick.
  const note=document.createElement('p');note.id='trialCompositionStatus';note.className='trial-composition-status';note.hidden=true;note.setAttribute('role','status');note.setAttribute('aria-live','polite');note.setAttribute('aria-atomic','true');
  const noteText=document.createElement('span'),cancel=document.createElement('button');cancel.id='trialCompositionCancel';cancel.type='button';cancel.className='chip';cancel.textContent='やめる';
- Object.assign(cancel.style,{position:'absolute',right:'10px',bottom:'10px',zIndex:'3',minHeight:'44px',minWidth:'44px',background:'var(--card)',color:'var(--text)'});note.append(noteText);
+ Object.assign(cancel.style,{position:'absolute',right:'10px',top:'172px',zIndex:'3',width:'44px',minHeight:'44px',padding:'0',fontSize:'12px',background:'var(--card)',color:'var(--text)'});note.append(noteText);
  Object.assign(note.style,{position:'absolute',left:'12px',right:'64px',top:'12px',zIndex:'3',margin:'0',padding:'8px 12px',border:'1px solid var(--line)',borderRadius:'10px',background:'var(--card)',color:'var(--text)',fontSize:'14px',lineHeight:'1.5',textAlign:'center',pointerEvents:'none'});
  const overlay=document.createElement('div');overlay.setAttribute('aria-hidden','true');Object.assign(overlay.style,{position:'absolute',inset:'0',pointerEvents:'none',overflow:'hidden'});const marker=document.createElement('span'),disc=document.createElement('span');
  Object.assign(marker.style,{position:'absolute',width:'12px',height:'12px',border:'2px solid var(--accent)',borderRadius:'50%',transform:'translate(-50%,-50%)'});

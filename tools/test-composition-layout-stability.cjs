@@ -4,6 +4,7 @@ const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict
 const base=process.env.COMPOSITION_STABILITY_BASE||'http://127.0.0.1:8992/trial/index.html';
 const out=process.env.COMPOSITION_STABILITY_OUT||'/tmp/astronotes-composition-layout-stability';
 const values=(name,fallback)=>(process.env[name]||fallback).split(',');
+const viewportHeight=Number(process.env.COMPOSITION_STABILITY_HEIGHT||844);
 const tools=['records','tower','diamond','pearl','skymap','multiscene'];
 fs.mkdirSync(out,{recursive:true});
 const frames=page=>page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
@@ -52,6 +53,7 @@ function checkControls(metrics,{active=false,hidden=false}={}){
  assert(metrics.controls.every((c,i)=>!i||c.x>=metrics.controls[i-1].x+metrics.controls[i-1].width-.6),'actions retain their visual order without collisions');
  assert.deepEqual(metrics.icons.map(i=>Math.round(i.y-metrics.figure.top)),active?[10,64,118]:[10,64],'center, numeric adjustment and zoom keep the compact right-side positions');
  assert.equal(!!metrics.cancel,active,'cancel is shown only while editing');const figureControls=metrics.cancel?[...metrics.icons,metrics.cancel]:metrics.icons;
+ if(metrics.cancel)assert.equal(Math.round(metrics.cancel.y-metrics.figure.top),172,'cancel stays beside the upper figure controls');
  for(const icon of figureControls){assert(icon.width>=43.9&&icon.height>=43.9);assert(icon.x>=metrics.figure.left-.6&&icon.x+icon.width<=metrics.figure.right+.6&&icon.y>=metrics.figure.top-.6&&icon.y+icon.height<=metrics.figure.bottom+.6,'control stays in figure');}
  for(let i=0;i<figureControls.length;i++)for(let j=i+1;j<figureControls.length;j++){const a=figureControls[i],b=figureControls[j];assert(a.x+a.width<=b.x+.6||b.x+b.width<=a.x+.6||a.y+a.height<=b.y+.6||b.y+b.height<=a.y+.6,'figure controls do not overlap');}
 }
@@ -106,7 +108,7 @@ async function hiddenControlsLifecycle(page,prefix){
  for(const [engine,type] of [['chrome',chromium],['webkit',webkit]].filter(([name])=>values('COMPOSITION_STABILITY_ENGINE','chrome,webkit').includes(name))){
   const browser=await type.launch(engine==='chrome'?{channel:'chrome',headless:true}:{headless:true});
   try{for(const width of values('COMPOSITION_STABILITY_WIDTH','320,390').map(Number))for(const theme of values('COMPOSITION_STABILITY_THEME','light,dark')){
-   const context=await browser.newContext({viewport:{width,height:844},colorScheme:theme,locale:'ja-JP',timezoneId:'Asia/Tokyo',reducedMotion:'reduce'});let writes=0;const errors=[],samples=[],result={engine,width,theme,base,samples};
+   const context=await browser.newContext({viewport:{width,height:viewportHeight},colorScheme:theme,locale:'ja-JP',timezoneId:'Asia/Tokyo',reducedMotion:'reduce'});let writes=0;const errors=[],samples=[],result={engine,width,height:viewportHeight,theme,base,samples};
    await context.addInitScript(installFixture,tools);
    await context.route('**/*',route=>{const u=new URL(route.request().url());if(u.origin===new URL(base).origin)return route.continue();if(/zekkei-api|localhost:8787/.test(u.origin)){if(!['GET','OPTIONS'].includes(route.request().method()))writes++;return route.fulfill({json:{allowed:true,tool:'skymap',loginId:'layout-stability-test',tools,favorites:[],sightings:[],records:[],rev:1}});}return route.abort();});
    const page=await context.newPage();page.setDefaultTimeout(25000);page.on('pageerror',e=>errors.push(e.message));
@@ -120,6 +122,8 @@ async function hiddenControlsLifecycle(page,prefix){
     await edit.scrollIntoViewIfNeeded();await frames(page);result.inactiveControls=await controlMetrics(page);checkControls(result.inactiveControls);const inactive=await geometry(page,'inactive');
     const editingOrigin=inactive.plan;await edit.click();await frames(page);assert.equal(await edit.getAttribute('aria-label'),'この位置で探す');assert.equal(await edit.getAttribute('aria-pressed'),'true');assert(await adjust.isVisible());result.activeControls=await controlMetrics(page);checkControls(result.activeControls,{active:true});const started=await geometry(page,'started');assert.deepEqual(shifts(inactive,started),[],'starting editing does not create a point or move the diagram');assert.deepEqual(started.plan,editingOrigin);assert.equal(started.plan.composition,null,'opening the editor does not silently choose a default point');
     assert(started.note.visible&&started.note.text.includes('東京スカイツリー')&&started.note.text.includes('月'));const cancelBox=await cancel.boundingBox();assert(cancelBox.width>=44&&cancelBox.height>=44,'cancel remains a usable target');
+    // Inspect the initial toolbar position before any canvas/cancel scrolling can hide fixed-bar occlusion.
+    result.cancelAtEntry=await cancel.evaluate(node=>{const r=node.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2,hit=document.elementFromPoint(x,y);return {x,y,viewport:{width:innerWidth,height:innerHeight},insideViewport:x>=0&&x<innerWidth&&y>=0&&y<innerHeight,receivesPointer:hit===node||node.contains(hit),hitId:hit?.id||null,hitTag:hit?.tagName||null};});assert(result.cancelAtEntry.insideViewport,'cancel center is in the initial viewport');assert(result.cancelAtEntry.receivesPointer,'cancel is reachable before scrolling the canvas: '+JSON.stringify(result.cancelAtEntry));
     await edit.click();await frames(page);assert.equal(await edit.getAttribute('aria-pressed'),'true','confirming without a point keeps editing');assert.equal(await page.evaluate(()=>AstroNotesTrialComposition.plan().composition),null);assert.deepEqual(shifts(started,await geometry(page,'unselected-confirm')),[]);
     const firstTarget=await points(page);result.initialPick={...firstTarget,hit:await page.evaluate(({x,y})=>{const n=document.elementFromPoint(x,y);return {id:n?.id,tag:n?.tagName,button:n?.closest('button')?.id,canvas:!!n?.matches('[data-look-canvas]')};},firstTarget.valid)};await page.screenshot({path:out+'/'+name+'-started.png'});assert(result.initialPick.hit.canvas,'the requested target point must remain reachable through the editing controls');await page.mouse.click(firstTarget.valid.x,firstTarget.valid.y);await frames(page);const firstPicked=await geometry(page,'first-picked');assert(firstPicked.plan.composition&&!firstPicked.plan.compositionInvalid);assert.deepEqual(shifts(started,firstPicked,{summaryChange:true}),[],'the first selected point permits only the measured condition-summary wrapping');
     const target=await points(page);result.target=target;
