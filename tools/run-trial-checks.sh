@@ -3,11 +3,17 @@
 # 使い方: python3 tools/serve-checks.py を web で動かし、
 #   NODE_PATH=<playwright のある node_modules> OUT=<ログ置き場> tools/run-trial-checks.sh
 # SKIP_UNIT=1 で単体を、SKIP_BROWSER=1 で実ブラウザ確認を飛ばす。GitHub では .github/workflows/checks.yml が push のたびに回す。
+# 各検査は既定300秒で失敗終了する。長時間検査が必要なら CHECK_TIMEOUT_SECONDS で明示する。
 # 失敗した確認があれば終了コード 1。ログは $OUT/<名前>.log。
 cd "$(dirname "$0")/.." || exit 2
 B=${BASE:-http://127.0.0.1:8992/trial/}; OUT=${OUT:-${TMPDIR:-/tmp}/astronotes-checks}; mkdir -p "$OUT"; failed=0
 # 落ちた確認はログの末尾を出す（GitHubでは $OUT が残らない）
-run(){ name=$1; shift; start=$(date +%s); env "$@" > "$OUT/$name.log" 2>&1; code=$?; echo "$name exit $code $(( $(date +%s)-start ))s"; [ $code -eq 0 ] || { failed=1; tail -n 30 "$OUT/$name.log" | sed "s/^/  $name| /"; }; }
+run(){
+  name=$1; shift; start=$(date +%s); echo "$name start (timeout ${CHECK_TIMEOUT_SECONDS:-300}s)"
+  python3 tools/run-check-command.py "${CHECK_TIMEOUT_SECONDS:-300}" env "$@" > "$OUT/$name.log" 2>&1
+  code=$?; echo "$name exit $code $(( $(date +%s)-start ))s"
+  [ $code -eq 0 ] || { failed=1; tail -n 30 "$OUT/$name.log" | sed "s/^/  $name| /"; }
+}
 # API のソース（../api、非公開）と突き合わせる2本は、それが無い場所（GitHub）では回せない。
 units=(test-*.mjs)
 if [ ! -f ../api/src/index.js ]; then units=(); for f in test-*.mjs; do case $f in test-access-table.mjs|test-layout.mjs) echo "skip $f (../api が無い)";; *) units+=("$f");; esac; done; fi
