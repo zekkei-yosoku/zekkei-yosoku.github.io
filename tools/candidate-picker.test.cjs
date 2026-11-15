@@ -87,3 +87,22 @@ test('rows of one area (a shared kind, within 300 m and 10 m, times that follow 
  const hidden={...b,show:false},shown={...a,show:true};assert.deepEqual(F.mergeEntries([hidden,shown],'time'),[shown]);
  assert.equal(F.areaOf(shown).count,1,'a row the filters hide is not counted in the shown area');
 });
+
+// 2026-11-14 ユーザー「重複しないような何かを考えて」: 新しい撮影地点には自分の記録に無い場所だけ、調査済みの地点は同じ場所の代表。
+test('a place already among the saved shooting places is left to the records side: within 100 m and 10 m of standing height',()=>{
+ const row=(lat,ground,up)=>({place:{latitude:lat,longitude:139.74,elevation:ground,groundManualM:ground,standAglM:up,eyeHeightAGL:up}}),saved=[{latitude:35.7400,longitude:139.74,elevation:20,groundManualM:20,eyeHeightAGL:1.5}];
+ assert(F.inRecords(row(35.7400,20,1.5),saved));assert(F.inRecords(row(35.7408,24,1.5),saved),'90 m away and 4 m higher is the same place');
+ assert(!F.inRecords(row(35.7410,20,1.5),saved),'110 m away is another place');assert(!F.inRecords(row(35.7400,20,60),saved),'a floor 60 m above the saved ground is another place');
+ assert(!F.inRecords(row(35.7400,20,1.5),[]));assert(!F.inRecords(row(35.7400,20,1.5),null));
+ assert(F.inRecords(row(35.7400,20,1.5),[{latitude:35.7400,longitude:139.74,eyeHeightAGL:1.5}]),'a saved place without its ground compares the height above ground');
+ assert(!F.inRecords(row(35.7400,20,202),[{latitude:35.7400,longitude:139.74,eyeHeightAGL:1.5}]));
+});
+test('a surveyed place stands for its area, whatever the kind and rank of the found rows around it',()=>{
+ const at=Date.parse('2026-11-20T15:38:20+09:00'),row=(lat,extra={})=>({place:{name:'公園の園路',latitude:lat,longitude:139.74,elevation:20},event:{at},quality:{photographyClass:'normal'},...extra});
+ const found={row:row(35.7400,{rank:[1]}),types:['park'],index:0},known={row:row(35.7403,{rank:[9],place:{name:'調べた展望地',latitude:35.7403,longitude:139.74,elevation:21},quality:{photographyClass:'normal',surveyed:true}}),types:['viewpoint'],index:1};
+ assert.deepEqual(F.mergeEntries([found,known],'time'),[known]);assert.equal(F.areaOf(known).count,2);
+ const good={row:row(35.7500,{quality:{photographyClass:'normal',composition:{visibleFraction:1,heightGainM:20,cleanSky:1}}}),types:['park'],index:5},far={...known,row:{...known.row,place:{...known.row.place,latitude:35.76}}};
+ assert(F.compare(far,good,'recommended')<=0,'a surveyed place is not ranked under a found one with the best score');assert(F.compare(far,found,'recommended')<0,'and comes before a found place without a score');
+ const room={row:row(35.7403,{place:{name:'調べた展望室',latitude:35.7403,longitude:139.74,elevation:20,eyeHeightAGL:150},quality:{photographyClass:'normal',surveyed:true}}),types:['viewpoint'],index:2};
+ assert.equal(F.mergeEntries([found,room],'time').length,2,'a surveyed room high above the found ground is its own row');
+});

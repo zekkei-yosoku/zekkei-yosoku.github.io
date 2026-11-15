@@ -689,13 +689,13 @@ return {decode};
 const api=root.AstroNotesCandidateTerrain||(typeof require==='function'?require('./terrain-model.js'):null);
 const RAD=Math.PI/180,R=6371008.8;
 function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96,timeoutMs=7000,maxDurationMs=35000,layers=[['dem5a',15],['dem5b',15],['dem5c',15],['dem',14]]}={}){
- const cache=new Map(),done=new Map();let fetched=0,started=Date.now();
+ const cache=new Map(),done=new Map();let fetched=0,started=Date.now(),limit=maxTiles;
  const pixel=(p,z)=>[(p.longitude+180)/360*256*2**z,(1-Math.asinh(Math.tan(p.latitude*RAD))/Math.PI)/2*256*2**z];
  async function tile(layer,z,x,y,options){
   const key=[layer,z,x,y].join('/');
   if(cache.has(key))return cache.get(key);
   if(options.isCurrent?.()===false)throw Error('candidate-cancelled');
-  if(fetched>=maxTiles||Date.now()-started>=maxDurationMs)return {missing:true,reason:'terrain-budget'};
+  if(fetched>=limit||Date.now()-started>=maxDurationMs)return {missing:true,reason:'terrain-budget'};
   fetched++;
   const pending=(async()=>{
    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
@@ -796,7 +796,10 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
   return {status:hit?'blocked':missing||endpointUncertain||farUncertain?'unknown':'model-clear',reason:!hit&&farUncertain?'coarse-terrain-margin':undefined,hit,checked,missing,minMarginM:Number.isFinite(minMarginM)?minMarginM:null,source:lastSource,scopeM:d,nativeRaster:true,
   endpointContactUncertain:endpointUncertain,datumUncertainty:true,skyline};
  }
- return {sample,peek,at:async(p,o)=>(await sample(p,o)).height,trace,resetBudget:()=>{fetched=0;started=Date.now();},stats:()=>({tiles:cache.size,fetched}),clearFailures:()=>{fetched=0;}};
+ // resetBudget(scale): a caller reading far more ground for one place (a surveyed observation room's rays) asks for
+ // that many times the tiles; without a scale the budget is the one it was made with.
+ return {sample,peek,at:async(p,o)=>(await sample(p,o)).height,trace,
+  resetBudget:(scale=1)=>{fetched=0;started=Date.now();limit=maxTiles*(scale>0?scale:1);},stats:()=>({tiles:cache.size,fetched}),clearFailures:()=>{fetched=0;}};
 }
 api.createLive=createLive;
 if(typeof module==='object'&&module.exports)module.exports={createLive};
@@ -1734,7 +1737,27 @@ function publishedViewpoints(data,regions){
   });
  }return points;
 }
-return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,isCurrent:providerCurrent=()=>true,maxTiles=12,maxPoints=480,timeoutMs=25000,maxDurationMs=55000,spacingM=30,endpoints,places=null}={}){
+// Surveyed places (data/candidate-surveyed-viewpoints.json, tools/build-surveyed-viewpoints.mjs): places looked up as seeing
+// the target, with the height one stands at. 2026-11-14 ユーザー「調査済み159地点をアプリに組み込み、新しい撮影地点にも出してもいい」。
+// They are offered for the targets they were surveyed for only, wherever the search's regions lie (a far mountain pass or
+// an observation room is not on the line the regions follow), and the survey stands for the sight line to the target.
+function surveyedViewpoints(data,targetId){
+ const points=[];
+ for(const p of data?.places||[]){
+  if(!targetId||!p.targets?.includes(targetId)||![p.latitude,p.longitude,p.groundM,p.eyeM].every(finite)||p.eyeM<0)continue;
+  const id='surveyed/'+p.id;
+  points.push({latitude:p.latitude,longitude:p.longitude,lat:p.latitude,lon:p.longitude,placeId:id,name:p.name,placeKind:'viewpoint',sourceId:id,surfaceId:id,polygonId:p.id,
+   surfaceGeometry:{polygons:[],lines:[],position:{latitude:p.latitude,longitude:p.longitude}},
+   // The surveyed height is the lens above the stated ground or floor, so the floor is that ground itself (surfaceAglM 0):
+   // a place off the terrain without a floor height is refused as standing-height-unknown (generic-evaluator.js).
+   groundM:p.groundM,groundKnown:true,surfaceAglM:0,eyeM:p.eyeM,standingSurfaceKnown:true,accessKnown:false,structureClassificationKnown:true,nonTerrainStructure:p.eyeM>3||!!p.groundManual,surveyedTargets:p.targets.slice(),
+   quality:'surveyed-viewpoint',
+   sourceEvidence:{kind:'surveyed-viewpoint',sourceId:p.id,heightM:p.eyeM,reference:p.groundManual?'height-above-stated-floor':'height-above-local-ground',positionBasis:'representative-point',shape:p.shape,
+   targetVisibility:'surveyed',actualVisibilityGuaranteed:false}
+  });
+ }return points;
+}
+return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,loadSurveyed,isCurrent:providerCurrent=()=>true,maxTiles=12,maxPoints=480,timeoutMs=25000,maxDurationMs=55000,spacingM=30,endpoints,places=null}={}){
  if(!terrain)throw Error('terrain provider is required');
  const servers=endpoints||terrain.OVERPASS||[],cache=new Map(),heightCache=new Map();
  let endpointCursor=0,overpassRetryAfter=0,overpassNextRequest=0;
@@ -1837,7 +1860,9 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
    return {version,points:kept,features,coverage,partial:coverage.status!=='loaded',cancelled:!current(),credits:credits.slice(),continuation:coverage.nextCursor?{...coverage.nextCursor,regions:requested}:null,visibilityCertified:false};
   }finally{clearInterval(timer);signal?.removeEventListener('abort',cancel);controller.abort();}
  }
- return {load,clear(){cache.clear();heightCache.clear();}};
+ // The surveyed places of the plan's target; none when the data cannot be read (the search goes on without them).
+ async function surveyed(plan){if(typeof loadSurveyed!=='function'||!plan?.target?.id)return [];try{return surveyedViewpoints(await loadSurveyed(plan),plan.target.id);}catch{return [];}}
+ return {load,surveyed,clear(){cache.clear();heightCache.clear();}};
 };
 });
 
@@ -1949,6 +1974,8 @@ function memoOutlines(align){
 function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,trees=null,staticTerrain=null,sidewalks=null,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
  const align=memoOutlines(rawAlign);
  const visibilityCache=new Map(),targetLines=new Map();
+ // Whether the place was surveyed as seeing this target (and not merely some other one).
+ const surveyedFor=(place,target)=>!!target?.id&&Array.isArray(place?.surveyedTargets)&&place.surveyedTargets.includes(target.id);
  // What hides the lower part of the target on its line (2026-11-12, user: name it, not a distance).
  const hiddenNotes=new WeakMap();
  function hiddenNote(target,observer,azimuth,sky,built,tree){
@@ -2049,11 +2076,15 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   // Events of one point share their line to the target's anchor; it decides before any sky line can.
   const lineKey=JSON.stringify([obs.latitude,obs.longitude,obs.elevation,obs.eyeM,targetRay.endpoint.latitude,targetRay.endpoint.longitude,targetRay.endpoint.elevation,distance,k,plan.target.id]);
   let line=targetLines.get(lineKey);
+  // A surveyed place (place-provider.js): the survey stands for its sight line to the target, so buildings and trees are
+  // not asked (an observation room's own walls would stop it); the ground still is, for the body beside the target.
+  const surveyed=surveyedFor(obs,plan.target);
+  if(!line&&surveyed){line={tg:await terrainRay(obs,targetRay,options),tb:{status:'surveyed'}};targetLines.set(lineKey,line);}
   if(!line){const tb=await buildingRay(obs,targetRay,options),tg=tb.status==='blocked'?{status:'not-needed'}:await terrainRay(obs,targetRay,options);line={tg,tb};targetLines.set(lineKey,line);while(targetLines.size>400)targetLines.delete(targetLines.keys().next().value);}
   const {tg,tb}=line;
-  if(tg.hit||tb.status==='blocked')return {status:'blocked',target:{terrain:tg,buildings:tb},reason:'target-obstructed'};
+  if(!surveyed&&(tg.hit||tb.status==='blocked'))return {status:'blocked',target:{terrain:tg,buildings:tb},reason:'target-obstructed'};
   // An unconfirmed line to the target cannot make the event confirmed, whatever the sky lines show.
-  if(tg.status!=='model-clear'||tb.status!=='model-clear')return {status:'unknown',target:{terrain:tg,buildings:tb},rays:[],reason:'target-line-unconfirmed',treesModeled:false,actualVisibilityGuaranteed:false};
+  if(!surveyed&&(tg.status!=='model-clear'||tb.status!=='model-clear'))return {status:'unknown',target:{terrain:tg,buildings:tb},rays:[],reason:'target-line-unconfirmed',treesModeled:false,actualVisibilityGuaranteed:false};
   const outline=align.towerOutline?.(obs,plan.target,{eyeM:obs.eyeM}),outlineAvailable=!!(outline?.known&&!outline.schematic),polygons=outline?.polygons||[outline?.hitPoints||outline?.points||[]];
   const projection=align.viewProjector(state.azimuth,state.apparentAltitude),unproject=align.viewUnprojector(state.azimuth,state.apparentAltitude);
   const projected=outlineAvailable?polygons.filter(r=>r.length>=3).map(r=>r.map(p=>projection(p[0],p[1]))).filter(r=>r.every(p=>p?.every(Number.isFinite))):[],knownOutline=outlineAvailable&&projected.length>0||!!plan.target.rim;
@@ -2065,12 +2096,13 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    const angular=unproject(x*rx,y*ry),inTarget=projected.some(r=>inside(r,[x*rx,y*ry]));
    if(inTarget){rays.push({status:'blocked',intentionalTarget:true});continue;}
    const ray={azimuth:angular[0],altitude:angular[1],maxM:Math.max(distance,skyRange(eye.elevation,angular[1],k)),refractionK:k,targetKey:plan.target.id};
-   const ground=await terrainRay(obs,ray,options),building=ground.hit?{status:'not-needed'}:await buildingRay(obs,ray,options);
+   const ground=await terrainRay(obs,ray,options),building=ground.hit?{status:'not-needed'}:surveyed?{status:'model-clear',surveyed:true}:await buildingRay(obs,ray,options);
    rays.push({status:ground.hit||building.status==='blocked'?'blocked':ground.status==='model-clear'&&building.status==='model-clear'&&knownOutline?'model-clear':'unknown',terrain:ground,buildings:building,rangeM:ray.maxM});
    await yieldTask();
   }
   const clear=rays.filter(r=>r.status==='model-clear').length,unknown=rays.filter(r=>r.status==='unknown').length;
-  const result={status:!clear&&!unknown?'blocked':tg.status==='model-clear'&&tb.status==='model-clear'&&clear?'model-clear':'unknown',target:{terrain:tg,buildings:tb},rays,visibleSamples:clear,unknownSamples:unknown,totalSamples:rays.length,shapeKnown:knownOutline,treesModeled:false,actualVisibilityGuaranteed:false,datumUncertainty:true};
+  const result={status:!clear&&!unknown?'blocked':(surveyed||tg.status==='model-clear'&&tb.status==='model-clear')&&clear?'model-clear':'unknown',surveyed,
+   target:{terrain:tg,buildings:tb},rays,visibleSamples:clear,unknownSamples:unknown,totalSamples:rays.length,shapeKnown:knownOutline,treesModeled:false,actualVisibilityGuaranteed:false,datumUncertainty:true};
   if(result.status!=='unknown')visibilityCache.set(cacheKey,result);while(visibilityCache.size>150)visibilityCache.delete(visibilityCache.keys().next().value);
   return result;
  }
@@ -2088,7 +2120,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   // A ground point a few metres down a slope or levee is often hidden by the rise in front of it, while
   // the top of the rise, in the same park or riverbank, sees the target. Such a point is moved up onto
   // the rise (at most three steps) and judged there, at the position it is then shown at.
-  if(heights&&!(plan.composition||plan.strict||plan.profile==='summit-contact'||plan.target.rim)){
+  if(heights&&!surveyedFor(point,plan.target)&&!(plan.composition||plan.strict||plan.profile==='summit-contact'||plan.target.rim)){
    const top=Math.max(...(plan.target.parts||[]).map(p=>p.m).filter(Number.isFinite)),k=root.AstroNotesAtmosphere?.targetK?.()??7/6;
    for(let step=0;Number.isFinite(top);step++){
     if(options.isCurrent?.()===false)throw Error('candidate-cancelled');
@@ -2128,7 +2160,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    const frame=plan.overlapAnchor?lensCheck({...plan,target:plan.overlapAnchor.target,partId:plan.overlapAnchor.partId},solution.observer,state,align.geometryFrom(solution.observer,plan.overlapAnchor.target,{eyeM:solution.observer.eyeM})||solution.geometry,align):lensCheck(plan,solution.observer,
    state,solution.geometry,align);if(!frame.fits){outside++;continue;}
    const los=await visibility(plan,solution,options);if(los.status==='blocked'){blocked++;continue;}
-   if(partsHidden(plan.target,hiddenTop(los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline))){blocked++;continue;}
+   if(!los.surveyed&&partsHidden(plan.target,hiddenTop(los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline))){blocked++;continue;}
    const at=solution.event.at,position=solution.observer,finalGround=Number.isFinite(position.groundM)?position.groundM:ground;
    const sun=bodies.state('sun',at,{...position,elevation:position.elevation+position.eyeM});
    const photo=photographability(plan.body,state,sun.apparentAltitude);
@@ -2152,15 +2184,18 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    // Only a sight line shown clear of terrain and buildings is a candidate (design note 21): unknown is not shown.
    if(los.status!=='model-clear'||plan.requireAllTargets&&!combinedClear){unverified++;lastUnverified=los;if(missingHeights(los.target?.buildings)||los.rays?.some(r=>missingHeights(r.buildings)))heightUnknown++;continue;}
    const usedBuildings=[los.target?.buildings,...(los.rays||[]).filter(r=>r.status==='model-clear').map(r=>r.buildings)],buildingHeights=usedBuildings.some(b=>b?.heights==='estimated')?'estimated':usedBuildings.every(b=>b?.heights==='plateau')?'plateau':'model';
-   const hiddenBelow=await hiddenNote(plan.target,position,solution.geometry.azimuth,los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline);
+   const hiddenBelow=los.surveyed?null:await hiddenNote(plan.target,position,solution.geometry.azimuth,los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline);
    const treesRead=!!los.target?.buildings?.trees&&los.target.buildings.trees.status!=='unread';
-   const composition=await compositionOf(plan,position,solution,state,los,options).catch(e=>{if(e?.message==='candidate-cancelled')throw e;globalThis.AstroNotesErrors?.note('candidates.composition',e);return null;});
+   // A surveyed row says what the survey found and no more: how much of the target shows and what stands beside it
+   // were not read from the data (its buildings and trees were not asked), so no composition and no tree note.
+   const composition=los.surveyed?null:await compositionOf(plan,position,solution,state,los,options).catch(e=>{if(e?.message==='candidate-cancelled')throw e;globalThis.AstroNotesErrors?.note('candidates.composition',e);return null;});
    const kind=position.placeKind||point.placeKind;
    accepted.push({id,requestKey:plan.requestKey,status:combinedClear&&frame.status!=='unknown'?'model-visible':'visible-partial',recommend:true,aligned:true,placeKind:kind==='sidewalk'?'road':kind||'unknown',surfaceId:point.surfaceId,
     place:{id,name:position.name||point.name||'撮影候補地点',latitude:position.latitude,longitude:position.longitude,elevation:finalGround,groundManualM:finalGround,stand:'ground',standAglM:position.elevation-finalGround+position.eyeM,eyeHeightAGL:position.elevation-finalGround+position.eyeM,decks:[],
     surfaceId:point.surfaceId},
     assumedObserver:{...position},event:{...solution.event,sunAltitude:sun.apparentAltitude},quality:{visibility:los.status,extraTargets:visibilityQuality,buildingHeights,targetAngleDeg:solution.geometry.angle,frame:frame.status,photographyClass:photo,
-    geometry:solution.event.targetGeometryKind||'anchor',datum:'source-epoch-unverified',hiddenBelow,trees:trees?(treesRead?'checked':'unread'):'not-modeled',composition},rank:[Math.round(solution.geometry.angle*10)/10,solution.event.gapAngleDeg??0],
+    geometry:solution.event.targetGeometryKind||'anchor',datum:'source-epoch-unverified',...(los.surveyed?{surveyed:true}:{}),hiddenBelow,
+    trees:los.surveyed?'surveyed':trees?(treesRead?'checked':'unread'):'not-modeled',composition},rank:[Math.round(solution.geometry.angle*10)/10,solution.event.gapAngleDeg??0],
     frame,extraTargets:extras,visibility:los,sourceEvidence:position.sourceEvidence||point.sourceEvidence,modelEvidence:{kind:combinedClear?'terrain-and-building-model-los':'geometry-with-partial-los',scope:'target-and-celestial-rays',actualVisibilityGuaranteed:false,treesModeled:false,
     terrainNumericComplete:!!los.rays?.every(r=>r.intentionalTarget||r.terrain?.status==='model-clear'),buildingRangeComplete:!!los.rays?.every(r=>r.intentionalTarget||r.buildings?.complete&&r.buildings?.evaluated),
     targetSelfGeometryComplete:los.shapeKnown&&los.target?.buildings?.evaluated&&!los.target?.buildings?.unresolvedTargetContacts,extraTargetsAssessed:extras.length,datumUncertainty:true}});
@@ -2249,6 +2284,8 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,prefilter
     const data=await provider.load(plan,{regions:session.regions,cursor:session.cursor??0,isCurrent:wanted,onProgress,signal,retryFailed});
     if(!wanted()||data.cancelled)return {cancelled:true};
     const points=[...(data.points||[])];
+    // Surveyed places of this target go in once, wherever the regions lie (place-provider.js surveyedViewpoints).
+    if(!session.started&&typeof provider.surveyed==='function'){const known=await provider.surveyed(plan);if(!wanted())return {cancelled:true};points.unshift(...known);}
     if(!session.started&&loadStatic){
      try{const legacy=await loadStatic();for(const p of api.sampleSidewalks(legacy).rows){if(!session.regions.some(r=>p.longitude>=r.bbox[0]&&p.longitude<=r.bbox[2]&&p.latitude>=r.bbox[1]&&p.latitude<=r.bbox[3]))continue;
      points.push({...p,surfaceId:p.polygonId||p.sourceId,placeKind:'road',standingSurfaceKnown:p.structureClassificationKnown&&!p.nonTerrainStructure,accessKnown:undefined,sourceEvidence:{kind:'PLATEAU-pedestrian-surface',sourceId:p.sourceId},name:'歩道の撮影候補'});
@@ -2267,7 +2304,7 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,prefilter
    while(session.queue.length&&count<maxPointsPerBatch){
     if(!wanted())return {cancelled:true};
     const point=session.queue[0];
-    if(session.mapContext&&prefilter.point(plan,point,session.mapContext)===false){session.queue.shift();session.counts.checked++;session.counts.blocked++;session.counts.mapPoints++;continue;}
+    if(session.mapContext&&!point.surveyedTargets?.includes(plan.target?.id)&&prefilter.point(plan,point,session.mapContext)===false){session.queue.shift();session.counts.checked++;session.counts.blocked++;session.counts.mapPoints++;continue;}
     onProgress({stage:'evaluate',...session.counts,pending:session.queue.length});
     const tested=await (root.AstroNotesTrialOverlap?.evaluate?.(plan,p=>evaluate({...p,requestKey:key},point,session.data,{isCurrent:wanted,signal}))??evaluate({...plan,requestKey:key},point,session.data,{isCurrent:wanted,signal}));
     if(!wanted())return {cancelled:true};
@@ -2456,6 +2493,8 @@ const photoOrder={normal:0,conditional:1,unfavorable:2,unknown:3};
 // 2026-11-13 ユーザーの選択: おすすめ順は構図の良さで並べる。見える部分の割合、周りの地面より高いこと（20mで満点）、背景のすっきり
 // （対象の横の空に他のビルが出ていない方位の割合）。2026-11-14 ユーザー「月との比率はいらないよ」: 天体の大きさの比は使わない。
 function compositionScore(row){
+ // A surveyed place (調査で確認) is the best there is: it was looked up as seeing the target.
+ if(row.quality?.surveyed)return 1;
  const c=row.quality?.composition;if(!c)return null;const parts=[];
  if(Number.isFinite(c.visibleFraction))parts.push(c.visibleFraction);
  if(Number.isFinite(c.heightGainM))parts.push(Math.max(0,Math.min(1,c.heightGainM/20)));
@@ -2524,13 +2563,15 @@ function mergeEntries(entries,sort){
  // 離れる）。時刻が続かない朝と夕方、別の高さ、別の種類は別のエリア。
  // エリアで出す行（代表）は、対象が一番下まで見える立ち位置（ユーザー「土手の上を候補に出せばいいのに土手の下とかを候補に
  // 出して」）: 隠れる高さがAREA_SEES_M以上低い行があればそちらを代表にし、差がなければおすすめ順が上の行。代表は自分の根拠
- // だけを持ち、エリアは立つ位置の数と時刻の幅だけを持つ。
+ // だけを持ち、エリアは立つ位置の数と時刻の幅だけを持つ。調査済みの地点（quality.surveyed）は、名前と立つ高さを調べてあるので、
+ // 同じ場所の探索で見つけた行と種類が違ってもまとめ、代表にする（ユーザー「重複しないような何かを考えて」）。
  // The height one stands at: the ground and the floor above it (a deck's floor and the ground below it are two areas).
  const standM=e=>{const p=e.row.place||{},o=e.row.assumedObserver||{},g=p.groundManualM??p.elevation??o.elevation,up=p.standAglM??p.eyeHeightAGL??o.eyeM;return (Number.isFinite(g)?g:0)+(Number.isFinite(up)?up:0);};
  // How high up the target is hidden from the place (m); nothing hidden is the best there is.
- const hiddenM=e=>Number.isFinite(e.row.quality?.hiddenBelow?.m)?e.row.quality.hiddenBelow.m:-Infinity,sees=(a,b)=>hiddenM(a)<hiddenM(b)-AREA_SEES_M?a:b;
+ const hiddenM=e=>Number.isFinite(e.row.quality?.hiddenBelow?.m)?e.row.quality.hiddenBelow.m:-Infinity,sees=(a,b)=>surveyed(a)!==surveyed(b)?(surveyed(a)?a:b):hiddenM(a)<hiddenM(b)-AREA_SEES_M?a:b;
  const kept=[],timeOf=e=>Number.isFinite(e.row.event?.at)?e.row.event.at:null,spot=e=>e.row.place?.latitude+','+e.row.place?.longitude;
- const near=(k,e)=>k.e.types.some(t=>e.types.includes(t))&&metres(k.e.row.place,e.row.place)<=AREA_M
+ const surveyed=e=>!!e.row.quality?.surveyed;
+ const near=(k,e)=>(surveyed(k.e)||surveyed(e)||k.e.types.some(t=>e.types.includes(t)))&&metres(k.e.row.place,e.row.place)<=AREA_M
   &&!(Math.abs(standM(k.e)-standM(e))>AREA_RISE_M);
  const touches=(k,from,to)=>k.fromAt===null?from===null:from!==null&&from<=k.toAt+AREA_MS&&to>=k.fromAt-AREA_MS;
  for(const e of [...unique.values()].sort((a,b)=>(a.show===false)-(b.show===false)||compare(a,b,'recommended'))){
@@ -2557,6 +2598,16 @@ function areaText(area){
  // One place with several times still says its times; one place with one time says nothing.
  return area.count>1?'この付近'+area.count+'地点'+(span?' ・ '+span:''):span;
 }
+// 2026-11-14 ユーザー「重複しないような何かを考えて」: 新しい撮影地点には自分の記録に無い場所だけを出す。記録の撮影地点から
+// RECORD_M以内で、立つ高さ（足元＋その上の高さ）の差がRECORD_RISE_M以内の行は、記録の撮影地点の側に出るので出さない。
+const RECORD_M=100,RECORD_RISE_M=10;
+function inRecords(row,places){
+ const p=row?.place,o=row?.assumedObserver||{};if(!p||!Array.isArray(places)||!places.length)return false;
+ const ground=p.groundManualM??p.elevation??o.elevation,up=p.standAglM??p.eyeHeightAGL??o.eyeM,stand=Number.isFinite(ground)&&Number.isFinite(up)?ground+up:null;
+ return places.some(f=>{if(!(metres(f,p)<=RECORD_M))return false;const g=f.groundManualM??f.elevation,h=f.standAglM??f.eyeHeightAGL;
+  if(stand===null||!Number.isFinite(g)||!Number.isFinite(h))return !Number.isFinite(up)||!Number.isFinite(h)||Math.abs(up-h)<=RECORD_RISE_M;
+  return Math.abs(stand-(g+h))<=RECORD_RISE_M;});
+}
 function metres(a,b){
  if(![a?.latitude,a?.longitude,b?.latitude,b?.longitude].every(Number.isFinite))return Infinity;
  const r=Math.PI/180,x=(b.longitude-a.longitude)*r*Math.cos((a.latitude+b.latitude)*r/2),y=(b.latitude-a.latitude)*r;return Math.hypot(x,y)*6371008.8;
@@ -2568,7 +2619,8 @@ let visibleEntries=[],selectedId=null,mapPanel=null,mapInstance=null,mapMode=fal
 const columns='minmax(0,1fr) 50px 64px 40px';
 const day=at=>globalThis.AstroNotesCandidateDiscovery?.day(at)??Math.floor((at+32400000)/86400000)*86400000-32400000;
 const clockText=at=>Number.isFinite(at)?new Date(at+32400000).toISOString().slice(11,16):'時刻未確認';
-const uncertainty=row=>[row.quality?.hiddenBelow?.text||'',row.quality?.visibility==='unknown'?'見通し未確認':'',row.quality?.buildingHeights==='estimated'?'建物の高さは推定':'',row.quality?.trees==='unread'?'木の高さ未確認':'',row.frame?.status==='unknown'?'全体の画角未確認':''].filter(Boolean);
+const uncertainty=row=>[row.quality?.surveyed?'調査で確認':'',row.quality?.hiddenBelow?.text||'',
+ row.quality?.visibility==='unknown'?'見通し未確認':'',row.quality?.buildingHeights==='estimated'?'建物の高さは推定':'',row.quality?.trees==='unread'?'木の高さ未確認':'',row.frame?.status==='unknown'?'全体の画角未確認':''].filter(Boolean);
 function configure(value){if(typeof value==='function')loadLabels=value;else if(value){ports={...ports,...value};if(typeof value.loadLabels==='function')loadLabels=value.loadLabels;}}
 function planKey(plan){return typeof ports.requestKey==='function'?ports.requestKey(plan):JSON.stringify([plan.requestKey,plan.owner,plan.body,plan.target,plan.partId,plan.limb,plan.matchMode,plan.composition,plan.compositionInvalid,plan.timeSpec||null,day(plan.at),plan.atmosphere,
 plan.cameraHeight]);}
@@ -2771,9 +2823,9 @@ function suspend(){
 }
 function reset(){if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);revision.cancel();groups.clear();windows.clear();visibleEntries=[];selectedId=null;mapHits=[];mapMode=false;if(mapPanel)mapPanel.hidden=true;control?.remove();control=null;list=null;scope='';filterScope='';
 mapScroll=null;suspendedView=null;}
-const api={mount,configure,registerRegistered:register,registerAdditional:register,unregister,apply,kinds,accepts,compare,showMap,suspend,reset,visibleRows:()=>visibleEntries.filter(currentEntry).map(e=>e.row)};
+const api={mount,configure,registerRegistered:register,registerAdditional:register,unregister,apply,kinds,accepts,compare,inRecords,showMap,suspend,reset,visibleRows:()=>visibleEntries.filter(currentEntry).map(e=>e.row)};
 globalThis.AstroNotesCandidatePicker=api;
-if(typeof module!=='undefined')module.exports={kinds,accepts,compare,candidateKey,mergeEntries,placePriority,areaOf,areaText};
+if(typeof module!=='undefined')module.exports={kinds,accepts,compare,candidateKey,mergeEntries,placePriority,areaOf,areaText,inRecords};
 })();
 
 // Trial adapter. Existing session owns selection; discovery owns search jobs.
@@ -2786,7 +2838,7 @@ const contextActive=()=>{const main=mainWorkspace();return main?main.active():do
 let dateNavigation=null,dateCalendar=null,autoSearchTimer=null,dateRefreshPending=false,hasSearched=false,returnSearch=null;
 let timeChoice='day',windowStart='00:00',windowEnd='23:59';
 const dataTag=new URL(document.currentScript.src,location.href).searchParams.get('v')||'0';
-const dataHashes={"candidate-viewpoints.json":"f9496da00f09be194ea770c3c7e851afd84f388fe5fa388922635e53c86950c5","candidate-terrain.json":"5c78165203510383eab45feb0e2195a06c6f4d8ec5f3e682db941ca705279779","candidate-buildings.json":"e4ec51ed732be60108959a7854cdd5ae8aab46a94aaa026f0d5094101e1f4c8a","building-heights/index.json":"6c50fb9f8e0792f34d99cefb9b5aeb300a5a43f722bd0b0aa4ba8572c2676e19","building-shapes/index.json":"0298fc54cd928ed403b637b456b0871fe984d3978a02961a40e89e07c7d6c10c","osm-places/index.json":"101f0c969fcfdf205b775f6dad761b00b99264fd4c6905a751da38de859a4bdc","candidate-surfaces.json":"de16ae6e56aa05a1d4a7d6d0fa8974a4373183f35e8282f412f7fbd7c637751f","candidate-sidewalks.json":"efc42ec01902232f52ec36e84808dc3400892d91c5ddf663d91ef34bb123e48a","candidate-label-addresses.json":"3919fc5e919863ba593174cdd805f860d41882938667055ab456b9abe33d869b","candidate-label-facilities.json":"ca92359defa9b765fe86db8bf5053cd5921182a39af1975b9324274615efdf53","visibility/tokyotower.json":"c84ac9ff18a62aa3441c6a7a099f94de7873e7a4c49e86c39cec7dd52d65fdc6","visibility/skytree.json":"014ae6629d51233b56fb73f8dcafdfd7df45a632070e08c030defeae75cb7630","visibility/tocho-building.json":"9d953e2b62591e2b67fafd7f841cfc8d4643ab945309bb2eb89f495e88c40458","visibility/shibuya-sky.json":"fb4c4990b1fcd55dac45d92a96cffc0062c0fb5dbaaedc14b31c466f2e3b6bc5","visibility/azabudai-hills.json":"ac28e1b2ec05a20d5e98159e19961428e2e137e70a33e1ad644c1f2c2a907a64","visibility/kabukicho-tower.json":"f237c33491c5643248c5a8e5acd40671b604b5cc559fe1f05440d4df7903c298","visibility/tower-terror.json":"8c7c0e667c8ee8699cfe44db094b40668a8596f36edd9e9558554451f07c037f","visibility/cinderella.json":"d8df5afa0b15b14d1ccfb448c4a035c3821f9f0b63f34895d6ac112dc9902201","visibility/tinkerbell.json":"4f8936733b89e0816c1146e71b1dd20f57f79e99020a1202f31fd52e005b50ac"};
+const dataHashes={"candidate-viewpoints.json":"f9496da00f09be194ea770c3c7e851afd84f388fe5fa388922635e53c86950c5","candidate-surveyed-viewpoints.json":"01f8c9352dafae2dca533e727b5952e8fcca0dec8c69cad67cbf3091c004cbaf","candidate-terrain.json":"5c78165203510383eab45feb0e2195a06c6f4d8ec5f3e682db941ca705279779","candidate-buildings.json":"e4ec51ed732be60108959a7854cdd5ae8aab46a94aaa026f0d5094101e1f4c8a","building-heights/index.json":"6c50fb9f8e0792f34d99cefb9b5aeb300a5a43f722bd0b0aa4ba8572c2676e19","building-shapes/index.json":"0298fc54cd928ed403b637b456b0871fe984d3978a02961a40e89e07c7d6c10c","osm-places/index.json":"101f0c969fcfdf205b775f6dad761b00b99264fd4c6905a751da38de859a4bdc","candidate-surfaces.json":"de16ae6e56aa05a1d4a7d6d0fa8974a4373183f35e8282f412f7fbd7c637751f","candidate-sidewalks.json":"efc42ec01902232f52ec36e84808dc3400892d91c5ddf663d91ef34bb123e48a","candidate-label-addresses.json":"3919fc5e919863ba593174cdd805f860d41882938667055ab456b9abe33d869b","candidate-label-facilities.json":"ca92359defa9b765fe86db8bf5053cd5921182a39af1975b9324274615efdf53","visibility/tokyotower.json":"c84ac9ff18a62aa3441c6a7a099f94de7873e7a4c49e86c39cec7dd52d65fdc6","visibility/skytree.json":"014ae6629d51233b56fb73f8dcafdfd7df45a632070e08c030defeae75cb7630","visibility/tocho-building.json":"9d953e2b62591e2b67fafd7f841cfc8d4643ab945309bb2eb89f495e88c40458","visibility/shibuya-sky.json":"fb4c4990b1fcd55dac45d92a96cffc0062c0fb5dbaaedc14b31c466f2e3b6bc5","visibility/azabudai-hills.json":"ac28e1b2ec05a20d5e98159e19961428e2e137e70a33e1ad644c1f2c2a907a64","visibility/kabukicho-tower.json":"f237c33491c5643248c5a8e5acd40671b604b5cc559fe1f05440d4df7903c298","visibility/tower-terror.json":"8c7c0e667c8ee8699cfe44db094b40668a8596f36edd9e9558554451f07c037f","visibility/cinderella.json":"d8df5afa0b15b14d1ccfb448c4a035c3821f9f0b63f34895d6ac112dc9902201","visibility/tinkerbell.json":"4f8936733b89e0816c1146e71b1dd20f57f79e99020a1202f31fd52e005b50ac"};
 // The trial keeps no copy of this data: its page points at the production folder (build-preview.py).
 const dataBase=document.querySelector('meta[name="astronotes-data-base"]')?.content||'data/';
 const readData=async(name,{signal}={})=>{const r=await fetch(dataBase+name+'?v='+dataTag,{signal});if(!r.ok)throw Error('data');const bytes=await r.arrayBuffer(),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
@@ -2807,6 +2859,7 @@ async function refreshShapes(){
  }catch{/* Shapes are an enhancement; the outline estimate stays. */}
 }
 document.addEventListener('astronotes-records-change',refreshShapes);
+let againForRecords=null;document.addEventListener('astronotes-records-change',()=>againForRecords?.());
 (globalThis.startupSessionReady||Promise.resolve()).then(refreshShapes,()=>{});
 const loadLabels=async()=>{const [addresses,facilities]=await Promise.all(['candidate-label-addresses.json','candidate-label-facilities.json'].map(n=>loaded(n).catch(()=>null)));return {addresses,facilities};};
 const filterKey=p=>JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode]);
@@ -2818,7 +2871,7 @@ const live=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxDurat
 const groundPort={...AstroNotesTerrain,resetBudget:()=>live.resetBudget(),groundElevation:async(lat,lon,options={})=>{const r=await live.sample({latitude:lat,longitude:lon},options);return options.withSource?(Number.isFinite(r.height)?{elevation:r.height,source:r.layer}:null):r.height;}};
 // Places, woods and bridges from the bundled OSM extract (Overpass only if it cannot be read).
  const osmPlaces=globalThis.AstroNotesOsmPlaces?.create({load:loaded,base:dataBase+'osm-places/'})||null;
- const provider=AstroNotesCandidateDiscovery.createPlaceProvider({terrain:groundPort,fetchImpl:fetch.bind(globalThis),loadViewpoints:()=>loaded('candidate-viewpoints.json'),places:osmPlaces});
+ const provider=AstroNotesCandidateDiscovery.createPlaceProvider({terrain:groundPort,fetchImpl:fetch.bind(globalThis),loadViewpoints:()=>loaded('candidate-viewpoints.json'),loadSurveyed:()=>loaded('candidate-surveyed-viewpoints.json'),places:osmPlaces});
 let modelPromise=null,staticPromise=null,viewModelPromise=null;
 const staticTerrain=()=>staticPromise||=loaded('candidate-terrain.json').then(d=>d?AstroNotesCandidateTerrain.decode(d):null).catch(()=>null);
 // The composition's ground line comes from the search's own sight line to the target (2026-11-13): one calculation
@@ -2870,7 +2923,13 @@ let evaluationBudgetStarted=false;
 const engine=AstroNotesCandidateDiscovery.createGenericSearch({provider,bodies:AstroNotesBodies,prefilter,loadStatic:()=>loaded('candidate-sidewalks.json'),evaluate:async(p,point,data,options)=>{const model=await loadModel();
 if(plateauShapes&&String(p.target?.id||'').startsWith('fav:')&&!plateauShapes.attachedTo(p.target.id))await plateauShapes.prepare([p.target]).catch(()=>{});if(!options.isCurrent())throw Error('candidate-cancelled');
 if(!evaluationBudgetStarted){live.resetBudget();footprintGround.resetBudget();treeGround.resetBudget();
-evaluationBudgetStarted=true;}return model.evaluate(p,point,data,options);}});
+evaluationBudgetStarted=true;}
+// A surveyed place lies off the day's line and reads ground no other place of the batch reads (an observation room's rays
+// run far over the land): the 96 tiles of a batch ran out on the surveyed places and left them and the places after them
+// unconfirmed (2026-11-15). Each gets a tile budget to itself, four times a batch's (渋谷スカイ, 229 m up and 11 km from
+// 東京スカイツリー, did not fit in one), and leaves a fresh one behind.
+if(point.surveyedTargets){live.resetBudget(4);try{return await model.evaluate(p,point,data,options);}finally{live.resetBudget();}}
+return model.evaluate(p,point,data,options);}});
 const stop=()=>{if(autoSearchTimer!==null)clearTimeout(autoSearchTimer);autoSearchTimer=null;if(watch!==null)clearInterval(watch);watch=null;controller?.abort();controller=null;};
 // The refraction settings only: weather the view loads later for a chosen place (気象予報) must not discard the places
 // already found when going back to the list (2026-11-11, seen on the iPhone). The evaluator keys its own caches by the data.
@@ -3043,7 +3102,9 @@ function mount(){
  panel.append(section);syncWorkspaceSection(panel);
  if(editing&&['candidateSearchMode','candidateSearchStart','candidateSearchEnd'].includes(editing))section.querySelector('#'+editing)?.focus({preventScroll:true});
  const valid=p&&AstroNotesBodies.definition(p.body)&&!p.compositionInvalid&&AstroNotesCandidateComposition.timeRange(p);button.disabled=!valid;status.textContent=!p?'天体・対象・日付を選んでください。':!valid?'指定した日時と構図を確認してください。':'';
- let continuation=false,hasRun=false,searching=false,failed=false,items=new Map();
+ let continuation=false,hasRun=false,searching=false,failed=false,items=new Map(),shown=null;
+ // A place saved to the records leaves this list at once, and one removed from them comes back.
+ againForRecords=()=>{if(shown&&!searching&&section.isConnected)present(...shown);};
  function renderAction(){button.dataset.state=searching?'searching':'idle';button.textContent=searching?'キャンセル':failed?'再試行':continuation?'続きを探す':hasRun?(main?'候補を探し直す':'もう一度確認'):main?'候補を探す':'ほかの候補地点を探す';button.disabled=!valid;resultList.setAttribute('aria-busy',String(searching));}
  renderAction();
  // partial: rows found so far while the search goes on; the list is replaced, the progress and the action stay.
@@ -3051,8 +3112,9 @@ function mount(){
    const labels=result.rows.length?await loadLabels():{};if(!current(token,selected,node)||partial&&!searching)return;
    // Rows already shown keep their buttons and new ones wait hidden until the list places them: emptying and
    // refilling the list for every place found made the page jump while searching (2026-11-13, seen on the iPhone).
-   const rows=[],nodes=[],kept=new Map();
-   for(const raw of result.rows){const row=AstroNotesCandidateLabels.enrich(raw,labels);if(raw.place.name&&!/^(?:撮影候補|モデル候補)/.test(raw.place.name))row.place.name=raw.place.name;rows.push(row);
+   // Places already among the user's saved shooting places are shown on the records side only (candidate-picker.js inRecords).
+   const rows=[],nodes=[],kept=new Map(),recorded=globalThis.MyPlacesUI?.savedPlaces?.()||[];if(!partial)shown=[result,selected,node,token,{cancelled,interrupted}];
+   for(const raw of result.rows){if(AstroNotesCandidatePicker.inRecords(raw,recorded))continue;const row=AstroNotesCandidateLabels.enrich(raw,labels);if(raw.place.name&&!/^(?:撮影候補|モデル候補)/.test(raw.place.name))row.place.name=raw.place.name;rows.push(row);
    let item=items.get(row.id);if(!item){item=document.createElement('button');item.type='button';item.className='list-item';item.hidden=true;item.textContent=row.place.name;resultList.append(item);}
    kept.set(row.id,item);nodes.push(item);item.dataset.modelBasis=row.modelEvidence?.kind||'unknown';item.dataset.candidateName=row.place.name;item.dataset.candidateId=row.id;
     item.onclick=()=>{if(mainWorkspace()&&!mainWorkspace().selectable()||!current(token,selected,node)||row.requestKey!==key(snapshot()))return;const event={...row.event};delete event.matchMode;const candidate={...row,event};const host=document.getElementById('aimLook'),previous=host?._compose;
@@ -3370,4 +3432,4 @@ sync();
  addEventListener('unhandledrejection',e=>{const r=e?.reason;if(r?.name==='AbortError')return;const where=/([\w.-]+\.js)[^:\s]*:(\d+)/.exec(String(r?.stack||''));keep('rejection',r?.message||r,where?.[1],where?.[2]);});
 })();
 
-// data-release d02ff24b6a81d1cb2bad2ab4a8f79876f84e873aaf13e5720c5708c41d9ebbaf
+// data-release 13860db77643730bf6ea6dd4090cfe76b5920a82a8bdaba241625b005a94eee9

@@ -6,6 +6,8 @@ const photoOrder={normal:0,conditional:1,unfavorable:2,unknown:3};
 // 2026-11-13 ユーザーの選択: おすすめ順は構図の良さで並べる。見える部分の割合、周りの地面より高いこと（20mで満点）、背景のすっきり
 // （対象の横の空に他のビルが出ていない方位の割合）。2026-11-14 ユーザー「月との比率はいらないよ」: 天体の大きさの比は使わない。
 function compositionScore(row){
+ // A surveyed place (調査で確認) is the best there is: it was looked up as seeing the target.
+ if(row.quality?.surveyed)return 1;
  const c=row.quality?.composition;if(!c)return null;const parts=[];
  if(Number.isFinite(c.visibleFraction))parts.push(c.visibleFraction);
  if(Number.isFinite(c.heightGainM))parts.push(Math.max(0,Math.min(1,c.heightGainM/20)));
@@ -74,13 +76,15 @@ function mergeEntries(entries,sort){
  // 離れる）。時刻が続かない朝と夕方、別の高さ、別の種類は別のエリア。
  // エリアで出す行（代表）は、対象が一番下まで見える立ち位置（ユーザー「土手の上を候補に出せばいいのに土手の下とかを候補に
  // 出して」）: 隠れる高さがAREA_SEES_M以上低い行があればそちらを代表にし、差がなければおすすめ順が上の行。代表は自分の根拠
- // だけを持ち、エリアは立つ位置の数と時刻の幅だけを持つ。
+ // だけを持ち、エリアは立つ位置の数と時刻の幅だけを持つ。調査済みの地点（quality.surveyed）は、名前と立つ高さを調べてあるので、
+ // 同じ場所の探索で見つけた行と種類が違ってもまとめ、代表にする（ユーザー「重複しないような何かを考えて」）。
  // The height one stands at: the ground and the floor above it (a deck's floor and the ground below it are two areas).
  const standM=e=>{const p=e.row.place||{},o=e.row.assumedObserver||{},g=p.groundManualM??p.elevation??o.elevation,up=p.standAglM??p.eyeHeightAGL??o.eyeM;return (Number.isFinite(g)?g:0)+(Number.isFinite(up)?up:0);};
  // How high up the target is hidden from the place (m); nothing hidden is the best there is.
- const hiddenM=e=>Number.isFinite(e.row.quality?.hiddenBelow?.m)?e.row.quality.hiddenBelow.m:-Infinity,sees=(a,b)=>hiddenM(a)<hiddenM(b)-AREA_SEES_M?a:b;
+ const hiddenM=e=>Number.isFinite(e.row.quality?.hiddenBelow?.m)?e.row.quality.hiddenBelow.m:-Infinity,sees=(a,b)=>surveyed(a)!==surveyed(b)?(surveyed(a)?a:b):hiddenM(a)<hiddenM(b)-AREA_SEES_M?a:b;
  const kept=[],timeOf=e=>Number.isFinite(e.row.event?.at)?e.row.event.at:null,spot=e=>e.row.place?.latitude+','+e.row.place?.longitude;
- const near=(k,e)=>k.e.types.some(t=>e.types.includes(t))&&metres(k.e.row.place,e.row.place)<=AREA_M
+ const surveyed=e=>!!e.row.quality?.surveyed;
+ const near=(k,e)=>(surveyed(k.e)||surveyed(e)||k.e.types.some(t=>e.types.includes(t)))&&metres(k.e.row.place,e.row.place)<=AREA_M
   &&!(Math.abs(standM(k.e)-standM(e))>AREA_RISE_M);
  const touches=(k,from,to)=>k.fromAt===null?from===null:from!==null&&from<=k.toAt+AREA_MS&&to>=k.fromAt-AREA_MS;
  for(const e of [...unique.values()].sort((a,b)=>(a.show===false)-(b.show===false)||compare(a,b,'recommended'))){
@@ -107,6 +111,16 @@ function areaText(area){
  // One place with several times still says its times; one place with one time says nothing.
  return area.count>1?'この付近'+area.count+'地点'+(span?' ・ '+span:''):span;
 }
+// 2026-11-14 ユーザー「重複しないような何かを考えて」: 新しい撮影地点には自分の記録に無い場所だけを出す。記録の撮影地点から
+// RECORD_M以内で、立つ高さ（足元＋その上の高さ）の差がRECORD_RISE_M以内の行は、記録の撮影地点の側に出るので出さない。
+const RECORD_M=100,RECORD_RISE_M=10;
+function inRecords(row,places){
+ const p=row?.place,o=row?.assumedObserver||{};if(!p||!Array.isArray(places)||!places.length)return false;
+ const ground=p.groundManualM??p.elevation??o.elevation,up=p.standAglM??p.eyeHeightAGL??o.eyeM,stand=Number.isFinite(ground)&&Number.isFinite(up)?ground+up:null;
+ return places.some(f=>{if(!(metres(f,p)<=RECORD_M))return false;const g=f.groundManualM??f.elevation,h=f.standAglM??f.eyeHeightAGL;
+  if(stand===null||!Number.isFinite(g)||!Number.isFinite(h))return !Number.isFinite(up)||!Number.isFinite(h)||Math.abs(up-h)<=RECORD_RISE_M;
+  return Math.abs(stand-(g+h))<=RECORD_RISE_M;});
+}
 function metres(a,b){
  if(![a?.latitude,a?.longitude,b?.latitude,b?.longitude].every(Number.isFinite))return Infinity;
  const r=Math.PI/180,x=(b.longitude-a.longitude)*r*Math.cos((a.latitude+b.latitude)*r/2),y=(b.latitude-a.latitude)*r;return Math.hypot(x,y)*6371008.8;
@@ -118,7 +132,8 @@ let visibleEntries=[],selectedId=null,mapPanel=null,mapInstance=null,mapMode=fal
 const columns='minmax(0,1fr) 50px 64px 40px';
 const day=at=>globalThis.AstroNotesCandidateDiscovery?.day(at)??Math.floor((at+32400000)/86400000)*86400000-32400000;
 const clockText=at=>Number.isFinite(at)?new Date(at+32400000).toISOString().slice(11,16):'時刻未確認';
-const uncertainty=row=>[row.quality?.hiddenBelow?.text||'',row.quality?.visibility==='unknown'?'見通し未確認':'',row.quality?.buildingHeights==='estimated'?'建物の高さは推定':'',row.quality?.trees==='unread'?'木の高さ未確認':'',row.frame?.status==='unknown'?'全体の画角未確認':''].filter(Boolean);
+const uncertainty=row=>[row.quality?.surveyed?'調査で確認':'',row.quality?.hiddenBelow?.text||'',
+ row.quality?.visibility==='unknown'?'見通し未確認':'',row.quality?.buildingHeights==='estimated'?'建物の高さは推定':'',row.quality?.trees==='unread'?'木の高さ未確認':'',row.frame?.status==='unknown'?'全体の画角未確認':''].filter(Boolean);
 function configure(value){if(typeof value==='function')loadLabels=value;else if(value){ports={...ports,...value};if(typeof value.loadLabels==='function')loadLabels=value.loadLabels;}}
 function planKey(plan){return typeof ports.requestKey==='function'?ports.requestKey(plan):JSON.stringify([plan.requestKey,plan.owner,plan.body,plan.target,plan.partId,plan.limb,plan.matchMode,plan.composition,plan.compositionInvalid,plan.timeSpec||null,day(plan.at),plan.atmosphere,
 plan.cameraHeight]);}
@@ -321,7 +336,7 @@ function suspend(){
 }
 function reset(){if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);revision.cancel();groups.clear();windows.clear();visibleEntries=[];selectedId=null;mapHits=[];mapMode=false;if(mapPanel)mapPanel.hidden=true;control?.remove();control=null;list=null;scope='';filterScope='';
 mapScroll=null;suspendedView=null;}
-const api={mount,configure,registerRegistered:register,registerAdditional:register,unregister,apply,kinds,accepts,compare,showMap,suspend,reset,visibleRows:()=>visibleEntries.filter(currentEntry).map(e=>e.row)};
+const api={mount,configure,registerRegistered:register,registerAdditional:register,unregister,apply,kinds,accepts,compare,inRecords,showMap,suspend,reset,visibleRows:()=>visibleEntries.filter(currentEntry).map(e=>e.row)};
 globalThis.AstroNotesCandidatePicker=api;
-if(typeof module!=='undefined')module.exports={kinds,accepts,compare,candidateKey,mergeEntries,placePriority,areaOf,areaText};
+if(typeof module!=='undefined')module.exports={kinds,accepts,compare,candidateKey,mergeEntries,placePriority,areaOf,areaText,inRecords};
 })();

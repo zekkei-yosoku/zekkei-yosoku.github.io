@@ -335,3 +335,36 @@ test('a set lens does not require the whole target: a near tall view (the sun on
  // Where the whole target fits, the usual frame (axis on the target extent) is kept, as before.
  const w=check(far,at,'whole'),f=check(far,at,'overlap');assert.equal(w.fits,true);assert.equal(f.overflow,false);assert.deepEqual(f.axis,w.axis);
 });
+
+// 2026-11-14 ユーザー「調査済み159地点をアプリに組み込み、新しい撮影地点にも出してもいい」: 調査で対象が見えると確かめた場所。
+test('a surveyed place stands on its survey for the line to its target: buildings cannot rule it out, another target still can',async()=>{
+ const seen=[],heights=status=>({trace:async(o,ray)=>{seen.push(ray);return {status,reason:null};}}),model=()=>createGeneric({align:outlined,bodies,geo:G,terrain:openTerrain,heights:heights('blocked'),yieldTask:async()=>{}});
+ const known=await model().evaluate(plan,{...point,surveyedTargets:[target.id]},{});
+ assert.equal(known.recommend,true);assert.equal(seen.length,0,'no building is asked on a surveyed line');assert.equal(known.quality.surveyed,true);assert.equal(known.quality.hiddenBelow,null);assert.equal(known.visibility.surveyed,true);
+ assert.equal(known.quality.composition,null,'nothing the data was not asked is said of a surveyed place');assert.equal(known.quality.trees,'surveyed');
+ const other=await model().evaluate(plan,{...point,surveyedTargets:['another-target']},{});
+ assert.equal(other.status,'model-blocked');assert.equal(other.reason,'target-line-blocked');
+});
+test('surveyed places are checked wherever the regions lie, and the visibility map does not drop them',async()=>{
+ const original=C.inverseSeeds;C.inverseSeeds=async()=>({seeds:[{latitude:35,longitude:139,radiusM:300,priority:0}],partial:true});
+ try{const far={...point,placeKind:'viewpoint',latitude:36.56,longitude:139.19,surfaceId:'surveyed/x',surveyedTargets:[plan.target.id]},near={...point,placeKind:'park',latitude:35};
+  const provider={load:async()=>({points:[near],coverage:{nextCursor:null}}),surveyed:async p=>p.target.id===plan.target.id?[far]:[]},checked=[];
+  const prefilter={regions:async(p,regions)=>({regions,context:{}}),point:()=>false};
+  const engine=createGenericSearch({provider,bodies,prefilter,evaluate:async(p,pt)=>{checked.push(pt.latitude);return {recommend:true,id:String(pt.latitude),place:pt,event:{at:Date.parse('2026-11-05T12:00:00+09:00')}};},yieldTask:async()=>{}});
+  const page=await engine.searchAll({...plan,timeSpec:{kind:'day',at:Date.parse('2026-11-05T12:00:00+09:00'),timezone:'Asia/Tokyo'}});
+  assert.deepEqual(checked,[36.56],'the surveyed place is checked; the map drops the other');assert.equal(page.counts.mapPoints,1);
+ }finally{C.inverseSeeds=original;}
+});
+test('a surveyed room high above its ground is evaluated at that height, not refused for an unknown floor',async()=>{
+ const createProvider=require('./src/features/candidates/place-provider.js'),data={places:[{id:'room',name:'調べた展望室',latitude:point.latitude,longitude:point.longitude,groundM:point.groundM??20,eyeM:120,shape:'point',targets:[target.id]}]};
+ const [room]=await createProvider({terrain:{at:async()=>20},loadSurveyed:async()=>data}).surveyed({target});
+ const r=await createGeneric({align:outlined,bodies,geo:G,terrain:openTerrain,heights:{trace:async()=>({status:'blocked'})},yieldTask:async()=>{}}).evaluate(plan,room,{});
+ assert.notEqual(r.reason,'standing-height-unknown');assert.notEqual(r.reason,'target-line-blocked');
+ if(r.recommend){assert.equal(r.place.standAglM,120);assert.equal(r.quality.surveyed,true);}
+});
+test('a terrain budget can be widened for one place and falls back to its own on the next reset',async()=>{
+ let calls=0;const t=createLive({geo:G,maxTiles:1,fetchImpl:async()=>{calls++;return {ok:true,text:async()=>dem(5)};}}),far=i=>({latitude:35+i*.2,longitude:139});
+ await t.sample(far(0));assert.equal((await t.sample(far(1))).height,null,'the second tile is over the budget');const before=calls;
+ t.resetBudget(3);for(const i of [2,3,4])await t.sample(far(i));assert.equal(calls-before,3,'three tiles under the widened budget');
+ t.resetBudget();await t.sample(far(5));const after=calls;await t.sample(far(6));assert.equal(calls,after,'back to one tile');
+});

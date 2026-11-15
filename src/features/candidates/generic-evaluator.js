@@ -106,6 +106,8 @@ function memoOutlines(align){
 function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,trees=null,staticTerrain=null,sidewalks=null,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
  const align=memoOutlines(rawAlign);
  const visibilityCache=new Map(),targetLines=new Map();
+ // Whether the place was surveyed as seeing this target (and not merely some other one).
+ const surveyedFor=(place,target)=>!!target?.id&&Array.isArray(place?.surveyedTargets)&&place.surveyedTargets.includes(target.id);
  // What hides the lower part of the target on its line (2026-11-12, user: name it, not a distance).
  const hiddenNotes=new WeakMap();
  function hiddenNote(target,observer,azimuth,sky,built,tree){
@@ -206,11 +208,15 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   // Events of one point share their line to the target's anchor; it decides before any sky line can.
   const lineKey=JSON.stringify([obs.latitude,obs.longitude,obs.elevation,obs.eyeM,targetRay.endpoint.latitude,targetRay.endpoint.longitude,targetRay.endpoint.elevation,distance,k,plan.target.id]);
   let line=targetLines.get(lineKey);
+  // A surveyed place (place-provider.js): the survey stands for its sight line to the target, so buildings and trees are
+  // not asked (an observation room's own walls would stop it); the ground still is, for the body beside the target.
+  const surveyed=surveyedFor(obs,plan.target);
+  if(!line&&surveyed){line={tg:await terrainRay(obs,targetRay,options),tb:{status:'surveyed'}};targetLines.set(lineKey,line);}
   if(!line){const tb=await buildingRay(obs,targetRay,options),tg=tb.status==='blocked'?{status:'not-needed'}:await terrainRay(obs,targetRay,options);line={tg,tb};targetLines.set(lineKey,line);while(targetLines.size>400)targetLines.delete(targetLines.keys().next().value);}
   const {tg,tb}=line;
-  if(tg.hit||tb.status==='blocked')return {status:'blocked',target:{terrain:tg,buildings:tb},reason:'target-obstructed'};
+  if(!surveyed&&(tg.hit||tb.status==='blocked'))return {status:'blocked',target:{terrain:tg,buildings:tb},reason:'target-obstructed'};
   // An unconfirmed line to the target cannot make the event confirmed, whatever the sky lines show.
-  if(tg.status!=='model-clear'||tb.status!=='model-clear')return {status:'unknown',target:{terrain:tg,buildings:tb},rays:[],reason:'target-line-unconfirmed',treesModeled:false,actualVisibilityGuaranteed:false};
+  if(!surveyed&&(tg.status!=='model-clear'||tb.status!=='model-clear'))return {status:'unknown',target:{terrain:tg,buildings:tb},rays:[],reason:'target-line-unconfirmed',treesModeled:false,actualVisibilityGuaranteed:false};
   const outline=align.towerOutline?.(obs,plan.target,{eyeM:obs.eyeM}),outlineAvailable=!!(outline?.known&&!outline.schematic),polygons=outline?.polygons||[outline?.hitPoints||outline?.points||[]];
   const projection=align.viewProjector(state.azimuth,state.apparentAltitude),unproject=align.viewUnprojector(state.azimuth,state.apparentAltitude);
   const projected=outlineAvailable?polygons.filter(r=>r.length>=3).map(r=>r.map(p=>projection(p[0],p[1]))).filter(r=>r.every(p=>p?.every(Number.isFinite))):[],knownOutline=outlineAvailable&&projected.length>0||!!plan.target.rim;
@@ -222,12 +228,13 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    const angular=unproject(x*rx,y*ry),inTarget=projected.some(r=>inside(r,[x*rx,y*ry]));
    if(inTarget){rays.push({status:'blocked',intentionalTarget:true});continue;}
    const ray={azimuth:angular[0],altitude:angular[1],maxM:Math.max(distance,skyRange(eye.elevation,angular[1],k)),refractionK:k,targetKey:plan.target.id};
-   const ground=await terrainRay(obs,ray,options),building=ground.hit?{status:'not-needed'}:await buildingRay(obs,ray,options);
+   const ground=await terrainRay(obs,ray,options),building=ground.hit?{status:'not-needed'}:surveyed?{status:'model-clear',surveyed:true}:await buildingRay(obs,ray,options);
    rays.push({status:ground.hit||building.status==='blocked'?'blocked':ground.status==='model-clear'&&building.status==='model-clear'&&knownOutline?'model-clear':'unknown',terrain:ground,buildings:building,rangeM:ray.maxM});
    await yieldTask();
   }
   const clear=rays.filter(r=>r.status==='model-clear').length,unknown=rays.filter(r=>r.status==='unknown').length;
-  const result={status:!clear&&!unknown?'blocked':tg.status==='model-clear'&&tb.status==='model-clear'&&clear?'model-clear':'unknown',target:{terrain:tg,buildings:tb},rays,visibleSamples:clear,unknownSamples:unknown,totalSamples:rays.length,shapeKnown:knownOutline,treesModeled:false,actualVisibilityGuaranteed:false,datumUncertainty:true};
+  const result={status:!clear&&!unknown?'blocked':(surveyed||tg.status==='model-clear'&&tb.status==='model-clear')&&clear?'model-clear':'unknown',surveyed,
+   target:{terrain:tg,buildings:tb},rays,visibleSamples:clear,unknownSamples:unknown,totalSamples:rays.length,shapeKnown:knownOutline,treesModeled:false,actualVisibilityGuaranteed:false,datumUncertainty:true};
   if(result.status!=='unknown')visibilityCache.set(cacheKey,result);while(visibilityCache.size>150)visibilityCache.delete(visibilityCache.keys().next().value);
   return result;
  }
@@ -245,7 +252,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   // A ground point a few metres down a slope or levee is often hidden by the rise in front of it, while
   // the top of the rise, in the same park or riverbank, sees the target. Such a point is moved up onto
   // the rise (at most three steps) and judged there, at the position it is then shown at.
-  if(heights&&!(plan.composition||plan.strict||plan.profile==='summit-contact'||plan.target.rim)){
+  if(heights&&!surveyedFor(point,plan.target)&&!(plan.composition||plan.strict||plan.profile==='summit-contact'||plan.target.rim)){
    const top=Math.max(...(plan.target.parts||[]).map(p=>p.m).filter(Number.isFinite)),k=root.AstroNotesAtmosphere?.targetK?.()??7/6;
    for(let step=0;Number.isFinite(top);step++){
     if(options.isCurrent?.()===false)throw Error('candidate-cancelled');
@@ -285,7 +292,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    const frame=plan.overlapAnchor?lensCheck({...plan,target:plan.overlapAnchor.target,partId:plan.overlapAnchor.partId},solution.observer,state,align.geometryFrom(solution.observer,plan.overlapAnchor.target,{eyeM:solution.observer.eyeM})||solution.geometry,align):lensCheck(plan,solution.observer,
    state,solution.geometry,align);if(!frame.fits){outside++;continue;}
    const los=await visibility(plan,solution,options);if(los.status==='blocked'){blocked++;continue;}
-   if(partsHidden(plan.target,hiddenTop(los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline))){blocked++;continue;}
+   if(!los.surveyed&&partsHidden(plan.target,hiddenTop(los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline))){blocked++;continue;}
    const at=solution.event.at,position=solution.observer,finalGround=Number.isFinite(position.groundM)?position.groundM:ground;
    const sun=bodies.state('sun',at,{...position,elevation:position.elevation+position.eyeM});
    const photo=photographability(plan.body,state,sun.apparentAltitude);
@@ -309,15 +316,18 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    // Only a sight line shown clear of terrain and buildings is a candidate (design note 21): unknown is not shown.
    if(los.status!=='model-clear'||plan.requireAllTargets&&!combinedClear){unverified++;lastUnverified=los;if(missingHeights(los.target?.buildings)||los.rays?.some(r=>missingHeights(r.buildings)))heightUnknown++;continue;}
    const usedBuildings=[los.target?.buildings,...(los.rays||[]).filter(r=>r.status==='model-clear').map(r=>r.buildings)],buildingHeights=usedBuildings.some(b=>b?.heights==='estimated')?'estimated':usedBuildings.every(b=>b?.heights==='plateau')?'plateau':'model';
-   const hiddenBelow=await hiddenNote(plan.target,position,solution.geometry.azimuth,los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline);
+   const hiddenBelow=los.surveyed?null:await hiddenNote(plan.target,position,solution.geometry.azimuth,los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline);
    const treesRead=!!los.target?.buildings?.trees&&los.target.buildings.trees.status!=='unread';
-   const composition=await compositionOf(plan,position,solution,state,los,options).catch(e=>{if(e?.message==='candidate-cancelled')throw e;globalThis.AstroNotesErrors?.note('candidates.composition',e);return null;});
+   // A surveyed row says what the survey found and no more: how much of the target shows and what stands beside it
+   // were not read from the data (its buildings and trees were not asked), so no composition and no tree note.
+   const composition=los.surveyed?null:await compositionOf(plan,position,solution,state,los,options).catch(e=>{if(e?.message==='candidate-cancelled')throw e;globalThis.AstroNotesErrors?.note('candidates.composition',e);return null;});
    const kind=position.placeKind||point.placeKind;
    accepted.push({id,requestKey:plan.requestKey,status:combinedClear&&frame.status!=='unknown'?'model-visible':'visible-partial',recommend:true,aligned:true,placeKind:kind==='sidewalk'?'road':kind||'unknown',surfaceId:point.surfaceId,
     place:{id,name:position.name||point.name||'撮影候補地点',latitude:position.latitude,longitude:position.longitude,elevation:finalGround,groundManualM:finalGround,stand:'ground',standAglM:position.elevation-finalGround+position.eyeM,eyeHeightAGL:position.elevation-finalGround+position.eyeM,decks:[],
     surfaceId:point.surfaceId},
     assumedObserver:{...position},event:{...solution.event,sunAltitude:sun.apparentAltitude},quality:{visibility:los.status,extraTargets:visibilityQuality,buildingHeights,targetAngleDeg:solution.geometry.angle,frame:frame.status,photographyClass:photo,
-    geometry:solution.event.targetGeometryKind||'anchor',datum:'source-epoch-unverified',hiddenBelow,trees:trees?(treesRead?'checked':'unread'):'not-modeled',composition},rank:[Math.round(solution.geometry.angle*10)/10,solution.event.gapAngleDeg??0],
+    geometry:solution.event.targetGeometryKind||'anchor',datum:'source-epoch-unverified',...(los.surveyed?{surveyed:true}:{}),hiddenBelow,
+    trees:los.surveyed?'surveyed':trees?(treesRead?'checked':'unread'):'not-modeled',composition},rank:[Math.round(solution.geometry.angle*10)/10,solution.event.gapAngleDeg??0],
     frame,extraTargets:extras,visibility:los,sourceEvidence:position.sourceEvidence||point.sourceEvidence,modelEvidence:{kind:combinedClear?'terrain-and-building-model-los':'geometry-with-partial-los',scope:'target-and-celestial-rays',actualVisibilityGuaranteed:false,treesModeled:false,
     terrainNumericComplete:!!los.rays?.every(r=>r.intentionalTarget||r.terrain?.status==='model-clear'),buildingRangeComplete:!!los.rays?.every(r=>r.intentionalTarget||r.buildings?.complete&&r.buildings?.evaluated),
     targetSelfGeometryComplete:los.shapeKnown&&los.target?.buildings?.evaluated&&!los.target?.buildings?.unresolvedTargetContacts,extraTargetsAssessed:extras.length,datumUncertainty:true}});

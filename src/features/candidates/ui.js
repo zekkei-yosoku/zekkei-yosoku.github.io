@@ -29,6 +29,7 @@ async function refreshShapes(){
  }catch{/* Shapes are an enhancement; the outline estimate stays. */}
 }
 document.addEventListener('astronotes-records-change',refreshShapes);
+let againForRecords=null;document.addEventListener('astronotes-records-change',()=>againForRecords?.());
 (globalThis.startupSessionReady||Promise.resolve()).then(refreshShapes,()=>{});
 const loadLabels=async()=>{const [addresses,facilities]=await Promise.all(['candidate-label-addresses.json','candidate-label-facilities.json'].map(n=>loaded(n).catch(()=>null)));return {addresses,facilities};};
 const filterKey=p=>JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode]);
@@ -40,7 +41,7 @@ const live=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxDurat
 const groundPort={...AstroNotesTerrain,resetBudget:()=>live.resetBudget(),groundElevation:async(lat,lon,options={})=>{const r=await live.sample({latitude:lat,longitude:lon},options);return options.withSource?(Number.isFinite(r.height)?{elevation:r.height,source:r.layer}:null):r.height;}};
 // Places, woods and bridges from the bundled OSM extract (Overpass only if it cannot be read).
  const osmPlaces=globalThis.AstroNotesOsmPlaces?.create({load:loaded,base:dataBase+'osm-places/'})||null;
- const provider=AstroNotesCandidateDiscovery.createPlaceProvider({terrain:groundPort,fetchImpl:fetch.bind(globalThis),loadViewpoints:()=>loaded('candidate-viewpoints.json'),places:osmPlaces});
+ const provider=AstroNotesCandidateDiscovery.createPlaceProvider({terrain:groundPort,fetchImpl:fetch.bind(globalThis),loadViewpoints:()=>loaded('candidate-viewpoints.json'),loadSurveyed:()=>loaded('candidate-surveyed-viewpoints.json'),places:osmPlaces});
 let modelPromise=null,staticPromise=null,viewModelPromise=null;
 const staticTerrain=()=>staticPromise||=loaded('candidate-terrain.json').then(d=>d?AstroNotesCandidateTerrain.decode(d):null).catch(()=>null);
 // The composition's ground line comes from the search's own sight line to the target (2026-11-13): one calculation
@@ -92,7 +93,13 @@ let evaluationBudgetStarted=false;
 const engine=AstroNotesCandidateDiscovery.createGenericSearch({provider,bodies:AstroNotesBodies,prefilter,loadStatic:()=>loaded('candidate-sidewalks.json'),evaluate:async(p,point,data,options)=>{const model=await loadModel();
 if(plateauShapes&&String(p.target?.id||'').startsWith('fav:')&&!plateauShapes.attachedTo(p.target.id))await plateauShapes.prepare([p.target]).catch(()=>{});if(!options.isCurrent())throw Error('candidate-cancelled');
 if(!evaluationBudgetStarted){live.resetBudget();footprintGround.resetBudget();treeGround.resetBudget();
-evaluationBudgetStarted=true;}return model.evaluate(p,point,data,options);}});
+evaluationBudgetStarted=true;}
+// A surveyed place lies off the day's line and reads ground no other place of the batch reads (an observation room's rays
+// run far over the land): the 96 tiles of a batch ran out on the surveyed places and left them and the places after them
+// unconfirmed (2026-11-15). Each gets a tile budget to itself, four times a batch's (渋谷スカイ, 229 m up and 11 km from
+// 東京スカイツリー, did not fit in one), and leaves a fresh one behind.
+if(point.surveyedTargets){live.resetBudget(4);try{return await model.evaluate(p,point,data,options);}finally{live.resetBudget();}}
+return model.evaluate(p,point,data,options);}});
 const stop=()=>{if(autoSearchTimer!==null)clearTimeout(autoSearchTimer);autoSearchTimer=null;if(watch!==null)clearInterval(watch);watch=null;controller?.abort();controller=null;};
 // The refraction settings only: weather the view loads later for a chosen place (気象予報) must not discard the places
 // already found when going back to the list (2026-11-11, seen on the iPhone). The evaluator keys its own caches by the data.
@@ -265,7 +272,9 @@ function mount(){
  panel.append(section);syncWorkspaceSection(panel);
  if(editing&&['candidateSearchMode','candidateSearchStart','candidateSearchEnd'].includes(editing))section.querySelector('#'+editing)?.focus({preventScroll:true});
  const valid=p&&AstroNotesBodies.definition(p.body)&&!p.compositionInvalid&&AstroNotesCandidateComposition.timeRange(p);button.disabled=!valid;status.textContent=!p?'天体・対象・日付を選んでください。':!valid?'指定した日時と構図を確認してください。':'';
- let continuation=false,hasRun=false,searching=false,failed=false,items=new Map();
+ let continuation=false,hasRun=false,searching=false,failed=false,items=new Map(),shown=null;
+ // A place saved to the records leaves this list at once, and one removed from them comes back.
+ againForRecords=()=>{if(shown&&!searching&&section.isConnected)present(...shown);};
  function renderAction(){button.dataset.state=searching?'searching':'idle';button.textContent=searching?'キャンセル':failed?'再試行':continuation?'続きを探す':hasRun?(main?'候補を探し直す':'もう一度確認'):main?'候補を探す':'ほかの候補地点を探す';button.disabled=!valid;resultList.setAttribute('aria-busy',String(searching));}
  renderAction();
  // partial: rows found so far while the search goes on; the list is replaced, the progress and the action stay.
@@ -273,8 +282,9 @@ function mount(){
    const labels=result.rows.length?await loadLabels():{};if(!current(token,selected,node)||partial&&!searching)return;
    // Rows already shown keep their buttons and new ones wait hidden until the list places them: emptying and
    // refilling the list for every place found made the page jump while searching (2026-11-13, seen on the iPhone).
-   const rows=[],nodes=[],kept=new Map();
-   for(const raw of result.rows){const row=AstroNotesCandidateLabels.enrich(raw,labels);if(raw.place.name&&!/^(?:撮影候補|モデル候補)/.test(raw.place.name))row.place.name=raw.place.name;rows.push(row);
+   // Places already among the user's saved shooting places are shown on the records side only (candidate-picker.js inRecords).
+   const rows=[],nodes=[],kept=new Map(),recorded=globalThis.MyPlacesUI?.savedPlaces?.()||[];if(!partial)shown=[result,selected,node,token,{cancelled,interrupted}];
+   for(const raw of result.rows){if(AstroNotesCandidatePicker.inRecords(raw,recorded))continue;const row=AstroNotesCandidateLabels.enrich(raw,labels);if(raw.place.name&&!/^(?:撮影候補|モデル候補)/.test(raw.place.name))row.place.name=raw.place.name;rows.push(row);
    let item=items.get(row.id);if(!item){item=document.createElement('button');item.type='button';item.className='list-item';item.hidden=true;item.textContent=row.place.name;resultList.append(item);}
    kept.set(row.id,item);nodes.push(item);item.dataset.modelBasis=row.modelEvidence?.kind||'unknown';item.dataset.candidateName=row.place.name;item.dataset.candidateId=row.id;
     item.onclick=()=>{if(mainWorkspace()&&!mainWorkspace().selectable()||!current(token,selected,node)||row.requestKey!==key(snapshot()))return;const event={...row.event};delete event.matchMode;const candidate={...row,event};const host=document.getElementById('aimLook'),previous=host?._compose;

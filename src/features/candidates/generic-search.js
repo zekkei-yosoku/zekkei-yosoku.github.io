@@ -71,6 +71,8 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,prefilter
     const data=await provider.load(plan,{regions:session.regions,cursor:session.cursor??0,isCurrent:wanted,onProgress,signal,retryFailed});
     if(!wanted()||data.cancelled)return {cancelled:true};
     const points=[...(data.points||[])];
+    // Surveyed places of this target go in once, wherever the regions lie (place-provider.js surveyedViewpoints).
+    if(!session.started&&typeof provider.surveyed==='function'){const known=await provider.surveyed(plan);if(!wanted())return {cancelled:true};points.unshift(...known);}
     if(!session.started&&loadStatic){
      try{const legacy=await loadStatic();for(const p of api.sampleSidewalks(legacy).rows){if(!session.regions.some(r=>p.longitude>=r.bbox[0]&&p.longitude<=r.bbox[2]&&p.latitude>=r.bbox[1]&&p.latitude<=r.bbox[3]))continue;
      points.push({...p,surfaceId:p.polygonId||p.sourceId,placeKind:'road',standingSurfaceKnown:p.structureClassificationKnown&&!p.nonTerrainStructure,accessKnown:undefined,sourceEvidence:{kind:'PLATEAU-pedestrian-surface',sourceId:p.sourceId},name:'歩道の撮影候補'});
@@ -89,7 +91,7 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,prefilter
    while(session.queue.length&&count<maxPointsPerBatch){
     if(!wanted())return {cancelled:true};
     const point=session.queue[0];
-    if(session.mapContext&&prefilter.point(plan,point,session.mapContext)===false){session.queue.shift();session.counts.checked++;session.counts.blocked++;session.counts.mapPoints++;continue;}
+    if(session.mapContext&&!point.surveyedTargets?.includes(plan.target?.id)&&prefilter.point(plan,point,session.mapContext)===false){session.queue.shift();session.counts.checked++;session.counts.blocked++;session.counts.mapPoints++;continue;}
     onProgress({stage:'evaluate',...session.counts,pending:session.queue.length});
     const tested=await (root.AstroNotesTrialOverlap?.evaluate?.(plan,p=>evaluate({...p,requestKey:key},point,session.data,{isCurrent:wanted,signal}))??evaluate({...plan,requestKey:key},point,session.data,{isCurrent:wanted,signal}));
     if(!wanted())return {cancelled:true};

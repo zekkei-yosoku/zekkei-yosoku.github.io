@@ -106,3 +106,14 @@ test('automatic pages leave tiles for later during cooldown, say how long to wai
  assert(b.coverage.retryAfterMs>20000&&b.coverage.retryAfterMs<=60000);assert.equal(b.coverage.nextCursor.offset,a.coverage.nextCursor.offset);
  assert.deepEqual(requests,terrain.OVERPASS);
 });
+test('調査済みの地点は調べた対象にだけ出し、足元の高さとその上の高さを別に持つ',async()=>{
+ const data=JSON.parse(readFileSync(new URL('./data/candidate-surveyed-viewpoints.json',import.meta.url))),p=provider([],{loadSurveyed:async()=>data});
+ assert.equal(data.places.length,159);assert.equal(new Set(data.places.map(x=>x.id)).size,159);
+ const sky=await p.surveyed({target:{id:'skytree'}}),tower=await p.surveyed({target:{id:'tokyotower'}}),fuji=await p.surveyed({target:{id:'fuji'}});
+ assert.deepEqual([sky.length,tower.length,fuji.length],[50,36,122]);assert.deepEqual(await p.surveyed({target:{id:'custom'}}),[]);
+ const room=sky.find(x=>x.name==='東京都庁 南展望室');assert.equal(room.groundM,41.2);assert.equal(room.eyeM,202);assert.equal(room.surfaceAglM,0,'a room is not refused for lacking a floor height');assert.equal(room.nonTerrainStructure,true);assert.equal(room.standingSurfaceKnown,true);assert.equal(room.placeKind,'viewpoint');
+ assert.deepEqual(room.surveyedTargets.slice().sort(),['fuji','skytree','tokyotower']);assert.equal(room.sourceEvidence.kind,'surveyed-viewpoint');
+ const park=tower.find(x=>x.name==='港区立芝公園 芝生広場');assert.equal(park.eyeM,1.5);assert.equal(park.nonTerrainStructure,false);
+ const bridge=sky.find(x=>x.name==='晴海大橋 中央部東側歩道');assert.equal(bridge.groundM,24.2);assert.equal(bridge.nonTerrainStructure,true,'a stated floor is not the terrain');
+ assert.deepEqual(await provider([],{loadSurveyed:async()=>{throw Error('data');}}).surveyed({target:{id:'skytree'}}),[],'unreadable data leaves the search going');
+});

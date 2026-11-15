@@ -3387,12 +3387,19 @@ function discoveryPoints(){
  return out;
 }
 function discoveryRevision(){return version;}
+// The saved shooting places, as positions and standing heights only: 探す（新しい撮影地点）leaves out the places that are
+// already here (candidate-picker.js inRecords, 2026-11-14).
+function savedPlaces(){
+ if(!auth?.token||!toolAllowed('records'))return [];
+ return favorites.filter(f=>Number.isFinite(f.latitude)&&Number.isFinite(f.longitude)).map(f=>({latitude:f.latitude,longitude:f.longitude,elevation:f.elevation,groundManualM:f.groundManualM,eyeHeightAGL:f.eyeHeightAGL}));
+}
 async function discoverySearch(plan,points,isCurrent,terrainCache,onProgress){
  if(!terrainCache){const value=await recordEngineDiscover(plan,points,isCurrent,onProgress);if(value)return value;}
  return recordSearch(plan,points,{isCurrent,terrainCache,onProgress});
 }
 
-window.MyPlacesUI = { discoveryPoints,discoverySearch,discoveryRevision, recordSortControl,sortRecordPlaces, eyeAdjustmentFor, opportunities,recordProgress:showRecordProgress, backupState:()=>({observations:load(),shapes:shapeData()}),imported:()=>{version++;candidateCache.clear();changed();
+window.MyPlacesUI = { discoveryPoints,discoverySearch,discoveryRevision,savedPlaces,
+  recordSortControl,sortRecordPlaces, eyeAdjustmentFor, opportunities,recordProgress:showRecordProgress, backupState:()=>({observations:load(),shapes:shapeData()}),imported:()=>{version++;candidateCache.clear();changed();
 },selectShape, resetShapePicker, shapeFor, withShape, drawShape, renderAim, renderPickerPanel, skyDraw, skyRender, leaveSky, pickSky, badge, openPlace, recordFor, quickRecord, load, renderRecordsHub };
 // 読み込みより先に構図が描かれていたら、ここで一覧を出す
 if (el('aimView') && !el('aimView').hidden) { try { renderAim(); } catch { /* 構図を止めない */ } }

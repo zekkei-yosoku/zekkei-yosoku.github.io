@@ -371,6 +371,7 @@
       ],
       "dataFiles": {
         "candidate-viewpoints.json": "data/aim-viewpoints.json",
+        "candidate-surveyed-viewpoints.json": "data/candidate-surveyed-viewpoints.json",
         "candidate-terrain.json": "data/candidate-terrain.json",
         "candidate-buildings.json": "data/candidate-buildings.json",
         "building-heights/index.json": "data/building-heights/index.json",

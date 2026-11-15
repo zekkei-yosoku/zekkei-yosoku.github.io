@@ -167,7 +167,27 @@ function publishedViewpoints(data,regions){
   });
  }return points;
 }
-return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,isCurrent:providerCurrent=()=>true,maxTiles=12,maxPoints=480,timeoutMs=25000,maxDurationMs=55000,spacingM=30,endpoints,places=null}={}){
+// Surveyed places (data/candidate-surveyed-viewpoints.json, tools/build-surveyed-viewpoints.mjs): places looked up as seeing
+// the target, with the height one stands at. 2026-11-14 ユーザー「調査済み159地点をアプリに組み込み、新しい撮影地点にも出してもいい」。
+// They are offered for the targets they were surveyed for only, wherever the search's regions lie (a far mountain pass or
+// an observation room is not on the line the regions follow), and the survey stands for the sight line to the target.
+function surveyedViewpoints(data,targetId){
+ const points=[];
+ for(const p of data?.places||[]){
+  if(!targetId||!p.targets?.includes(targetId)||![p.latitude,p.longitude,p.groundM,p.eyeM].every(finite)||p.eyeM<0)continue;
+  const id='surveyed/'+p.id;
+  points.push({latitude:p.latitude,longitude:p.longitude,lat:p.latitude,lon:p.longitude,placeId:id,name:p.name,placeKind:'viewpoint',sourceId:id,surfaceId:id,polygonId:p.id,
+   surfaceGeometry:{polygons:[],lines:[],position:{latitude:p.latitude,longitude:p.longitude}},
+   // The surveyed height is the lens above the stated ground or floor, so the floor is that ground itself (surfaceAglM 0):
+   // a place off the terrain without a floor height is refused as standing-height-unknown (generic-evaluator.js).
+   groundM:p.groundM,groundKnown:true,surfaceAglM:0,eyeM:p.eyeM,standingSurfaceKnown:true,accessKnown:false,structureClassificationKnown:true,nonTerrainStructure:p.eyeM>3||!!p.groundManual,surveyedTargets:p.targets.slice(),
+   quality:'surveyed-viewpoint',
+   sourceEvidence:{kind:'surveyed-viewpoint',sourceId:p.id,heightM:p.eyeM,reference:p.groundManual?'height-above-stated-floor':'height-above-local-ground',positionBasis:'representative-point',shape:p.shape,
+   targetVisibility:'surveyed',actualVisibilityGuaranteed:false}
+  });
+ }return points;
+}
+return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,loadSurveyed,isCurrent:providerCurrent=()=>true,maxTiles=12,maxPoints=480,timeoutMs=25000,maxDurationMs=55000,spacingM=30,endpoints,places=null}={}){
  if(!terrain)throw Error('terrain provider is required');
  const servers=endpoints||terrain.OVERPASS||[],cache=new Map(),heightCache=new Map();
  let endpointCursor=0,overpassRetryAfter=0,overpassNextRequest=0;
@@ -270,6 +290,8 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
    return {version,points:kept,features,coverage,partial:coverage.status!=='loaded',cancelled:!current(),credits:credits.slice(),continuation:coverage.nextCursor?{...coverage.nextCursor,regions:requested}:null,visibilityCertified:false};
   }finally{clearInterval(timer);signal?.removeEventListener('abort',cancel);controller.abort();}
  }
- return {load,clear(){cache.clear();heightCache.clear();}};
+ // The surveyed places of the plan's target; none when the data cannot be read (the search goes on without them).
+ async function surveyed(plan){if(typeof loadSurveyed!=='function'||!plan?.target?.id)return [];try{return surveyedViewpoints(await loadSurveyed(plan),plan.target.id);}catch{return [];}}
+ return {load,surveyed,clear(){cache.clear();heightCache.clear();}};
 };
 });
