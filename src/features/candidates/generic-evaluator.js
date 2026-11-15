@@ -109,10 +109,12 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
  // Whether the place was surveyed as seeing this target (and not merely some other one).
  const surveyedFor=(place,target)=>!!target?.id&&Array.isArray(place?.surveyedTargets)&&place.surveyedTargets.includes(target.id);
  // What hides the lower part of the target on its line (2026-11-12, user: name it, not a distance).
- const hiddenNotes=new WeakMap();
+ const hiddenNotes=new WeakMap(),TOWN_M=500;
  function hiddenNote(target,observer,azimuth,sky,built,tree){
   // Buildings or trees higher on the target than the ground in front (2026-11-13): named as such, from the same line.
-  const front=[['建物',built],['木',tree]].filter(([,s])=>Number.isFinite(s?.toM)).sort((a,b)=>b[1].toM-a[1].toM)[0];
+  // Buildings far in front are a townscape, not a building (2026-11-15, user: 22 km from 東京スカイツリー the words
+  // 「手前の建物」 did not fit the skyline that hides its foot); TOWN_M and nearer it is still the building in front.
+  const front=[[Number.isFinite(built?.distanceM)&&built.distanceM>=TOWN_M?'街並み':'建物',built],['木',tree]].filter(([,s])=>Number.isFinite(s?.toM)).sort((a,b)=>b[1].toM-a[1].toM)[0];
   if(front&&!(front[1].toM<=(sky?.toM??-Infinity))&&typeof align.hiddenBelowText==='function'){
    const [kind,{toM}]=front,text=align.hiddenBelowText(target,toM,kind);return Promise.resolve(text?{m:toM,kind,text,label:'手前の'+kind}:null);
   }
@@ -198,6 +200,15 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   if(!tg?.skyline)return {status:tg?.status||'unknown',read:false,note:built||tree?await hiddenNote(target,obs,g.azimuth,null,built,tree):null};
   return {status:tg.status,read:true,note:await hiddenNote(target,obs,g.azimuth,tg.skyline,built,tree)};
  }
+ // The town in front of the target, for the figure (2026-11-15, user: one straight line across the figure is crude): how
+ // high the buildings' tops stand above the eye's level along each bearing, out to the target (deg; -Infinity where none
+ // stands). The same grid and the same curve as the line to the target, whose own cells are left out. null when unread.
+ async function skylineView(observer,target,azimuths,{isCurrent}={}){
+  const obs={...observer,eyeM:observer.eyeM??1.5},g=align.geometryFrom(obs,target,{eyeM:obs.eyeM});
+  if(!heights?.angles||!g||!(g.distanceKm>0)||!Array.isArray(azimuths)||!azimuths.length)return null;
+  const k=root.AstroNotesAtmosphere?.targetK?.()??7/6;
+  return heights.angles(obs,azimuths,g.distanceKm*1000,{targetKey:target.id,isCurrent,refractionK:k}).catch(e=>{if(e?.message==='candidate-cancelled')throw e;return null;});
+ }
  async function visibility(plan,solution,options={}){
   const obs=solution.observer,g=solution.geometry,at=solution.event.at,eye={...obs,elevation:obs.elevation+obs.eyeM};
   const state=bodies.state(plan.body,at,eye),target=solution.anchor||plan.target,distance=g.distanceKm*1000,k=root.AstroNotesAtmosphere?.targetK?.()??7/6;
@@ -221,7 +232,10 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   const projection=align.viewProjector(state.azimuth,state.apparentAltitude),unproject=align.viewUnprojector(state.azimuth,state.apparentAltitude);
   const projected=outlineAvailable?polygons.filter(r=>r.length>=3).map(r=>r.map(p=>projection(p[0],p[1]))).filter(r=>r.every(p=>p?.every(Number.isFinite))):[],knownOutline=outlineAvailable&&projected.length>0||!!plan.target.rim;
   // A mountain's shape is the terrain model itself: a ray it blocks is blocked, one it clears is clear.
-  const radius=state.angularRadius||0,disc=radius>0,offsets=disc?[[0,0],[0,.9],[0,-.9],[.9,0],[-.9,0],[.6364,.6364],[-.6364,.6364],[.6364,-.6364],[-.6364,-.6364]]:[[0,0]],rays=[];
+  // The upper sample needs a shorter terrain line near the horizon. Read it before the centre, which can spend the
+  // whole tile budget without finishing (渋谷スカイ, 2026-11-24). Keep all nine samples and their individual outcomes;
+  // an unfinished line stays unknown, even when a different sample is confirmed clear.
+  const radius=state.angularRadius||0,disc=radius>0,offsets=disc?[[0,.9],[0,0],[0,-.9],[.9,0],[-.9,0],[.6364,.6364],[-.6364,.6364],[.6364,-.6364],[-.6364,-.6364]]:[[0,0]],rays=[];
   for(const [x,y]of offsets){
    if(options.isCurrent?.()===false)throw Error('candidate-cancelled');
    const rx=Math.tan(radius*D)/D,ry=Math.tan((y>=0?(state.upperAltitude??state.apparentAltitude+radius)-state.apparentAltitude:state.apparentAltitude-(state.lowerAltitude??state.apparentAltitude-radius))*D)/D;
@@ -337,7 +351,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   lastUnverified.target?.buildings?.status,lastUnverified.target?.buildings?.reason],rays:(lastUnverified.rays||[]).map(r=>r.intentionalTarget?'target':[r.status,r.terrain?.reason||r.terrain?.status,r.buildings?.reason||r.buildings?.status].join('/'))}:null,partial:solved.partial,
   reason:solved.reason};
  }
- return {evaluate,visibility,hiddenView,clear:()=>{visibilityCache.clear();targetLines.clear();}};
+ return {evaluate,visibility,hiddenView,skylineView,clear:()=>{visibilityCache.clear();targetLines.clear();}};
 }
 Model.createGeneric=createGeneric;Model.standingMetadata=standingMetadata;Model.lensCheck=lensCheck;Model.photographability=photographability;Model.skyRange=skyRange;
 if(typeof module==='object'&&module.exports)module.exports={createGeneric,lensCheck,photographability,skyRange,angularDistance,standingMetadata};

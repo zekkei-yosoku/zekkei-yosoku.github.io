@@ -174,6 +174,16 @@ async function verifyFujiReference(page,day,tag){
     await seed(page);await page.locator(selector).click();await page.evaluate(()=>{for(const rows of Object.values(weeks))for(const row of rows)row.evaluation.unavailable={message:'データ不足'};render();});
     assert((await page.locator('#forecastSelection').innerText()).includes('データ不足'),'all unavailable updates the selected summary');
     assert.equal(await page.locator('#forecastSelection .forecast-selection-score').count(),0,'all unavailable never displays the previous score');
+    assert((await page.locator('#bestNote').innerText()).includes('判断できる予測がありません'),'missing predictions are not a poor-sky forecast');
+    assert(!(await page.locator('#bestNote').innerText()).includes('見に行くほど'),'missing data does not rule out a worthwhile sky');
+    assert((await page.locator('#cards .mxout').innerText()).includes('データ不足'),'all unavailable retains the reasons in the list');
+    await seed(page);await page.evaluate(()=>{
+     for(const rows of Object.values(weeks))for(const row of rows){row.evaluation.score=0;row.evaluation.rank=S.rankOf(0);}
+     render();
+    });
+    assert((await page.locator('#bestNote').innerText()).includes('予測できた範囲では'),'low predictions limit the claim to evaluated conditions');
+    await page.evaluate(()=>{for(const rows of Object.values(weeks))for(const row of rows)row.evaluation.window=[0,1];render();});
+    assert((await page.locator('#bestNote').innerText()).includes('判断できる予測がありません'),'expired predictions do not describe the coming fortnight');
     await seed(page);await verifyFujiReference(page,day,tag);
     await seed(page);await page.evaluate(target=>{history.replaceState(history.state,'','#/rainbow/'+target);applyRoute();},target);
     await page.locator('#detailView').waitFor({state:'visible'});assert((await page.locator('#detailView').innerText()).includes('虹'),'existing direct rainbow detail remains readable');

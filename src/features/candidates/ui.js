@@ -78,10 +78,11 @@ const prefilter=visibilityMap&&{
  },
  point(plan,point,{map,need}){const r=AstroNotesVisibilityMap.lookup(map,plan.target,point.latitude,point.longitude);return !(r.known&&r.count<need);}
 };
-AstroNotesCandidatePicker.hiddenView=async(observer,target,partId)=>{
- if(!viewModelPromise)viewModelPromise=staticTerrain().then(dem=>AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:viewLive,heights:sharedHeights(),trees:treeHeights,staticTerrain:dem}));
- viewLive.resetBudget();treeGround.resetBudget();return (await viewModelPromise).hiddenView(observer,target,{partId});
-};
+const viewModel=()=>viewModelPromise||=staticTerrain().then(dem=>AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:viewLive,heights:sharedHeights(),trees:treeHeights,
+ staticTerrain:dem}));
+AstroNotesCandidatePicker.hiddenView=async(observer,target,partId)=>{viewLive.resetBudget();treeGround.resetBudget();return (await viewModel()).hiddenView(observer,target,{partId});};
+// The town in front of the target along the figure's bearings (generic-evaluator.js skylineView), from the same model.
+AstroNotesCandidatePicker.skylineView=async(observer,target,azimuths)=>(await viewModel()).skylineView(observer,target,azimuths);
 async function loadModel(){
  // The 3D band model is no longer loaded.
  if(!modelPromise)modelPromise=(async()=>{await AstroNotesAssets.ensureModels();const dem=await staticTerrain();

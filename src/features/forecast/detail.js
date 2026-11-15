@@ -10,12 +10,13 @@ import {planButtons} from '../plans/share-button.js';
 function renderBestNote(best, now) {
   const el = $("bestNote");
   const ev = best ? best.u.evaluation : null;
-  // 見に行く価値のあるものが無いなら、そう言って終える。
-  // 「なさそうです」と書いた下に期待薄の候補を並べると、見出しと中身が食い違う。
-  // 14日ぶんを見たうえでの結論なので、「本日の」ではなく期間で言う。
+  // 欠測・終了済みで候補を選べない状態は、低い評価とは区別する。
+  // 一部の日が欠測でも、2週間全体の空が悪いとは断定しない。
   if (!best || ev.rank.key === "poor") {
+    const message = !best ? "見どころを判断できる予測がありません"
+      : "予測できた範囲では、目立った見どころはなさそうです";
     el.hidden = false;
-    el.innerHTML = `<div class="muted" style="font-size:0.72rem">★ この2週間、見に行くほどの空はありません</div>`;
+    el.innerHTML = `<div class="muted" style="font-size:0.72rem">★ ${message}</div>`;
     return;
   }
   const grade = S.reliabilityGrade(ev.confidence, ev.models);
@@ -69,8 +70,8 @@ function renderMatrix(order, now) {
     && !weeks[id].every((e) => e.evaluation.unavailable));
   const dead = order.filter((id) => weeks[id] && weeks[id].length
     && weeks[id].every((e) => e.evaluation.unavailable));
-  if (!live.length) return "";
-  const dayList = weeks[live[0]].map((e) => e.dayMs);
+  if (!live.length && !dead.length) return "";
+  const dayList = weeks[live[0] || dead[0]].map((e) => e.dayMs);
   const today = S.Cal.startOfDay(now);
 
   let head = `<div class="mxrail mxsort">${sortFace()}`

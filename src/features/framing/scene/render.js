@@ -175,11 +175,12 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
   const sceneCenters = scene.map(item => proj(item.azimuth, item.topAngle)).filter(p => p && Math.abs(p[0]) < 330);
   const panLimit = Math.max(1, ...sceneCenters.map(p => Math.abs(p[0]) / (2 * win.halfW) + .5));
   let sceneVersion=0;
-  let shape = null, ridgePending = null, hidden = null, hiddenUnread = false, hiddenText = "";
+  let shape = null, ridgePending = null, hidden = null, hiddenUnread = false, hiddenText = "", town = null;
+  const lookObs = { latitude: spec.obs.latitude, longitude: spec.obs.longitude, elevation: ground, eyeM: spec.eyeM };
   // 塔・建物：手前の地面がどこまで隠すか。探索の視線と同じ計算を呼ぶので、一覧の文と図の線が同じ数字になる
   // （2026-11-13 ユーザー「その建物が立ってるところの地面をグランドラインにして天体の軌道は関係なくラインで出せばいいんじゃないの?」）
   const hiddenPending = outline && typeof AstroNotesCandidatePicker === "object" && typeof AstroNotesCandidatePicker.hiddenView === "function"
-    ? AstroNotesCandidatePicker.hiddenView({ latitude: spec.obs.latitude, longitude: spec.obs.longitude, elevation: ground, eyeM: spec.eyeM }, t, aim.partId) : null;
+    ? AstroNotesCandidatePicker.hiddenView(lookObs, t, aim.partId) : null;
   if (outline) shape = outline.points.map(([a, h]) => toPx(proj(a, h))).filter(Boolean);
   else {
     // 稜線を待つ間も新しい目標の図を先に描く。前の建物や時刻を残さない。
@@ -232,6 +233,41 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     if (Number.isFinite(fy) && fy < groundEdge) { groundEdge = fy; groundLabel = far > seaAngle + 1e-6 ? "遠くの山並み" : "水平線"; }
   };
   placeGround();
+  // 手前の街並みの影（2026-11-15 ユーザー「横線引っ張るってちょっと雑」）。隠すのが建物の時、塔の方位1点の高さを横へ伸ばす線を
+  // やめ、図の幅（構図を動かせる分まで）の方位ごとに建物の見上げ角を同じ部品で取り、でこぼこの縁にする。塔の方位は文・一覧と
+  // 同じ数字（hidden.m）のまま。地形や木が隠す時・読めない時・建物の高さが半分以上の方位で無い時は、まっすぐな線のまま。
+  const loadTown = () => {
+    if (typeof AstroNotesCandidatePicker.skylineView !== "function" || !(D > 0)) return;
+    const hiddenAngle = aimAirAngle(D, eye, hidden.m), span = Math.min(3, 1 + 2 * panLimit) * win.halfW, n = Math.max(8, Math.min(160, Math.round(2 * span * k / 5)));
+    const step = 2 * span / n, own = Math.max(step, Math.atan2((t.widthM || 40) / 2, D * 1000) * 180 / Math.PI);
+    const azimuths = Array.from({ length: n + 1 }, (_, i) => (az - span + step * i + 360) % 360);
+    AstroNotesCandidatePicker.skylineView(lookObs, t, azimuths).catch(() => null).then((angles) => {
+      if (seq !== host._lookSeq || !hidden || !Array.isArray(angles) || angles.length !== azimuths.length) return;
+      if (angles.filter(Number.isFinite).length < angles.length / 2) return;
+      const points = [];
+      for (let i = 0; i <= n; i++) {
+        const angle = Math.abs(step * i - span) <= own ? hiddenAngle : angles[i], q = Number.isFinite(angle) ? toPx(proj(azimuths[i], angle)) : toPx(proj(azimuths[i], baseAngle));
+        if (!q || !q.every(Number.isFinite)) return;
+        points.push([q[0], Math.min(footY, q[1]), azimuths[i]]);
+      }
+      town = points; sceneVersion++; draw(cur);
+    });
+  };
+  // 街並みの縁を左から右へ（建物らしく段で）たどる。図の外まで端の高さを伸ばす
+  const townEdge = (ctx, left, right, clipHorizon = false) => {
+    // 街並みの低い所でも天体は地平線・遠くの山並みより下に出さない。地形の後着も描く時点で反映し、
+    // 街並みの塗り自体は変えない（高台から見下ろす足元と遠い地平線の間を塗りつぶさない）。
+    const edgeY = i => {
+      const y = town[i][1], horizonY = clipHorizon ? toPx(proj(town[i][2], horizonAt(town[i][2])))?.[1] : null;
+      return Number.isFinite(horizonY) ? Math.min(y, horizonY) : y;
+    };
+    ctx.lineTo(left, edgeY(0));
+    for (let i = 0; i < town.length; i++) {
+      const from = i ? (town[i - 1][0] + town[i][0]) / 2 : Math.min(left, town[0][0]), to = i < town.length - 1 ? (town[i][0] + town[i + 1][0]) / 2 : Math.max(right, town[i][0]);
+      ctx.lineTo(from, edgeY(i)); ctx.lineTo(to, edgeY(i));
+    }
+    ctx.lineTo(right, edgeY(town.length - 1));
+  };
   // 山の稜線は山の幅しか読まない。広角ではその外も実際の地形でつなぎ、山を黒い箱にしない。山の幅の内側は稜線のまま
   const mountainHorizonY = mountain ? toPx(proj(az, seaAngle))[1] : null;
   let skyline = null;
@@ -359,7 +395,12 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     host._lookSceneBottom = clipBottom;
     ctx=bodyLayer.ctx;resetLayer(ctx,bodyLayer.canvas);layerStats.body++;
     clipWorld(ctx,panX,panY,clipBottom);
-    if (!mountain) { ctx.beginPath(); ctx.rect(-panX, -panY - H, W, groundEdge + panY + H); ctx.clip(); }
+    if (!mountain) {
+      ctx.beginPath();
+      if (town) { ctx.moveTo(-panX, -panY - H); townEdge(ctx, -panX, W - panX, true); ctx.lineTo(W - panX, -panY - H); ctx.closePath(); }
+      else ctx.rect(-panX, -panY - H, W, groundEdge + panY + H);
+      ctx.clip();
+    }
     // 道と時刻の目盛り
     ctx.strokeStyle = ink; ctx.globalAlpha = 0.55; ctx.lineWidth = 1.5; ctx.setLineDash([]);
     ctx.beginPath();
@@ -457,9 +498,22 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
       }
       }
       if (selected && !mountain) {
+        // 足元より下は地面。足元から上で対象を隠すもの（街並み・高台など）は、空より暗いが真っ黒にしない：対象の隠れる所が
+        // 透けて見え、枠の下が黒い帯にならない（2026-11-15 ユーザー、実写の夜景と並べて）
         ctx.fillStyle = "#020306";
-        ctx.fillRect(-panX, fillY, W, Math.max(0, sceneBottom - fillY));
-        if (rim) { ctx.strokeStyle = rim; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-panX, fillY); ctx.lineTo(W - panX, fillY); ctx.stroke(); }
+        ctx.fillRect(-panX, footY, W, Math.max(0, sceneBottom - footY));
+        if (fillY < footY - 0.5) {
+          ctx.fillStyle = "rgba(4,6,12,0.62)"; ctx.beginPath();
+          if (town) { ctx.moveTo(-panX, footY); townEdge(ctx, -panX, W - panX); ctx.lineTo(W - panX, footY); ctx.closePath(); }
+          else ctx.rect(-panX, fillY, W, footY - fillY);
+          ctx.fill();
+        }
+        if (rim) {
+          ctx.strokeStyle = rim; ctx.lineWidth = 1.2; ctx.lineJoin = "round"; ctx.beginPath();
+          if (town) { ctx.moveTo(-panX, town[0][1]); townEdge(ctx, -panX, W - panX); }
+          else { ctx.moveTo(-panX, fillY); ctx.lineTo(W - panX, fillY); }
+          ctx.stroke();
+        }
       }
       const anchor = toPx(proj(item.azimuth, item.topAngle));
       if (anchor && !(item.distanceKm > D && !mountain && anchor[1] >= groundY) && anchor[0] + panX >= 0 && anchor[0] + panX <= W && anchor[1] + panY >= 0 && anchor[1] + panY <= clipBottom)
@@ -468,9 +522,12 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     // 地上と余白の境界を昼夜とも見分けられるようにする。
     let groundText = null;
     if (groundY + panY >= 12 && groundY + panY <= H - 4) {
-      ctx.strokeStyle = "#b8c8dd"; ctx.lineWidth = 1.5;
-      ctx.setLineDash(mountain ? [5, 4] : []);
-      ctx.beginPath(); ctx.moveTo(-panX, groundY); ctx.lineTo(W - panX, groundY); ctx.stroke(); ctx.setLineDash([]);
+      // 街並みの影がある時は、その縁が線の代わり（まっすぐな線は引かない）
+      if (!town) {
+        ctx.strokeStyle = "#b8c8dd"; ctx.lineWidth = 1.5;
+        ctx.setLineDash(mountain ? [5, 4] : []);
+        ctx.beginPath(); ctx.moveTo(-panX, groundY); ctx.lineTo(W - panX, groundY); ctx.stroke(); ctx.setLineDash([]);
+      }
       groundText = { str: groundLabel, y: groundY - 4 + panY, sub: hidden && groundLabel === hidden.label ? hiddenText : "", subY: groundY + 6 + panY };
     } else if (groundY + panY < 12 && hidden && groundLabel === hidden.label) {
       // 手前の木や建物が図の上端より上まで隠す：線は描けないので、名前と文を図の上の方に書く（図が黒いだけにしない）
@@ -526,8 +583,8 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
       // 何がどこまで隠すかの文は線の下（地面の塗りの中）に、右の操作ボタン（幅44px）を避けて折り返す
       const size = Math.max(11, Math.min(14, W / 46)), room = W - 76, lines = [];let line = "";
       ctx.font = `500 ${size}px system-ui, sans-serif`; ctx.textBaseline = "top";
-      // 入らないときは「〜から下が」「〜は」の後ろで改行し、それでも長い行だけ字で折る
-      const at = label.sub.indexOf("から下が"), cut = at >= 0 ? at + 4 : label.sub.indexOf("は") + 1, parts = ctx.measureText(label.sub).width <= room || cut < 1 ? [label.sub] : [label.sub.slice(0, cut), label.sub.slice(cut)];
+      // 入らないときは文の切れ目（「。」）、無ければ「〜から下が」「〜は」の後ろで改行し、それでも長い行だけ字で折る
+      const stop = label.sub.indexOf("。"), at = label.sub.indexOf("から下が"), cut = stop >= 0 ? stop + 1 : at >= 0 ? at + 4 : label.sub.indexOf("は") + 1, parts = ctx.measureText(label.sub).width <= room || cut < 1 ? [label.sub] : [label.sub.slice(0, cut), label.sub.slice(cut)];
       for (const part of parts) { for (const ch of part) { if (line && ctx.measureText(line + ch).width > room) { lines.push(line); line = ch; } else line += ch; } lines.push(line); line = ""; }
       lines.forEach((text, i) => { const y = label.subY + i * (size + 4); if (y + size > H - 2) return;
         ctx.strokeText(text, 8, y); ctx.fillText(text, 8, y); });
@@ -750,6 +807,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     // 線と文は同じ数字。読めなかったときは足元に線を引き、線の名前でそう示す。文は図の中、線のすぐ下に書く
     // （図の下に後から行を足すと下の欄が押し下がる。2026-11-13 建物で隠れる文が街なかのほとんどの図に出るようになった）
     hidden = r?.note ? { m: r.note.m, label: r.note.label } : null; hiddenUnread = !r?.read; hiddenText = r?.note?.text || "";
+    town = null; if (hidden && /^手前の(?:街並み|建物)$/.test(hidden.label)) loadTown();
     placeGround(); sceneVersion++;
     draw(cur);
   });

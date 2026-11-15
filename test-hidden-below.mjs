@@ -1,14 +1,17 @@
 // 手前の地形で目標の下が隠れる文（2026-11-12 ユーザー「何割とかいらない。〇〇の〇〇から下が〇〇に隠れますとかでいい」
 // 「何メートル先のとかいらない」「堤防なのか土手なのか建物なのかとかの方がいい」）
+// 2026-11-15 ユーザー「手前の建物に隠れますってもう少し表現を考えた方がいいんじゃない?」: 見える側を先に言う。遠い建物は街並み。
 import test from 'node:test';import assert from 'node:assert/strict';import {createRequire} from 'node:module';import {gzipSync} from 'node:zlib';
 const require=createRequire(import.meta.url),A=require('./astronotes-align.js'),G=require('./astronotes-terrain.js'),T=require('./src/features/candidates/terrain-model.js');
 const sky=A.targetById('skytree');
 test('隠れる所は部分の名前で書き、距離も割合も書かない',()=>{
- assert.equal(A.hiddenBelowText(sky,372,'高台'),'東京スカイツリーの天望デッキから下が手前の高台に隠れます');
- assert.equal(A.hiddenBelowText(sky,500,'山'),'東京スカイツリーの天望回廊（第二展望台）から下が手前の山に隠れます');
+ assert.equal(A.hiddenBelowText(sky,372,'高台'),'天望回廊（第二展望台）から上が見えます。天望デッキから下は手前の高台に隠れます');
+ assert.equal(A.hiddenBelowText(sky,500,'山'),'先端だけが見えます。天望回廊（第二展望台）から下は手前の山に隠れます');
+ assert.equal(A.hiddenBelowText(sky,252,'街並み'),'天望デッキから上が見えます。地上約250mより下は手前の街並みに隠れます');
+ assert.equal(A.hiddenBelowText({name:'登録ビル',groundM:10,parts:[{id:'tip',m:160}]},60,'建物'),'登録ビルの地上約50mから下が手前の建物に隠れます','名前のある部分が1つの対象は今までの形');
  assert.equal(A.hiddenBelowText(sky,640,'堤防'),'東京スカイツリーは手前の堤防に隠れて見えません');
- assert.equal(A.hiddenBelowText(sky,33,'土手'),'東京スカイツリーの地上約30mから下が手前の土手に隠れます');
- assert.equal(A.hiddenBelowText(sky,14,'地球の丸み'),'東京スカイツリーの地上約10mから下は地球の丸みで隠れます');
+ assert.equal(A.hiddenBelowText(sky,33,'土手'),'ほぼ全体が見えます。地上約30mより下は手前の土手に隠れます');
+ assert.equal(A.hiddenBelowText(sky,14,'地球の丸み'),'ほぼ全体が見えます。地上約10mより下は地球の丸みで隠れます');
  assert.equal(A.hiddenBelowText(sky,700,'地球の丸み'),'東京スカイツリーは地球の丸みで隠れて見えません');
  assert.equal(A.hiddenBelowText(sky,8,'高台'),'');
  assert.equal(A.hiddenBelowText(sky,372,null),'');
@@ -46,7 +49,7 @@ test('図の線は探索と同じ視線・同じ地形から：一覧の文と�
  const model=createGeneric({align:A,bodies:{},geo,terrain});
  const obs={latitude:35.8151902,longitude:139.5469209,elevation:14.14,eyeM:1.5};
  const r=await model.hiddenView(obs,sky,{partId:'__whole'});
- assert.equal(r.read,true);assert.equal(r.note.text,'東京スカイツリーの天望デッキから下が手前の高台に隠れます');assert.equal(r.note.label,'手前の高台');assert.equal(r.note.m,375.3);
+ assert.equal(r.read,true);assert.equal(r.note.text,'天望回廊（第二展望台）から上が見えます。天望デッキから下は手前の高台に隠れます');assert.equal(r.note.label,'手前の高台');assert.equal(r.note.m,375.3);
  const g=A.geometryFrom(obs,sky,{eyeM:1.5});
  assert.equal(rays[0].ray.azimuth,g.azimuth);assert.equal(rays[0].ray.maxM,g.distanceKm*1000);assert.equal(rays[0].ray.endpoint.elevation,g.topM);
  const none=createGeneric({align:A,bodies:{},geo,terrain:{trace:async()=>({status:'unknown',reason:'terrain-budget'})}});
@@ -58,12 +61,14 @@ test('手前の建物が地形より高く隠すときは建物と書き、図�
  const heights=toM=>({skyline:async(o,ray)=>{assert.equal(ray.targetKey,'tokyotower');return {status:'ok',toM,distanceM:3706,topM:257,complete:true};}});
  const obs={latitude:35.683518,longitude:139.7083195,elevation:34.34,eyeM:1.5};
  const r=await createGeneric({align:A,bodies:{},geo:{...G,obstacleKind:async()=> '高台'},terrain,heights:heights(296)}).hiddenView(obs,tower,{partId:'__whole'});
- assert.equal(r.note.text,'東京タワーのトップデッキの上端から下が手前の建物に隠れます');assert.equal(r.note.label,'手前の建物');assert.equal(r.note.m,296);
+ assert.equal(r.note.text,'先端だけが見えます。トップデッキの上端から下は手前の街並みに隠れます');assert.equal(r.note.label,'手前の街並み','3.7km先の建物は街並み');assert.equal(r.note.m,296);
+ const close=await createGeneric({align:A,bodies:{},geo:{...G,obstacleKind:async()=> '高台'},terrain,heights:{skyline:async()=>({status:'ok',toM:296,distanceM:200,topM:60,complete:true})}}).hiddenView(obs,tower,{partId:'__whole'});
+ assert.equal(close.note.text,'先端だけが見えます。トップデッキの上端から下は手前の建物に隠れます');assert.equal(close.note.label,'手前の建物','すぐ前の建物は建物');
  const low=await createGeneric({align:A,bodies:{},geo:{...G,obstacleKind:async()=> '高台'},terrain,heights:heights(30)}).hiddenView(obs,tower,{partId:'__whole'});
  assert.equal(low.note.label,'手前の高台');assert.equal(low.note.m,60);
  // 地形が読めなくても、建物で隠れる所は出す
  const unread=await createGeneric({align:A,bodies:{},geo:G,terrain:{trace:async()=>({status:'unknown'})},heights:heights(296)}).hiddenView(obs,tower,{partId:'__whole'});
- assert.equal(unread.read,false);assert.equal(unread.note.label,'手前の建物');
+ assert.equal(unread.read,false);assert.equal(unread.note.label,'手前の街並み');
 });
 test('手前の木が建物や地形より高く隠すときは木と書く',async()=>{
  const {createGeneric}=require('./src/features/candidates/generic-evaluator.js'),tower=A.targetById('tokyotower');
@@ -72,6 +77,15 @@ test('手前の木が建物や地形より高く隠すときは木と書く',asy
  const trees={sight:async(o,ray)=>{seen.push(ray);return {status:'clear',skyline:{toM:300,distanceM:150,crownM:25}};}};
  const obs={latitude:35.683518,longitude:139.7083195,elevation:34.34,eyeM:1.5};
  const r=await createGeneric({align:A,bodies:{},geo:{...G,obstacleKind:async()=> '高台'},terrain,heights,trees}).hiddenView(obs,tower,{partId:'__whole'});
- assert.equal(r.note.text,'東京タワーのトップデッキの上端から下が手前の木に隠れます');assert.equal(r.note.label,'手前の木');
+ assert.equal(r.note.text,'先端だけが見えます。トップデッキの上端から下は手前の木に隠れます');assert.equal(r.note.label,'手前の木');
  assert.equal(seen[0].footM,18,'木は対象の足元までの線で見る');
+});
+test('街並みの影は対象までの方位ごとの建物の見上げ角を同じ部品から返し、読めなければ無い',async()=>{
+ const {createGeneric}=require('./src/features/candidates/generic-evaluator.js'),obs={latitude:35.5846,longitude:139.576,elevation:87.2,eyeM:1.5},asked=[];
+ const heights={angles:async(o,azimuths,maxM,options)=>{asked.push({o,azimuths,maxM,options});return azimuths.map((a,i)=>i?-Infinity:.4);}};
+ const model=createGeneric({align:A,bodies:{},geo:G,heights}),g=A.geometryFrom({...obs},sky,{eyeM:1.5});
+ assert.deepEqual(await model.skylineView(obs,sky,[40,41,42]),[.4,-Infinity,-Infinity]);
+ assert.equal(asked[0].options.targetKey,'skytree');assert.equal(Math.round(asked[0].maxM),Math.round(g.distanceKm*1000),'対象まで');assert.equal(asked[0].o.eyeM,1.5);
+ assert.equal(await model.skylineView(obs,sky,[]),null);assert.equal(await createGeneric({align:A,bodies:{},geo:G}).skylineView(obs,sky,[40]),null);
+ assert.equal(await createGeneric({align:A,bodies:{},geo:G,heights:{angles:async()=>{throw Error('offline');}}}).skylineView(obs,sky,[40]),null);
 });

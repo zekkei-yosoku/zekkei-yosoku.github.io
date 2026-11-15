@@ -368,3 +368,30 @@ test('a terrain budget can be widened for one place and falls back to its own on
  t.resetBudget(3);for(const i of [2,3,4])await t.sample(far(i));assert.equal(calls-before,3,'three tiles under the widened budget');
  t.resetBudget();await t.sample(far(5));const after=calls;await t.sample(far(6));assert.equal(calls,after,'back to one tile');
 });
+test('a short upper celestial ray can finish before a longer ray exhausts the budget, without certifying unfinished rays',async()=>{
+ const obs={...solution().observer,surveyedTargets:[target.id]},unknown={status:'unknown',partial:true,reason:'terrain-budget'};
+ const check=async first=>{
+  let remaining=1;
+  const terrain={trace:async(o,r)=>{
+   if(r.endpoint)return {status:'model-clear'};
+   const cost=r.altitude>10.2?1:2;
+   if(cost>remaining){remaining=0;return {...unknown};}remaining-=cost;
+   return first==='blocked'?{status:'blocked',hit:{distanceM:1000}}:first==='unknown'?{...unknown}:{status:'model-clear'};
+  }};
+  return createGeneric({align:clearOutline,bodies,geo:G,terrain,yieldTask:async()=>{}}).visibility(plan,{...solution(),observer:obs});
+ };
+ const clear=await check('clear');assert.equal(clear.status,'model-clear');assert.equal(clear.visibleSamples,1);assert.equal(clear.unknownSamples,8);assert.equal(clear.totalSamples,9);
+ assert(clear.rays.filter(r=>r.status==='unknown').every(r=>r.terrain.reason==='terrain-budget'&&r.terrain.partial));
+ for(const first of ['blocked','unknown']){const r=await check(first);assert.equal(r.status,'unknown','an unfinished disc is neither confirmed clear nor fully blocked');assert.equal(r.visibleSamples,0);assert.equal(r.unknownSamples,first==='blocked'?8:9);}
+});
+test('celestial sampling preserves all nine ray positions and outcomes when the terrain budget is sufficient',async()=>{
+ const seen=[],terrain={trace:async(o,r)=>{
+  if(r.endpoint)return {status:'model-clear'};
+  seen.push(r);return r.altitude>10.01?{status:'model-clear'}:r.altitude<9.99?{status:'blocked',hit:{distanceM:1000}}:{status:'unknown',reason:'missing-dem'};
+ }};
+ const r=await createGeneric({align:clearOutline,bodies,geo:G,terrain,heights:openHeights,yieldTask:async()=>{}}).visibility(plan,solution());
+ assert.equal(r.status,'model-clear');assert.equal(r.totalSamples,9);assert.equal(r.visibleSamples,3);assert.equal(r.unknownSamples,3);assert.equal(r.rays.filter(r=>r.status==='blocked').length,3);
+ assert.deepEqual(seen.map(r=>[Math.sign(r.azimuth),Math.sign(r.altitude-10)].join('/')).sort(),['-1/-1','-1/0','-1/1','0/-1','0/0','0/1','1/-1','1/0','1/1'].sort());
+ const star=await createGeneric({align:clearOutline,bodies,geo:G,terrain:clearTerrain,heights:openHeights,yieldTask:async()=>{}}).visibility({...plan,body:'sirius'},solution());
+ assert.equal(star.totalSamples,1);assert.equal(star.visibleSamples,1);
+});

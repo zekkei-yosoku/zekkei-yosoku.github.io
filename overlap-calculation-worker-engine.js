@@ -5356,17 +5356,23 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
   /// 手前の地形で目標の下が隠れるときの文（2026-11-12 ユーザー「何割とかいらない。〇〇の〇〇から下が〇〇に隠れますとかでいい」
   /// 「何メートル先のとかいらない」）。hiddenM は目標の所で地形の線が通る海抜、kind は隠すもの（堤防・土手・崖の縁・高台・山・地球の丸み）。
   /// 先端まで隠れれば見えない。先端より下の部分の名前があれば「〇〇から下」、無ければ地上の高さ（10m単位、10m未満は出さない）
+  /// 2026-11-15 ユーザー「手前の建物に隠れますってもう少し表現を考えた方がいいんじゃない?」: 撮る人が知りたいのは
+  /// どこまで見えるかなので、名前のある部分が2つ以上ある対象は見える側を先に言う
+  /// （「天望デッキから上が見えます。地上約250mより下は手前の街並みに隠れます」）。対象の名前は、行と図が既に示している。
   function hiddenBelowText(target, hiddenM, kind) {
     const parts = (target?.parts || []).filter((p) => Number.isFinite(p.m)).sort((a, b) => b.m - a.m);
     if (!parts.length || !Number.isFinite(hiddenM) || !kind) return "";
     const round = kind === "地球の丸み";
     if (hiddenM >= parts[0].m) return round ? `${target.name}は地球の丸みで隠れて見えません` : `${target.name}は手前の${kind}に隠れて見えません`;
-    const tail = round ? "は地球の丸みで隠れます" : `が手前の${kind}に隠れます`;
-    const part = parts.slice(1).find((p) => p.m <= hiddenM);
-    if (part) return `${target.name}の${part.name}から下${tail}`;
-    if (!Number.isFinite(target.groundM)) return "";
-    const agl = hiddenM - target.groundM;
-    return agl >= 10 ? `${target.name}の地上約${Math.round(agl / 10) * 10}mから下${tail}` : "";
+    const part = parts.slice(1).find((p) => p.m <= hiddenM), agl = hiddenM - target.groundM;
+    if (!part && !(Number.isFinite(target.groundM) && agl >= 10)) return "";
+    if (parts.length < 2) return `${target.name}の地上約${Math.round(agl / 10) * 10}mから下${round ? "は地球の丸みで隠れます" : `が手前の${kind}に隠れます`}`;
+    const seen = parts.filter((p) => p.m > hiddenM), up = seen[seen.length - 1];
+    const below = part ? `${part.name}から下` : `地上約${Math.round(agl / 10) * 10}mより下`;
+    // 足元だけが隠れる時（一番下の名前のある部分の高さの4割未満）は「ほぼ全体」と言う。「天望デッキから上」では見える分を小さく言いすぎる。
+    const whole = !part && agl < 0.4 * (parts[parts.length - 1].m - target.groundM);
+    const head = whole ? "ほぼ全体" : `${up.name}${seen.length > 1 ? "から上" : "だけ"}`;
+    return `${head}が見えます。${below}は${round ? "地球の丸みで" : `手前の${kind}に`}隠れます`;
   }
   const AstroNotesAlign = { heightVertices, TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, dailyView, prepareDailyView, alignmentAt, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,

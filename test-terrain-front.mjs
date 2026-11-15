@@ -24,14 +24,27 @@ test('山の外の地形は広い幅で読む。幅を変えても既定の幅�
  assert.equal(wide.ridge.length,121);assert.equal(wide.ridge[0][0],45);assert.equal(wide.ridge[120][0],135);
  assert.equal(base.ridge.length,81);assert.equal(base.ridge[0][0],70);
 });
-test('見え方：線は1本。手前の地面は探索と同じ計算で、影や別の地平線は描かない',()=>{
+test('見え方：手前の地面は探索と同じ計算で、街並みが読めない場合は地面の線で天体を切る',()=>{
  // 2026-11-13 ユーザー「その建物が立ってるところの地面をグランドラインにして天体の軌道は関係なくラインで出せばいいんじゃないの?」
- assert.match(html,/AstroNotesCandidatePicker\.hiddenView\(\{ latitude: spec\.obs\.latitude, longitude: spec\.obs\.longitude, elevation: ground, eyeM: spec\.eyeM \}, t, aim\.partId\)/);
+ assert.match(html,/const lookObs = \{ latitude: spec\.obs\.latitude, longitude: spec\.obs\.longitude, elevation: ground, eyeM: spec\.eyeM \};/);
+ assert.match(html,/AstroNotesCandidatePicker\.hiddenView\(lookObs, t, aim\.partId\)/);
  assert.doesNotMatch(html,/frontPending|horizonPoints|aimHiddenNote|horizonText/);
  assert.doesNotMatch(html,/str: "地平線"/);
  assert.match(html,/groundText = \{ str: groundLabel, y: groundY - 4 \+ panY, sub: hidden && groundLabel === hidden\.label \? hiddenText : "", subY: groundY \+ 6 \+ panY \};/);
  // 隠れる文は図の中に書く。図の下の行に後から足すと下の欄が押し下がる（2026-11-13）
  assert.doesNotMatch(html,/dataset\.terrain/);
- assert.match(html,/if \(!mountain\) \{ ctx\.beginPath\(\); ctx\.rect\(-panX, -panY - H, W, groundEdge \+ panY \+ H\); ctx\.clip\(\); \}/);
+ assert.match(html,/else ctx\.rect\(-panX, -panY - H, W, groundEdge \+ panY \+ H\);\s*ctx\.clip\(\);/);
+ assert.match(html,/townEdge\(ctx, -panX, W - panX, true\)/);
  assert.match(html,/if\(!selected\)\{\s*let bottom=-Infinity;/);
+});
+test('街並みの天体マスクは低い建物の上にある遠い地平線を越えない。後着地形にも追従し、影の高さは変えない',()=>{
+ const start=html.indexOf('const townEdge ='),end=html.indexOf('\n  // 山の稜線は',start);assert(start>=0&&end>start);
+ const town=[[0,180,80],[50,90,90],[100,160,100]],horizon=new Map([[80,130],[90,130],[100,140]]);
+ const c=vm.createContext({town,Math,horizonAt:az=>horizon.get(az),proj:(az,y)=>[az,y],toPx:p=>p});
+ vm.runInContext(html.slice(start,end)+';globalThis.edge=townEdge;',c);
+ const trace=clip=>{const points=[];c.edge({lineTo:(x,y)=>points.push([x,y])},-25,125,clip);return points;};
+ // 同じ方位で、空を切る上端は建物と地平線の高い側（画面では小さいy）。建物が低い隙間から地下を見せない。
+ assert.deepEqual(trace(true),[[-25,130],[-25,130],[25,130],[25,90],[75,90],[75,140],[125,140],[125,140]]);
+ assert.deepEqual(trace(false),[[-25,180],[-25,180],[25,180],[25,90],[75,90],[75,160],[125,160],[125,160]]);
+ horizon.set(80,70);assert.equal(trace(true)[0][1],70,'後から読めた山並みで天体マスクを更新');assert.equal(trace(false)[0][1],180,'足元と地平線の間の空は塗らない');
 });
