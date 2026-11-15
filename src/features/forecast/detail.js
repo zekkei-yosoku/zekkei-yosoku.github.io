@@ -1,5 +1,5 @@
 import {$,RANK_COLOR,S,esc} from '../../ui/presentation-helpers.js';
-import {CONF_ICON,HIGHLIGHT_HEAD,cellBg,confidenceText,rampGradient,renderEnsemble} from './presentation.js';
+import {CONF_ICON,HIGHLIGHT_HEAD,cellBg,confidenceText,forecastTime,forecastTimeRange,rampGradient,renderEnsemble} from './presentation.js';
 import {SORTS,place} from '../../app/browser-state.js';
 import {bundle,weeks} from './load.js';
 import {fujiAlign,iconFor,lightTimingText,moonHorizon,moonObs,moonVisibility,observerHere,phaseNameFor,requestMoonDetails,sortMode,upcoming} from './view.js';
@@ -39,7 +39,7 @@ function highlightRow(id, dayMs, ev, now) {
   const color = RANK_COLOR[ev.rank.key];
   return `<div style="margin-top:3px"><span style="font-size:1.25rem">${iconFor(id, ev.peak)}</span>
     <strong style="margin-left:4px">${S.longNameOf(id)}</strong>
-    <span class="muted" style="white-space:nowrap">${S.JstCal.relativeDay(dayMs, now)}${ev.specificTime === false ? "" : " " + S.JstCal.hhmmRounded(ev.peak)}</span>
+    <span class="muted" style="white-space:nowrap">${S.JstCal.relativeDay(dayMs, now)}${ev.specificTime === false ? "" : " " + forecastTime(dayMs, ev.peak)}</span>
     ・<span style="color:${color};font-weight:700;white-space:nowrap">${esc(S.phrasing(id, ev.rank).label)}</span></div>`;
 }
 
@@ -583,8 +583,8 @@ function renderDayDetail(id, entries, sel, now) {
   const headTime = id === "sunset" || id === "sunrise";
   const when = `${S.JstCal.relativeDay(sel.dayMs, now)}`
     + (headTime ? "" : ev.specificTime === false ? (meta.timeOfDay ? ` ${meta.timeOfDay}` : "")
-       : asRange ? ` ${S.JstCal.hhmmRounded(ev.window[0])}〜${S.JstCal.hhmmRounded(ev.window[1])}`
-       : ` ${S.JstCal.hhmmRounded(ev.peak)}`);
+       : asRange ? ` ${forecastTimeRange(sel.dayMs, ev.window[0], ev.window[1], "〜")}`
+       : ` ${forecastTime(sel.dayMs, ev.peak)}`);
 
   if (ev.unavailable) {
     return `<div class="card">
@@ -603,7 +603,7 @@ function renderDayDetail(id, entries, sel, now) {
       <div style="margin-top:9px">${esc(S.phrasing(id, ev.rank, ev.afterglow).say)}</div>
       <div class="tiny" style="margin-top:4px">${CONF_ICON[ev.confidence.key]} ${esc(confidenceText(ev))}</div></div>`;
   return `${head}
-    ${renderTwilight(ev)}
+    ${renderTwilight(ev, {dayMs:sel.dayMs})}
     ${id === "moon" ? renderMoonTimes(sel.dayMs) : ""}
     ${id === "fuji" ? renderAlignments(now) + renderCapLine(sel.dayMs) : ""}
     ${id === "capCloud" ? renderCapTiming(ev) + renderFujiBackLine(sel.dayMs) : ""}
@@ -636,10 +636,10 @@ function timeBandPhases(ev) {
   }
   return null;
 }
-function renderTwilight(ev, { inline = false } = {}) {
+function renderTwilight(ev, { inline = false, dayMs } = {}) {
   const t = { phases: timeBandPhases(ev) };
   if (!Array.isArray(t.phases) || !t.phases.some((p) => Number.isFinite(p.score))) return "";
-  const time = (w) => (w ? `${S.JstCal.hhmmRounded(w[0])}–${S.JstCal.hhmmRounded(w[1])}` : "—");
+  const time = (w) => (w ? forecastTimeRange(dayMs, w[0], w[1]) : "—");
   const rows = t.phases.map((p) => {
     const ok = Number.isFinite(p.score), r = ok ? S.rankOf(p.score) : null, color = ok ? RANK_COLOR[r.key] : "var(--tertiary)";
     return `<li class="tw-row"><span class="tw-name">${esc(p.label)}</span>

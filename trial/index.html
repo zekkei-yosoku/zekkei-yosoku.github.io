@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-+yKFqpoApZ66FHlgZ9BiOAoq9vNDZcMzK30VCCVNgwY=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=18096173220502742430">
-<meta name="app-version" content="539698896820487633">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-56jmg3BuQK9ZbzaCr6EG5R+se0UIaJmcbxe0qnaV8D0=' 'sha256-XnkxL+31Hx09oZeO9sriA/FwZyogJfEg5OgDo5tTME0=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-HFQbmooYEefCZHYwVXrdsG/rM7kPqVwPkXXdsOi6KSs=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-Qo5F12QCeY7v8png7TvA6hLxgs5tnzcy2odqdN+UYWU=' 'sha256-NSQqzYsjjiiJ4lZZ2YaF0C8P/xWZwErXUrQc6h2Da5A=' 'sha256-OJlkVP9hufrghSR3MJ27wX9WVke/fnQnW0IaBWJlsM8=' 'sha256-PXfRim6e5oUuXkRxfWkVR4w8BPzm/BAMc94/yPcXf0M=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://data.source.coop https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787 https://api.openstreetmap.org; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="15912423162650271515">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-56jmg3BuQK9ZbzaCr6EG5R+se0UIaJmcbxe0qnaV8D0=' 'sha256-XnkxL+31Hx09oZeO9sriA/FwZyogJfEg5OgDo5tTME0=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-24u9fle3ip/dKueZ7WrNwwCgzC9HGUPIWbd8lSwx6JM=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-Qo5F12QCeY7v8png7TvA6hLxgs5tnzcy2odqdN+UYWU=' 'sha256-NSQqzYsjjiiJ4lZZ2YaF0C8P/xWZwErXUrQc6h2Da5A=' 'sha256-OJlkVP9hufrghSR3MJ27wX9WVke/fnQnW0IaBWJlsM8=' 'sha256-PXfRim6e5oUuXkRxfWkVR4w8BPzm/BAMc94/yPcXf0M=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://data.source.coop https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787 https://api.openstreetmap.org; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=17512682572335991690">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -335,7 +335,7 @@ if(location.hash||location.search||preferred!=='forecast'){document.documentElem
   .tw-row { display: grid; grid-template-columns: 4.3em 7.3em 5.6em 1.8em minmax(0, 1fr); align-items: center; gap: 10px; font-size: 14px; }
   @media (max-width: 360px) { .tw-row { gap: 6px; font-size: 13px; grid-template-columns: 4.3em 7.3em 5.6em 1.8em; } .tw-bar { display: none; } }
   .tw-name { font-weight: 600; white-space: nowrap; }
-  .tw-time { color: var(--secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tw-time { color: var(--secondary); font-variant-numeric: tabular-nums; white-space: normal; }
   .tw-score { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
   .tw-rank { font-weight: 600; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
   .tw-bar { height: 6px; border-radius: 3px; background: var(--sunk); overflow: hidden; }
@@ -2778,6 +2778,22 @@ document.addEventListener("visibilitychange", () => {
   themeTimer = setTimeout(applyTheme, 2000);
 });
 
+// A forecast belongs to its selected observing day; its useful night can run into the next morning.
+// Compare the displayed (minute-rounded) calendar dates so 23:59:40 is correctly labelled as next-day 00:00.
+function forecastTime(dayMs, at) {
+  if (!Number.isFinite(at)) return "—";
+  const day = S.Cal.startOfDay(Math.round(at / 60000) * 60000);
+  const offset = Math.round((day - S.Cal.startOfDay(dayMs)) / 86400000);
+  const prefix = offset === 0 ? "" : offset === 1 ? "翌日 " : offset === -1 ? "前日 " : S.Cal.monthDay(day) + " ";
+  return prefix + S.JstCal.hhmmRounded(at);
+}
+function forecastTimeRange(dayMs, from, to, separator = "–") {
+  if (![from, to].every(Number.isFinite)) return "—";
+  const start = Math.round(from / 60000) * 60000, end = Math.round(to / 60000) * 60000;
+  const last = S.Cal.sameDay(start, end) ? S.JstCal.hhmmRounded(to)
+    : S.Cal.sameDay(dayMs, end) ? "当日 " + S.JstCal.hhmmRounded(to) : forecastTime(dayMs, to);
+  return forecastTime(dayMs, from) + separator + last;
+}
 const CELL_RAMP = [
   [0,  "--t-poor"], [40, "--t-fair"], [65, "--t-good"], [85, "--t-spectacular"], [100, "--t-spectacular"],
 ];
@@ -3779,16 +3795,16 @@ function render() {
     const active = document.activeElement;
     focusedCell = previous === placeKey && root?.contains(active) && active?.matches('.cell[data-cell]') ? active.dataset.cell : null;
   }
-  function timing(id, ev) {
+  function timing(id, ev, dayMs) {
     if (presentation.timeBandPhases(ev)?.some(phase => Number.isFinite(phase.score))) return '';
     if (id === 'capCloud') {
       if (ev.timing?.allDay) return '一日を通して';
-      if (Number.isFinite(ev.timing?.from) && Number.isFinite(ev.timing?.to)) return presentation.time(ev.timing.from) + '–' + presentation.time(ev.timing.to);
+      if (Number.isFinite(ev.timing?.from) && Number.isFinite(ev.timing?.to)) return presentation.range(dayMs, ev.timing.from, ev.timing.to);
       return '時間帯を絞れません';
     }
     if (ev.specificTime === false) return presentation.meta(id).timeOfDay || '時間帯を絞れません';
-    if (Array.isArray(ev.window) && ev.window.every(Number.isFinite)) return presentation.time(ev.window[0]) + '–' + presentation.time(ev.window[1]);
-    return Number.isFinite(ev.peak) ? presentation.time(ev.peak) + 'ごろ' : '';
+    if (Array.isArray(ev.window) && ev.window.every(Number.isFinite)) return presentation.range(dayMs, ev.window[0], ev.window[1]);
+    return Number.isFinite(ev.peak) ? presentation.time(dayMs, ev.peak) + 'ごろ' : '';
   }
   function update() {
     reconcilePlace();
@@ -3808,13 +3824,13 @@ function render() {
     const unavailable = ev.unavailable;
     const grade = unavailable ? null : p.grade(ev);
     const phrase = unavailable ? null : p.phrase(id, ev);
-    const when = timing(id, ev);
+    const when = timing(id, ev, hit.dayMs);
     box.innerHTML = `<div class="forecast-selection-head"><div class="ph-head"><span class="ic">${p.icon(id, ev.peak)}</span><span class="nm" id="${summaryId}Title">${e(p.name(id))}</span></div><button type="button" class="tap forecast-selection-open">詳細を見る →</button>\
 <button type="button" class="tap forecast-selection-close" aria-label="プレビューを閉じる">×</button></div>`
       + `<div class="forecast-selection-overview"><span class="muted">${e(p.day(hit.dayMs, context().now))}</span>`
       + (unavailable ? '' : `<span class="forecast-selection-verdict" style="color:${p.color(ev)}">${e(phrase.label)} <span class="forecast-selection-score">${Math.round(ev.score)} <span class="grade" title="${e(grade.caption)}" aria-label="信頼度${e(grade.key)}">${e(grade.key)}</span></span>\
 </span>`) + '</div>'
-      + (unavailable ? `<p class="ph-out">${e(unavailable.message)}</p>` : `${when ? `<div class="forecast-selection-time">${e(when)}</div>` : ''}<p class="forecast-selection-say">${e(phrase.say)}</p>${p.bands(ev)}`);
+      + (unavailable ? `<p class="ph-out">${e(unavailable.message)}</p>` : `${when ? `<div class="forecast-selection-time">${e(when)}</div>` : ''}<p class="forecast-selection-say">${e(phrase.say)}</p>${p.bands(ev, hit.dayMs)}`);
     box.querySelector('.forecast-selection-open').onclick = () => {
       const current = entry();
       if (current && selected) openDetail(selected.id, current.dayMs);
@@ -3851,9 +3867,9 @@ function render() {
  document,host:()=>$("cards"),
  context:()=>({placeKey:predictionKeyFor(place),weeks,now:Date.now()}),
  presentation:{escape:esc,icon:iconFor,name:id=>S.longNameOf(id),meta:id=>S.PHENOMENA[id],
- day:(day,now)=>S.JstCal.relativeDay(day,now),time:t=>S.JstCal.hhmmRounded(t),
+ day:(day,now)=>S.JstCal.relativeDay(day,now),time:forecastTime,range:forecastTimeRange,
  grade:ev=>S.reliabilityGrade(ev.confidence,ev.models),phrase:(id,ev)=>S.phrasing(id,ev.rank,ev.afterglow),
- color:ev=>RANK_COLOR[ev.rank.key],timeBandPhases:ev=>timeBandPhases(ev),bands:ev=>renderTwilight(ev,{inline:true})},
+ color:ev=>RANK_COLOR[ev.rank.key],timeBandPhases:ev=>timeBandPhases(ev),bands:(ev,dayMs)=>renderTwilight(ev,{inline:true,dayMs})},
  openDetail:(id,dayMs)=>pick(id,Date.now(),dayMs),announce:message=>{$("listAnnouncement").textContent=message;}
 });
   forecastSummary.capture();
@@ -4914,7 +4930,7 @@ function highlightRow(id, dayMs, ev, now) {
   const color = RANK_COLOR[ev.rank.key];
   return `<div style="margin-top:3px"><span style="font-size:1.25rem">${iconFor(id, ev.peak)}</span>
     <strong style="margin-left:4px">${S.longNameOf(id)}</strong>
-    <span class="muted" style="white-space:nowrap">${S.JstCal.relativeDay(dayMs, now)}${ev.specificTime === false ? "" : " " + S.JstCal.hhmmRounded(ev.peak)}</span>
+    <span class="muted" style="white-space:nowrap">${S.JstCal.relativeDay(dayMs, now)}${ev.specificTime === false ? "" : " " + forecastTime(dayMs, ev.peak)}</span>
     ・<span style="color:${color};font-weight:700;white-space:nowrap">${esc(S.phrasing(id, ev.rank).label)}</span></div>`;
 }
 
@@ -5458,8 +5474,8 @@ function renderDayDetail(id, entries, sel, now) {
   const headTime = id === "sunset" || id === "sunrise";
   const when = `${S.JstCal.relativeDay(sel.dayMs, now)}`
     + (headTime ? "" : ev.specificTime === false ? (meta.timeOfDay ? ` ${meta.timeOfDay}` : "")
-       : asRange ? ` ${S.JstCal.hhmmRounded(ev.window[0])}〜${S.JstCal.hhmmRounded(ev.window[1])}`
-       : ` ${S.JstCal.hhmmRounded(ev.peak)}`);
+       : asRange ? ` ${forecastTimeRange(sel.dayMs, ev.window[0], ev.window[1], "〜")}`
+       : ` ${forecastTime(sel.dayMs, ev.peak)}`);
 
   if (ev.unavailable) {
     return `<div class="card">
@@ -5478,7 +5494,7 @@ function renderDayDetail(id, entries, sel, now) {
       <div style="margin-top:9px">${esc(S.phrasing(id, ev.rank, ev.afterglow).say)}</div>
       <div class="tiny" style="margin-top:4px">${CONF_ICON[ev.confidence.key]} ${esc(confidenceText(ev))}</div></div>`;
   return `${head}
-    ${renderTwilight(ev)}
+    ${renderTwilight(ev, {dayMs:sel.dayMs})}
     ${id === "moon" ? renderMoonTimes(sel.dayMs) : ""}
     ${id === "fuji" ? renderAlignments(now) + renderCapLine(sel.dayMs) : ""}
     ${id === "capCloud" ? renderCapTiming(ev) + renderFujiBackLine(sel.dayMs) : ""}
@@ -5511,10 +5527,10 @@ function timeBandPhases(ev) {
   }
   return null;
 }
-function renderTwilight(ev, { inline = false } = {}) {
+function renderTwilight(ev, { inline = false, dayMs } = {}) {
   const t = { phases: timeBandPhases(ev) };
   if (!Array.isArray(t.phases) || !t.phases.some((p) => Number.isFinite(p.score))) return "";
-  const time = (w) => (w ? `${S.JstCal.hhmmRounded(w[0])}–${S.JstCal.hhmmRounded(w[1])}` : "—");
+  const time = (w) => (w ? forecastTimeRange(dayMs, w[0], w[1]) : "—");
   const rows = t.phases.map((p) => {
     const ok = Number.isFinite(p.score), r = ok ? S.rankOf(p.score) : null, color = ok ? RANK_COLOR[r.key] : "var(--tertiary)";
     return `<li class="tw-row"><span class="tw-name">${esc(p.label)}</span>

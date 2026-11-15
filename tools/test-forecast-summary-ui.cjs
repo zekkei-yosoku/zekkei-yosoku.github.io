@@ -101,6 +101,38 @@ async function verifyFujiReference(page,day,tag){
  assert((await reference.innerText()).includes('条件が整う時間が広く'),'real loadExtras completion updates the selected reference');
 }
 
+async function verifyCalendarTimes(page,day,tag){
+ const selected=day+86400000;
+ for(const [name,start,end,expected,peakText] of [
+  ['next-morning',25+2/60,28+2/60,'翌日 01:02–04:02','翌日 01:02'],
+  ['midnight',23,26,'23:00–翌日 02:00','23:00']
+ ]){
+  await page.evaluate(({selected,start,end})=>{
+   const ev=weeks.starrySky.find(row=>row.dayMs===selected).evaluation;
+   ev.window=[selected+start*3600000,selected+end*3600000];ev.peak=ev.window[0];ev.score=100;ev.rank=S.rankOf(100);render();
+  },{selected,start,end});
+  await page.locator(`#cards .cell[data-cell="starrySky|${selected}"]`).click();
+  assert.equal(await page.locator('#forecastSelection .forecast-selection-time').innerText(),expected,'summary identifies the calendar day of each endpoint');
+  assert((await page.locator('#bestNote').innerText()).includes(peakText),'highlight uses the same observing-day convention');
+  await page.locator('#forecastSelection .forecast-selection-open').click();
+  assert((await page.locator('#dayDetail .head-row > .muted').innerText()).includes(expected.replace('–','〜')),'detail uses the same calendar-day range');
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'calendar labels do not overflow the detail');
+  await page.screenshot({path:path.join(out,tag+'-'+name+'.png'),fullPage:true});
+  await page.locator('#backLink').click();
+ }
+ // The same helper also serves the Moon's time-band rows, which replace the single summary range.
+ await page.evaluate(selected=>{
+  weeks.moon=Array.from({length:14},(_,i)=>forecastTest.make('moon',i));
+  const ev=weeks.moon.find(row=>row.dayMs===selected).evaluation;
+  ev.timeBands.phases[0].window=[selected+25*3600000,selected+28*3600000];render();
+ },selected);
+ await page.locator(`#cards .cell[data-cell="moon|${selected}"]`).click();
+ assert.equal(await page.locator('#forecastSelection .tw-time').first().innerText(),'翌日 01:00–04:00');
+ assert(await page.locator('#forecastSelection .tw-row').first().evaluate(row=>{
+  const time=row.querySelector('.tw-time'),rank=row.querySelector('.tw-rank');return time.scrollWidth<=time.clientWidth+1&&time.getBoundingClientRect().right<=rank.getBoundingClientRect().left;
+ }),'next-day time bands remain inside their column');
+}
+
 (async()=>{
  fs.mkdirSync(out,{recursive:true});
  const {renderIndex}=await import('./build-index.mjs');
@@ -184,6 +216,7 @@ async function verifyFujiReference(page,day,tag){
     assert((await page.locator('#bestNote').innerText()).includes('予測できた範囲では'),'low predictions limit the claim to evaluated conditions');
     await page.evaluate(()=>{for(const rows of Object.values(weeks))for(const row of rows)row.evaluation.window=[0,1];render();});
     assert((await page.locator('#bestNote').innerText()).includes('判断できる予測がありません'),'expired predictions do not describe the coming fortnight');
+    await seed(page);await verifyCalendarTimes(page,day,tag);
     await seed(page);await verifyFujiReference(page,day,tag);
     await seed(page);await page.evaluate(target=>{history.replaceState(history.state,'','#/rainbow/'+target);applyRoute();},target);
     await page.locator('#detailView').waitFor({state:'visible'});assert((await page.locator('#detailView').innerText()).includes('虹'),'existing direct rainbow detail remains readable');

@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
 // 朝夕焼けの時間帯ごとの見込み（API の twilight-phase-v1、2026-10-20）
 const require=createRequire(import.meta.url),P=require('./astronotes-prediction.js');
 const at=Date.now(),place={latitude:35.7,longitude:139.7};
@@ -20,10 +21,22 @@ test('時間帯の見込みは形が合っているときだけ受け取る（�
 });
 test('詳細に時間帯のカードを出し、注記・検証中・見頃の文字は出さない。古い予測のキャッシュは読み直す',()=>{
  const html=sourceHtml();
- assert.match(html,/\$\{renderTwilight\(ev\)\}/);
+ assert.match(html,/\$\{renderTwilight\(ev, \{dayMs:sel\.dayMs\}\)\}/);
  const fn=sourceDeclaration("renderTwilight");
  assert.doesNotMatch(fn,/見頃|検証中|目安|tw-note|t\.best|verified/,'ユーザー指定で出さない');
  assert.match(html,/S\.phrasing\(ev\.phenomenon, r\)\.label/,'評価の語は上のカードと同じ');
  assert.match(html,/<span class="tw-score">\$\{ok \? Math\.round\(p\.score\) : "—"\}<\/span>/,'点数も出す');
  assert.match(readFileSync(new URL('./astronotes-prediction.js',import.meta.url),'utf8'),/CACHE='sorami-predictions-quality-20261107-v1'/);
+});
+test('予測の時刻は観測日から翌日・前日を区別し、日跨ぎと分丸めも同じ暦日で表示する',()=>{
+ const S=require('./astronotes-core.js');S.setTimezoneOffset(32400);
+ const {forecastTime,forecastTimeRange}=vm.runInNewContext(sourceDeclaration('forecastTime')+'\n'+sourceDeclaration('forecastTimeRange')+';({forecastTime,forecastTimeRange})',{S});
+ const day=Date.parse('2026-11-15T00:00:00+09:00'),hour=3600000,minute=60000;
+ assert.equal(forecastTimeRange(day,day+25*hour+2*minute,day+28*hour+2*minute),'翌日 01:02–04:02');
+ assert.equal(forecastTimeRange(day,day+23*hour,day+26*hour),'23:00–翌日 02:00');
+ assert.equal(forecastTimeRange(day,day-hour,day+hour),'前日 23:00–当日 01:00');
+ assert.equal(forecastTimeRange(day,day+hour,day+4*hour),'01:00–04:00');
+ assert.equal(forecastTime(day,day+25*hour),'翌日 01:00');
+ assert.equal(forecastTimeRange(day,day+24*hour-20000,day+24.5*hour),'翌日 00:00–00:30');
+ assert.equal(forecastTimeRange(day,NaN,day+hour),'—');
 });

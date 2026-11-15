@@ -1,4 +1,20 @@
 import {RANK_COLOR,S,TINT} from '../../ui/presentation-helpers.js';
+// A forecast belongs to its selected observing day; its useful night can run into the next morning.
+// Compare the displayed (minute-rounded) calendar dates so 23:59:40 is correctly labelled as next-day 00:00.
+function forecastTime(dayMs, at) {
+  if (!Number.isFinite(at)) return "—";
+  const day = S.Cal.startOfDay(Math.round(at / 60000) * 60000);
+  const offset = Math.round((day - S.Cal.startOfDay(dayMs)) / 86400000);
+  const prefix = offset === 0 ? "" : offset === 1 ? "翌日 " : offset === -1 ? "前日 " : S.Cal.monthDay(day) + " ";
+  return prefix + S.JstCal.hhmmRounded(at);
+}
+function forecastTimeRange(dayMs, from, to, separator = "–") {
+  if (![from, to].every(Number.isFinite)) return "—";
+  const start = Math.round(from / 60000) * 60000, end = Math.round(to / 60000) * 60000;
+  const last = S.Cal.sameDay(start, end) ? S.JstCal.hhmmRounded(to)
+    : S.Cal.sameDay(dayMs, end) ? "当日 " + S.JstCal.hhmmRounded(to) : forecastTime(dayMs, to);
+  return forecastTime(dayMs, from) + separator + last;
+}
 const CELL_RAMP = [
   [0,  "--t-poor"], [40, "--t-fair"], [65, "--t-good"], [85, "--t-spectacular"], [100, "--t-spectacular"],
 ];
@@ -185,4 +201,4 @@ function pickHighlight(weeks, now) {
   }
   return best;
 }
-export {CONF_ICON,HIGHLIGHT_HEAD,cellBg,confidenceText,pickHighlight,rampGradient,renderEnsemble};
+export {CONF_ICON,HIGHLIGHT_HEAD,cellBg,confidenceText,forecastTime,forecastTimeRange,pickHighlight,rampGradient,renderEnsemble};

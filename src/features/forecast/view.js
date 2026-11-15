@@ -1,5 +1,5 @@
 import {$,RANK_COLOR,S,esc} from '../../ui/presentation-helpers.js';
-import {pickHighlight} from './presentation.js';
+import {forecastTime,forecastTimeRange,pickHighlight} from './presentation.js';
 import {SORTS,extrasLoadedSeq,extrasRetry,place,setExtrasLoadedSeq,store,viewState} from '../../app/browser-state.js';
 import {bundle,extraSeq,forecastDays,predictionKeyFor,predictionLoadSeq,predictionNeeded,predictionPlace,weeks} from './load.js';
 import {wireOutcomes} from '../photos/controller.js';
@@ -489,16 +489,16 @@ function render() {
     const active = document.activeElement;
     focusedCell = previous === placeKey && root?.contains(active) && active?.matches('.cell[data-cell]') ? active.dataset.cell : null;
   }
-  function timing(id, ev) {
+  function timing(id, ev, dayMs) {
     if (presentation.timeBandPhases(ev)?.some(phase => Number.isFinite(phase.score))) return '';
     if (id === 'capCloud') {
       if (ev.timing?.allDay) return '一日を通して';
-      if (Number.isFinite(ev.timing?.from) && Number.isFinite(ev.timing?.to)) return presentation.time(ev.timing.from) + '–' + presentation.time(ev.timing.to);
+      if (Number.isFinite(ev.timing?.from) && Number.isFinite(ev.timing?.to)) return presentation.range(dayMs, ev.timing.from, ev.timing.to);
       return '時間帯を絞れません';
     }
     if (ev.specificTime === false) return presentation.meta(id).timeOfDay || '時間帯を絞れません';
-    if (Array.isArray(ev.window) && ev.window.every(Number.isFinite)) return presentation.time(ev.window[0]) + '–' + presentation.time(ev.window[1]);
-    return Number.isFinite(ev.peak) ? presentation.time(ev.peak) + 'ごろ' : '';
+    if (Array.isArray(ev.window) && ev.window.every(Number.isFinite)) return presentation.range(dayMs, ev.window[0], ev.window[1]);
+    return Number.isFinite(ev.peak) ? presentation.time(dayMs, ev.peak) + 'ごろ' : '';
   }
   function update() {
     reconcilePlace();
@@ -518,13 +518,13 @@ function render() {
     const unavailable = ev.unavailable;
     const grade = unavailable ? null : p.grade(ev);
     const phrase = unavailable ? null : p.phrase(id, ev);
-    const when = timing(id, ev);
+    const when = timing(id, ev, hit.dayMs);
     box.innerHTML = `<div class="forecast-selection-head"><div class="ph-head"><span class="ic">${p.icon(id, ev.peak)}</span><span class="nm" id="${summaryId}Title">${e(p.name(id))}</span></div><button type="button" class="tap forecast-selection-open">詳細を見る →</button>\
 <button type="button" class="tap forecast-selection-close" aria-label="プレビューを閉じる">×</button></div>`
       + `<div class="forecast-selection-overview"><span class="muted">${e(p.day(hit.dayMs, context().now))}</span>`
       + (unavailable ? '' : `<span class="forecast-selection-verdict" style="color:${p.color(ev)}">${e(phrase.label)} <span class="forecast-selection-score">${Math.round(ev.score)} <span class="grade" title="${e(grade.caption)}" aria-label="信頼度${e(grade.key)}">${e(grade.key)}</span></span>\
 </span>`) + '</div>'
-      + (unavailable ? `<p class="ph-out">${e(unavailable.message)}</p>` : `${when ? `<div class="forecast-selection-time">${e(when)}</div>` : ''}<p class="forecast-selection-say">${e(phrase.say)}</p>${p.bands(ev)}`);
+      + (unavailable ? `<p class="ph-out">${e(unavailable.message)}</p>` : `${when ? `<div class="forecast-selection-time">${e(when)}</div>` : ''}<p class="forecast-selection-say">${e(phrase.say)}</p>${p.bands(ev, hit.dayMs)}`);
     box.querySelector('.forecast-selection-open').onclick = () => {
       const current = entry();
       if (current && selected) openDetail(selected.id, current.dayMs);
@@ -561,9 +561,9 @@ function render() {
  document,host:()=>$("cards"),
  context:()=>({placeKey:predictionKeyFor(place),weeks,now:Date.now()}),
  presentation:{escape:esc,icon:iconFor,name:id=>S.longNameOf(id),meta:id=>S.PHENOMENA[id],
- day:(day,now)=>S.JstCal.relativeDay(day,now),time:t=>S.JstCal.hhmmRounded(t),
+ day:(day,now)=>S.JstCal.relativeDay(day,now),time:forecastTime,range:forecastTimeRange,
  grade:ev=>S.reliabilityGrade(ev.confidence,ev.models),phrase:(id,ev)=>S.phrasing(id,ev.rank,ev.afterglow),
- color:ev=>RANK_COLOR[ev.rank.key],timeBandPhases:ev=>timeBandPhases(ev),bands:ev=>renderTwilight(ev,{inline:true})},
+ color:ev=>RANK_COLOR[ev.rank.key],timeBandPhases:ev=>timeBandPhases(ev),bands:(ev,dayMs)=>renderTwilight(ev,{inline:true,dayMs})},
  openDetail:(id,dayMs)=>pick(id,Date.now(),dayMs),announce:message=>{$("listAnnouncement").textContent=message;}
 });
   forecastSummary.capture();

@@ -236,7 +236,7 @@
   .tw-row { display: grid; grid-template-columns: 4.3em 7.3em 5.6em 1.8em minmax(0, 1fr); align-items: center; gap: 10px; font-size: 14px; }
   @media (max-width: 360px) { .tw-row { gap: 6px; font-size: 13px; grid-template-columns: 4.3em 7.3em 5.6em 1.8em; } .tw-bar { display: none; } }
   .tw-name { font-weight: 600; white-space: nowrap; }
-  .tw-time { color: var(--secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tw-time { color: var(--secondary); font-variant-numeric: tabular-nums; white-space: normal; }
   .tw-score { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
   .tw-rank { font-weight: 600; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
   .tw-bar { height: 6px; border-radius: 3px; background: var(--sunk); overflow: hidden; }
