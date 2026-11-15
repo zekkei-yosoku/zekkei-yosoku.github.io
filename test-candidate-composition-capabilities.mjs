@@ -58,7 +58,7 @@ function ui(){
 test('composition UI enables every body by shape capability and uses model bounds with point-only centres',()=>{
  const u=ui(),button=u.all().find(e=>e.attrs['aria-label']==='重ねる位置を指定'),height=u.find('重ねる対象の高さ（地上からm）'),x=u.find('対象の中心から左右の位置（m）'),limb=u.find('天体の合わせる位置');
  assert.equal(button.disabled,false);assert.equal(height.max,'900');assert.equal(x.max,'500');assert.equal(x.min,'-500');assert.equal(limb.children.length,3);
- button.onclick();assert(u.api.plan().composition);assert.equal(u.api.plan().composition.limb,'center');u.leave();assert.equal(button.attrs['aria-pressed'],'false');assert.equal(u.view.cv.style.touchAction,undefined);button.onclick();
+ button.onclick();assert.equal(u.api.plan().composition,null,'opening does not silently choose a point');u.all().find(e=>e.textContent==='先端').onclick();assert(u.api.plan().composition);assert.equal(u.api.plan().composition.limb,'center');u.leave();assert.equal(button.attrs['aria-pressed'],'false');assert.equal(u.view.cv.style.touchAction,undefined);button.onclick();
  for(const body of B.definitions){u.select(body.id);assert.equal(button.disabled,false,body.id);assert.equal(limb.children.length,body.limbs?3:1,body.id);assert.equal(limb.disabled,!body.limbs,body.id);}
- u.select('sirius',false);assert.equal(button.disabled,true);assert.equal(u.api.plan().composition,null);assert.equal(u.api.plan().compositionInvalid,false);assert.equal(button.attrs['aria-description'],'この対象は面を指定できません。');assert.equal(u.all().find(e=>e.id==='trialCompositionStatus').hidden,true,'unsupported surface does not cover the diagram');
+ u.select('sirius',false);assert.equal(button.disabled,true);assert.equal(u.api.plan().composition,null);assert.equal(u.api.plan().compositionInvalid,false);assert.equal(button.attrs['aria-description'],'この対象は図から位置を選べません。');assert.equal(u.all().find(e=>e.id==='trialCompositionStatus').hidden,true,'unsupported surface does not cover the diagram');
 });

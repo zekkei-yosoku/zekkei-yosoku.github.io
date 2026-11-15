@@ -76,6 +76,7 @@ function menu(){
 
 let resultRequested=false,selectionPending=false,flowOwner=null,flowGeneration=null,previewBackEpoch=AstroNotesLibrary.gate();
 let searchRoot=null,candidatePanelHome=null,searchStarted=false,returnIntent=null,pendingScroll=null;
+let pendingCompositionSearch=null;
 // 2026-11-11 ユーザー「探すへ戻るのボタンの形状と配置場所」「見え方に入ったらなんの条件の見え方なのかがわからない」
 // 「重ねる天体とかの条件が気軽に変えられない」: 見え方でも条件の欄をたたんで先頭に残し（何×何・撮影地点・重ね方）、
 // 戻るは丸い枠なしの ＜ だけにしてその左端に置く（2026-11-11 ユーザー「戻るボタンがなんかダサい」→「丸をやめて ＜ だけ」）。条件を開けば、その場で天体・対象・重ね方を変えられる。
@@ -123,9 +124,54 @@ function captureSearch(){
  scrollTop:document.scrollingElement.scrollTop,count:globalThis.AstroNotesCandidatePicker?.visibleRows().length||0};
 }
 function enterResult(){
+ cancelCompositionSearch();
  if(!selectionPending)captureSearch();selectionPending=false;resultRequested=true;previewBackEpoch.cancel();foldConditions();syncWorkspace();SkyMapUI.render();
 }
+// Editing the current view is not "back": keep its selected place/time, not the earlier search selection.
+function showCurrentSearch(){
+ if(!active()||selectionPending||flowOwner!==auth?.loginId||flowGeneration!==accessState.generation)return false;
+ if(resultRequested){
+  previewBackEpoch.cancel();resultRequested=false;invalidate();look.hidden=true;
+  document.dispatchEvent(new Event('astronotes-preview-leave'));
+ }
+ returnIntent=null;pendingScroll=null;syncWorkspace();return true;
+}
+function editConditions(){if(resultRequested&&layout.conditions?.open)showCurrentSearch();}
+function compositionSearchKey(){
+ const s=SkyMapUI.selectionState(),c=globalThis.AstroNotesTrialComposition?.plan?.(s),api=globalThis.AstroNotesCandidateComposition;
+ if(!s?.target||!Number.isFinite(s.at)||!AstroNotesBodies.definition(s.body)||!c?.composition||c.compositionInvalid||c.invalidDraft)return null;
+ if(!api?.valid(c.composition,s.target)||!api.timeRange({...s,...c}))return null;
+ return JSON.stringify([auth?.loginId,accessState.generation,s,c,aimLens,aimAirSettings]);
+}
+function cancelCompositionSearch(){
+ const pending=pendingCompositionSearch;pendingCompositionSearch=null;
+ if(pending){pending.observer?.disconnect();if(pending.frame!==null)cancelAnimationFrame(pending.frame);}
+}
+function tryCompositionSearch(){
+ const pending=pendingCompositionSearch;if(!pending)return;
+ if(!mainSearchActive()||discoveryTab!=='new'||compositionSearchKey()!==pending.key){cancelCompositionSearch();return;}
+ const button=$('candidateSearchAction');if(!button?.isConnected||button.disabled)return;
+ // Repeated acceptance must never click the running action's "cancel" state.
+ cancelCompositionSearch();if(button.dataset.state!=='searching')button.click();
+ requestAnimationFrame(()=>{
+  if(mainSearchActive()&&discoveryTab==='new'&&compositionSearchKey()===pending.key)$('candidateSearchFeedback')?.scrollIntoView({block:'center',behavior:'auto'});
+ });
+}
+function searchCompositionPlaces(){
+ if(!active()||selectionPending||flowOwner!==auth?.loginId||flowGeneration!==accessState.generation)return false;
+ const key=compositionSearchKey();if(!key)return false;
+ if(pendingCompositionSearch?.key===key)return true;
+ cancelCompositionSearch();if(!showCurrentSearch())return false;chooseDiscovery('new');
+ if(compositionSearchKey()!==key||!newPlacePane)return false;
+ const pending={key,observer:null,frame:null};pendingCompositionSearch=pending;
+ pending.observer=new MutationObserver(tryCompositionSearch);
+ pending.observer.observe(newPlacePane,{childList:true,subtree:true,attributes:true,attributeFilter:['disabled','data-state']});
+ // The adapter mounts on the search-state event. Also wait for a late mount without retaining an obsolete request.
+ pending.frame=requestAnimationFrame(()=>{if(pendingCompositionSearch===pending){pending.frame=null;tryCompositionSearch();}});
+ return true;
+}
 function showSearch(){
+ cancelCompositionSearch();
  if(globalThis.MyPlacesUI?.opportunities?.returnFromPreview())return;
  previewBackEpoch.cancel();
  document.dispatchEvent(new Event('astronotes-preview-leave'));
@@ -138,6 +184,7 @@ function showSearch(){
  SkyMapUI.workspaceHost()?.restoreObserver(structuredClone(s.observer));selectionPending=false;searchStarted=saved.searched;pendingScroll={top:saved.scrollTop,count:saved.count};syncWorkspace();if(discoveryTab==='records'||!searchStarted)restoreSearchScroll(0);
 }
 function leaveSearchFlow(){
+ cancelCompositionSearch();
  recordSeq.cancel();recordCalendarSeq.cancel();if(recordTimer!==null)clearTimeout(recordTimer);recordTimer=null;recordState={key:'',status:'idle'};recordPane?.replaceChildren();recordCache.clear();recordJobs.clear();recordMemo=null;recordCalendarArgs=null;
  previewBackEpoch.cancel();
  document.dispatchEvent(new Event('astronotes-preview-leave'));
@@ -187,6 +234,7 @@ async function recordRows(request,current,progress=()=>{}){
 
 function chooseDiscovery(tab,focus=false){
  discoveryTab=tab==='new'?'new':'records';
+ if(discoveryTab!=='new')cancelCompositionSearch();
  if(!recordPane)return;
  for(const [name,pane]of [['records',recordPane],['new',newPlacePane]]){const button=$('exploreDiscovery-'+name),on=discoveryTab===name;button.setAttribute('aria-selected',String(on));button.tabIndex=on?0:-1;if(pane.hidden===on)pane.hidden=!on;if(on&&focus)button.focus();}
  syncRecordDiscovery();document.dispatchEvent(new Event('astronotes-search-state'));
@@ -294,7 +342,8 @@ function resumeRecordDiscovery(){
 }
 for(const type of ['pageshow','focus'])window.addEventListener(type,resumeRecordDiscovery);
 document.addEventListener('astronotes-records-change',()=>{recordMemo=null;recordState.key='';queueMicrotask(()=>{syncRecordDiscovery();if(recordCalendarArgs?.isCurrent()&&mainSearchActive())recordCalendarArgs.restart();});});
-const mainCandidateWorkspace={separateRecords:true,newPlacesHost:()=>newPlacePane,calendarMonth:recordCalendar,returnScroll:()=>returnIntent?.scrollTop,epoch:()=>flowGeneration,previewWidth:()=>Math.max(200,Math.round(Math.min(780,mapView.clientWidth||320))),active:mainSearchActive,selectable:()=>mainSearchActive()&&!$('placeSheet').open,visible:()=>searchStarted,
+const mainCandidateWorkspace={separateRecords:true,newPlacesHost:()=>newPlacePane,calendarMonth:recordCalendar,returnScroll:()=>returnIntent?.scrollTop,epoch:()=>flowGeneration,
+ previewWidth:()=>Math.max(200,Math.round(Math.min(780,mapView.clientWidth||320))),active:mainSearchActive,selectable:()=>mainSearchActive()&&!$('placeSheet').open,visible:()=>searchStarted,
  beginBack(){
   if(!resultActive()||selectionPending||flowOwner!==auth?.loginId||flowGeneration!==accessState.generation)return null;
   const epoch=previewBackEpoch.ticket(),owner=flowOwner,generation=flowGeneration,saved=returnIntent;let used=false;
@@ -314,7 +363,7 @@ document.addEventListener('astronotes-candidate-selecting',()=>{if(mainCandidate
 document.addEventListener('astronotes-candidate-selected',()=>{if(selectionPending&&returnIntent?.owner===auth?.loginId&&returnIntent.generation===accessState.generation)showResult();});
 
 const layout=AstroNotesExploreLayout.create({$,node,store,mapView,aimView,skyInfo,tabs,scene,map,aimState:()=>aim,requestAnimationFrame:cb=>requestAnimationFrame(cb),getMode:()=>mode,isAimActive:()=>viewState.aim,
- showResult,candidateChosen,addSaveAction,updateConditions,choose,invalidate,placePins,updateSkyInfo});
+ showResult,candidateChosen,addSaveAction,updateConditions,editConditions,choose,invalidate,placePins,updateSkyInfo});
 function choose(next,focus=false){
  mode='scene';
  tabs.hidden=true;scene.setAttribute('aria-label','見え方');scene.removeAttribute('aria-labelledby');scene.tabIndex=-1;
@@ -534,9 +583,12 @@ html:has(#skyMapView.explore-mounted:not([hidden])){scroll-padding-bottom:calc(v
 main:has(>#skyMapView.explore-mounted:not([hidden]))>#footer>summary{min-height:44px;display:list-item;padding-block:12px}
 `;document.head.append(style);
 document.addEventListener('astronotes-composition-change',updateConditions);
+for(const type of ['astronotes-search-state','astronotes-composition-change','visibilitychange'])document.addEventListener(type,tryCompositionSearch);
+window.addEventListener('pagehide',cancelCompositionSearch);
 // 探すを開いた時点で塔の模型を読み始め、地点を選んだ後の待ちから外す。
 const warmModels=()=>{if(/^#\/explore/.test(location.hash)&&eligible())AstroNotesAssets.ensureModels().catch(()=>{});};addEventListener('hashchange',warmModels);setTimeout(warmModels,0);
-globalThis.TrialExplore={candidateWorkspace:()=>layout.mounted?mainCandidateWorkspace:null,active,ownsScene,render,routeChanged,preferMap:()=>{transferMode='map';if(active())choose('map');},sync,invalidate:()=>{plan.forgetFrame();SkyMapUI.render();sync(true);},sceneDraw,assertScene,
+globalThis.TrialExplore={candidateWorkspace:()=>layout.mounted?mainCandidateWorkspace:null,active,ownsScene,render,routeChanged,
+ preferMap:()=>{transferMode='map';if(active())choose('map');},sync,invalidate:()=>{plan.forgetFrame();SkyMapUI.render();sync(true);},sceneDraw,assertScene,searchCompositionPlaces,
  camera:()=>{let timelapse=null;try{if(plan.frameKey===stamp(snapshot())&&AstroNotesTimelapse.settings(look._timelapseConfig))timelapse={...look._timelapseConfig};}catch(e){globalThis.AstroNotesErrors?.note('explore.timelapse',e);
  }return {l:{...aimLens,focal:Number(look.querySelector('[data-lens-focal]')?.value)||aimLens.focal||50},pan:[...(look._lensOffset||[0,0])],timelapse};}};
 document.addEventListener('visibilitychange',()=>{if(document.hidden)invalidate();else sync();});

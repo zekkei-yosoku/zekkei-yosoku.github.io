@@ -1292,6 +1292,7 @@
           "src/features/framing/presentation.js",
           "src/features/explore/map-presentation.js",
           "src/features/explore/controller.js",
+          "src/features/candidates/composition-ui.js",
           "src/features/candidates/ui.js",
           "src/features/candidates/overlap-scope.js"
         ],
@@ -1806,6 +1807,7 @@
           "src/features/candidates/composition.js"
         ],
         "readers": [
+          "src/features/explore/controller.js",
           "src/features/candidates/model-evaluator.js"
         ],
         "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
