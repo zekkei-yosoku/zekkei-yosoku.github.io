@@ -2384,7 +2384,8 @@ function selectedLimb(s){if(typeof AstroNotesBodies==='undefined'||!AstroNotesBo
 // An explicit first arrow key selects an actual visible face, just like a tap.
 function firstKeyboardPick(st,choose){
  const s=current(),v=st.host._trialCompositionView,m=S.model(AstroNotesAlign,s?.target);if(!m?.vertices?.length)return false;
- const center=points=>[0,1,2].map(k=>points.reduce((sum,p)=>sum+p[k],0)/points.length),points=[center(m.vertices),...m.surfaceTriangles.flat().map(ids=>center(ids.map(id=>m.vertices[id])))],obs={...v.spec.obs,eyeM:v.spec.eyeM},project=AstroNotesAlign.viewProjector(v.win.az0,v.win.alt0),r=v.cv.getBoundingClientRect(),off=st.host._lensOffset||[0,0];
+ const center=points=>[0,1,2].map(k=>points.reduce((sum,p)=>sum+p[k],0)/points.length),points=[center(m.vertices),...m.surfaceTriangles.flat().map(ids=>center(ids.map(id=>m.vertices[id])))];
+ const obs={...v.spec.obs,eyeM:v.spec.eyeM},project=AstroNotesAlign.viewProjector(v.win.az0,v.win.alt0),r=v.cv.getBoundingClientRect(),off=st.host._lensOffset||[0,0];
  for(const [eastM,northM,heightM]of points){const g=S.geometry(obs,s.target,{basis:'scene-surface',eastM,northM,heightM},AstroNotesAlign),xy=project(g.azimuth,g.angle);if(!xy)continue;
   const x=v.W/2+xy[0]*v.k+off[0]*v.W,y=v.H/2-xy[1]*v.k+off[1]*v.H;if(x<0||x>v.W||y<0||y>v.H)continue;
   if(choose({clientX:r.left+x*r.width/v.W,clientY:r.top+y*r.height/v.H}))return true;
