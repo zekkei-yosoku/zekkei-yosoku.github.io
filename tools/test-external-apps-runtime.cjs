@@ -8,7 +8,7 @@ const out=process.env.EXTERNAL_APPS_OUT||'/tmp/astronotes-external-apps';fs.mkdi
 const grants=['records','tower','diamond','pearl','skymap','multiscene'];
 function installFixture(grants){
  sessionStorage.setItem('sorami.token',JSON.stringify({token:'synthetic-external',loginId:'external-test',tools:grants}));
- const f=window.externalFixture={events:[],deferred:[],shareMode:'resolve',canShare:true,blockStorage:false,storageAttempts:[],instances:0};
+ const f=window.externalFixture={events:[],deferred:[],shareMode:'resolve',canShare:true,blockStorage:false,storageAttempts:[],instances:0,click:null};
  const set=Storage.prototype.setItem;
  Storage.prototype.setItem=function(k,v){if(/^sorami\.(calendarApp|mapApp)$/.test(k)){f.storageAttempts.push(k);if(f.blockStorage)throw new DOMException('synthetic quota','QuotaExceededError');}return set.call(this,k,v);};
  const capture=(kind,file)=>{const e={kind,name:file.name,type:file.type,size:file.size,text:null};f.events.push(e);file.text().then(text=>e.text=text);return e;};
@@ -19,7 +19,7 @@ function installFixture(grants){
   alias=api;Object.defineProperty(api,'createExternalApps',{configurable:true,set:factory=>{
    Object.defineProperty(api,'createExternalApps',{configurable:true,writable:true,value:options=>{
     f.instances++;return factory({...options,
-     launchUrl:url=>{f.events.push({kind:'url',url});},
+     launchUrl:url=>{f.events.push({kind:'url',url,click:f.click?{...f.click}:null});},
      saveFile:file=>{capture('file',file);},
      canShareFile:()=>f.canShare,
      shareFile:file=>{capture('share',file);if(f.shareMode==='wait')return new Promise((resolve,reject)=>f.deferred.push({resolve,reject}));if(f.shareMode==='abort')return Promise.reject(new DOMException('synthetic cancellation','AbortError'));if(f.shareMode==='reject')return Promise.reject(new DOMException('synthetic failure','NotAllowedError'));return Promise.resolve();}
@@ -42,8 +42,24 @@ async function fillEvent(p){
  await p.locator('#planEventTitle').fill('月, 星; テスト\\🌙');
  await p.locator('#planStart').fill('2026-11-05T23:58:01');await p.locator('#planEnd').fill('2026-11-06T00:28:04');
 }
-async function choose(p,kind,app,remember=false){const prefix=kind==='calendar'?'calendarApp':'mapApp';await p.locator('#'+prefix+'Remember').setChecked(remember);await p.locator('#'+prefix+'Sheet [data-external-app='+app+']').click();}
+// Observe the original onclick call stack, then use Playwright's real input.
+// An awaited/deferred launch loses this marker and fails the synchronous check.
+async function trackedClick(locator){
+ await locator.evaluate(n=>{if(n.__externalTracked)return;const handler=n.onclick;if(typeof handler!=='function')throw Error('Expected an existing click handler');n.__externalTracked=true;n.onclick=function(e){const previous=externalFixture.click;externalFixture.click={trusted:e.isTrusted,id:this.id||this.dataset.externalApp||this.textContent.trim()};try{return handler.call(this,e);}finally{externalFixture.click=previous;}};});
+ await locator.click();
+}
+async function choose(p,kind,app,remember=false){const prefix=kind==='calendar'?'calendarApp':'mapApp';await p.locator('#'+prefix+'Remember').setChecked(remember);await trackedClick(p.locator('#'+prefix+'Sheet [data-external-app='+app+']'));}
 async function oneMore(p,before,kind){await p.waitForFunction(n=>externalFixture.events.length===n,before+1);const e=(await events(p)).at(-1);assert.equal(e.kind,kind);return e;}
+function googleMap(event,coordinate,ios){
+ const u=new URL(event.url);assert(event.click?.trusted,'Google Maps is handed off synchronously inside the real click handler');
+ if(ios){assert.equal(u.protocol,'comgooglemaps:');assert.equal(u.searchParams.get('q'),coordinate.replaceAll(' ',''));assert(!u.searchParams.get('q').includes(' '));assert.equal(u.searchParams.has('query'),false);}
+ else{assert.equal(u.protocol,'https:');assert.equal(u.hostname,'www.google.com');assert.equal(u.pathname,'/maps/search/');assert.equal(u.searchParams.get('api'),'1');assert.equal(u.searchParams.get('query'),coordinate);}
+ return u;
+}
+async function visibility(p,hidden){
+ // Simulate only the OS handoff signal; no external application is launched.
+ await p.evaluate(hidden=>{if(hidden){Object.defineProperty(document,'hidden',{configurable:true,value:true});Object.defineProperty(document,'visibilityState',{configurable:true,value:'hidden'});}else{delete document.hidden;delete document.visibilityState;}document.dispatchEvent(new Event('visibilitychange'));},hidden);
+}
 function googleEvent(url){const u=new URL(url);assert.equal(u.hostname,'calendar.google.com');assert.equal(u.searchParams.get('action'),'TEMPLATE');assert.equal(u.searchParams.get('text'),'月, 星; テスト\\🌙');assert.equal(u.searchParams.get('dates'),'20261105T145801Z/20261105T152804Z');assert.equal(u.searchParams.get('ctz'),'Asia/Tokyo');assert(u.searchParams.get('location').includes('35.583465, 139.568839'));return u;}
 async function icsEvent(p,index){await p.waitForFunction(i=>typeof externalFixture.events[i]?.text==='string',index);const e=(await events(p))[index],text=e.text.replace(/\r\n /g,'');assert.equal(e.name,'AstroNotes_撮影予定.ics');assert(e.type.startsWith('text/calendar'));assert(text.includes('DTSTART:20261105T145801Z'));assert(text.includes('DTEND:20261105T152804Z'));assert(text.includes('SUMMARY:月\\, 星\\; テスト\\\\🌙'));assert(text.includes('35.583465\\, 139.568839'));assert(!text.includes('VALARM'));return e;}
 async function checkLayout(p,id){
@@ -55,14 +71,17 @@ async function checkLayout(p,id){
  for(const [engine,type]of [['chrome',chromium],['webkit',webkit]].filter(([n])=>(process.env.EXTERNAL_APPS_ENGINES||'chrome,webkit').split(',').includes(n))){
   const browser=await type.launch(engine==='chrome'?{channel:'chrome',headless:true}:{headless:true});
   try{for(const width of (process.env.EXTERNAL_APPS_WIDTHS||'320,390,1280').split(',').map(Number))for(const theme of (process.env.EXTERNAL_APPS_THEMES||'light,dark').split(',')){
-   const userAgent=width===320?(engine==='chrome'?'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/140.0.0.0 Mobile Safari/537.36':'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Version/26.2 Mobile/15E148 Safari/604.1'):(width===1280&&engine==='chrome'?'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36':undefined);
+   const ipad=width===390&&engine==='webkit',ios=engine==='webkit'&&(width===320||ipad);
+   const userAgent=width===320?(engine==='chrome'?'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/140.0.0.0 Mobile Safari/537.36':'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Version/26.2 Mobile/15E148 Safari/604.1'):(ipad?'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 Version/26.2 Safari/605.1.15':width===1280&&engine==='chrome'?'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36':undefined);
    const context=await browser.newContext({viewport:{width,height:900},locale:'ja-JP',timezoneId:width===390?'America/Los_Angeles':'Asia/Tokyo',colorScheme:theme,reducedMotion:'reduce',...(userAgent?{userAgent}:{})});let writes=0,external=0;
+   if(ipad)await context.addInitScript(()=>{Object.defineProperty(navigator,'maxTouchPoints',{configurable:true,value:5});Object.defineProperty(navigator,'platform',{configurable:true,value:'MacIntel'});});
    await context.addInitScript(installFixture,grants);
    await context.route('**/*',r=>{const u=new URL(r.request().url());if(u.origin===new URL(base).origin)return r.continue();if(/zekkei-api|localhost:8787/.test(u.origin)){if(!['GET','OPTIONS'].includes(r.request().method()))writes++;return r.fulfill({json:{allowed:true,tool:'skymap',loginId:'external-test',tools:grants,credentials:[],hasPassword:true,recoveryCodes:10,favorites:[],sightings:[],records:[],rev:1}});}external++;return r.abort();});
    const p=await context.newPage(),errors=[];p.setDefaultTimeout(15000);p.on('pageerror',e=>errors.push(e.message));
    try{
     await p.goto(base+'#/explore');await p.waitForFunction(()=>typeof SkyMapUI==='object'&&!!AstroNotesPlan.externalApps);
     await p.evaluate(async theme=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>83;aimBuildingDays=async()=>[];document.documentElement.dataset.theme=theme;aimAirSettings.mode='standard';AstroNotesAtmosphere.configure('standard',aimAirSettings);SkyMapUI.setObserver({name:'外部連携テスト地点',latitude:35.583465,longitude:139.568839,groundManualM:83,standAglM:4});SkyMapUI.setTarget('skytree');const b=document.getElementById('skyMapBody');b.value='moon';b.onchange();SkyMapUI.setTime(Date.parse('2026-11-05T12:34:56+09:00'));},theme);
+    await p.locator('#exploreShowResult').click();
     await p.waitForFunction(()=>{try{TrialExplore.assertScene();return !!planSnapshot({dataset:{planSource:'aim'}}).payload;}catch{return false;}},null,{timeout:45000});
     assert.equal(await p.evaluate(()=>externalFixture.instances),1);const initialState=await state(p),personal=await stored(p);
     await calendar(p);await fillEvent(p);assert.equal(await p.locator('#planGoogle,#planIcs').count(),0);assert.equal(await p.locator('#planCalendarAdd').count(),1);assert(!(await p.locator('#planCalendar').innerText()).includes('予定ファイルは'));
@@ -86,18 +105,32 @@ async function checkLayout(p,id){
     await settings(p);await p.locator('#externalDefaultCalendar').selectOption({value:'device'});assert.equal(await p.locator('#externalDefaultCalendar').inputValue(),'');assert((await p.locator('#externalAppSettingsStatus').innerText()).includes('保存できません'));await p.locator('#externalDefaultMap').selectOption({value:'apple'});assert.equal(await p.locator('#externalDefaultMap').inputValue(),'google');await p.evaluate(()=>externalFixture.blockStorage=false);await p.locator('#externalDefaultMap').selectOption({value:''});await closeSettings(p);
     // Actual appearance-side map entry uses the selected candidate coordinates.
     const map=p.locator('#exploreExternalMap');await map.waitFor();n=(await events(p)).length;await map.click();await p.locator('#mapAppSheet[open]').waitFor();assert.equal(await p.locator('#mapAppCoord').innerText(),'35.5834650, 139.5688390');await checkLayout(p,'#mapAppSheet');await p.screenshot({path:`${out}/${engine}-${width}-${theme}-map-choice.png`});await p.locator('#mapAppClose').click();assert.equal((await events(p)).length,n);assert.equal(await p.evaluate(()=>AstroNotesPlan.externalApps.get('map')),null);
-    await map.click();await choose(p,'map','google',true);const mapUrl=new URL((await oneMore(p,n,'url')).url);assert.equal(mapUrl.searchParams.get('query'),'35.5834650, 139.5688390');n++;await map.click();assert.equal((await oneMore(p,n,'url')).url,mapUrl.href);assert(!await p.locator('#mapAppSheet').isVisible());
+    await map.click();await choose(p,'map','google',true);const mapUrl=googleMap(await oneMore(p,n,'url'),'35.5834650, 139.5688390',ios);assert.equal(await p.evaluate(()=>AstroNotesPlan.externalApps.get('map')),'google');
+    n=(await events(p)).length;await trackedClick(map);const savedMap=await oneMore(p,n,'url');googleMap(savedMap,'35.5834650, 139.5688390',ios);assert.equal(savedMap.url,mapUrl.href);assert(!await p.locator('#mapAppSheet').isVisible(),'saved Google opens directly without the chooser');
+    if(ios){
+     const fallback=p.locator('#mapAppSheet [data-map-web-fallback]');
+     await fallback.waitFor({state:'visible'});assert.equal((await events(p)).length,n+1,'timeout never opens the website automatically');assert.equal((await fallback.innerText()).trim(),'ブラウザで開く');await checkLayout(p,'#mapAppSheet');
+     await p.screenshot({path:`${out}/${engine}-${width}-${theme}-map-web-fallback.png`});
+     await trackedClick(fallback);const web=await oneMore(p,n+1,'url');googleMap(web,'35.5834650, 139.5688390',false);assert.equal(web.url,await p.evaluate(()=>AstroNotesPlan.externalApps.mapApps.google.url('35.5834650, 139.5688390')),'explicit fallback keeps the original HTTPS destination');assert(!await p.locator('#mapAppSheet').isVisible());assert.equal(await p.evaluate(()=>AstroNotesPlan.externalApps.get('map')),'google');
+     // A successful native handoff hides the document. Returning must not revive
+     // the old timer, even though this fixture captures the URL instead of opening an OS app.
+     n=(await events(p)).length;await trackedClick(map);googleMap(await oneMore(p,n,'url'),'35.5834650, 139.5688390',true);await visibility(p,true);await p.waitForTimeout(1450);await visibility(p,false);await p.waitForTimeout(100);assert(!await p.locator('#mapAppSheet').isVisible(),'a hidden document suppresses web fallback on return');assert.equal((await events(p)).length,n+1);
+     // Real browser Back cancels the pending handoff before its fallback delay.
+     await p.evaluate(()=>history.pushState({...history.state,externalFixtureHandoff:true},'',location.href));n=(await events(p)).length;await trackedClick(map);googleMap(await oneMore(p,n,'url'),'35.5834650, 139.5688390',true);await p.goBack();await p.waitForTimeout(1450);assert(!await p.locator('#mapAppSheet').isVisible(),'Back cancellation prevents a late fallback');assert.equal((await events(p)).length,n+1);
+     // Closing the recovery sheet leaves the saved native preference intact.
+     n=(await events(p)).length;await trackedClick(map);googleMap(await oneMore(p,n,'url'),'35.5834650, 139.5688390',true);await fallback.waitFor({state:'visible'});await p.locator('#mapAppClose').click();await p.waitForTimeout(100);assert(!await p.locator('#mapAppSheet').isVisible());assert.equal((await events(p)).length,n+1);assert.equal(await p.evaluate(()=>AstroNotesPlan.externalApps.get('map')),'google');
+    }
     // Retained legacy map functions share the same preference and launch owner.
     n=(await events(p)).length;await p.evaluate(()=>openMapApp('apple','35.12345, 139.76543'));const apple=new URL((await oneMore(p,n,'url')).url);assert.equal(apple.hostname,'maps.apple.com');assert.equal(apple.searchParams.get('ll'),'35.12345,139.76543');
-    await p.evaluate(()=>openMapAppSheet('35.1234567, 139.7654321'));await p.locator('#mapAppSheet[open]').waitFor();await choose(p,'map','google',false);assert.equal(await p.evaluate(()=>AstroNotesPlan.externalApps.get('map')),null);
+    await p.evaluate(()=>openMapAppSheet('35.1234567, 139.7654321'));await p.locator('#mapAppSheet[open]').waitFor();n=(await events(p)).length;await choose(p,'map','google',false);googleMap(await oneMore(p,n,'url'),'35.1234567, 139.7654321',ios);assert.equal(await p.evaluate(()=>AstroNotesPlan.externalApps.get('map')),null);
     if(width===320&&engine==='chrome'){n=(await events(p)).length;await map.click();await choose(p,'map','device');assert.equal((await oneMore(p,n,'url')).url,'geo:35.5834650,139.5688390?q=35.5834650,139.5688390');}
     // Replacing a chooser invalidates detached choice handlers.
-    n=(await events(p)).length;await p.evaluate(()=>{const options={source:document.getElementById('exploreExternalMap'),forceChoose:true};AstroNotesPlan.externalApps.requestMap('35.1, 139.1',options);window.oldMapChoice=document.querySelector('#mapAppSheet [data-external-app=google]').onclick;AstroNotesPlan.externalApps.requestMap('35.2, 139.2',options);oldMapChoice();window.lastMapChoice=document.querySelector('#mapAppSheet [data-external-app=google]').onclick;});assert.equal((await events(p)).length,n);await choose(p,'map','google');assert.equal(new URL((await oneMore(p,n,'url')).url).searchParams.get('query'),'35.2, 139.2');await p.evaluate(()=>lastMapChoice());assert.equal((await events(p)).length,n+1,'a repeated choice callback launches only once');
+    n=(await events(p)).length;await p.evaluate(()=>{const options={source:document.getElementById('exploreExternalMap'),forceChoose:true};AstroNotesPlan.externalApps.requestMap('35.1, 139.1',options);window.oldMapChoice=document.querySelector('#mapAppSheet [data-external-app=google]').onclick;AstroNotesPlan.externalApps.requestMap('35.2, 139.2',options);oldMapChoice();window.lastMapChoice=document.querySelector('#mapAppSheet [data-external-app=google]').onclick;});assert.equal((await events(p)).length,n);await choose(p,'map','google');googleMap(await oneMore(p,n,'url'),'35.2, 139.2',ios);await p.evaluate(()=>lastMapChoice());assert.equal((await events(p)).length,n+1,'a repeated choice callback launches only once');
     n=(await events(p)).length;await p.evaluate(()=>history.pushState({...history.state,externalFixtureBack:true},'',location.href));await map.click();await p.locator('#mapAppSheet[open]').waitFor();await p.goBack();await p.locator('#mapAppSheet').waitFor({state:'hidden'});assert.equal((await events(p)).length,n,'browser Back cancels a chooser opened outside a dialog');
     // Unknown persisted identifiers are ignored. Reload proves device preferences.
     await settings(p);await p.locator('#externalDefaultCalendar').selectOption({value:'google'});await p.locator('#externalDefaultMap').selectOption({value:'apple'});await closeSettings(p);assert.deepEqual(await state(p),initialState);assert.equal(await stored(p),personal);assert.equal(writes,0);assert.deepEqual(errors,[]);
     await p.reload();await p.waitForFunction(()=>!!AstroNotesPlan.externalApps&&typeof startupSessionReady!=='undefined');await p.evaluate(()=>startupSessionReady);assert.equal(await p.evaluate(()=>AstroNotesPlan.externalApps.get('calendar')),'google');assert.equal(await p.evaluate(()=>AstroNotesPlan.externalApps.get('map')),'apple');await p.evaluate(()=>localStorage.setItem('sorami.calendarApp',JSON.stringify('unknown-future-app')));assert.equal(await p.evaluate(()=>AstroNotesPlan.externalApps.get('calendar')),null);assert.equal(writes,0);assert.deepEqual(errors,[]);
-    results.push({engine,width,theme,calendarSingleEntry:true,firstDefaultChangeCancel:true,settings:true,storageFailure:true,googleIcsInvariant:true,parentCloseStaleRefused:true,mapEntrypoints:true,sessionUnchanged:true,writes,externalBlocked:external});fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log(engine,width,theme,'external apps passed');
+    results.push({engine,width,theme,platformFixture:ios?(ipad?'ipad-desktop-ua':'iphone'):width===320?'android':'desktop',calendarSingleEntry:true,firstDefaultChangeCancel:true,settings:true,storageFailure:true,googleIcsInvariant:true,parentCloseStaleRefused:true,mapEntrypoints:true,savedGoogleSynchronous:true,googleNative:ios,mapWebFallback:ios?'explicit-click-verified':'not-applicable',mapFallbackHiddenAndCancelSuppressed:ios,sessionUnchanged:true,writes,externalBlocked:external});fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log(engine,width,theme,'external apps passed');
    }catch(e){await p.screenshot({path:`${out}/${engine}-${width}-${theme}-failure.png`}).catch(()=>{});console.error(engine,width,theme,errors,await p.evaluate(()=>({dialogs:[...document.querySelectorAll('dialog[open]')].map(n=>n.id),status:document.getElementById('planStatus')?.textContent,events:externalFixture.events.map(({kind,url})=>({kind,url:url?.split('?')[0]})),calendar:AstroNotesPlan.externalApps?.get('calendar'),map:AstroNotesPlan.externalApps?.get('map')})).catch(()=>null));throw e;}finally{await context.close();}
   }}finally{await browser.close();}
  }

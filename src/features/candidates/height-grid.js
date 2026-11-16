@@ -27,7 +27,10 @@ function profile(observer,ray){
 }
 // Every grid cell the ground track crosses between two points, with the distances it enters and leaves it.
 function cells(p0,p1,d0,d1,visit){
- const x0=p0.longitude*LON,y0=p0.latitude*LAT,x1=p1.longitude*LON,y1=p1.latitude*LAT,dx=x1-x0,dy=y1-y0;
+ return walkGrid(p0.longitude*LON,p0.latitude*LAT,p1.longitude*LON,p1.latitude*LAT,d0,d1,visit);
+}
+function walkGrid(x0,y0,x1,y1,d0,d1,visit){
+ const dx=x1-x0,dy=y1-y0;
  let cx=Math.floor(x0),cy=Math.floor(y0);const sx=Math.sign(dx),sy=Math.sign(dy),ex=Math.floor(x1),ey=Math.floor(y1);
  const tdx=dx?Math.abs(1/dx):Infinity,tdy=dy?Math.abs(1/dy):Infinity;
  let tx=dx?(sx>0?cx+1-x0:x0-cx)*tdx:Infinity,ty=dy?(sy>0?cy+1-y0:y0-cy)*tdy:Infinity,t=0;const at=s=>d0+(d1-d0)*s;
@@ -76,25 +79,28 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   return meshes.get(code);
  }
  // Keep the preview's fetch limit shared across overlapping renders. The existing search readers retain their order.
- const previewReads=[],PREVIEW_READ_LIMIT=6,PREVIEW_MESH_LIMIT=256,PREVIEW_WAIT_MS=8000,PREVIEW_RANGE_M=50000;
+ const centerReads=[],frontageReads=[],PREVIEW_READ_LIMIT=6,PREVIEW_MESH_LIMIT=256,PREVIEW_WAIT_MS=8000,PREVIEW_RANGE_M=50000;
  let activePreviewReads=0;
  function runPreviewReads(){
-  while(activePreviewReads<PREVIEW_READ_LIMIT&&previewReads.length){
-   const {load,isCurrent,resolve,reject}=previewReads.shift();
+  while(activePreviewReads<PREVIEW_READ_LIMIT){
+   // The scene margins leave one slot available for the central sightline.
+   const next=centerReads.shift()||(activePreviewReads<PREVIEW_READ_LIMIT-1&&frontageReads.shift());
+   if(!next)return;
+   const {load,isCurrent,resolve,reject}=next;
    if(!isCurrent()){reject(Error('candidate-cancelled'));continue;}
    activePreviewReads++;
    Promise.resolve().then(()=>{requireCurrent(isCurrent);return load();}).then(resolve,reject).finally(()=>{activePreviewReads--;runPreviewReads();});
   }
  }
- function queuePreviewRead(load,isCurrent){
-  return new Promise((resolve,reject)=>{previewReads.push({load,isCurrent,resolve,reject});runPreviewReads();});
+ function queuePreviewRead(load,isCurrent,center){
+  return new Promise((resolve,reject)=>{(center?centerReads:frontageReads).push({load,isCurrent,resolve,reject});runPreviewReads();});
  }
  const requireCurrent=isCurrent=>{if(!isCurrent())throw Error('candidate-cancelled');};
- function walkSightline(observer,azimuth,maxM,visit,endpoint=null){
+ function* sightline(observer,azimuth,maxM,endpoint=null){
   let from=observer;
   for(let d=0;d<maxM;){
    const end=Math.min(maxM,d+NODE_M),to=end===maxM&&endpoint?endpoint:destination(observer.latitude,observer.longitude,azimuth,end);
-   cells(from,to,d,end,visit);from=to;d=end;
+   yield {from,to,d,end};from=to;d=end;
   }
  }
  function meshReader(visit){
@@ -105,18 +111,41 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
    visit(code,(gy-my*ROWS)*COLS+(gx-mx*COLS),a,z);
   };
  }
- function collectMeshes(observer,azimuth,maxM,needed,own,{endpoint=null}={}){
-  const remember=meshReader((code,_,a)=>{if(a<(needed.get(code)??Infinity))needed.set(code,a);});
-  walkSightline(observer,azimuth,maxM,(gx,gy,a,z)=>{
-   if(z>=NEAR_M&&!own?.has(gx+','+gy))remember(gx,gy,a,z);
-  },endpoint);
+ function collectMeshes(observer,azimuth,maxM,needed,own,ownMeshes,endpoint=null){
+  const remember=(code,a)=>{if(a<(needed.get(code)??Infinity))needed.set(code,a);};
+  const fine=meshReader((code,_,a)=>remember(code,a));
+  const visit=(gx,gy,a,z)=>{if(z>=NEAR_M&&!own?.has(gx+','+gy))fine(gx,gy,a,z);};
+  const chord=[],onEdge=value=>Math.abs(value-Math.round(value))<1e-10;
+  for(const {from,to,d,end} of sightline(observer,azimuth,maxM,endpoint)){
+   const x0=from.longitude*LON/COLS,y0=from.latitude*LAT/ROWS,x1=to.longitude*LON/COLS,y1=to.latitude*LAT/ROWS;
+   chord.length=0;let useFine=d<=NEAR_M||onEdge(x0)||onEdge(y0)||onEdge(x1)||onEdge(y1);
+   if(!useFine){
+    walkGrid(x0,y0,x1,y1,d,end,(mx,my,a,z)=>{
+     const code=meshCode(my,mx);
+     // Retain the fine traversal at corner touches and wherever target exclusions can change the first cell.
+     if(a===z||ownMeshes?.has(code)){useFine=true;return false;}
+     chord.push([code,a]);
+    });
+   }
+   if(useFine)cells(from,to,d,end,visit);
+   else for(const [code,a] of chord)remember(code,a);
+  }
  }
- async function readPreviewItems(keys,load,isCurrent,expires){
+ function containingMeshes(own){
+  if(!own?.size)return null;
+  const result=new Set();
+  for(const cell of own){
+   const [gx,gy]=cell.split(',').map(Number);
+   result.add(meshCode(Math.floor(gy/ROWS),Math.floor(gx/COLS)));
+  }
+  return result;
+ }
+ async function readPreviewItems(keys,load,isCurrent,expires,center){
   const results=new Map();
   let open=true,timer;
   const current=()=>open&&isCurrent();
   const tasks=Promise.all([...keys].map(async key=>{
-   try{const value=await queuePreviewRead(()=>load(key),current);if(current())results.set(key,value);}
+   try{const value=await queuePreviewRead(()=>load(key),current,center);if(current())results.set(key,value);}
    catch(e){if(e?.message==='candidate-cancelled'&&open)requireCurrent(isCurrent);}
   }));
   try{
@@ -124,12 +153,12 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
    requireCurrent(isCurrent);return results;
   }finally{open=false;clearTimeout(timer);}
  }
- async function prefetchGrids(data,needed,isCurrent){
+ async function prefetchGrids(data,needed,isCurrent,center=false){
   // Keep the nearest available roofs if a wide or slow request cannot load every mesh.
   const codes=[...needed].sort((a,b)=>a[1]-b[1]).slice(0,PREVIEW_MESH_LIMIT).map(([code])=>code);
   const expires=Date.now()+PREVIEW_WAIT_MS,partKeys=new Set();
   for(const code of codes){const p4=code.slice(0,4);if(data.parts?.[p4]&&!parts.has(p4))partKeys.add(p4);}
-  await readPreviewItems(partKeys,p4=>part(p4,data),isCurrent,expires);
+  await readPreviewItems(partKeys,p4=>part(p4,data),isCurrent,expires,center);
   const entries=new Map(),grids=new Map();
   for(const code of codes){
    const grid=ready.get(code),entry=parts.get(code.slice(0,4))?.[code];
@@ -137,7 +166,7 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   }
   if(Date.now()>=expires)return grids;
   // Retain these grids for both passes of this call even if a wide view evicts them from the shared cache.
-  const loaded=await readPreviewItems(entries.keys(),code=>mesh(code,entries.get(code)),isCurrent,expires);
+  const loaded=await readPreviewItems(entries.keys(),code=>mesh(code,entries.get(code)),isCurrent,expires,center);
   for(const [code,grid] of loaded)if(grid)grids.set(code,grid);
   return grids;
  }
@@ -248,8 +277,8 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
    requireCurrent(isCurrent);
    if(D<=NEAR_M)return {status:'ok',toM:-Infinity,distanceM:null,topM:null,complete:false};
    const needed=new Map();
-   collectMeshes(observer,az,D,needed,own,{endpoint:ray.endpoint});
-   previewGrids=await prefetchGrids(data,needed,isCurrent);
+   collectMeshes(observer,az,D,needed,own,containingMeshes(own),ray.endpoint);
+   previewGrids=await prefetchGrids(data,needed,isCurrent,true);
   }
   let best=null,uncovered=0,pending=null,lastKey=null,code=null;
   const visit=(gx,gy,a,z)=>{
@@ -324,13 +353,17 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   try{data=await index();}catch{requireCurrent(isCurrent);return azimuths.map(unread);}
   const range=Math.min(maxM,PREVIEW_RANGE_M);
   const eye=observer.elevation+(observer.eyeM??1.5),c=1/(2*R*refractionK),own=ownSet(targetKey),needed=new Map(),rows=[];
+  const ownMeshes=containingMeshes(own);
+  const now=()=>typeof performance==='undefined'?Date.now():performance.now();
   const yieldWalk=()=>new Promise(resolve=>setTimeout(resolve,0));
+  let deadline=now()+6;
   for(let i=0;i<azimuths.length;i++){
    requireCurrent(isCurrent);
-   if(Number.isFinite(azimuths[i]))collectMeshes(observer,azimuths[i],range,needed,own);
-   if(i%8===7)await yieldWalk();
+   if(Number.isFinite(azimuths[i]))collectMeshes(observer,azimuths[i],range,needed,own,ownMeshes);
+   if(now()>=deadline){await yieldWalk();deadline=now()+6;}
   }
   const grids=await prefetchGrids(data,needed,isCurrent);
+  deadline=now()+6;
   for(let i=0;i<azimuths.length;i++){
    requireCurrent(isCurrent);
    const azimuth=azimuths[i];
@@ -349,12 +382,13 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
      const peak=h<0?Math.max(lo,Math.min(z,Math.sqrt(-h/c))):lo;
      angle=Math.max(angle,Math.atan(slope(peak))/RAD);
     });
-    walkSightline(observer,azimuth,range,(gx,gy,a,z)=>{
-     if(z>=NEAR_M&&!own?.has(gx+','+gy))roof(gx,gy,a,z);
-    });
+    const visit=(gx,gy,a,z)=>{if(z>=NEAR_M&&!own?.has(gx+','+gy))roof(gx,gy,a,z);};
+    for(const {from,to,d,end} of sightline(observer,azimuth,range)){
+     cells(from,to,d,end,visit);
+     if(now()>=deadline){await yieldWalk();requireCurrent(isCurrent);deadline=now()+6;}
+    }
    }
    rows.push({angle,complete:complete&&range===maxM});
-   if(i%8===7)await yieldWalk();
   }
   requireCurrent(isCurrent);return rows;
  }

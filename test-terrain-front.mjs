@@ -28,8 +28,9 @@ test('見え方：塔の中心視線と街並みを独立に取得し、建物�
  assert.match(html,/const lookObs = \{ latitude: spec\.obs\.latitude, longitude: spec\.obs\.longitude, elevation: ground, eyeM: spec\.eyeM \};/);
  assert.match(html,/\.hiddenView\(lookObs, t, aim\.partId, currentLook\)/);
  assert.match(html,/\.skylineView\(lookObs, t, bearings, currentLook\)/);
- assert.match(html,/globalCompositeOperation = "destination-out"; ctx\.fillStyle = "#000"; ctx\.fill\(foreground\)/);
- assert.match(html,/ctx\.fillStyle = "rgba\(4,6,12,0\.62\)"; ctx\.fill\(foreground\)/);
+ assert.match(html,/skyAboveFrontage = new Path2D\(frontage\)/);
+ assert.match(html,/ctx\.clip\(skyAboveFrontage, "evenodd"\)/);
+ assert.match(html,/ctx\.fillStyle = "rgba\(4,6,12,0\.62\)"; ctx\.fill\(frontage\)/);
  assert.doesNotMatch(html,/frontPending|horizonPoints|aimHiddenNote|horizonText|beyondPending|beyondRidge|townEdge/);
  assert.match(html,/if\(!selected\)\{\s*let bottom=-Infinity;/);
 });
@@ -68,9 +69,8 @@ test('高所の建物図の地上線は対象の足元または手前の遮蔽�
  c.hidden={m:90};c.place();assert.equal(c.groundEdge,90);assert.equal(c.fillEdge,90);
  c.hidden={m:250};c.place();assert.equal(c.groundEdge,200,'足元より低い遮蔽は足元を動かさない');
 });
-test('確認中・欠測・山の水平基準を表示する',()=>{
- assert.match(html,/frontageStatus = "手前の建物を確認中"/);
- assert.match(html,/hiddenUnread \? "手前の地形は未確認"/);
- assert.match(html,/hiddenPartial \|\| beyondFrontage \? "手前の遮蔽は一部未確認"/);
- assert.match(html,/if \(mountain\) groundText = \{ str: "水平（0°）"/);
+test('屋根の読取は図のあとで始め、遮蔽の状態文言を図に描かない',()=>{
+ assert.match(html,/if \(canReadFrontage\) setTimeout\(loadFrontage, 120\)/);
+ assert.doesNotMatch(html,/手前の建物を確認中|手前の地形は未確認|手前の遮蔽は一部未確認/);
+ assert.match(html,/groundText = \{ str: "水平（0°）"/);
 });

@@ -181,8 +181,8 @@ test("2本指のピンチは焦点距離と構図を連動し、再描画後も�
  vm.runInContext(code,c);
  cv.onpointerdown({pointerId:1,clientX:100,clientY:150});cv.onpointerdown({pointerId:2,clientX:200,clientY:150});
  cv.onpointermove({pointerId:2,clientX:300,clientY:150});assert.equal(aimLens.focal,200);queued();assert.equal(aimLens.focal,400);assert.equal(aimLens.mode,"manual");assert.ok(Math.abs(host._lensOffset[0]-(.2+50/W))<1e-9);
- cv.onpointermove({pointerId:2,clientX:400,clientY:150});queued();assert.equal(aimLens.focal,600);assert.ok(Math.abs(host._lensOffset[0]-(.3+100/W))<1e-9);assert.ok(Math.abs(host._lensOffset[1]-.3)<1e-9);
- cv.onpointerup({pointerId:2});const before=[...host._lensOffset];cv.onpointermove({pointerId:1,clientX:110,clientY:160});assert.ok(Math.abs(host._lensOffset[0]-before[0]-10/W)<1e-9);assert.equal(renders,2);assert.equal(saved,2);assert.ok(draws>0);
+ cv.onpointermove({pointerId:2,clientX:400,clientY:150});queued();assert.equal(aimLens.focal,600);assert.ok(Math.abs(host._lensOffset[0]-(.3+100/W))<1e-9);assert.ok(Math.abs(host._lensOffset[1]-.3)<1e-9);assert.equal(saved,0);
+ cv.onpointerup({pointerId:2});const before=[...host._lensOffset];cv.onpointermove({pointerId:1,clientX:110,clientY:160});assert.ok(Math.abs(host._lensOffset[0]-before[0]-10/W)<1e-9);assert.equal(renders,2);assert.equal(saved,1);assert.ok(draws>0);
  cv.onpointercancel({pointerId:1});assert.equal(host._lensGesture.points.size,0);
  // 狭めると広角になり、範囲を超えても8mm以上。
  cv.onpointerdown({pointerId:1,clientX:0,clientY:0});cv.onpointerdown({pointerId:2,clientX:1000,clientY:0});cv.onpointermove({pointerId:2,clientX:1,clientY:0});queued();assert.equal(aimLens.focal,8);

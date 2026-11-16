@@ -29,6 +29,9 @@ class Element {
 function documentFixture() {
   const doc={createElement(tag){return new Element(doc,tag);},getElementById(id){return doc.body.querySelector('#'+id);}};
   doc.body=new Element(doc,'body');doc.activeElement=doc.body;
+  const events=new Element(doc);
+  doc.addEventListener=events.addEventListener.bind(events);doc.removeEventListener=events.removeEventListener.bind(events);
+  doc.emit=events.emit.bind(events);doc.visibilityState='visible';doc.defaultView=new Element(doc);
   // Includes the existing map dialog and the equivalent lazily-created calendar
   // dialog, so no HTML parser is needed for these injected ownership tests.
   for(const prefix of ['mapApp','calendarApp']){
@@ -43,19 +46,23 @@ const planAsset=readFileSync(new URL('./astronotes-plan.js',import.meta.url),'ut
 assert(source.startsWith('// Trial external-app owner.'));
 const event={title:'月と建物',start:1_800_000_000_000,end:1_800_000_060_000,location:'撮影地点 (35.1234567, 139.7654321)',description:'同じ条件',reminder:0};
 const flush=async()=>{await Promise.resolve();await Promise.resolve();};
-function fixture({ua='Android',saved={},canShare=false,shareFile,launchUrl}={}) {
+function fixture({ua='Android',touchPoints=0,saved={},canShare=false,shareFile,launchUrl}={}) {
   const doc=documentFixture(),values=new Map(Object.entries(saved)),writes=[],urls=[],files=[],shares=[],messages=[],shown=[];
   const parent=doc.createElement('dialog');parent.open=true;doc.body.append(parent);const button=doc.createElement('button');parent.append(button);doc.activeElement=button;
   const state={saveOK:true,mapChanges:0};
   const plan={google:e=>'https://calendar.google.com/calendar/render?text='+encodeURIComponent(e.title),ics:e=>JSON.stringify(e)};
-  const context=vm.createContext({AstroNotesPlan:plan,File,structuredClone,Promise,Option:class extends Element {constructor(text,value){super(doc,'option');this.textContent=text;this.value=value;}}});
+  const timers=new Map();let nextTimer=0;
+  const context=vm.createContext({AstroNotesPlan:plan,File,structuredClone,Promise,
+    setTimeout:fn=>{timers.set(++nextTimer,fn);return nextTimer;},clearTimeout:id=>timers.delete(id),Option:class extends Element {constructor(text,value){super(doc,'option');this.textContent=text;this.value=value;}}});
   vm.runInContext(source,context);
-  const apps=plan.createExternalApps({doc,ua,storage:{get:(key,fallback)=>values.has(key)?values.get(key):fallback,set:(key,value)=>{writes.push([key,value]);if(!state.saveOK)return false;values.set(key,value);return true;}},
+  const apps=plan.createExternalApps({doc,ua,touchPoints,storage:{get:(key,fallback)=>values.has(key)?values.get(key):fallback,set:(key,value)=>{writes.push([key,value]);if(!state.saveOK)return false;values.set(key,value);return true;}},
     show:dialog=>{shown.push(dialog.id);dialog.open=true;dialog.focus();},onMapChange:()=>state.mapChanges++,
     launchUrl:url=>{urls.push(url);launchUrl?.(url);},saveFile:file=>files.push(file),canShareFile:()=>canShare,
     shareFile:file=>{shares.push(file);return shareFile?.(file);}});
   const options={source:button,onStatus:message=>messages.push(message)};
   return {apps,doc,parent,button,state,values,writes,urls,files,shares,messages,shown,options,
+    runTimers:()=>{for(const [id,fn] of [...timers])if(timers.delete(id))fn();},
+    webFallback:()=>doc.getElementById('mapAppList').children.find(el=>Object.hasOwn(el.dataset,'mapWebFallback')),
     pick:(kind,id)=>doc.getElementById((kind==='map'?'mapApp':'calendarApp')+'List').children.find(el=>el.dataset.externalApp===id),
     remember:kind=>doc.getElementById((kind==='map'?'mapApp':'calendarApp')+'Remember')};
 }
@@ -150,5 +157,52 @@ test('late share success or failure cannot overwrite or reopen a newer request',
     const f=fixture({saved:{'sorami.calendarApp':'device'},canShare:true,shareFile:()=>deferred});
     f.apps.requestCalendar(event,f.options);f.apps.set('calendar','google');f.apps.requestCalendar({...event,title:'別の予定'},f.options);const status=f.messages.at(-1);
     if(failed)reject({name:'NotAllowedError'});else resolve();await flush();assert.equal(f.messages.at(-1),status);assert(!f.doc.getElementById('calendarAppSheet').open);assert.equal(f.files.length,0);
+  }
+});
+
+
+test('iPhone with Google as default hands off the chosen coordinates without opening a browser tab',()=>{
+  const f=fixture({ua:'iPhone',saved:{'sorami.mapApp':'google'}});
+  f.apps.requestMap({latitude:35.583465,longitude:139.568839},f.options);
+  assert.equal(f.urls.length,1);
+  const app=new URL(f.urls[0]);
+  assert.equal(app.protocol,'comgooglemaps:');
+  assert.equal(app.searchParams.get('q'),'35.5834650,139.5688390');
+  assert.equal(f.shown.length,0);
+  f.runTimers();
+  assert.equal(f.urls.length,1,'remaining on the page does not automatically launch the web site');
+  assert(f.doc.getElementById('mapAppSheet').open);
+  const web=f.webFallback();
+  assert.equal(web.textContent,'ブラウザで開く');
+  web.onclick();web.onclick();
+  assert.equal(f.urls.length,2);
+  const site=new URL(f.urls[1]);
+  assert.equal(site.hostname,'www.google.com');
+  assert.equal(site.searchParams.get('query'),'35.5834650, 139.5688390');
+  assert.equal(f.apps.get('map'),'google');
+  assert.deepEqual(f.writes,[]);
+});
+
+test('a handoff, cancellation or a newer location invalidates the old fallback',()=>{
+  const f=fixture({ua:'iPhone',saved:{'sorami.mapApp':'google'}});
+  f.apps.requestMap('35, 139',f.options);
+  f.doc.visibilityState='hidden';f.doc.emit('visibilitychange');f.doc.visibilityState='visible';
+  f.runTimers();
+  assert.equal(f.shown.length,0);
+  f.apps.requestMap('36, 140',f.options);f.runTimers();
+  const obsolete=f.webFallback();
+  f.apps.requestMap('37, 141',f.options);obsolete.onclick();f.runTimers();f.webFallback().onclick();
+  assert.deepEqual(f.urls.map(url=>new URL(url).searchParams.get('q')||new URL(url).searchParams.get('query')),['35,139','36,140','37,141','37, 141']);
+  assert.deepEqual(f.writes,[]);
+});
+
+test('Google handoff also works in iPad desktop mode and keeps desktop Mac HTTPS routing',()=>{
+  for(const [ua,touchPoints,protocol] of [['Macintosh',5,'comgooglemaps:'],['Macintosh',0,'https:'],['Android',5,'https:']]){
+    const f=fixture({ua,touchPoints});
+    f.apps.requestMap('35, 139',f.options);
+    f.pick('map','google').onclick();
+    assert.equal(new URL(f.urls[0]).protocol,protocol);
+    f.apps.cancelMap();f.runTimers();
+    assert.equal(f.shown.length,1);
   }
 });

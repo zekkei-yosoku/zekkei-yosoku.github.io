@@ -229,12 +229,13 @@ if(typeof AstroNotesPlan!=='undefined')globalThis.SoramiPlan=AstroNotesPlan;
 // Trial external-app owner. Preferences are per device; launch ports are injectable.
 (() => {
 'use strict';
-AstroNotesPlan.createExternalApps=function({storage,show,onMapChange=()=>{},doc=document,ua=navigator.userAgent,
- launchUrl=url=>{if(url.startsWith('geo:')){location.href=url;return;}const a=doc.createElement('a');a.href=url;a.target='_blank';a.rel='noopener noreferrer';doc.body.append(a);a.click();a.remove();},
+AstroNotesPlan.createExternalApps=function({storage,show,onMapChange=()=>{},doc=document,ua=navigator.userAgent,touchPoints=globalThis.navigator?.maxTouchPoints||0,
+ launchUrl=url=>{if(/^(?:geo:|comgooglemaps:\/\/)/.test(url)){location.href=url;return;}const a=doc.createElement('a');a.href=url;a.target='_blank';a.rel='noopener noreferrer';doc.body.append(a);a.click();a.remove();},
  saveFile=file=>{const url=URL.createObjectURL(file),a=doc.createElement('a');a.href=url;a.download=file.name;doc.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);},
  canShareFile=file=>{try{return !!navigator.share&&!!navigator.canShare?.({files:[file]});}catch{return false;}},
  shareFile=file=>navigator.share({files:[file],title:'撮影予定'})}={}){
  const apple=/iPhone|iPad|iPod|Macintosh/i.test(ua),android=/Android/i.test(ua);
+ const appleMobile=/iPhone|iPad|iPod/i.test(ua)||(/Macintosh/i.test(ua)&&touchPoints>1);
  const keys={map:'sorami.mapApp',calendar:'sorami.calendarApp'};
  const mapApps={
   device:{name:'端末の地図アプリ',chipLabel:'地図アプリ',url:t=>'geo:'+t.replaceAll(' ','')+'?q='+t.replaceAll(' ','')},
@@ -257,7 +258,7 @@ AstroNotesPlan.createExternalApps=function({storage,show,onMapChange=()=>{},doc=
  }
  const notify=(r,message)=>{if(r&&current(r))r.onStatus?.(message);};
  const current=r=>pending[r.kind]===r&&(!r.parent||r.parent.open)&&r.isCurrent();
- function cancel(kind){const r=pending[kind];pending[kind]=null;r?.cleanup?.();if(sheets[kind]?.dialog.open)sheets[kind].dialog.close();}
+ function cancel(kind){const r=pending[kind];pending[kind]=null;r?.cleanup?.();r?.stopMapRecovery?.();if(sheets[kind]?.dialog.open)sheets[kind].dialog.close();}
  function sheet(kind){
   if(sheets[kind])return sheets[kind];const prefix=kind==='map'?'mapApp':'calendarApp';let dialog=doc.getElementById(prefix+'Sheet');
   if(!dialog){dialog=doc.createElement('dialog');dialog.id=prefix+'Sheet';dialog.className='sheet';dialog.tabIndex=-1;dialog.setAttribute('aria-labelledby',prefix+'Title');
@@ -280,8 +281,12 @@ AstroNotesPlan.createExternalApps=function({storage,show,onMapChange=()=>{},doc=
   if(parent){const close=()=>{if(!parent.open&&pending[kind]===r)cancel(kind);};parent.addEventListener('close',close);r.cleanup=()=>parent.removeEventListener('close',close);}
   pending[kind]=r;return r;
  }
- function showChoices(r,{recovery=false}={}){
-  if(!current(r))return;const s=sheet(r.kind),version=(r.choiceVersion||0)+1;r.choiceVersion=version;s.active=r;r.launched=false;s.list.replaceChildren();s.dialog.querySelector('[data-open-once]')?.remove();s.status.textContent=recovery?'カレンダーへ渡せませんでした。別の方法を選ぶか、予定ファイルを保存してください。':'';
+ function showChoices(r,{recovery=false,mapFallback=false}={}){
+  if(!current(r))return;
+  const s=sheet(r.kind),version=(r.choiceVersion||0)+1;
+  r.choiceVersion=version;s.active=r;r.launched=false;s.list.replaceChildren();s.dialog.querySelector('[data-open-once]')?.remove();
+  s.status.textContent=recovery?'カレンダーへ渡せませんでした。別の方法を選ぶか、予定ファイルを保存してください。':
+   mapFallback?'Google マップが開かない場合は、ブラウザでも開けます。':'';
   s.note.textContent=r.kind==='map'?r.value:'端末のカレンダーはAppleカレンダー・Outlookなどの共有・読み込み画面へ進みます。';
   s.remember.checked=!!get(r.kind);s.remember.disabled=recovery;
   for(const {id,label}of choices(r.kind)){const b=doc.createElement('button');b.type='button';b.className='fav-btn';b.textContent=label;b.dataset.externalApp=id;b.style.minHeight='44px';b.onclick=()=>{
@@ -291,16 +296,48 @@ AstroNotesPlan.createExternalApps=function({storage,show,onMapChange=()=>{},doc=
   };s.list.append(b);}
   if(recovery){const b=doc.createElement('button');b.type='button';b.className='fav-btn';b.id='calendarFileSave';b.textContent='予定ファイルを保存';b.style.minHeight='44px';b.onclick=()=>{if(!current(r)||r.launched||r.choiceVersion!==version)return;r.launched=true;s.dialog.close();launch(r,'file');};
   s.list.append(b);}
+  if(mapFallback){
+   const b=doc.createElement('button');b.type='button';b.className='fav-btn';b.dataset.mapWebFallback='';
+   b.textContent='ブラウザで開く';b.style.minHeight='44px';
+   b.onclick=()=>{
+    if(!current(r)||r.launched||r.choiceVersion!==version)return;
+    r.launched=true;s.dialog.close();launch(r,'web');
+   };
+   s.list.append(b);
+  }
   if(!s.dialog.open)show(s.dialog);else s.dialog.focus({preventScroll:true});
  }
  function addOnce(s,r,id,version){
   let b=s.dialog.querySelector('[data-open-once]');if(!b){b=doc.createElement('button');b.type='button';b.className='fav-btn';b.dataset.openOnce='';b.style.minHeight='44px';s.status.after(b);}
   b.textContent='今回だけ開く';b.onclick=()=>{if(!current(r)||r.launched||r.choiceVersion!==version)return;r.launched=true;s.dialog.close();b.remove();launch(r,id);};
  }
+ function launchGoogleMap(r){
+  const leave=()=>{if(pending.map===r)cancel('map');};
+  const visibility=()=>{if(doc.visibilityState==='hidden')leave();};
+  const timer=setTimeout(()=>{
+   if(!current(r)||doc.visibilityState==='hidden'){leave();return;}
+   showChoices(r,{mapFallback:true});
+  },1200);
+  r.stopMapRecovery=()=>{
+   clearTimeout(timer);
+   doc.removeEventListener('visibilitychange',visibility);
+   doc.defaultView?.removeEventListener('pagehide',leave);
+   r.stopMapRecovery=null;
+  };
+  doc.addEventListener('visibilitychange',visibility);
+  doc.defaultView?.addEventListener('pagehide',leave);
+  try{launchUrl('comgooglemaps://?q='+encodeURIComponent(r.value.replaceAll(' ','')));}
+  catch{r.stopMapRecovery?.();showChoices(r,{mapFallback:true});}
+ }
  function launch(r,id){
   // Keep URL opening in the user's click task; no await precedes this call.
   try{
-   if(r.kind==='map'){launchUrl(mapApps[id].url(r.value));return;}
+   if(r.kind==='map'){
+    r.stopMapRecovery?.();
+    if(id==='google'&&appleMobile)launchGoogleMap(r);
+    else launchUrl(mapApps[id==='web'?'google':id].url(r.value));
+    return;
+   }
    if(id==='google'){launchUrl(AstroNotesPlan.google(r.value));notify(r,'開いたカレンダーで登録を確定してください。');return;}
    const file=new File([AstroNotesPlan.ics(r.value)],'AstroNotes_撮影予定.ics',{type:'text/calendar;charset=utf-8'});
    if(id==='file'||!canShareFile(file)){saveFile(file);notify(r,'予定ファイルを開いて、カレンダーに追加してください。');return;}

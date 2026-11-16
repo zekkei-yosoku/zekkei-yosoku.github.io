@@ -102,7 +102,7 @@ test('the skyline says how high up the target the building tops along the whole 
  assert.equal((await h.skyline(observer,{...north(5)})).status,'unknown');
 });
 
-function previewWorld({meshCount=1,columns=1,failedMesh=-1,pause=false}={}){
+function previewWorld({meshCount=1,columns=1,failedMesh=-1,pause=false,beforeMesh=null}={}){
  const empty=pack(new Uint16Array(ROWS*COLS));
  const packedRoof=pack(new Uint16Array(ROWS*COLS).fill(50));
  const digest=bytes=>createHash('sha256').update(bytes).digest('hex').slice(0,16);
@@ -122,6 +122,7 @@ function previewWorld({meshCount=1,columns=1,failedMesh=-1,pause=false}={}){
   requests.set(code||p4,(requests.get(code||p4)||0)+1);
   active++;maxActive=Math.max(maxActive,active);
   if(pause)await new Promise(resolve=>setTimeout(resolve,1));
+  if(code&&beforeMesh)await beforeMesh(code);
   active--;
   if(p4&&bodies.has(p4))return new Response(bodies.get(p4));
   const i=entries.get(code);
@@ -152,7 +153,7 @@ test('preview frontage retains early roofs beyond the 160-grid cache with bounde
  const [result]=await f.heights.frontage(observer,Array.from({length:81},(_,i)=>i),17000);
  assert(result.angle>20,'the first mesh roof still contributes after reading more than 160 meshes');
  assert.equal(result.complete,true);
- assert.equal(f.maxActive(),6);
+ assert.equal(f.maxActive(),5);
  assert([...f.requests.keys()].filter(key=>key.length===8).length>160);
  assert([...f.requests.values()].every(n=>n===1),'each mesh and part is read only once per sweep');
 });
@@ -169,8 +170,30 @@ test('preview shares the tile concurrency cap and does not start more reads afte
  assert.equal(f.requests.size,requested);
  const used=previewWorld({meshCount:8,pause:true});
  await Promise.all([used.heights.frontage(observer,[0],7000),used.heights.frontage(observer,[0],7000)]);
- assert.equal(used.maxActive(),6);
+ assert.equal(used.maxActive(),5);
  assert([...used.requests.values()].every(n=>n===1));
+});
+
+test('the central preview can start its own mesh while all five frontage slots are occupied', {timeout:5000},async()=>{
+ let release,notify;
+ const held=new Promise(resolve=>{release=resolve;});
+ const fiveStarted=new Promise(resolve=>{notify=resolve;});
+ let started=0;
+ const central=H.meshCode(MY,MX+1);
+ const f=previewWorld({meshCount:400,columns:20,beforeMesh:async code=>{
+  if(code===central||code===CODE)return;
+  if(++started===5)notify();
+  await held;
+ }});
+ const frontage=f.heights.frontage(observer,[0],20000);
+ try{
+  await fiveStarted;
+  const endpoint={latitude:observer.latitude,longitude:observer.longitude+0.015,elevation:70};
+  const center=f.heights.skyline(observer,{endpoint,maxM:1350},{preview:true});
+  await center;
+  assert(f.requests.has(central),'the central mesh starts before a frontage tile releases its slot');
+  assert.equal(f.maxActive(),6);
+ }finally{release();await frontage;}
 });
 
 test('the opt-in central preview reads the same measured skyline as the sequential path',async()=>{

@@ -156,7 +156,7 @@ function checkCommon(r,s){
       assert.equal(row.buildingFarBand,clear.buildingFarBand,'a local or unread roof must not create an invented full-width edge');
       if(mode==='skyline-reject'){
        assert(row.moonOpaque>=clear.moonOpaque*.95,'a rejected reader does not extrapolate the known center height over the off-axis Moon');
-       assert.match([row.aria,row.note,...row.canvasTexts].join(' '),/未確認|確認でき|読み込め/,'rejected skyline has a readable status');
+       assert.doesNotMatch([row.aria,row.note,...row.canvasTexts].join(' '),/手前の(遮蔽|地形|建物).*(未確認|確認中)/,'failed roof read adds no warning to the diagram');
       }else{
        assert(row.fixture.finiteRays>0&&row.fixture.finiteRays<row.fixture.rayCount/2,'only a sparse off-axis Moon sector has a finite roof');
        assert(row.moonOpaque>20&&row.moonOpaque<clear.moonOpaque*.9,'the sparse roof hides some of the Moon while retaining the visible part: '+row.moonOpaque+'/'+clear.moonOpaque);
@@ -164,11 +164,11 @@ function checkCommon(r,s){
       }
       if(mode==='partial'){
        assert(row.fixture.incompleteRays>0,'other rays have incomplete coverage');
-       assert.match([row.aria,row.note,...row.canvasTexts].join(' '),/手前の遮蔽は一部未確認/,'known roof and incomplete coverage are represented together');
+       assert.doesNotMatch([row.aria,row.note,...row.canvasTexts].join(' '),/手前の遮蔽は一部未確認/,'a partly read skyline is displayed without status copy');
       }
       if(mode==='center-pending')assert.equal(row.fixture.hiddenSettled,false,'off-axis roof renders while center-line read is still pending');
      }
-     if(mode==='missing')assert.match([row.aria,row.note,...row.canvasTexts].join(' '),/未確認|確認でき|読み込め/,'failed center obstruction read remains readable');
+     if(mode==='missing')assert.doesNotMatch([row.aria,row.note,...row.canvasTexts].join(' '),/手前の(遮蔽|地形).*(未確認|確認中)/,'failed center obstruction does not add status copy');
      if(mode==='mountain'){assert(row.canvasTexts.includes('水平（0°）'),'mountain keeps its horizontal reference');assert(row.groundStrokes.some(o=>o.dash.join(',')==='5,4'),'the mountain reference remains dashed');}
      assert.deepEqual(errors,[]);assert.equal(writesBlocked,0,'viewing does not attempt to write user data');
      row.passed=true;results.push(row);fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log('PASS',engine,s.id,'moon',row.moonOpaque,'texts',JSON.stringify(row.canvasTexts));
