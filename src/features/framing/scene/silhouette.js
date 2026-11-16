@@ -56,4 +56,46 @@ function aimLookSolidSilhouette(polygons,{closeBase=false,basePoints=[],view=nul
   c.putImageData(image,0,0);return {canvas,x,y,width:w/scaleX,height:h/scaleY,filled};
 }
 
-export {aimLookSolidSilhouette};
+// In the gnomonic view, bearing boundaries are straight lines even when a high
+// roof moves towards the center of the picture. Clip each known bearing strip.
+function aimLookForeground(rows, bearings, halfStep, view, scale, bounds) {
+  const rad = Math.PI / 180, tilt = view.alt0 * rad;
+  const cos = Math.cos(tilt), sin = Math.sin(tilt), step = halfStep * rad;
+  const [left, top, right, bottom] = bounds;
+  const rectangle = [[left, top], [right, top], [right, bottom], [left, bottom]];
+  const localRight = x => (x - view.halfW * scale) * rad / scale;
+  const localUp = y => (view.halfH * scale - y) * rad / scale;
+  const forward = y => cos - localUp(y) * sin;
+  const up = y => sin + localUp(y) * cos;
+  const edge = az => (x, y) => localRight(x) * Math.cos(az) - forward(y) * Math.sin(az);
+  const clip = (points, value) => {
+    const out = [];
+    for (let i = 0, n = points.length; i < n; i++) {
+      const a = points[(i + n - 1) % n], b = points[i], va = value(...a), vb = value(...b);
+      if ((va < 0) !== (vb < 0)) {
+        const f = va / (va - vb);
+        out.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]);
+      }
+      if (vb >= 0) out.push(b);
+    }
+    return out;
+  };
+  const path = new Path2D();
+  let hasRoof = false;
+  rows.forEach(({angle}, i) => {
+    if (!Number.isFinite(angle)) return;
+    const az = (bearings[i] - view.az0) * rad, h = angle * rad;
+    const rightEdge = edge(az + step), lo = edge(az - step);
+    const strip = clip(clip(rectangle, lo), (x, y) => -rightEdge(x, y));
+    const below = (x, y) => (forward(y) * Math.cos(az) + localRight(x) * Math.sin(az)) * Math.sin(h) - up(y) * Math.cos(h);
+    const footprint = clip(strip, below);
+    if (footprint.length < 3) return;
+    path.moveTo(...footprint[0]);
+    for (const p of footprint.slice(1)) path.lineTo(...p);
+    path.closePath();
+    hasRoof = true;
+  });
+  return hasRoof ? path : null;
+}
+
+export {aimLookSolidSilhouette,aimLookForeground};

@@ -60,17 +60,19 @@ function cells(p0,p1,d0,d1,visit){
  return true;
 }
 const sha=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
-function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):null),base='data/building-heights/',loadIndex=null,gsiAlong=null,groundAt=null,ownFootprint=null,obstacles=null}={}){
+function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):null),base='data/building-heights/',loadIndex=null,gsiAlong=null,groundAt=null,ownFootprint=null,ownFootprintVersion=null,obstacles=null}={}){
  let indexPromise=null;const meshes=new Map(),ready=new Map(),overlays=new Map(),partLoads=new Map(),parts=new Map(),ownCells=new Map();
  // Cells of a user's target building (lat/lon rings), widened by one cell: that building is the target, not an obstacle.
  function ownSet(targetKey){
-  if(!ownFootprint||!targetKey)return null;if(ownCells.has(targetKey))return ownCells.get(targetKey);
+  if(!ownFootprint||!targetKey)return null;
+  const version=ownFootprintVersion?.(targetKey),cached=ownCells.get(targetKey);
+  if(cached&&cached.version===version)return cached.set;
   const rings=ownFootprint(targetKey);let set=null;
   if(rings?.length){set=new Set();for(const ring of rings){const xs=ring.map(p=>p[1]*LON),ys=ring.map(p=>p[0]*LAT);
    for(let gy=Math.floor(Math.min(...ys))-1;gy<=Math.floor(Math.max(...ys))+1;gy++)for(let gx=Math.floor(Math.min(...xs))-1;gx<=Math.floor(Math.max(...xs))+1;gx++){
     let on=false;const x=gx+.5,y=gy+.5;for(let i=0,j=xs.length-1;i<xs.length;j=i++)if((ys[i]>y)!==(ys[j]>y)&&x<(xs[j]-xs[i])*(y-ys[i])/(ys[j]-ys[i])+xs[i])on=!on;
     if(on)for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)set.add((gx+dx)+','+(gy+dy));}}}
-  ownCells.set(targetKey,set);if(ownCells.size>32)ownCells.delete(ownCells.keys().next().value);return set;
+  ownCells.set(targetKey,{version,set});if(ownCells.size>32)ownCells.delete(ownCells.keys().next().value);return set;
  }
  // The main index lists one part per 1st-order mesh (about 80 km); a part lists its meshes. Only parts a line reaches are read.
  let indexData=null;
@@ -89,6 +91,72 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
    const grid=decode(new Uint8Array(await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()));ready.set(code,grid);return grid;})().catch(e=>{meshes.delete(code);throw e;}));
   if(meshes.size>160){const old=meshes.keys().next().value;meshes.delete(old);ready.delete(old);}
   return meshes.get(code);
+ }
+ // Keep the preview's fetch limit shared across overlapping renders. The existing search readers retain their order.
+ const previewReads=[],PREVIEW_READ_LIMIT=6,PREVIEW_MESH_LIMIT=256,PREVIEW_WAIT_MS=8000,PREVIEW_RANGE_M=50000;
+ let activePreviewReads=0;
+ function runPreviewReads(){
+  while(activePreviewReads<PREVIEW_READ_LIMIT&&previewReads.length){
+   const {load,isCurrent,resolve,reject}=previewReads.shift();
+   if(!isCurrent()){reject(Error('candidate-cancelled'));continue;}
+   activePreviewReads++;
+   Promise.resolve().then(()=>{requireCurrent(isCurrent);return load();}).then(resolve,reject).finally(()=>{activePreviewReads--;runPreviewReads();});
+  }
+ }
+ function queuePreviewRead(load,isCurrent){
+  return new Promise((resolve,reject)=>{previewReads.push({load,isCurrent,resolve,reject});runPreviewReads();});
+ }
+ const requireCurrent=isCurrent=>{if(!isCurrent())throw Error('candidate-cancelled');};
+ function walkSightline(observer,azimuth,maxM,visit,endpoint=null){
+  let from=observer;
+  for(let d=0;d<maxM;){
+   const end=Math.min(maxM,d+NODE_M),to=end===maxM&&endpoint?endpoint:destination(observer.latitude,observer.longitude,azimuth,end);
+   cells(from,to,d,end,visit);from=to;d=end;
+  }
+ }
+ function meshReader(visit){
+  let lastMy,lastMx,code;
+  return (gx,gy,a,z)=>{
+   const my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS);
+   if(my!==lastMy||mx!==lastMx){lastMy=my;lastMx=mx;code=meshCode(my,mx);}
+   visit(code,(gy-my*ROWS)*COLS+(gx-mx*COLS),a,z);
+  };
+ }
+ function collectMeshes(observer,azimuth,maxM,needed,own,{endpoint=null}={}){
+  const remember=meshReader((code,_,a)=>{if(a<(needed.get(code)??Infinity))needed.set(code,a);});
+  walkSightline(observer,azimuth,maxM,(gx,gy,a,z)=>{
+   if(z>=NEAR_M&&!own?.has(gx+','+gy))remember(gx,gy,a,z);
+  },endpoint);
+ }
+ async function readPreviewItems(keys,load,isCurrent,expires){
+  const results=new Map();
+  let open=true,timer;
+  const current=()=>open&&isCurrent();
+  const tasks=Promise.all([...keys].map(async key=>{
+   try{const value=await queuePreviewRead(()=>load(key),current);if(current())results.set(key,value);}
+   catch(e){if(e?.message==='candidate-cancelled'&&open)requireCurrent(isCurrent);}
+  }));
+  try{
+   await Promise.race([tasks,new Promise(resolve=>{timer=setTimeout(()=>{open=false;resolve();},Math.max(0,expires-Date.now()));})]);
+   requireCurrent(isCurrent);return results;
+  }finally{open=false;clearTimeout(timer);}
+ }
+ async function prefetchGrids(data,needed,isCurrent){
+  // Keep the nearest available roofs if a wide or slow request cannot load every mesh.
+  const codes=[...needed].sort((a,b)=>a[1]-b[1]).slice(0,PREVIEW_MESH_LIMIT).map(([code])=>code);
+  const expires=Date.now()+PREVIEW_WAIT_MS,partKeys=new Set();
+  for(const code of codes){const p4=code.slice(0,4);if(data.parts?.[p4]&&!parts.has(p4))partKeys.add(p4);}
+  await readPreviewItems(partKeys,p4=>part(p4,data),isCurrent,expires);
+  const entries=new Map(),grids=new Map();
+  for(const code of codes){
+   const grid=ready.get(code),entry=parts.get(code.slice(0,4))?.[code];
+   if(grid)grids.set(code,grid);else if(entry)entries.set(code,entry);
+  }
+  if(Date.now()>=expires)return grids;
+  // Retain these grids for both passes of this call even if a wide view evicts them from the shared cache.
+  const loaded=await readPreviewItems(entries.keys(),code=>mesh(code,entries.get(code)),isCurrent,expires);
+  for(const [code,grid] of loaded)if(grid)grids.set(code,grid);
+  return grids;
  }
  // Target buildings live beside the grid; a ray aimed at one target passes through that target only.
  function overlay(code,data,targetKey){
@@ -188,10 +256,18 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
  }
  // How high up the target's axis the building tops along the whole line hide it (2026-11-13, user: from 新宿御苑 the
  // buildings leave only Tokyo Tower's mast, so it is no candidate). PLATEAU tops only: GSI footprints have no height.
- async function skyline(observer,ray,{isCurrent=()=>true}={}){
+ async function skyline(observer,ray,{isCurrent=()=>true,preview=false}={}){
   if(!ray.endpoint||![observer.latitude,observer.longitude,observer.elevation,ray.maxM].every(Number.isFinite)||!(ray.maxM>0))return {status:'unknown',reason:'invalid-ray'};
   const data=await index(),offset=data.grid.offsetM,D=ray.maxM,c=1/(2*R*(ray.refractionK||1)),eye=observer.elevation+(observer.eyeM??1.5),own=ownSet(ray.targetKey);
   const az=bearingM(observer,ray.endpoint).azimuth,hide=(top,s)=>eye+(top-eye-c*s*s)/s*D+c*D*D;
+  let previewGrids=null;
+  if(preview&&D<=PREVIEW_RANGE_M){
+   requireCurrent(isCurrent);
+   if(D<=NEAR_M)return {status:'ok',toM:-Infinity,distanceM:null,topM:null,complete:false};
+   const needed=new Map();
+   collectMeshes(observer,az,D,needed,own,{endpoint:ray.endpoint});
+   previewGrids=await prefetchGrids(data,needed,isCurrent);
+  }
   let best=null,uncovered=0,pending=null,lastKey=null,code=null;
   const visit=(gx,gy,a,z)=>{
    if(a<NEAR_M||own?.has(gx+','+gy))return;
@@ -199,7 +275,7 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
    const p4=code.slice(0,4),list=data.parts?.[p4]?parts.get(p4):null;
    if(data.parts?.[p4]&&!list){pending={part:p4};return false;}
    const entry=list?.[code];if(!entry){uncovered++;return;}
-   const grid=ready.get(code);if(!grid){pending={code,entry};return false;}
+   const grid=previewGrids?previewGrids.get(code):ready.get(code);if(!grid){pending={code,entry};return false;}
    const i=(gy-my*ROWS)*COLS+(gx-mx*COLS),others=overlay(code,data,ray.targetKey);if(others.own.has(i))return;
    const v=Math.max(grid[i],others.get(i)||0);if(!v)return;
    const top=v-offset,toM=Math.max(hide(top,a),hide(top,Math.max(z,a+.01)));
@@ -212,6 +288,7 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
    for(;;){
     pending=null;const done=cells(from,to,d,e,visit);
     if(done!==false||!pending)break;
+    if(previewGrids)return {status:'unknown',reason:'height-data-unavailable'};
     [best,uncovered]=mark;
     try{if(pending.part)await part(pending.part,data);else await mesh(pending.code,pending.entry);}catch{return {status:'unknown',reason:'height-data-unavailable'};}
    }
@@ -253,7 +330,52 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   }
   return out;
  }
- return {trace,skyline,index,topNow,loadAt,angles};
+ // Preview-only skyline. A known roof establishes a lower bound even when another cell on the same bearing is missing.
+ // complete describes just the sampled interval [NEAR_M, maxM], not other obstacle types or the real world's coverage.
+ async function frontage(observer,azimuths,maxM,{targetKey=null,refractionK=7/6,isCurrent=()=>true}={}){
+  requireCurrent(isCurrent);
+  const unread=()=>({angle:-Infinity,complete:false});
+  if(!azimuths.length)return [];
+  if(![observer.latitude,observer.longitude,observer.elevation,maxM,refractionK].every(Number.isFinite)||!(maxM>NEAR_M&&refractionK>0))return azimuths.map(unread);
+  let data;
+  try{data=await index();}catch{requireCurrent(isCurrent);return azimuths.map(unread);}
+  const range=Math.min(maxM,PREVIEW_RANGE_M);
+  const eye=observer.elevation+(observer.eyeM??1.5),c=1/(2*R*refractionK),own=ownSet(targetKey),needed=new Map(),rows=[];
+  const yieldWalk=()=>new Promise(resolve=>setTimeout(resolve,0));
+  for(let i=0;i<azimuths.length;i++){
+   requireCurrent(isCurrent);
+   if(Number.isFinite(azimuths[i]))collectMeshes(observer,azimuths[i],range,needed,own);
+   if(i%8===7)await yieldWalk();
+  }
+  const grids=await prefetchGrids(data,needed,isCurrent);
+  for(let i=0;i<azimuths.length;i++){
+   requireCurrent(isCurrent);
+   const azimuth=azimuths[i];
+   let angle=-Infinity,complete=Number.isFinite(azimuth);
+   if(complete){
+    let lastCode,grid,other;
+    const roof=meshReader((code,cell,a,z)=>{
+     if(code!==lastCode){lastCode=code;grid=grids.get(code);other=grid?overlay(code,data,targetKey):null;}
+     if(!grid){complete=false;return;}
+     if(other.own.has(cell))return;
+     const v=Math.max(grid[cell],other.get(cell)||0);
+     if(!v)return;
+     const h=v-data.grid.offsetM-eye,lo=Math.max(NEAR_M,a);
+     const slope=d=>h/d-c*d;
+     // Below the eye, the apparent maximum may be inside the cell rather than at either edge.
+     const peak=h<0?Math.max(lo,Math.min(z,Math.sqrt(-h/c))):lo;
+     angle=Math.max(angle,Math.atan(slope(peak))/RAD);
+    });
+    walkSightline(observer,azimuth,range,(gx,gy,a,z)=>{
+     if(z>=NEAR_M&&!own?.has(gx+','+gy))roof(gx,gy,a,z);
+    });
+   }
+   rows.push({angle,complete:complete&&range===maxM});
+   if(i%8===7)await yieldWalk();
+  }
+  requireCurrent(isCurrent);return rows;
+ }
+ return {trace,skyline,index,topNow,loadAt,angles,frontage};
 }
 return {create,decode,meshCode,profile,cells,GSI_MAX_M,MARGIN_M};
 });
@@ -343,8 +465,8 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
  }
  // One walk gives the line's verdict and how high up the target the crowns hide it. The ray is the parabola the building
  // grid uses (eye + b d + d^2 / (2 R k)); crowns stand on the DEM ground. `footM` bounds the walk for the hidden part.
- async function sight(observer,ray,{isCurrent=()=>true}={}){
-  if(!groundAt||![observer.latitude,observer.longitude,observer.elevation,ray.maxM].every(Number.isFinite))return {status:'unread',reason:'no-ground'};
+ async function sight(observer,ray,{isCurrent=()=>true,sampleGround=groundAt}={}){
+  if(!sampleGround||![observer.latitude,observer.longitude,observer.elevation,ray.maxM].every(Number.isFinite))return {status:'unread',reason:'no-ground'};
   const eye=observer.elevation+(observer.eyeM??1.5),c=1/(2*R*(ray.refractionK||1)),D=ray.maxM;
   const b=ray.endpoint?(ray.endpoint.elevation-eye)/D-D*c:Math.tan(ray.altitude*RAD),h=d=>eye+b*d+c*d*d;
   const foot=ray.endpoint&&Number.isFinite(ray.footM)?(ray.footM-eye)/D-D*c:null,low=d=>foot===null?h(d):Math.min(h(d),eye+foot*d+c*d*d);
@@ -354,7 +476,7 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   try{
    for(let d=NEAR_M;d<=end;d+=stepAt(d)){
     if(!isCurrent())throw Error('candidate-cancelled');
-    const bin=Math.floor(d/GROUND_BIN_M);if(!grounds.has(bin)){const q=destination(observer.latitude,observer.longitude,az,(bin+.5)*GROUND_BIN_M);grounds.set(bin,await groundAt(q));}
+    const bin=Math.floor(d/GROUND_BIN_M);if(!grounds.has(bin)){const q=destination(observer.latitude,observer.longitude,az,(bin+.5)*GROUND_BIN_M);grounds.set(bin,await sampleGround(q));}
     const ground=grounds.get(bin);if(!Number.isFinite(ground))return {status:'unread',reason:'ground-unavailable'};
     if(low(d)-ground>TALLEST_M)continue;
     const p=destination(observer.latitude,observer.longitude,az,d),now=canopyNow(p.latitude,p.longitude),crown=now===undefined?await canopy(p.latitude,p.longitude):now;if(crown<MIN_M)continue;
@@ -2003,7 +2125,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
  }
  const skylineOf=async(observer,ray,options)=>{
   if(!heights?.skyline||!ray.endpoint)return null;
-  const s=await heights.skyline(observer,ray,{isCurrent:options.isCurrent}).catch(e=>{if(e?.message==='candidate-cancelled')throw e;return null;});
+  const s=await heights.skyline(observer,ray,{isCurrent:options.isCurrent,preview:options.preview}).catch(e=>{if(e?.message==='candidate-cancelled')throw e;return null;});
   return s?.status==='ok'?s:null;
  };
  // Tree tops on the line (tree-heights.js). Unread (offline, the map's server) leaves trees as before: OSM woods only.
@@ -2059,29 +2181,29 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
  }
  // The composition draws its ground line from the same line and the same ground as the search (2026-11-13,
  // user: one ground line where the building stands), so the list and the figure give one number.
- async function hiddenView(observer,target,{partId=null,isCurrent}={}){
+ async function hiddenView(observer,target,{partId=null,isCurrent,refractionK=root.AstroNotesAtmosphere?.targetK?.()??7/6}={}){
   const obs={...observer,eyeM:observer.eyeM??1.5},g=align.geometryFrom(obs,target,{eyeM:obs.eyeM,partId:partId==='__whole'?null:partId});
   if(!g||![g.azimuth,g.angle,g.topM,g.distanceKm].every(Number.isFinite))return null;
-  const k=root.AstroNotesAtmosphere?.targetK?.()??7/6;
-  const ray={azimuth:g.azimuth,altitude:g.angle,maxM:g.distanceKm*1000,endpoint:{...target,elevation:g.topM},footM:target.groundM,targetKey:target.id,refractionK:k};
+  const ray={azimuth:g.azimuth,altitude:g.angle,maxM:g.distanceKm*1000,endpoint:{...target,elevation:g.topM},footM:target.groundM,targetKey:target.id,refractionK};
   // These three readers use separate terrain, building and canopy budgets.
   const [tg,built,tr]=await Promise.all([
    terrainRay(obs,ray,{isCurrent}),
-   skylineOf(obs,ray,{isCurrent}),
+   skylineOf(obs,ray,{isCurrent,preview:true}),
    treesOf(obs,ray,{isCurrent}),
   ]);
   const tree=tr?.skyline||null;
-  if(!tg?.skyline)return {status:tg?.status||'unknown',read:false,note:built||tree?await hiddenNote(target,obs,g.azimuth,null,built,tree):null};
-  return {status:tg.status,read:true,note:await hiddenNote(target,obs,g.azimuth,tg.skyline,built,tree)};
+  const complete=!!tg?.skyline&&!tg.missing&&!!built?.complete&&tr?.status!=='unread';
+  if(!tg?.skyline)return {status:tg?.status||'unknown',read:false,complete,note:built||tree?await hiddenNote(target,obs,g.azimuth,null,built,tree):null};
+  return {status:tg.status,read:true,complete,note:await hiddenNote(target,obs,g.azimuth,tg.skyline,built,tree)};
  }
- // The town in front of the target, for the figure (2026-11-15, user: one straight line across the figure is crude): how
- // high the buildings' tops stand above the eye's level along each bearing, out to the target (deg; -Infinity where none
- // stands). The same grid and the same curve as the line to the target, whose own cells are left out. null when unread.
- async function skylineView(observer,target,azimuths,{isCurrent}={}){
+ // Standalone preview reader, so the outline can appear before the terrain archive is ready.
+ async function skylineView(observer,target,azimuths,{isCurrent,refractionK=root.AstroNotesAtmosphere?.targetK?.()??7/6}={}){
   const obs={...observer,eyeM:observer.eyeM??1.5},g=align.geometryFrom(obs,target,{eyeM:obs.eyeM});
-  if(!heights?.angles||!g||!(g.distanceKm>0)||!Array.isArray(azimuths)||!azimuths.length)return null;
-  const k=root.AstroNotesAtmosphere?.targetK?.()??7/6;
-  return heights.angles(obs,azimuths,g.distanceKm*1000,{targetKey:target.id,isCurrent,refractionK:k}).catch(e=>{if(e?.message==='candidate-cancelled')throw e;return null;});
+  if(!heights?.frontage||!g||!(g.distanceKm>0)||!Array.isArray(azimuths)||!azimuths.length)return null;
+  return heights.frontage(obs,azimuths,g.distanceKm*1000,{targetKey:target.id,isCurrent,refractionK}).catch(e=>{
+   if(e?.message==='candidate-cancelled')throw e;
+   return null;
+  });
  }
  async function visibility(plan,solution,options={}){
   const obs=solution.observer,g=solution.geometry,at=solution.event.at,eye={...obs,elevation:obs.elevation+obs.eyeM};
@@ -2921,7 +3043,7 @@ let heightsModel=null;
 // Trees: the canopy map read where a line needs it, standing on the 10 m DEM. Its own tile budget for the ground.
 const treeGround=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxTiles:200,maxDurationMs:120000,layers:[['dem',14]]});
 const treeHeights=globalThis.AstroNotesTreeHeights?.create({groundAt:p=>treeGround.sample(p).then(r=>r.height)})||null;
-const sharedHeights=()=>heightsModel||=AstroNotesCandidateHeights.create({base:dataBase+'building-heights/',loadIndex:()=>loaded('building-heights/index.json'),ownFootprint:key=>plateauShapes?.footprint(key)||null,
+const sharedHeights=()=>heightsModel||=AstroNotesCandidateHeights.create({base:dataBase+'building-heights/',loadIndex:()=>loaded('building-heights/index.json'),ownFootprint:key=>plateauShapes?.footprint(key)||null,ownFootprintVersion:key=>plateauShapes?.attachedTo(key)||null,
  obstacles:osmPlaces?(a,b)=>osmPlaces.obstaclesAlong(a,b):null,gsiAlong:(a,b)=>AstroNotesTerrain.gsiBuildingsAlong(a,b),groundAt:p=>footprintGround.sample(p).then(r=>r.height)});
 // 見える場所の地図 (visibility-map.js). Built-in targets carry a map made beforehand (tools/build-visibility-maps.mjs);
 // a saved target's map is made on this device while searching (at most MAP_BUDGET_MS a search, to 20 km) and kept here.
@@ -2946,11 +3068,51 @@ const prefilter=visibilityMap&&{
  },
  point(plan,point,{map,need}){const r=AstroNotesVisibilityMap.lookup(map,plan.target,point.latitude,point.longitude);return !(r.known&&r.count<need);}
 };
-const viewModel=()=>viewModelPromise||=staticTerrain().then(dem=>AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:viewLive,heights:sharedHeights(),trees:treeHeights,
+// Share canopy pixels, while the preview and search use independent DEM request budgets.
+const viewTreeGround=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxTiles:160,maxDurationMs:60000,layers:[['dem',14]]});
+const viewTrees=treeHeights&&{sight:(observer,ray,options)=>treeHeights.sight(observer,ray,{...options,sampleGround:p=>viewTreeGround.sample(p).then(r=>r.height)})};
+const viewModel=()=>viewModelPromise||=staticTerrain().then(dem=>AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:viewLive,heights:sharedHeights(),trees:viewTrees,
  staticTerrain:dem}));
-AstroNotesCandidatePicker.hiddenView=async(observer,target,partId)=>{viewLive.resetBudget();treeGround.resetBudget();return (await viewModel()).hiddenView(observer,target,{partId});};
-// The town in front of the target along the figure's bearings (generic-evaluator.js skylineView), from the same model.
-AstroNotesCandidatePicker.skylineView=async(observer,target,azimuths)=>(await viewModel()).skylineView(observer,target,azimuths);
+const roofViewModel=AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,heights:sharedHeights()});
+const previewCache=new Map();
+const previewKey=(o,t,refractionK)=>[o.latitude,o.longitude,o.elevation,o.eyeM,t.id,t.latitude,t.longitude,plateauShapes?.attachedTo(t.id)?.id??null,refractionK];
+function cachedPreview(key,current,read,complete){
+ const saved=previewCache.get(key);
+ if(saved&&saved.until>Date.now()&&!saved.cancelled){
+  saved.readers?.add(current);previewCache.delete(key);previewCache.set(key,saved);
+  return saved.promise;
+ }
+ const entry={until:Infinity,promise:null,readers:new Set([current]),cancelled:false};
+ const isCurrent=()=>{
+  if(!entry.readers)return false;
+  for(const reader of entry.readers)if(!reader())entry.readers.delete(reader);
+  if(entry.readers.size)return true;
+  entry.cancelled=true;return false;
+ };
+ entry.promise=Promise.resolve().then(()=>read(isCurrent)).then(value=>{
+  if(!complete(value))entry.until=Date.now()+12000;
+  return value;
+ }).catch(error=>{if(previewCache.get(key)===entry)previewCache.delete(key);throw error;})
+ .finally(()=>{entry.readers=null;});
+ previewCache.set(key,entry);
+ while(previewCache.size>12)previewCache.delete(previewCache.keys().next().value);
+ return entry.promise;
+}
+const stillHere=()=>true;
+AstroNotesCandidatePicker.hiddenView=(observer,target,partId,current=stillHere)=>{
+ const refractionK=AstroNotesAtmosphere.targetK();
+ return cachedPreview(JSON.stringify(['center',...previewKey(observer,target,refractionK),target.groundM,target.parts,partId]),current,async isCurrent=>{
+  const model=await viewModel();
+  if(!isCurrent())throw Error('candidate-cancelled');
+  viewLive.resetBudget();viewTreeGround.resetBudget();
+  return model.hiddenView(observer,target,{partId,isCurrent,refractionK});
+ },value=>value?.complete);
+};
+AstroNotesCandidatePicker.skylineView=(observer,target,azimuths,current=stillHere)=>{
+ const refractionK=AstroNotesAtmosphere.targetK();
+ return cachedPreview(JSON.stringify(['roof',...previewKey(observer,target,refractionK),azimuths]),current,isCurrent=>
+  roofViewModel.skylineView(observer,target,azimuths,{isCurrent,refractionK}),rows=>rows?.every(row=>row.complete));
+};
 async function loadModel(){
  // The 3D band model is no longer loaded.
  if(!modelPromise)modelPromise=(async()=>{await AstroNotesAssets.ensureModels();const dem=await staticTerrain();

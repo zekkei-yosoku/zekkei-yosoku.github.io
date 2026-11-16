@@ -3,7 +3,7 @@ import {blendBodyState,lightTimingText,moonGlyphAt} from '../../forecast/view.js
 import {AimMap,aim,aimIsMountain,aimSceneBackdrop} from '../controller.js';
 import {aimLookRidge,aimTerrainBeyond,aimTerrainFront} from './terrain.js';
 import {AIM_SENSOR,aimDrawGrid,aimLens,aimLookHMS,aimLookHosts,aimLookRel} from './lens.js';
-import {aimLookSolidSilhouette} from './silhouette.js';
+import {aimLookSolidSilhouette,aimLookForeground} from './silhouette.js';
 import {aimLookPick} from './input.js';
 import {aimAirAngle,aimAirCompare,aimAirDescribe,aimLookKey,aimReverseClear} from '../reverse-and-entry.js';
 import {auth} from '../../account/session-and-access.js';
@@ -14,6 +14,7 @@ async function aimLookRender(host, spec) {
   if (!host) return;
   globalThis.AstroNotesCameraUI?.invalidate(host);
   const seq = (host._lookSeq = (host._lookSeq || 0) + 1);
+  const currentLook = () => seq === host._lookSeq && !host.hidden;
   const t = aim.target, body = aim.body;
   const restoredContext = JSON.stringify([aimLookKey(),spec.obs,spec.eyeM,t?.latitude,t?.longitude,t?.parts]);
   if(host._restoredPlanContext!==restoredContext)host._restoredPlanContext=null;
@@ -167,12 +168,12 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
   const sceneCenters = scene.map(item => proj(item.azimuth, item.topAngle)).filter(p => p && Math.abs(p[0]) < 330);
   const panLimit = Math.max(1, ...sceneCenters.map(p => Math.abs(p[0]) / (2 * win.halfW) + .5));
   let sceneVersion=0;
-  let shape = null, ridgePending = null, hidden = null, hiddenUnread = false, hiddenText = "", town = null;
+  let shape = null, ridgePending = null, hidden = null, hiddenUnread = false, hiddenPartial = false, hiddenText = "", town = null, frontageStatus = "";
   const lookObs = { latitude: spec.obs.latitude, longitude: spec.obs.longitude, elevation: ground, eyeM: spec.eyeM };
   // 塔・建物：手前の地面がどこまで隠すか。探索の視線と同じ計算を呼ぶので、一覧の文と図の線が同じ数字になる
   // （2026-11-13 ユーザー「その建物が立ってるところの地面をグランドラインにして天体の軌道は関係なくラインで出せばいいんじゃないの?」）
   const hiddenPending = outline && typeof AstroNotesCandidatePicker === "object" && typeof AstroNotesCandidatePicker.hiddenView === "function"
-    ? AstroNotesCandidatePicker.hiddenView(lookObs, t, aim.partId) : null;
+    ? AstroNotesCandidatePicker.hiddenView(lookObs, t, aim.partId, currentLook) : null;
   if (outline) shape = outline.points.map(([a, h]) => toPx(proj(a, h))).filter(Boolean);
   else {
     // 稜線を待つ間も新しい目標の図を先に描く。前の建物や時刻を残さない。
@@ -217,36 +218,26 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     if (Number.isFinite(hy) && hy < footY) groundEdge = fillEdge = hy;
   };
   placeGround();
-  // 手前の街並みの影（2026-11-15 ユーザー「横線引っ張るってちょっと雑」）。隠すのが建物の時、塔の方位1点の高さを横へ伸ばす線を
-  // やめ、図の幅（構図を動かせる分まで）の方位ごとに建物の見上げ角を同じ部品で取り、でこぼこの縁にする。塔の方位は文・一覧と
-  // 同じ数字（hidden.m）のまま。地形や木が隠す時・読めない時・建物の高さが半分以上の方位で無い時は、まっすぐな線のまま。
-  const loadTown = () => {
-    if (typeof AstroNotesCandidatePicker.skylineView !== "function" || !(D > 0)) return;
-    const hiddenAngle = aimAirAngle(D, eye, hidden.m), span = Math.min(3, 1 + 2 * panLimit) * win.halfW, n = Math.max(8, Math.min(160, Math.round(2 * span * k / 5)));
-    const step = 2 * span / n, own = Math.max(step, Math.atan2((t.widthM || 40) / 2, D * 1000) * 180 / Math.PI);
-    const azimuths = Array.from({ length: n + 1 }, (_, i) => (az - span + step * i + 360) % 360);
-    AstroNotesCandidatePicker.skylineView(lookObs, t, azimuths).catch(() => null).then((angles) => {
-      if (seq !== host._lookSeq || !hidden || !Array.isArray(angles) || angles.length !== azimuths.length) return;
-      if (angles.filter(Number.isFinite).length < angles.length / 2) return;
-      const points = [];
-      for (let i = 0; i <= n; i++) {
-        const angle = Math.abs(step * i - span) <= own ? hiddenAngle : angles[i], q = Number.isFinite(angle) ? toPx(proj(azimuths[i], angle)) : toPx(proj(azimuths[i], baseAngle));
-        if (!q || !q.every(Number.isFinite)) return;
-        points.push([q[0], Math.min(footY, q[1]), azimuths[i]]);
-      }
-      town = points; sceneVersion++; draw(cur);
-    });
-  };
-  // 街並みの縁を左から右へ（建物らしく段で）たどる。図の外まで端の高さを伸ばす
-  const townEdge = (ctx, left, right) => {
-    // 街並みの塗りと天体の遮蔽は同じ輪郭。遠方の地平線では切らない。
-    const edgeY = i => town[i][1];
-    ctx.lineTo(left, edgeY(0));
-    for (let i = 0; i < town.length; i++) {
-      const from = i ? (town[i - 1][0] + town[i][0]) / 2 : Math.min(left, town[0][0]), to = i < town.length - 1 ? (town[i][0] + town[i + 1][0]) / 2 : Math.max(right, town[i][0]);
-      ctx.lineTo(from, edgeY(i)); ctx.lineTo(to, edgeY(i));
+  // Roofs are read over the frame and its pan margin, independently of the line to the tower.
+  const unproject = AstroNotesAlign.viewUnprojector(win.az0, win.alt0);
+  const azDiff = a => ((a - win.az0 + 540) % 360) - 180;
+  const reach = Math.min(3, 1 + 2 * panLimit);
+  const corners = [-1, 1].flatMap(x => [-1, 1].map(y => Math.abs(azDiff(unproject(x * win.halfW * reach, y * win.halfH * reach)[0]))));
+  const frontageSpan = Math.min(85, Math.max(win.halfW, ...corners));
+  const frontageCount = Math.max(16, Math.min(241, Math.ceil(2 * frontageSpan * k / 3)));
+  const frontageStep = 2 * frontageSpan / frontageCount;
+  const bearings = Array.from({length: frontageCount}, (_, i) => (win.az0 - frontageSpan + (i + .5) * frontageStep + 360) % 360);
+  const canReadFrontage = outline && D > 0 && typeof AstroNotesCandidatePicker === "object" && typeof AstroNotesCandidatePicker.skylineView === "function";
+  const frontagePending = canReadFrontage ? AstroNotesCandidatePicker.skylineView(lookObs, t, bearings, currentLook) : null;
+  if (frontagePending) frontageStatus = "手前の建物を確認中";
+  let frontagePath = null, frontageKey = null;
+  const maskFor = (panX, panY, clipBottom) => {
+    const key = [panX, panY, clipBottom, sceneVersion].join(',');
+    if (key !== frontageKey) {
+      frontageKey = key;
+      frontagePath = town && aimLookForeground(town, bearings, frontageStep / 2, win, k, [-panX, -panY, W - panX, clipBottom - panY]);
     }
-    ctx.lineTo(right, edgeY(town.length - 1));
+    return frontagePath;
   };
   // 山の稜線は山の幅しか読まない。広角ではその外も実際の地形でつなぎ、山を黒い箱にしない。山の幅の内側は稜線のまま
   const mountainHorizonY = mountain ? toPx(proj(az, seaAngle))[1] : null;
@@ -375,12 +366,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     host._lookSceneBottom = clipBottom;
     ctx=bodyLayer.ctx;resetLayer(ctx,bodyLayer.canvas);layerStats.body++;
     clipWorld(ctx,panX,panY,clipBottom);
-    if (!mountain) {
-      ctx.beginPath();
-      if (town) { ctx.moveTo(-panX, -panY - H); townEdge(ctx, -panX, W - panX); ctx.lineTo(W - panX, -panY - H); ctx.closePath(); }
-      else ctx.rect(-panX, -panY - H, W, groundEdge + panY + H);
-      ctx.clip();
-    }
+    const foreground = maskFor(panX, panY, clipBottom);
     // 道と時刻の目盛り
     ctx.strokeStyle = ink; ctx.globalAlpha = 0.55; ctx.lineWidth = 1.5; ctx.setLineDash([]);
     ctx.beginPath();
@@ -404,6 +390,10 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     const upperPx=Math.max(1,(p.upperRadius??p.radius)*k),lowerPx=Math.max(1,(p.lowerRadius??p.radius)*k),diskY=(upperPx+lowerPx)/(2*rPx),diskCenter=c?c[1]+(lowerPx-upperPx)/2:0;
     globalThis.AstroNotesCameraUI?.drawRange?.(host,ctx,{at:p.at,seq,k,toPx,pack:ms=>pack(ms,AstroNotesBodies.state(body,ms,eyeObs)),disc:(x,y,r,state)=>AstroNotesSceneAppearance.aimLookDisc(ctx,x,y,r,body,state)});
     if (c){ctx.save();ctx.translate(c[0],diskCenter);ctx.scale(1,diskY);AstroNotesSceneAppearance.aimLookDisc(ctx,0,0,rPx,body,p);ctx.restore();}
+    if (foreground) {
+      ctx.globalCompositeOperation = "destination-out"; ctx.fillStyle = "#000"; ctx.fill(foreground);
+      ctx.globalCompositeOperation = "source-over";
+    }
     host._bodyRadius = p.radius; globalThis.AstroNotesTrialComposition?.redraw(host);
     host._placeXY = null;
     ctx.restore(); // End the independently updated body layer.
@@ -439,11 +429,22 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
       minX+=panX;maxX+=panX;
       if (!selected && (maxX < 0 || minX > W)) continue;
       ctx.fillStyle = "#020306";
+      // A center-line hill or crown can describe the tower, without trimming the sky on either side.
+      if (selected && !mountain) {
+        ctx.save();
+        if (hidden && !/^手前の(?:街並み|建物)$/.test(hidden.label) && fillY < footY) {
+          ctx.beginPath(); ctx.rect(-panX, -panY, W, Math.max(0, fillY + panY)); ctx.clip();
+        }
+      }
       if(item.polygons?.length){
         // 形は時刻/天体と独立。再生・ドラッグのたびに穴埋めを再計算しない。
         let mask=item.solidSilhouette;
-        if(!mask||mask.source!==item.polygons){mask=aimLookSolidSilhouette(item.polygons,{closeBase:item.target.id==="skytree",basePoints:item.basePoints,view:{minX:-panLimit*W,minY:-panLimit*H,maxX:W*(1+panLimit),maxY:H*(1+panLimit)}});if(!mask)continue;mask.source=item.polygons;
-        item.solidSilhouette=mask;}
+        if(!mask||mask.source!==item.polygons){
+          mask=aimLookSolidSilhouette(item.polygons,{closeBase:item.target.id==="skytree",basePoints:item.basePoints,
+            view:{minX:-panLimit*W,minY:-panLimit*H,maxX:W*(1+panLimit),maxY:H*(1+panLimit)}});
+          if(!mask){if(selected&&!mountain)ctx.restore();continue;}
+          mask.source=item.polygons;item.solidSilhouette=mask;
+        }
         ctx.save();
         // マスクに色を付けた別バッファを使い、空や月をsource-inで消さない。
         if(mask.ink!==ctx.fillStyle){const tinted=document.createElement('canvas');tinted.width=mask.canvas.width;tinted.height=mask.canvas.height;const c=tinted.getContext('2d');c.drawImage(mask.canvas,0,0);c.globalCompositeOperation='source-in';c.fillStyle=ctx.fillStyle;
@@ -477,36 +478,23 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
         ctx.stroke();
       }
       }
-      if (selected && !mountain) {
-        // 足元より下は地面。足元から上で対象を隠すもの（街並み・高台など）は、空より暗いが真っ黒にしない：対象の隠れる所が
-        // 透けて見え、枠の下が黒い帯にならない（2026-11-15 ユーザー、実写の夜景と並べて）
-        ctx.fillStyle = "#020306";
-        ctx.fillRect(-panX, footY, W, Math.max(0, sceneBottom - footY));
-        if (fillY < footY - 0.5) {
-          ctx.fillStyle = "rgba(4,6,12,0.62)"; ctx.beginPath();
-          if (town) { ctx.moveTo(-panX, footY); townEdge(ctx, -panX, W - panX); ctx.lineTo(W - panX, footY); ctx.closePath(); }
-          else ctx.rect(-panX, fillY, W, footY - fillY);
-          ctx.fill();
-        }
-        if (rim) {
-          ctx.strokeStyle = rim; ctx.lineWidth = 1.2; ctx.lineJoin = "round"; ctx.beginPath();
-          if (town) { ctx.moveTo(-panX, town[0][1]); townEdge(ctx, -panX, W - panX); }
-          else { ctx.moveTo(-panX, fillY); ctx.lineTo(W - panX, fillY); }
-          ctx.stroke();
-        }
-      }
+      if (selected && !mountain) ctx.restore();
       const anchor = toPx(proj(item.azimuth, item.topAngle));
       if (anchor && !(item.distanceKm > D && !mountain && anchor[1] >= groundY) && anchor[0] + panX >= 0 && anchor[0] + panX <= W && anchor[1] + panY >= 0 && anchor[1] + panY <= clipBottom)
         visibleTargets.push({ item, anchor });
     }
+    if (foreground) { ctx.fillStyle = "rgba(4,6,12,0.62)"; ctx.fill(foreground); }
     // 地上と余白の境界を昼夜とも見分けられるようにする。
     // 通常の遮蔽説明は図だけで伝える。山の水平基準と、確認できなかった状態だけは残す。
-    let groundText = hiddenUnread ? { str: "手前の地形は未確認", y: 30 } : null;
+    const beyondFrontage = town && [0, W].some(x => [0, clipBottom].some(y =>
+      Math.abs(azDiff(unproject((x - panX - W / 2) / k, (H / 2 + panY - y) / k)[0])) > frontageSpan));
+    const obstructionStatus = frontageStatus || (hiddenUnread ? "手前の地形は未確認" :
+      hiddenPartial || beyondFrontage ? "手前の遮蔽は一部未確認" : "");
+    let groundText = obstructionStatus ? { str: obstructionStatus, y: 30 } : null;
     if (groundY + panY >= 12 && groundY + panY <= H - 4) {
-      // 街並みの影がある時は、その縁が線の代わり（まっすぐな線は引かない）
-      if (!town) {
+      if (mountain) {
         ctx.strokeStyle = "#b8c8dd"; ctx.lineWidth = 1.5;
-        ctx.setLineDash(mountain ? [5, 4] : []);
+        ctx.setLineDash([5, 4]);
         ctx.beginPath(); ctx.moveTo(-panX, groundY); ctx.lineTo(W - panX, groundY); ctx.stroke(); ctx.setLineDash([]);
       }
       if (mountain) groundText = { str: "水平（0°）", y: groundY - 4 + panY };
@@ -564,7 +552,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     cur = v;
     out.innerHTML = `${S.JstCal.sameDay(p.at,spec.at) ? "" : p.at < spec.at ? "前日 " : "翌日 "}${aimLookHMS(p.at)}<span class="sub-line">${esc(aimLookRel(p.at - spec.at, spec.atName))}</span>`;
     cv.setAttribute("aria-label", `${spec.title || "ここから"}見た${visibleTargets.map(x => x.item.target.name).join("、") || t.name}と${AstroNotesBodies.definition(body).name}の動き。`
-      + `${aimLookHMS(spec.at)}に${spec.atName || "重なる"}。いまの図は${aimLookHMS(p.at)}` + (hiddenText ? `。${hiddenText}` : ""));
+      + `${aimLookHMS(spec.at)}に${spec.atName || "重なる"}。いまの図は${aimLookHMS(p.at)}` + (hiddenText ? `。${hiddenText}` : "") + (groundText && !mountain ? `。${groundText.str}` : ""));
     layerStats.frames++;layerStats.ms+=(typeof performance==='undefined'?Date.now():performance.now())-started;
   };
   let cur = i0;
@@ -766,13 +754,19 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     note.hidden = !note.textContent;
     draw(cur);
   });
+  if (frontagePending) frontagePending.catch(() => null).then(rows => {
+    if (!currentLook()) return;
+    town = Array.isArray(rows) && rows.length === bearings.length ? rows : null;
+    frontageStatus = town?.every(row => row.complete) ? "" : "手前の遮蔽は一部未確認";
+    sceneVersion++;
+    draw(cur, host._lookAt);
+  });
   if (hiddenPending) hiddenPending.catch(() => null).then((r) => {
-    if (seq !== host._lookSeq) return;
+    if (!currentLook()) return;
     // 遮蔽の高さは探索と共有。説明は読み上げ用に保持し、図には凹凸と未確認状態だけを出す。
-    hidden = r?.note ? { m: r.note.m, label: r.note.label } : null; hiddenUnread = !r?.read; hiddenText = r?.note?.text || "";
-    town = null; if (hidden && /^手前の(?:街並み|建物)$/.test(hidden.label)) loadTown();
+    hidden = r?.note ? { m: r.note.m, label: r.note.label } : null; hiddenUnread = !r?.read; hiddenPartial = r?.complete === false; hiddenText = r?.note?.text || "";
     placeGround(); sceneVersion++;
-    draw(cur);
+    draw(cur, host._lookAt);
   });
 }
 

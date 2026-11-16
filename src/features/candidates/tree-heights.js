@@ -83,8 +83,8 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
  }
  // One walk gives the line's verdict and how high up the target the crowns hide it. The ray is the parabola the building
  // grid uses (eye + b d + d^2 / (2 R k)); crowns stand on the DEM ground. `footM` bounds the walk for the hidden part.
- async function sight(observer,ray,{isCurrent=()=>true}={}){
-  if(!groundAt||![observer.latitude,observer.longitude,observer.elevation,ray.maxM].every(Number.isFinite))return {status:'unread',reason:'no-ground'};
+ async function sight(observer,ray,{isCurrent=()=>true,sampleGround=groundAt}={}){
+  if(!sampleGround||![observer.latitude,observer.longitude,observer.elevation,ray.maxM].every(Number.isFinite))return {status:'unread',reason:'no-ground'};
   const eye=observer.elevation+(observer.eyeM??1.5),c=1/(2*R*(ray.refractionK||1)),D=ray.maxM;
   const b=ray.endpoint?(ray.endpoint.elevation-eye)/D-D*c:Math.tan(ray.altitude*RAD),h=d=>eye+b*d+c*d*d;
   const foot=ray.endpoint&&Number.isFinite(ray.footM)?(ray.footM-eye)/D-D*c:null,low=d=>foot===null?h(d):Math.min(h(d),eye+foot*d+c*d*d);
@@ -94,7 +94,7 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   try{
    for(let d=NEAR_M;d<=end;d+=stepAt(d)){
     if(!isCurrent())throw Error('candidate-cancelled');
-    const bin=Math.floor(d/GROUND_BIN_M);if(!grounds.has(bin)){const q=destination(observer.latitude,observer.longitude,az,(bin+.5)*GROUND_BIN_M);grounds.set(bin,await groundAt(q));}
+    const bin=Math.floor(d/GROUND_BIN_M);if(!grounds.has(bin)){const q=destination(observer.latitude,observer.longitude,az,(bin+.5)*GROUND_BIN_M);grounds.set(bin,await sampleGround(q));}
     const ground=grounds.get(bin);if(!Number.isFinite(ground))return {status:'unread',reason:'ground-unavailable'};
     if(low(d)-ground>TALLEST_M)continue;
     const p=destination(observer.latitude,observer.longitude,az,d),now=canopyNow(p.latitude,p.longitude),crown=now===undefined?await canopy(p.latitude,p.longitude):now;if(crown<MIN_M)continue;

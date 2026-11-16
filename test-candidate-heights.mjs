@@ -15,7 +15,7 @@ function pack(grid){
 }
 const cell=(lat,lon)=>[Math.floor(lat*22200)-MY*ROWS,Math.floor(lon*18000)-MX*COLS];
 const observer={latitude:35.71,longitude:139.805,elevation:5,eyeM:1.5};
-function world({buildings=[],target=[],gsi=[]}={}){
+function world({buildings=[],target=[],gsi=[],ownFootprint,ownFootprintVersion}={}){
  const grid=new Uint16Array(ROWS*COLS),put=(list,into)=>{for(const {north,top,width=2,depth=3} of list){const [r,c]=cell(observer.latitude+north/110540,observer.longitude);for(let y=r;y<r+depth;y++)for(let x=c-width;x<=c+width;x++)into(y*COLS+x,top+20);}};
  put(buildings,(i,v)=>{grid[i]=Math.max(grid[i],v);});
  const own=[];put(target,(i,v)=>own.push([i,v]));
@@ -24,7 +24,7 @@ function world({buildings=[],target=[],gsi=[]}={}){
  const part=Buffer.from(JSON.stringify({meshes:{[CODE]:[sha.slice(0,16),top]}})),partSha=createHash('sha256').update(part).digest('hex');
  const index={grid:{offsetM:20},parts:{[CODE.slice(0,4)]:[partSha.slice(0,16),1,top]},targets:own.length?{tower:{[CODE]:{cells:own,topM:Math.max(...target.map(t=>t.top))}}}:{}};
  const fetchImpl=async url=>url.includes(CODE.slice(0,4)+'/'+CODE+'.bin')?new Response(body):url.includes(CODE.slice(0,4)+'/index.json')?new Response(part):new Response('missing',{status:404});
- return H.create({fetchImpl,loadIndex:async()=>index,gsiAlong:async()=>gsi,groundAt:async()=>5});
+ return H.create({fetchImpl,loadIndex:async()=>index,gsiAlong:async()=>gsi,groundAt:async()=>5,ownFootprint,ownFootprintVersion});
 }
 const north=altitude=>({azimuth:0,altitude,maxM:1500,refractionK:7/6});
 
@@ -100,4 +100,94 @@ test('the skyline says how high up the target the building tops along the whole 
  // The building right beside the stand point (10 m) and the aimed target's own cells are not counted.
  assert(Math.abs(at-100)<6);
  assert.equal((await h.skyline(observer,{...north(5)})).status,'unknown');
+});
+
+function previewWorld({meshCount=1,columns=1,failedMesh=-1,pause=false}={}){
+ const empty=pack(new Uint16Array(ROWS*COLS));
+ const packedRoof=pack(new Uint16Array(ROWS*COLS).fill(50));
+ const digest=bytes=>createHash('sha256').update(bytes).digest('hex').slice(0,16);
+ const hashes=[digest(packedRoof),digest(empty)],entries=new Map(),partIndexes=new Map(),bodies=new Map();
+ for(let i=0;i<meshCount;i++){
+  const code=H.meshCode(MY+Math.floor(i/columns),MX+i%columns),p4=code.slice(0,4),meshes=partIndexes.get(p4)||{};
+  meshes[code]=[hashes[i===0?0:1],i===0?30:0];partIndexes.set(p4,meshes);entries.set(code,i);
+ }
+ const parts={};
+ for(const [p4,meshes] of partIndexes){
+  const body=Buffer.from(JSON.stringify({meshes}));
+  parts[p4]=[digest(body),Object.keys(meshes).length,30];bodies.set(p4,body);
+ }
+ let active=0,maxActive=0;const requests=new Map();
+ const heights=H.create({loadIndex:async()=>({grid:{offsetM:20},parts}),async fetchImpl(url){
+  const code=url.match(/(\d+)\.bin\?/u)?.[1],p4=url.match(/(\d+)\/index\.json\?/u)?.[1];
+  requests.set(code||p4,(requests.get(code||p4)||0)+1);
+  active++;maxActive=Math.max(maxActive,active);
+  if(pause)await new Promise(resolve=>setTimeout(resolve,1));
+  active--;
+  if(p4&&bodies.has(p4))return new Response(bodies.get(p4));
+  const i=entries.get(code);
+  if(i===undefined||i===failedMesh)return new Response('missing',{status:404});
+  return new Response(i===0?packedRoof:empty);
+ }});
+ return {heights,requests,maxActive:()=>maxActive};
+}
+
+test('preview frontage separates recorded empty space, unknown space, and known roofs with missing data',async()=>{
+ const clear=world(),separate=previewWorld({meshCount:2,failedMesh:1});
+ assert.deepEqual(await clear.angles(observer,[0],120),[-Infinity]);
+ assert.deepEqual(await clear.frontage(observer,[0],120),[{angle:-Infinity,complete:true}]);
+ assert.deepEqual(await clear.frontage(observer,[0],30),[{angle:-Infinity,complete:false}]);
+ assert.deepEqual(await clear.frontage(observer,[180],1400),[{angle:-Infinity,complete:false}]);
+ assert.deepEqual(await clear.frontage(observer,[0],159000),[{angle:-Infinity,complete:false}]);
+ const [north]=await separate.heights.frontage(observer,[0],1700);
+ assert.equal(north.complete,false);assert(north.angle>20,'a roof in the loaded part remains visible');
+ const target=world({target:[{north:60,top:50}]});
+ assert.equal((await target.frontage(observer,[0],120,{targetKey:'tower'}))[0].angle,-Infinity);
+ assert((await target.frontage(observer,[0],120))[0].angle>10);
+ const [known,invalid]=await clear.frontage(observer,[0,NaN],120);
+ assert.equal(known.complete,true);assert.deepEqual(invalid,{angle:-Infinity,complete:false});
+});
+
+test('preview frontage retains early roofs beyond the 160-grid cache with bounded unique reads',async()=>{
+ const f=previewWorld({meshCount:400,columns:20,pause:true});
+ const [result]=await f.heights.frontage(observer,Array.from({length:81},(_,i)=>i),17000);
+ assert(result.angle>20,'the first mesh roof still contributes after reading more than 160 meshes');
+ assert.equal(result.complete,true);
+ assert.equal(f.maxActive(),6);
+ assert([...f.requests.keys()].filter(key=>key.length===8).length>160);
+ assert([...f.requests.values()].every(n=>n===1),'each mesh and part is read only once per sweep');
+});
+
+test('preview shares the tile concurrency cap and does not start more reads after an abandoned view',async()=>{
+ const f=previewWorld({meshCount:30,pause:true});
+ let active=true;
+ const cancelled=f.heights.frontage(observer,[0],26000,{isCurrent:()=>active});
+ const waiting=assert.rejects(cancelled,/candidate-cancelled/u);
+ while(![...f.requests.keys()].some(key=>key.length===8))await new Promise(resolve=>setTimeout(resolve,0));
+ active=false;const requested=f.requests.size;
+ await waiting;
+ await new Promise(resolve=>setTimeout(resolve,8));
+ assert.equal(f.requests.size,requested);
+ const used=previewWorld({meshCount:8,pause:true});
+ await Promise.all([used.heights.frontage(observer,[0],7000),used.heights.frontage(observer,[0],7000)]);
+ assert.equal(used.maxActive(),6);
+ assert([...used.requests.values()].every(n=>n===1));
+});
+
+test('the opt-in central preview reads the same measured skyline as the sequential path',async()=>{
+ const props={buildings:[{north:85,top:22},{north:120,top:29}],target:[{north:185,top:50}]};
+ const ray={...north(5),maxM:280,endpoint:{latitude:observer.latitude+280/110540,longitude:observer.longitude,elevation:30},targetKey:'tower'};
+ assert.deepEqual(await world(props).skyline(observer,ray,{preview:true}),await world(props).skyline(observer,ray));
+});
+
+
+test('the preview refreshes its own-target exclusion after the footprint is attached or removed',async()=>{
+ const {latitude:lat,longitude:lon}=observer;
+ const rings=[[[lat+50/110540,lon-.001],[lat+80/110540,lon-.001],[lat+80/110540,lon+.001],[lat+50/110540,lon+.001]]];
+ let attached=null,lookups=0;
+ const heights=world({buildings:[{north:60,top:50}],ownFootprint:()=>{lookups++;return attached;},ownFootprintVersion:()=>attached});
+ const run=async()=>(await heights.frontage(observer,[0],120,{targetKey:'fav:tower'}))[0].angle;
+ assert(await run()>10);
+ attached=rings;assert.equal(await run(),-Infinity);assert.equal(await run(),-Infinity);
+ attached=null;assert(await run()>10);
+ assert.equal(lookups,3);
 });

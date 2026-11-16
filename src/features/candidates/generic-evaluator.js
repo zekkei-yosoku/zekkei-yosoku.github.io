@@ -135,7 +135,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
  }
  const skylineOf=async(observer,ray,options)=>{
   if(!heights?.skyline||!ray.endpoint)return null;
-  const s=await heights.skyline(observer,ray,{isCurrent:options.isCurrent}).catch(e=>{if(e?.message==='candidate-cancelled')throw e;return null;});
+  const s=await heights.skyline(observer,ray,{isCurrent:options.isCurrent,preview:options.preview}).catch(e=>{if(e?.message==='candidate-cancelled')throw e;return null;});
   return s?.status==='ok'?s:null;
  };
  // Tree tops on the line (tree-heights.js). Unread (offline, the map's server) leaves trees as before: OSM woods only.
@@ -191,29 +191,29 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
  }
  // The composition draws its ground line from the same line and the same ground as the search (2026-11-13,
  // user: one ground line where the building stands), so the list and the figure give one number.
- async function hiddenView(observer,target,{partId=null,isCurrent}={}){
+ async function hiddenView(observer,target,{partId=null,isCurrent,refractionK=root.AstroNotesAtmosphere?.targetK?.()??7/6}={}){
   const obs={...observer,eyeM:observer.eyeM??1.5},g=align.geometryFrom(obs,target,{eyeM:obs.eyeM,partId:partId==='__whole'?null:partId});
   if(!g||![g.azimuth,g.angle,g.topM,g.distanceKm].every(Number.isFinite))return null;
-  const k=root.AstroNotesAtmosphere?.targetK?.()??7/6;
-  const ray={azimuth:g.azimuth,altitude:g.angle,maxM:g.distanceKm*1000,endpoint:{...target,elevation:g.topM},footM:target.groundM,targetKey:target.id,refractionK:k};
+  const ray={azimuth:g.azimuth,altitude:g.angle,maxM:g.distanceKm*1000,endpoint:{...target,elevation:g.topM},footM:target.groundM,targetKey:target.id,refractionK};
   // These three readers use separate terrain, building and canopy budgets.
   const [tg,built,tr]=await Promise.all([
    terrainRay(obs,ray,{isCurrent}),
-   skylineOf(obs,ray,{isCurrent}),
+   skylineOf(obs,ray,{isCurrent,preview:true}),
    treesOf(obs,ray,{isCurrent}),
   ]);
   const tree=tr?.skyline||null;
-  if(!tg?.skyline)return {status:tg?.status||'unknown',read:false,note:built||tree?await hiddenNote(target,obs,g.azimuth,null,built,tree):null};
-  return {status:tg.status,read:true,note:await hiddenNote(target,obs,g.azimuth,tg.skyline,built,tree)};
+  const complete=!!tg?.skyline&&!tg.missing&&!!built?.complete&&tr?.status!=='unread';
+  if(!tg?.skyline)return {status:tg?.status||'unknown',read:false,complete,note:built||tree?await hiddenNote(target,obs,g.azimuth,null,built,tree):null};
+  return {status:tg.status,read:true,complete,note:await hiddenNote(target,obs,g.azimuth,tg.skyline,built,tree)};
  }
- // The town in front of the target, for the figure (2026-11-15, user: one straight line across the figure is crude): how
- // high the buildings' tops stand above the eye's level along each bearing, out to the target (deg; -Infinity where none
- // stands). The same grid and the same curve as the line to the target, whose own cells are left out. null when unread.
- async function skylineView(observer,target,azimuths,{isCurrent}={}){
+ // Standalone preview reader, so the outline can appear before the terrain archive is ready.
+ async function skylineView(observer,target,azimuths,{isCurrent,refractionK=root.AstroNotesAtmosphere?.targetK?.()??7/6}={}){
   const obs={...observer,eyeM:observer.eyeM??1.5},g=align.geometryFrom(obs,target,{eyeM:obs.eyeM});
-  if(!heights?.angles||!g||!(g.distanceKm>0)||!Array.isArray(azimuths)||!azimuths.length)return null;
-  const k=root.AstroNotesAtmosphere?.targetK?.()??7/6;
-  return heights.angles(obs,azimuths,g.distanceKm*1000,{targetKey:target.id,isCurrent,refractionK:k}).catch(e=>{if(e?.message==='candidate-cancelled')throw e;return null;});
+  if(!heights?.frontage||!g||!(g.distanceKm>0)||!Array.isArray(azimuths)||!azimuths.length)return null;
+  return heights.frontage(obs,azimuths,g.distanceKm*1000,{targetKey:target.id,isCurrent,refractionK}).catch(e=>{
+   if(e?.message==='candidate-cancelled')throw e;
+   return null;
+  });
  }
  async function visibility(plan,solution,options={}){
   const obs=solution.observer,g=solution.geometry,at=solution.event.at,eye={...obs,elevation:obs.elevation+obs.eyeM};

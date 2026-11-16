@@ -53,7 +53,7 @@ test('図の線は探索と同じ視線・同じ地形から：一覧の文と�
  const g=A.geometryFrom(obs,sky,{eyeM:1.5});
  assert.equal(rays[0].ray.azimuth,g.azimuth);assert.equal(rays[0].ray.maxM,g.distanceKm*1000);assert.equal(rays[0].ray.endpoint.elevation,g.topM);
  const none=createGeneric({align:A,bodies:{},geo,terrain:{trace:async()=>({status:'unknown',reason:'terrain-budget'})}});
- assert.deepEqual(await none.hiddenView(obs,sky),{status:'unknown',read:false,note:null});
+ assert.deepEqual(await none.hiddenView(obs,sky),{status:'unknown',read:false,complete:false,note:null});
 });
 test('手前の建物が地形より高く隠すときは建物と書き、図の線もその高さにする',async()=>{
  const {createGeneric}=require('./src/features/candidates/generic-evaluator.js'),tower=A.targetById('tokyotower');
@@ -103,10 +103,11 @@ test('街並みの遮蔽を出す地形・建物・樹木は互いの読取完�
 
 test('街並みの影は対象までの方位ごとの建物の見上げ角を同じ部品から返し、読めなければ無い',async()=>{
  const {createGeneric}=require('./src/features/candidates/generic-evaluator.js'),obs={latitude:35.5846,longitude:139.576,elevation:87.2,eyeM:1.5},asked=[];
- const heights={angles:async(o,azimuths,maxM,options)=>{asked.push({o,azimuths,maxM,options});return azimuths.map((a,i)=>i?-Infinity:.4);}};
+ const rows=[{angle:.4,complete:true},{angle:-Infinity,complete:true},{angle:-Infinity,complete:false}];
+ const heights={frontage:async(o,azimuths,maxM,options)=>{asked.push({o,azimuths,maxM,options});return rows;}};
  const model=createGeneric({align:A,bodies:{},geo:G,heights}),g=A.geometryFrom({...obs},sky,{eyeM:1.5});
- assert.deepEqual(await model.skylineView(obs,sky,[40,41,42]),[.4,-Infinity,-Infinity]);
+ assert.deepEqual(await model.skylineView(obs,sky,[40,41,42]),rows);
  assert.equal(asked[0].options.targetKey,'skytree');assert.equal(Math.round(asked[0].maxM),Math.round(g.distanceKm*1000),'対象まで');assert.equal(asked[0].o.eyeM,1.5);
  assert.equal(await model.skylineView(obs,sky,[]),null);assert.equal(await createGeneric({align:A,bodies:{},geo:G}).skylineView(obs,sky,[40]),null);
- assert.equal(await createGeneric({align:A,bodies:{},geo:G,heights:{angles:async()=>{throw Error('offline');}}}).skylineView(obs,sky,[40]),null);
+ assert.equal(await createGeneric({align:A,bodies:{},geo:G,heights:{frontage:async()=>{throw Error('offline');}}}).skylineView(obs,sky,[40]),null);
 });

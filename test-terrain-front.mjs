@@ -1,6 +1,6 @@
 import {sourceHtml} from './tools/test-source.mjs';
 // 塔・建物の手前の地形と、浮いた建物の足元（2026-10-20 ユーザー「これ絶対に見えないであろう距離」「シルエットが浮いてたりして見栄えが悪い」）
-import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';
+import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';
 const html=sourceHtml();
 const src=html.slice(html.indexOf('const AIM_FRONT_SPAN'),html.indexOf('async function aimLookRidge('));
 function load(heightAt){
@@ -24,22 +24,41 @@ test('山の外の地形は広い幅で読む。幅を変えても既定の幅�
  assert.equal(wide.ridge.length,121);assert.equal(wide.ridge[0][0],45);assert.equal(wide.ridge[120][0],135);
  assert.equal(base.ridge.length,81);assert.equal(base.ridge[0][0],70);
 });
-test('見え方：手前の地面は探索と同じ計算で、街並みの図と天体は同じ輪郭を使う',()=>{
+test('見え方：塔の中心視線と街並みを独立に取得し、建物と月の両方に同じ輪郭を使う',()=>{
  assert.match(html,/const lookObs = \{ latitude: spec\.obs\.latitude, longitude: spec\.obs\.longitude, elevation: ground, eyeM: spec\.eyeM \};/);
- assert.match(html,/AstroNotesCandidatePicker\.hiddenView\(lookObs, t, aim\.partId\)/);
- assert.doesNotMatch(html,/frontPending|horizonPoints|aimHiddenNote|horizonText|beyondPending|beyondRidge/);
- assert.doesNotMatch(html,/dataset\.terrain|label\.sub/);
- assert.match(html,/else ctx\.rect\(-panX, -panY - H, W, groundEdge \+ panY \+ H\);\s*ctx\.clip\(\);/);
- assert.match(html,/townEdge\(ctx, -panX, W - panX\)/);
+ assert.match(html,/\.hiddenView\(lookObs, t, aim\.partId, currentLook\)/);
+ assert.match(html,/\.skylineView\(lookObs, t, bearings, currentLook\)/);
+ assert.match(html,/globalCompositeOperation = "destination-out"; ctx\.fillStyle = "#000"; ctx\.fill\(foreground\)/);
+ assert.match(html,/ctx\.fillStyle = "rgba\(4,6,12,0\.62\)"; ctx\.fill\(foreground\)/);
+ assert.doesNotMatch(html,/frontPending|horizonPoints|aimHiddenNote|horizonText|beyondPending|beyondRidge|townEdge/);
  assert.match(html,/if\(!selected\)\{\s*let bottom=-Infinity;/);
 });
-test('街並みの階段状の輪郭は、遠い山や地平線で持ち上げない',()=>{
- const start=html.indexOf('const townEdge ='),end=html.indexOf('\n  // 山の稜線は',start);assert(start>=0&&end>start);
- const town=[[0,180,80],[50,90,90],[100,160,100]];
- const c=vm.createContext({town,Math,horizonAt:()=>{throw Error('distant horizon must not mask the building preview');}});
- vm.runInContext(html.slice(start,end)+';globalThis.edge=townEdge;',c);
- const points=[];c.edge({lineTo:(x,y)=>points.push([x,y])},-25,125);
- assert.deepEqual(points,[[-25,180],[-25,180],[25,180],[25,90],[75,90],[75,160],[125,160],[125,160]]);
+test('高い屋根でも、投影後の横位置がずれる方位区間と屋根角だけを描く',()=>{
+ const start=html.indexOf('function aimLookForeground('),end=html.indexOf('const AIM_MOUNTAIN_SKY_SPAN',start);
+ assert(start>=0&&end>start);
+ class Path2D{
+  rings=[];
+  moveTo(...p){this.rings.push([p]);}
+  lineTo(...p){this.rings.at(-1).push(p);}
+  closePath(){}
+ }
+ const c=vm.createContext({Path2D});
+ vm.runInContext(html.slice(start,end)+';globalThis.mask=aimLookForeground;',c);
+ const project=(az,alt)=>{
+  const rad=Math.PI/180,t=35*rad,a=az*rad,h=alt*rad,f=Math.cos(a)*Math.cos(h),z=Math.sin(h);
+  const depth=f*Math.cos(t)+z*Math.sin(t);
+  return [50+Math.cos(h)*Math.sin(a)/depth/rad,50-(z*Math.cos(t)-f*Math.sin(t))/depth/rad];
+ };
+ const contains=(polygon,point)=>{
+  const edges=polygon.map(([x,y],i)=>{const [a,b]=polygon[(i+1)%polygon.length];return (a-x)*(point[1]-y)-(b-y)*(point[0]-x);});
+  return edges.every(v=>v>=-1e-8)||edges.every(v=>v<=1e-8);
+ };
+ const mask=c.mask([{angle:70,complete:false},{angle:-Infinity,complete:true}],[21,23],.7,
+  {az0:0,alt0:35,halfW:50,halfH:50},1,[0,0,100,100]);
+ assert.equal(mask.rings.length,1);
+ assert(contains(mask.rings[0],project(21,69)));
+ assert(!contains(mask.rings[0],project(21,71)));
+ assert(!contains(mask.rings[0],project(23,69)));
 });
 test('高所の建物図の地上線は対象の足元または手前の遮蔽で決まり、遠景を使わない',()=>{
  const start=html.indexOf('const placeGround ='),end=html.indexOf('\n  placeGround();',start);assert(start>=0&&end>start);
@@ -49,13 +68,9 @@ test('高所の建物図の地上線は対象の足元または手前の遮蔽�
  c.hidden={m:90};c.place();assert.equal(c.groundEdge,90);assert.equal(c.fillEdge,90);
  c.hidden={m:250};c.place();assert.equal(c.groundEdge,200,'足元より低い遮蔽は足元を動かさない');
 });
-test('図中の通常説明は出さず、既知の街並みがあっても未確認は隠さない。山の水平基準は残す',()=>{
- const start=html.indexOf('let groundText ='),end=html.indexOf('    // 図中に目標名',start);assert(start>=0&&end>start);
- const code=html.slice(start,end)+';globalThis.label=groundText;';
- const label=(extra={})=>{const c=vm.createContext({hiddenUnread:false,mountain:false,town:[[0,80]],groundY:80,panY:0,panX:0,H:300,W:390,ctx:{},...extra});vm.runInContext(code,c);return c.label;};
- assert.equal(label(),null);
- assert.equal(label({hidden:{m:90,label:'手前の街並み'},hiddenText:'天望デッキから上が見えます。'}),null);
- assert.equal(label({hiddenUnread:true,hidden:{m:90,label:'手前の街並み'}}).str,'手前の地形は未確認');
- assert.equal(label({hiddenUnread:true,groundY:-100}).y,30,'遮蔽が画面外でも未確認は見える');
- assert.equal(label({mountain:true}).str,'水平（0°）');
+test('確認中・欠測・山の水平基準を表示する',()=>{
+ assert.match(html,/frontageStatus = "手前の建物を確認中"/);
+ assert.match(html,/hiddenUnread \? "手前の地形は未確認"/);
+ assert.match(html,/hiddenPartial \|\| beyondFrontage \? "手前の遮蔽は一部未確認"/);
+ assert.match(html,/if \(mountain\) groundText = \{ str: "水平（0°）"/);
 });

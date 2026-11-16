@@ -53,7 +53,7 @@ let heightsModel=null;
 // Trees: the canopy map read where a line needs it, standing on the 10 m DEM. Its own tile budget for the ground.
 const treeGround=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxTiles:200,maxDurationMs:120000,layers:[['dem',14]]});
 const treeHeights=globalThis.AstroNotesTreeHeights?.create({groundAt:p=>treeGround.sample(p).then(r=>r.height)})||null;
-const sharedHeights=()=>heightsModel||=AstroNotesCandidateHeights.create({base:dataBase+'building-heights/',loadIndex:()=>loaded('building-heights/index.json'),ownFootprint:key=>plateauShapes?.footprint(key)||null,
+const sharedHeights=()=>heightsModel||=AstroNotesCandidateHeights.create({base:dataBase+'building-heights/',loadIndex:()=>loaded('building-heights/index.json'),ownFootprint:key=>plateauShapes?.footprint(key)||null,ownFootprintVersion:key=>plateauShapes?.attachedTo(key)||null,
  obstacles:osmPlaces?(a,b)=>osmPlaces.obstaclesAlong(a,b):null,gsiAlong:(a,b)=>AstroNotesTerrain.gsiBuildingsAlong(a,b),groundAt:p=>footprintGround.sample(p).then(r=>r.height)});
 // 見える場所の地図 (visibility-map.js). Built-in targets carry a map made beforehand (tools/build-visibility-maps.mjs);
 // a saved target's map is made on this device while searching (at most MAP_BUDGET_MS a search, to 20 km) and kept here.
@@ -78,11 +78,51 @@ const prefilter=visibilityMap&&{
  },
  point(plan,point,{map,need}){const r=AstroNotesVisibilityMap.lookup(map,plan.target,point.latitude,point.longitude);return !(r.known&&r.count<need);}
 };
-const viewModel=()=>viewModelPromise||=staticTerrain().then(dem=>AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:viewLive,heights:sharedHeights(),trees:treeHeights,
+// Share canopy pixels, while the preview and search use independent DEM request budgets.
+const viewTreeGround=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxTiles:160,maxDurationMs:60000,layers:[['dem',14]]});
+const viewTrees=treeHeights&&{sight:(observer,ray,options)=>treeHeights.sight(observer,ray,{...options,sampleGround:p=>viewTreeGround.sample(p).then(r=>r.height)})};
+const viewModel=()=>viewModelPromise||=staticTerrain().then(dem=>AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:viewLive,heights:sharedHeights(),trees:viewTrees,
  staticTerrain:dem}));
-AstroNotesCandidatePicker.hiddenView=async(observer,target,partId)=>{viewLive.resetBudget();treeGround.resetBudget();return (await viewModel()).hiddenView(observer,target,{partId});};
-// The town in front of the target along the figure's bearings (generic-evaluator.js skylineView), from the same model.
-AstroNotesCandidatePicker.skylineView=async(observer,target,azimuths)=>(await viewModel()).skylineView(observer,target,azimuths);
+const roofViewModel=AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,heights:sharedHeights()});
+const previewCache=new Map();
+const previewKey=(o,t,refractionK)=>[o.latitude,o.longitude,o.elevation,o.eyeM,t.id,t.latitude,t.longitude,plateauShapes?.attachedTo(t.id)?.id??null,refractionK];
+function cachedPreview(key,current,read,complete){
+ const saved=previewCache.get(key);
+ if(saved&&saved.until>Date.now()&&!saved.cancelled){
+  saved.readers?.add(current);previewCache.delete(key);previewCache.set(key,saved);
+  return saved.promise;
+ }
+ const entry={until:Infinity,promise:null,readers:new Set([current]),cancelled:false};
+ const isCurrent=()=>{
+  if(!entry.readers)return false;
+  for(const reader of entry.readers)if(!reader())entry.readers.delete(reader);
+  if(entry.readers.size)return true;
+  entry.cancelled=true;return false;
+ };
+ entry.promise=Promise.resolve().then(()=>read(isCurrent)).then(value=>{
+  if(!complete(value))entry.until=Date.now()+12000;
+  return value;
+ }).catch(error=>{if(previewCache.get(key)===entry)previewCache.delete(key);throw error;})
+ .finally(()=>{entry.readers=null;});
+ previewCache.set(key,entry);
+ while(previewCache.size>12)previewCache.delete(previewCache.keys().next().value);
+ return entry.promise;
+}
+const stillHere=()=>true;
+AstroNotesCandidatePicker.hiddenView=(observer,target,partId,current=stillHere)=>{
+ const refractionK=AstroNotesAtmosphere.targetK();
+ return cachedPreview(JSON.stringify(['center',...previewKey(observer,target,refractionK),target.groundM,target.parts,partId]),current,async isCurrent=>{
+  const model=await viewModel();
+  if(!isCurrent())throw Error('candidate-cancelled');
+  viewLive.resetBudget();viewTreeGround.resetBudget();
+  return model.hiddenView(observer,target,{partId,isCurrent,refractionK});
+ },value=>value?.complete);
+};
+AstroNotesCandidatePicker.skylineView=(observer,target,azimuths,current=stillHere)=>{
+ const refractionK=AstroNotesAtmosphere.targetK();
+ return cachedPreview(JSON.stringify(['roof',...previewKey(observer,target,refractionK),azimuths]),current,isCurrent=>
+  roofViewModel.skylineView(observer,target,azimuths,{isCurrent,refractionK}),rows=>rows?.every(row=>row.complete));
+};
 async function loadModel(){
  // The 3D band model is no longer loaded.
  if(!modelPromise)modelPromise=(async()=>{await AstroNotesAssets.ensureModels();const dem=await staticTerrain();
