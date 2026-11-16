@@ -343,7 +343,7 @@ ctx.lineWidth=1;
  const stopSkyScrub=()=>{skyTimeline.stop();timelineMoving=false;};
  // 日付カレンダーはねらうと同じ重なる日●・近接○・時刻・月相の描画（aimCalRows/aimCalGridHtml）。月全体を計算し、帯の候補では埋めない。
  const calendarCache=new Map();
- function calendarMonth(args){
+ function calendarMonth(args,scanRecords=false){
   const {year,month,selected,today,grid,dialog,status,pickDay,isCurrent}=args;
   const plan=session,f=validPoint(plan?.observer)?plan.observer:null;
   const snap=plan?{target:plan.target,body:plan.body,partId:plan.partId,limb:plan.limb,matchMode:plan.matchMode}:{body:null};
@@ -361,7 +361,7 @@ ctx.lineWidth=1;
    for(const button of grid.querySelectorAll('[data-cal-day]'))button.onclick=()=>pickDay(+button.dataset.calDay);
   };
   draw(new Map());
-  if(globalThis.TrialExplore?.candidateWorkspace?.()?.active()){globalThis.TrialExplore.candidateWorkspace().calendarMonth({...args,draw,restart:()=>calendarMonth(args)});return;}
+  if(globalThis.TrialExplore?.candidateWorkspace?.()?.active()){globalThis.TrialExplore.candidateWorkspace().calendarMonth({...args,draw,restart:scan=>calendarMonth(args,scan)},scanRecords);return;}
   if(!plan||!hasAccess()){status.textContent='';grid.setAttribute('aria-busy','false');return;}
   if(!f||!(snap.target?.parts||[]).length){status.textContent='撮影地点と対象を選んでください';grid.setAttribute('aria-busy','false');return;}
   grid.setAttribute('aria-busy','true');status.innerHTML=candidateWaitMarkup('重なる日を計算中…');

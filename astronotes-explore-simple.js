@@ -320,12 +320,13 @@ function recordRequest(at){
  if(!recordMemo||recordMemo.revision!==revision||recordMemo.owner!==owner)recordMemo={owner,revision,epoch:++recordDataEpoch,points:api.discoveryPoints()};
  const overlap=globalThis.AstroNotesTrialOverlap?.searchPlan?.(selected),points=recordMemo.points,plan={...AstroNotesShooting.conditions(selected),observer:null,at:AstroNotesShooting.day(at??selected.at),...(overlap?{overlapMembers:overlap.overlapMembers}:{})};
  const condition=JSON.stringify([plan.target,plan.body,plan.partId,plan.limb,plan.matchMode,globalThis.AstroNotesTrialOverlap?.key?.(selected)??null]),identity=JSON.stringify([owner,accessState.generation,recordMemo.epoch,condition]);
- return {plan,points,condition,owner,generation:accessState.generation,revision,epoch:recordMemo.epoch,atmosphere:AstroNotesAtmosphere.dataKey(plan.at),identity,key:identity+'|'+plan.at+'|'+AstroNotesAtmosphere.dataKey(plan.at)};
+ const atmosphere=AstroNotesAtmosphere.dataKey();
+ return {plan,points,condition,owner,generation:accessState.generation,revision,epoch:recordMemo.epoch,atmosphere,identity,key:identity+'|'+plan.at+'|'+atmosphere};
 }
 function recordCurrent(request,extra=()=>true){
  const s=AstroNotesShooting.conditions(SkyMapUI.selectionState());
  return active()&&toolAllowed('records')&&flowOwner===request.owner&&auth?.loginId===request.owner&&flowGeneration===request.generation&&accessState.generation===request.generation&&recordMemo?.epoch===request.epoch&&MyPlacesUI.discoveryRevision()===request.revision&&
- AstroNotesAtmosphere.dataKey(request.plan.at)===request.atmosphere&&extra()&&JSON.stringify([s?.target,s?.body,s?.partId,s?.limb,s?.matchMode,globalThis.AstroNotesTrialOverlap?.key?.(SkyMapUI.selectionState())??null])===request.condition;
+ AstroNotesAtmosphere.dataKey()===request.atmosphere&&extra()&&JSON.stringify([s?.target,s?.body,s?.partId,s?.limb,s?.matchMode,globalThis.AstroNotesTrialOverlap?.key?.(SkyMapUI.selectionState())??null])===request.condition;
 }
 const recordWorkCount=request=>request.points.length*Math.max(1,request.plan.overlapMembers?.length||1);
 async function recordRows(request,current,progress=()=>{}){
@@ -419,10 +420,12 @@ async function recordCalendar(args,scanMonth=false){
  if(!toolAllowed('records')){status.textContent='記録の利用権限を確認してください';grid.setAttribute('aria-busy','false');return;}
  if(!request){status.textContent='天体と対象を選んでください';grid.setAttribute('aria-busy','false');return;}
  if(!request.points.length){draw(new Map());status.textContent='記録の撮影地点がありません';grid.setAttribute('aria-busy','false');return;}
- const current=()=>recordCalendarSeq.current(calendarSeq)&&isCurrent()&&mainSearchActive()&&!document.hidden&&recordCurrent(request);
+ const available=()=>recordCalendarSeq.current(calendarSeq)&&isCurrent()&&mainSearchActive()&&!document.hidden;
+ const current=()=>available()&&recordCurrent(request);
+ const startScan=()=>{if(!available())return;if(recordCurrent(request))void recordCalendar(args,true);else args.restart(true);};
  if(!scanMonth){
   grid.setAttribute('aria-busy','false');
-  const scan=node('button',{type:'button',className:'chip record-calendar-scan'},'この月を確認');scan.onclick=()=>{if(current())void recordCalendar(args,true);};status.replaceChildren(scan);
+  const scan=node('button',{type:'button',className:'chip record-calendar-scan'},'この月を確認');scan.onclick=startScan;status.replaceChildren(scan);
   return;
  }
  const progress=MyPlacesUI.recordProgress?.(status,'この月を確認中','日');
@@ -438,9 +441,9 @@ async function recordCalendar(args,scanMonth=false){
    progress?.update(i+1,days.length);
   }
   if(!current())return;draw(events);
-  for(const b of grid.querySelectorAll('[data-cal-day]'))b.onclick=()=>{if(!current())return;chooseDiscovery('records');pickDay(+b.dataset.calDay);};
+  for(const b of grid.querySelectorAll('[data-cal-day]'))b.onclick=()=>{if(!available())return;chooseDiscovery('records');pickDay(+b.dataset.calDay);};
   status.textContent='記録の撮影地点・'+(events.size?'重なる日 '+events.size+'日':request.points.length?'この月は重なる日がありません':'記録の撮影地点がありません')+(failed?'・確認できなかった地点があります':'');
- }catch{if(current()){status.textContent='記録の撮影地点を確認できませんでした。';const retry=node('button',{type:'button',className:'chip record-calendar-scan'},'再試行');retry.onclick=()=>{if(current())void recordCalendar(args,true);};status.append(retry);}}
+ }catch{if(current()){status.textContent='記録の撮影地点を確認できませんでした。';const retry=node('button',{type:'button',className:'chip record-calendar-scan'},'再試行');retry.onclick=startScan;status.append(retry);}}
  finally{if(recordCalendarSeq.current(calendarSeq)){if(current())grid.setAttribute('aria-busy','false');
  else if(isCurrent()&&mainSearchActive()){if(toolAllowed('records')&&recordRequest()?.key!==request.key)setTimeout(()=>{if(recordCalendarSeq.current(calendarSeq)&&isCurrent()&&mainSearchActive())args.restart();},0);
  else{status.textContent=toolAllowed('records')?'条件を確認して月を選び直してください':'記録の利用権限を確認してください';grid.setAttribute('aria-busy','false');}}}}

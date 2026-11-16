@@ -21,8 +21,19 @@ test('候補の計算中にアカウント変更・閉じる・条件変更が�
  for(const change of [f=>f.c.auth={token:'other',loginId:'other'},f=>f.sheet.close(),f=>f.c.aim.dayMs+=86400000]){const f=fixture('aim',{waiting:true}),job=f.run();change(f);f.release();await job;assert.equal(f.buttons().length,0);}
 });
 test('表示済み候補も条件や所有者が変われば選べない',async()=>{const f=fixture();await f.run();const button=f.buttons()[0];f.c.auth={token:'other',loginId:'other'};button.onclick();assert.equal(f.selected(),undefined);assert.equal(f.sheet.open,true);});
-test('次に重なる日も保存標高と地上高で計算し、保存標高の変更はcacheを共有しない',async()=>{
+test('次に重なる日も保存標高と地上高で計算し、標高や気象が変われば再計算する',async()=>{
  const start=source.indexOf('function nextFor('),end=source.indexOf('// ---------------------------------------------------------------- 一覧の行',start),seen=[];
- const c={cache:new Map(),queue:Promise.resolve(),AstroNotesShooting:P,aimSavedFrom:p=>p,aimObserverEye:p=>p.eyeHeightAGL,aimElevation:async()=>{throw Error('DEM must not replace saved height');},aimObserverAt:(f,g)=>({...f,elevation:g,eyeM:f.eyeHeightAGL}),AstroNotesAlign:{partOf:()=>({m:634})},AstroNotesBodies:{ensure:async()=>{}},aimBuildingDays:async o=>{seen.push([o.elevation,o.eyeM]);return[{at:Date.now()+3600000}]},S:{Cal:{startOfDay:P.day}},DAY:86400000,Date,Promise,JSON};
- vm.createContext(c);vm.runInContext(source.slice(start,end),c);const p={latitude:35,longitude:139,elevation:30,eyeHeightAGL:4},t={id:'tower',latitude:35.1,longitude:139.1};await c.nextFor(p,t,'sun');await c.nextFor(p,t,'sun');await c.nextFor({...p,elevation:31},t,'sun');assert.deepEqual(seen,[[30,4],[31,4]]);
+ let air='fresh',changeDuringSearch=false;
+ const c={cache:new Map(),queue:Promise.resolve(),AstroNotesShooting:P,aimSavedFrom:p=>p,aimObserverEye:p=>p.eyeHeightAGL,aimElevation:async()=>{throw Error('DEM must not replace saved height');},aimObserverAt:(f,g)=>({...f,elevation:g,eyeM:f.eyeHeightAGL}),AstroNotesAlign:{partOf:()=>({m:634})},AstroNotesBodies:{ensure:async()=>{}},AstroNotesAtmosphere:{dataKey:()=>air},S:{Cal:{startOfDay:P.day}},DAY:86400000,Date,Promise,JSON};
+ c.aimBuildingDays=async(o,_target,_body,_part,_seq,{isCurrent})=>{
+  seen.push([o.elevation,o.eyeM,air]);
+  if(changeDuringSearch){changeDuringSearch=false;air='refreshed';assert.equal(isCurrent(),false);return [];}
+  return [{at:Date.now()+3600000}];
+ };
+ vm.createContext(c);vm.runInContext(source.slice(start,end),c);
+ const p={latitude:35,longitude:139,elevation:30,eyeHeightAGL:4},t={id:'tower',latitude:35.1,longitude:139.1};
+ await c.nextFor(p,t,'sun');await c.nextFor(p,t,'sun');await c.nextFor({...p,elevation:31},t,'sun');
+ air='expired';changeDuringSearch=true;assert.ok(await c.nextFor(p,t,'sun'));
+ assert.deepEqual(seen,[[30,4,'fresh'],[31,4,'fresh'],[30,4,'expired'],[30,4,'refreshed']]);
+ air='expired';assert.ok(await c.nextFor(p,t,'sun'));assert.deepEqual(seen.at(-1),[30,4,'expired']);
 });

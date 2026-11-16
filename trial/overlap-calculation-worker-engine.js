@@ -1194,9 +1194,10 @@ if(typeof AstroNotes!=='undefined')globalThis.Sorami=AstroNotes;if(typeof AstroN
       upperRadius:upper-apparent,lowerRadius:apparent-lower,atmosphere:air,lowAltitude:h<2};
   }
   const limbAltitude=(s,sign)=>sign===1?(s.lowerAltitude??s.apparentAltitude-s.angularRadius):sign===-1?(s.upperAltitude??s.apparentAltitude+s.angularRadius):s.apparentAltitude;
-  // 候補日探索が使う有効な大気データだけを識別する。表示日や予報期間外の失敗は含めない。
+  // 計算時点で有効な大気データだけを識別する。撮影日や予報期間外の失敗は含めない。
   const dataIds=new WeakMap();let nextDataId=0;
-  function dataKey(now=globalThis.__overlapClock()){
+  function dataKey(){
+    const now=globalThis.__overlapClock();
     const id=r=>{if(!dataIds.has(r))dataIds.set(r,++nextDataId);return dataIds.get(r);};
     const active=(map,field)=>[...map.values()].filter(r=>r[field]&&now-r.loadedAt<HOUR).map(id);
     return JSON.stringify([enabled,mode,mode==='manual'?manual:null,mode==='auto'?[active(records,'rows'),active(lines,'times')]:null]);
@@ -7228,10 +7229,10 @@ async function recordSearch(plan,entries,{isCurrent=()=>true,variant='discovery'
  if(!owner||!toolAllowed('records'))return cancelled();
  const p=AstroNotesShooting.conditions(plan);if(!p)return {rows:[],failed:0};
  if(entries.length&&!AstroNotesAssets.modelsReady()){await AstroNotesAssets.ensureModels();if(!isCurrent()||owner!==auth?.token||loginId!==auth?.loginId||generation!==accessState.generation||revision!==version||!toolAllowed('records'))return cancelled();}
- const start=AstroNotesShooting.day(p.at),scope=recordSearchScope(),air=AstroNotesAtmosphere.dataKey(start);
+ const start=AstroNotesShooting.day(p.at),scope=recordSearchScope();
  if(!recordSameScope(recordSearchSession?.scope,scope))recordSearchSession={scope,cache:createRecordSearchCache(),pointViews:new Map(),shapeViews:new Map(),mountains:new Map(),shapeMountains:new Map(),shapeSamples:new Map(),terrain:new Map(),solvers:new Map(),prepares:0};
- const session=recordSearchSession,current=()=>isCurrent()&&recordSearchSession===session&&recordSameScope(scope,recordSearchScope())&&air===AstroNotesAtmosphere.dataKey(start)&&toolAllowed('records');
- const planKey=JSON.stringify([start,air,p.target,p.body,p.partId,p.limb,p.matchMode]),rows=[],issues=[];
+ const session=recordSearchSession,current=()=>isCurrent()&&recordSearchSession===session&&recordSameScope(scope,recordSearchScope())&&toolAllowed('records');
+ const planKey=JSON.stringify([start,p.target,p.body,p.partId,p.limb,p.matchMode]),rows=[],issues=[];
  let failed=0,checked=0,processed=0,stepM;
  for(const entry of entries){
   if(!current())return cancelled();

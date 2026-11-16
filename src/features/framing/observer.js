@@ -845,11 +845,13 @@ async function aimShootingView(obs, target, body, partId, matchMode, indexed=fal
 async function aimBuildingDays(obs, target, body, partId, seq, { from = Date.now(), limb = aim.limb, matchMode = aim.matchMode || 'limb', isCurrent = () => aim.fromSeq.current(seq), days = 400, limit = 4, onScanned = () => {} } = {}) {
   const start = S.Cal.startOfDay(from), rows = [];
   const cache=aimBuildingDays.cache||(aimBuildingDays.cache=new Map());
-  const cacheKey=JSON.stringify([start,days,limit,obs,target,body,partId,limb,matchMode,typeof AstroNotesAtmosphere==='undefined'?null:AstroNotesAtmosphere.dataKey()]);
+  const airKey=()=>typeof AstroNotesAtmosphere==='undefined'?null:AstroNotesAtmosphere.dataKey();
+  const atmosphere=airKey(), canStore=()=>isCurrent()&&airKey()===atmosphere;
+  const cacheKey=JSON.stringify([start,days,limit,obs,target,body,partId,limb,matchMode,atmosphere]);
   const saved=cache.get(cacheKey);
   if(saved&&start>=saved.from&&start<saved.until&&isCurrent()){onScanned(saved.scanned);return saved.rows.map(e=>({...e}));}
   {const viaEngine=globalThis.AstroNotesDaysEngine?await globalThis.AstroNotesDaysEngine(obs,target,body,partId,{from:start,limb,matchMode,days,limit,isCurrent,onScanned}):null;
-   if(viaEngine){if(isCurrent()){const scannedTo=viaEngine.length>=limit?S.Cal.startOfDay(viaEngine[limit-1].at)+86400000:start+days*86400000;cache.delete(cacheKey);cache.set(cacheKey,{from:start,until:start+86400000,scanned:scannedTo,rows:viaEngine.map(e=>({...e}))});
+   if(viaEngine){if(canStore()){const scannedTo=viaEngine.length>=limit?S.Cal.startOfDay(viaEngine[limit-1].at)+86400000:start+days*86400000;cache.delete(cacheKey);cache.set(cacheKey,{from:start,until:start+86400000,scanned:scannedTo,rows:viaEngine.map(e=>({...e}))});
    while(cache.size>8)cache.delete(cache.keys().next().value);onScanned(scannedTo);}return viaEngine;}}
   let scanned=start;
   const whole = partId === "__whole", mountain = typeof aimIsMountain === "function" && aimIsMountain(target);
@@ -871,7 +873,7 @@ async function aimBuildingDays(obs, target, body, partId, seq, { from = Date.now
     if (row) rows.push(row);
     scanned=day+86400000;onScanned(scanned);
   }
-  if(isCurrent()){
+  if(canStore()){
     cache.delete(cacheKey);cache.set(cacheKey,{from:start,until:start+86400000,scanned,rows:rows.map(e=>({...e}))});
     while(cache.size>8)cache.delete(cache.keys().next().value);
   }
@@ -883,7 +885,7 @@ function aimDaysInputKey(f, now = Date.now(), plan = aim) {
   return JSON.stringify([f.latitude, f.longitude, f.groundManualM, f.observationElevationM,
     f.standAglM, aimObserverEye(f), plan.target, plan.body, plan.partId,
     plan.partId === "__whole" ? null : plan.limb, plan.matchMode || 'limb',
-    AstroNotesAtmosphere.dataKey(now), S.Cal.startOfDay(now)]);
+    AstroNotesAtmosphere.dataKey(), S.Cal.startOfDay(now)]);
 }
 function candidateWaitMarkup(message = '候補日時を計算中…') {
   return `<div class="note-wait candidate-wait" role="status"><span class="note-wait-character" aria-hidden="true"></span><span class="note-wait-message">${esc(message)}</span></div>`;

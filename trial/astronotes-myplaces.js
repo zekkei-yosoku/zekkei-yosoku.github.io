@@ -374,7 +374,8 @@ function nextFor(place, target, body, { partId = null, limb = 'center', matchMod
   const from = aimSavedFrom(AstroNotesShooting.savedObserver(place));
   if (!from || !target) return Promise.resolve(null);
   const top = (AstroNotesAlign.partOf(target, partId) || {}).m;
-  const k = JSON.stringify([from.latitude, from.longitude, from.groundManualM, aimObserverEye(from), target.id, target.latitude, target.longitude, top, body, partId, limb, matchMode, S.Cal.startOfDay(Date.now())]);
+  const initialAir = AstroNotesAtmosphere.dataKey();
+  const k = JSON.stringify([from.latitude, from.longitude, from.groundManualM, aimObserverEye(from), target.id, target.latitude, target.longitude, top, body, partId, limb, matchMode, S.Cal.startOfDay(Date.now()), initialAir]);
   const hit = cache.get(k);
   if (hit && (!hit.until || Date.now() < hit.until)) return hit.promise;
   const entry = { until: 0, promise: null };
@@ -382,7 +383,12 @@ function nextFor(place, target, body, { partId = null, limb = 'center', matchMod
     await AstroNotesBodies.ensure(body);
     const ground = from.groundManualM ?? await aimElevation(from.latitude, from.longitude);
     const obs = aimObserverAt(from, ground);
-    const rows = await aimBuildingDays(obs, target, body, partId, null, { from: Date.now(), days: 400, limit: 1, limb, matchMode, isCurrent: () => true });
+    let air, rows;
+    do {
+      air = AstroNotesAtmosphere.dataKey();
+      rows = await aimBuildingDays(obs, target, body, partId, null, { from: Date.now(), days: 400, limit: 1, limb, matchMode, isCurrent: () => air === AstroNotesAtmosphere.dataKey() });
+    } while (air !== AstroNotesAtmosphere.dataKey());
+    if (air !== initialAir && cache.get(k) === entry) cache.delete(k);
     const row = rows[0] || null;
     entry.until = row ? row.at : S.Cal.startOfDay(Date.now()) + DAY;
     return row;
@@ -471,7 +477,7 @@ async function renderPickerPanel(panel) {
  if(!plan||t.id==='custom'){note.textContent='対象を選び、自分の対象に登録すると、その対象が見えた撮影地点から候補を探せます。';return;}
  if(!owner||!screenAllowed(isSky?'skymap':'framing')){note.textContent='ログインして利用権限を確認してください。';return;}
  note.textContent=`${S.Cal.monthDay(plan.at)}・${AstroNotesBodies.definition(plan.body)?.name}を${t.name}に重ねる候補を確認しています…`;
- const query=()=>{const s=state();return s?.target?AstroNotesShooting.queryKey(s,pickerPoints(s),auth?.loginId,AstroNotesAtmosphere.dataKey(s.at)):'';};
+ const query=()=>{const s=state();return s?.target?AstroNotesShooting.queryKey(s,pickerPoints(s),auth?.loginId,AstroNotesAtmosphere.dataKey()):'';};
  const key=query();
  const current=()=>token===pickerToken&&owner===auth?.token&&screenAllowed(isSky?'skymap':'framing')&&(workspace?workspace.epoch()===workspaceEpoch&&workspace.active()&&workspace.visible():el('placeSheet').open&&placeSheetFor===mode)&&key===query();
  try{
@@ -502,7 +508,7 @@ const contextOf=s=>JSON.stringify([s.body,s.target,s.partId,s.limb,AstroNotesSho
 function pointsForPlan(s){
  return placesFor(s.target.id).filter(x=>x.record.observer&&finite(x.record.target.latitude)&&finite(x.record.target.longitude)&&AstroNotesTerrain.distanceKm(x.record.target.latitude,x.record.target.longitude,s.target.latitude,s.target.longitude)<NEAR_KM);
 }
-function currentSkyQuery(s){return AstroNotesShooting.queryKey(s,pointsForPlan(s),auth?.loginId,AstroNotesAtmosphere.dataKey(s.at));}
+function currentSkyQuery(s){return AstroNotesShooting.queryKey(s,pointsForPlan(s),auth?.loginId,AstroNotesAtmosphere.dataKey());}
 function drawCandidateList(){
  if(!candidateSheet?.open)return;
  const content=el('shootingCandidatesList');content.replaceChildren();
@@ -2581,10 +2587,10 @@ async function recordSearch(plan,entries,{isCurrent=()=>true,variant='discovery'
  if(!owner||!toolAllowed('records'))return cancelled();
  const p=AstroNotesShooting.conditions(plan);if(!p)return {rows:[],failed:0};
  if(entries.length&&!AstroNotesAssets.modelsReady()){await AstroNotesAssets.ensureModels();if(!isCurrent()||owner!==auth?.token||loginId!==auth?.loginId||generation!==accessState.generation||revision!==version||!toolAllowed('records'))return cancelled();}
- const start=AstroNotesShooting.day(p.at),scope=recordSearchScope(),air=AstroNotesAtmosphere.dataKey(start);
+ const start=AstroNotesShooting.day(p.at),scope=recordSearchScope();
  if(!recordSameScope(recordSearchSession?.scope,scope))recordSearchSession={scope,cache:createRecordSearchCache(),pointViews:new Map(),shapeViews:new Map(),mountains:new Map(),shapeMountains:new Map(),shapeSamples:new Map(),terrain:new Map(),solvers:new Map(),prepares:0};
- const session=recordSearchSession,current=()=>isCurrent()&&recordSearchSession===session&&recordSameScope(scope,recordSearchScope())&&air===AstroNotesAtmosphere.dataKey(start)&&toolAllowed('records');
- const planKey=JSON.stringify([start,air,p.target,p.body,p.partId,p.limb,p.matchMode]),rows=[],issues=[];
+ const session=recordSearchSession,current=()=>isCurrent()&&recordSearchSession===session&&recordSameScope(scope,recordSearchScope())&&toolAllowed('records');
+ const planKey=JSON.stringify([start,p.target,p.body,p.partId,p.limb,p.matchMode]),rows=[],issues=[];
  let failed=0,checked=0,processed=0,stepM;
  for(const entry of entries){
   if(!current())return cancelled();
@@ -2769,13 +2775,13 @@ function opportunityEngineSolve(input,op='solve',slot=null){return opportunityEn
 // 重ね方、この端末が読み込んだ気象が効く地点（3km以内）は、今までどおりこの画面で計算する（nullを返す）。
 async function aimDaysEngine(obs,target,body,partId,{from,limb,matchMode,days=400,limit=4,isCurrent=()=>true,onScanned=()=>{}}={}){
  if(matchMode!=='overlap'||!target||target.rim||typeof aimIsMountain==='function'&&aimIsMountain(target)||globalThis.AstroNotesDaysEngineMode==='page'||!toolAllowed('records'))return null;
- const air=AstroNotesAtmosphere.dataKey(from);let state;try{state=JSON.parse(air);}catch{return null;}
+ const air=AstroNotesAtmosphere.dataKey();let state;try{state=JSON.parse(air);}catch{return null;}
  const [enabled,mode,manual]=Array.isArray(state)?state:[];
  if(enabled!==true||!['auto','standard','manual','none'].includes(mode)||mode==='manual'&&!manual)return null;
  if(recordWeatherNear({latitude:obs.latitude,longitude:obs.longitude},mode==='auto'?AstroNotesAtmosphere.sources?.()||[]:[]))return null;
  try{await opportunityEngineOpen();}catch{return null;}
  if(!isCurrent())return [];
- const owner=auth?.token,generation=accessState.generation,live=()=>isCurrent()&&owner===auth?.token&&generation===accessState.generation&&air===AstroNotesAtmosphere.dataKey(from);
+ const owner=auth?.token,generation=accessState.generation,live=()=>isCurrent()&&owner===auth?.token&&generation===accessState.generation&&air===AstroNotesAtmosphere.dataKey();
  const CHUNK=40,chunks=[];for(let d=0;d<days;d+=CHUNK)chunks.push({start:from+d*86400000,count:Math.min(CHUNK,days-d)});
  const base={obs,target,body,partId,limb,from,limit,preferences:{mode,...(mode==='manual'?{pressureHPa:manual.pressureHPa,temperatureC:manual.temperatureC}:{}),targetHeights:store.get('sorami.aimHeights',{})},tools:auth.tools.slice(),generation,evaluationNow:Date.now()};
  const results=new Array(chunks.length);let next=0,broken=false;
@@ -2813,14 +2819,14 @@ async function recordEngineDiscover(plan,points,isCurrent,onProgress){
  const p=AstroNotesShooting.conditions(plan);if(!p)return null;
  try{await opportunityEngineOpen();}catch{return null;}
  if(!isCurrent())return {rows:[],failed:0,cancelled:true};
- const start=AstroNotesShooting.day(p.at),air=AstroNotesAtmosphere.dataKey(start);
+ const air=AstroNotesAtmosphere.dataKey();
  // The refraction the page's calculation actually uses (its atmosphere state), not the saved setting.
  let state;try{state=JSON.parse(air);}catch{return null;}
  const [enabled,mode,manual]=Array.isArray(state)?state:[];
  if(enabled!==true||!['auto','standard','manual','none'].includes(mode)||mode==='manual'&&!manual)return null;
  const sources=mode==='auto'?AstroNotesAtmosphere.sources?.()||[]:[];
  const owner=auth?.token,generation=accessState.generation,revision=version;
- const live=()=>isCurrent()&&owner===auth?.token&&generation===accessState.generation&&revision===version&&air===AstroNotesAtmosphere.dataKey(start)&&toolAllowed('records');
+ const live=()=>isCurrent()&&owner===auth?.token&&generation===accessState.generation&&revision===version&&air===AstroNotesAtmosphere.dataKey()&&toolAllowed('records');
  const local=[],remote=[];for(const [i,e] of points.entries())(recordWeatherNear(e.place,sources)?local:remote).push(i);
  // The engine reads favorites only for saved targets and for a place by its id; send just those.
  const savedTargets=favorites.filter(f=>Number.isFinite(f.targetHeightM)||f.id===plan.target?.favId);

@@ -153,7 +153,7 @@ function aimShowDay(day, spot = null) {
  * 23か所×1年を解くので、1か所ずつ間をあけて描く（画面を止めない）。
  */
 function aimSpotKey(now = Date.now()) {
-  return JSON.stringify([aim.target, aim.body, aim.limb, AstroNotesAtmosphere.dataKey(now), S.Cal.startOfDay(now)]);
+  return JSON.stringify([aim.target, aim.body, aim.limb, AstroNotesAtmosphere.dataKey(), S.Cal.startOfDay(now)]);
 }
 async function aimSpotRows() {
   const now = Date.now(), key = aimSpotKey(now), old = aim.spotWork;

@@ -366,10 +366,10 @@ async function recordSearch(plan,entries,{isCurrent=()=>true,variant='discovery'
  if(!owner||!toolAllowed('records'))return cancelled();
  const p=AstroNotesShooting.conditions(plan);if(!p)return {rows:[],failed:0};
  if(entries.length&&!AstroNotesAssets.modelsReady()){await AstroNotesAssets.ensureModels();if(!isCurrent()||owner!==auth?.token||loginId!==auth?.loginId||generation!==accessState.generation||revision!==version||!toolAllowed('records'))return cancelled();}
- const start=AstroNotesShooting.day(p.at),scope=recordSearchScope(),air=AstroNotesAtmosphere.dataKey(start);
+ const start=AstroNotesShooting.day(p.at),scope=recordSearchScope();
  if(!recordSameScope(recordSearchSession?.scope,scope))recordSearchSession={scope,cache:createRecordSearchCache(),pointViews:new Map(),shapeViews:new Map(),mountains:new Map(),shapeMountains:new Map(),shapeSamples:new Map(),terrain:new Map(),solvers:new Map(),prepares:0};
- const session=recordSearchSession,current=()=>isCurrent()&&recordSearchSession===session&&recordSameScope(scope,recordSearchScope())&&air===AstroNotesAtmosphere.dataKey(start)&&toolAllowed('records');
- const planKey=JSON.stringify([start,air,p.target,p.body,p.partId,p.limb,p.matchMode]),rows=[],issues=[];
+ const session=recordSearchSession,current=()=>isCurrent()&&recordSearchSession===session&&recordSameScope(scope,recordSearchScope())&&toolAllowed('records');
+ const planKey=JSON.stringify([start,p.target,p.body,p.partId,p.limb,p.matchMode]),rows=[],issues=[];
  let failed=0,checked=0,processed=0,stepM;
  for(const entry of entries){
   if(!current())return cancelled();

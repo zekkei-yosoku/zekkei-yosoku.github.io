@@ -1,4 +1,4 @@
-import {sourceHtml} from './tools/test-source.mjs';
+import {sourceDeclaration,sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -37,6 +37,19 @@ test('必要な再探索と古い非同期結果の破棄、実際の地面標�
 });
 test('探索中の気象データ更新は結果をキャッシュしない',async()=>{
  const f=fixture(),release=f.hold(),task=f.run();await new Promise(r=>setTimeout(r,10));f.setAir('b');release();assert.equal(await task,null);assert.equal(f.aim.fromDays,null);await f.run();assert.equal(f.calls,2);
+});
+test('計算中に気象が替わって打ち切られた空配列を以前の予報に保存しない',async()=>{
+ let air='old',calls=0;
+ const expected=[{at:base+3600000}];
+ const context=vm.createContext({S:{Cal:{startOfDay:start}},AstroNotesAtmosphere:{dataKey:()=>air},
+  AstroNotesDaysEngine:async()=>{if(++calls===1){air='new';return [];}return expected;}});
+ vm.runInContext(sourceDeclaration('aimBuildingDays'),context);
+ const run=()=>context.aimBuildingDays({}, {}, 'moon', '__whole', null,{from:base,limb:'center',matchMode:'overlap',isCurrent:()=>true,days:1,limit:1});
+ assert.deepEqual(await run(),[]);
+ air='old';
+ assert.deepEqual(await run(),expected);
+ assert.equal((await run())[0].at,expected[0].at);
+ assert.equal(calls,2);
 });
 test('候補時刻を過ぎても同日は再利用し、日本時間の日付が変われば再探索',async()=>{
  const f=fixture();await f.run();f.setNow(base+3600000);await f.run();assert.equal(f.calls,1);f.setNow(start(base)+DAY-1);await f.run();assert.equal(f.calls,1);f.setNow(start(base)+DAY);await f.run();assert.equal(f.calls,2);
