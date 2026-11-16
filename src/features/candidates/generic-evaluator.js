@@ -215,11 +215,16 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    return null;
   });
  }
- async function visibility(plan,solution,options={}){
+ const weatherKey=()=>root.AstroNotesAtmosphere?.dataKey?.()??null;
+ async function visibility(plan,solution,options={},eventSky){
   const obs=solution.observer,g=solution.geometry,at=solution.event.at,eye={...obs,elevation:obs.elevation+obs.eyeM};
-  const state=bodies.state(plan.body,at,eye),target=solution.anchor||plan.target,distance=g.distanceKm*1000,k=root.AstroNotesAtmosphere?.targetK?.()??7/6;
+  const weather=weatherKey();
+  // Terrain tracing can yield while new atmosphere data are installed.
+  const state=eventSky?.weather===weather?eventSky.state:bodies.state(plan.body,at,eye);
+  if(eventSky&&eventSky.weather!==weather){eventSky.weather=weather;eventSky.state=state;}
+  const target=solution.anchor||plan.target,distance=g.distanceKm*1000,k=root.AstroNotesAtmosphere?.targetK?.()??7/6;
   const stateKey=[state.azimuth,state.apparentAltitude,state.angularRadius,state.upperAltitude,state.lowerAltitude];
-  const cacheKey=JSON.stringify([obs,at,plan.body,plan.target,plan.partId,target,g,plan.atmosphere,root.AstroNotesAtmosphere?.dataKey?.()??null,stateKey,k]);
+  const cacheKey=JSON.stringify([obs,at,plan.body,plan.target,plan.partId,target,g,plan.atmosphere,weather,stateKey,k]);
   if(visibilityCache.has(cacheKey))return visibilityCache.get(cacheKey);
   const targetRay={azimuth:g.azimuth,altitude:g.angle,maxM:distance,endpoint:{...target,elevation:g.topM},footM:target.groundM,targetKey:plan.target.id,refractionK:k};
   // Events of one point share their line to the target's anchor; it decides before any sky line can.
@@ -308,10 +313,10 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   const accepted=[];let blocked=0,outside=0,unverified=0,heightUnknown=0,lastUnverified=null;
   for(const solution of solved.solutions||[]){
    if(options.isCurrent?.()===false)throw Error('candidate-cancelled');
-   const state=bodies.state(plan.body,solution.event.at,{...solution.observer,elevation:solution.observer.elevation+solution.observer.eyeM});
+   const weather=weatherKey(),state=bodies.state(plan.body,solution.event.at,{...solution.observer,elevation:solution.observer.elevation+solution.observer.eyeM}),eventSky={weather,state};
    const frame=plan.overlapAnchor?lensCheck({...plan,target:plan.overlapAnchor.target,partId:plan.overlapAnchor.partId},solution.observer,state,align.geometryFrom(solution.observer,plan.overlapAnchor.target,{eyeM:solution.observer.eyeM})||solution.geometry,align):lensCheck(plan,solution.observer,
    state,solution.geometry,align);if(!frame.fits){outside++;continue;}
-   const los=await visibility(plan,solution,options);if(los.status==='blocked'){blocked++;continue;}
+   const los=await visibility(plan,solution,options,eventSky);if(los.status==='blocked'){blocked++;continue;}
    if(!los.surveyed&&partsHidden(plan.target,hiddenTop(los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline))){blocked++;continue;}
    const at=solution.event.at,position=solution.observer,finalGround=Number.isFinite(position.groundM)?position.groundM:ground;
    const sun=bodies.state('sun',at,{...position,elevation:position.elevation+position.eyeM});
@@ -324,7 +329,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
     const extraPlan={...plan,target:other,partId:null,composition:null,lens:plan.lens?{...plan.lens,...(frame.axis?{axis:frame.axis}:{})}:null};
     const otherFrame=lensCheck(extraPlan,position,state,geometry,align);
     // Retain the main event's (p,t); do not search a different time for an extra.
-    const extraSolution={observer:position,event:{at},geometry,anchor:other},extraLos=await visibility(extraPlan,extraSolution,options);
+    const extraSolution={observer:position,event:{at},geometry,anchor:other},extraLos=await visibility(extraPlan,extraSolution,options,eventSky);
     extras.push({id:other.id,frame:otherFrame,visibility:extraLos.status,evidence:extraLos,at,observer:{latitude:position.latitude,longitude:position.longitude,elevation:position.elevation,eyeM:position.eyeM}});
    }
    if(plan.requireAllTargets&&extras.some(x=>!x.frame.fits||x.frame.status==='unknown')){outside++;continue;}
@@ -357,7 +362,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   lastUnverified.target?.buildings?.status,lastUnverified.target?.buildings?.reason],rays:(lastUnverified.rays||[]).map(r=>r.intentionalTarget?'target':[r.status,r.terrain?.reason||r.terrain?.status,r.buildings?.reason||r.buildings?.status].join('/'))}:null,partial:solved.partial,
   reason:solved.reason};
  }
- return {evaluate,visibility,hiddenView,skylineView,clear:()=>{visibilityCache.clear();targetLines.clear();}};
+ return {evaluate,visibility:(plan,solution,options={})=>visibility(plan,solution,options),hiddenView,skylineView,clear:()=>{visibilityCache.clear();targetLines.clear();}};
 }
 Model.createGeneric=createGeneric;Model.standingMetadata=standingMetadata;Model.lensCheck=lensCheck;Model.photographability=photographability;Model.skyRange=skyRange;
 if(typeof module==='object'&&module.exports)module.exports={createGeneric,lensCheck,photographability,skyRange,angularDistance,standingMetadata};

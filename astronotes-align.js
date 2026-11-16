@@ -1527,21 +1527,21 @@
     const ref=model.calibration?.observer;
     const bearing=ref?TR.bearing(target.latitude,target.longitude,ref.latitude,ref.longitude):model.referenceBearing;
     const key=`${model.id},${target.latitude},${target.longitude},${bearing}`;
-    let world=castleWorldCache.get(key);
-    if(!world){
-      const places=new Map(),axis=(bearing-90)*R,depth=(bearing+180)*R;
-      const mapped=new Map();
-      const mapVertex=([x,y,z],index)=>{
-        const vk=`${x},${y},${z}`;if(mapped.has(vk))return mapped.get(vk);
-        const k=`${x},${y}`;let p=places.get(k);
-        if(!p&&model.geoVertices){const [latitude,longitude]=model.geoVertices[index];p={latitude,longitude};places.set(k,p);}
-        if(!p){const east=model.vertices?x:x*Math.sin(axis)+y*Math.sin(depth),north=model.vertices?y:x*Math.cos(axis)+y*Math.cos(depth);
-          p=TR.destination(target.latitude,target.longitude,Math.atan2(east,north)/R,Math.hypot(east,north)/1000);places.set(k,p);}
-        const result={place:p,z};mapped.set(vk,result);return result;
-      };
-      world=model.vertices?(model.faces||model.triangles).map(face=>face.map(i=>mapVertex(model.vertices[i],i))):model.solids.map(solid=>solid.map(mapVertex));
-      if(castleWorldCache.size>=16)castleWorldCache.clear();castleWorldCache.set(key,world);
-    }
+    const cached=castleWorldCache.get(key);
+    if(cached?.model===model)return cached.world;
+    const places=new Map(),axis=(bearing-90)*R,depth=(bearing+180)*R;
+    const mapped=new Map();
+    const mapVertex=([x,y,z],index)=>{
+      const vk=`${x},${y},${z}`;if(mapped.has(vk))return mapped.get(vk);
+      const k=`${x},${y}`;let p=places.get(k);
+      if(!p&&model.geoVertices){const [latitude,longitude]=model.geoVertices[index];p={latitude,longitude};places.set(k,p);}
+      if(!p){const east=model.vertices?x:x*Math.sin(axis)+y*Math.sin(depth),north=model.vertices?y:x*Math.cos(axis)+y*Math.cos(depth);
+        p=TR.destination(target.latitude,target.longitude,Math.atan2(east,north)/R,Math.hypot(east,north)/1000);places.set(k,p);}
+      const result={place:p,z};mapped.set(vk,result);return result;
+    };
+    const world=model.vertices?(model.faces||model.triangles).map(face=>face.map(i=>mapVertex(model.vertices[i],i))):model.solids.map(solid=>solid.map(mapVertex));
+    if(castleWorldCache.size>=16)castleWorldCache.clear();
+    castleWorldCache.set(key,{model,world});
     return world;
   }
   const modelHeight=(model,top,z)=>model.heightMode==="translate-top"?(model.groundAnchored&&z===0?0:z+top-model.heightM):z*top/model.heightM;
@@ -1585,7 +1585,8 @@
       }
       viewBaseAngle=upper.length?upper.reduce((a,v)=>Math.min(a,v),Infinity):ang(cutoff);
     }
-    return {vertices:world.flat().map(project),vertexPolygons:world.map(face=>face.map(project)),points,polygons,basePoints,hitPolygons,hitPoints: model.hitSolidCount?hitPolygons.flat():null,schematic:false,known:true,approximate:true,
+    const vertexPolygons=world.map(face=>face.map(project));
+    return {vertices:vertexPolygons.flat(),vertexPolygons,points,polygons,basePoints,hitPolygons,hitPoints: model.hitSolidCount?hitPolygons.flat():null,schematic:false,known:true,approximate:true,
       modelId:model.id,sourceLabel:model.sourceLabel,sourceUrl:model.sourceUrl,azimuth:az0,distanceKm:d,baseAngle,topAngle,viewBaseAngle,hiddenAngle:null};
   }
 
@@ -1681,11 +1682,12 @@
 
   /** 画角の時刻判定用。当日全体を採取し、表示の道が途中で切れていても判定できる。 */
   // startMs/endMs で日付の前後へ広げられる（2026-10-20 日付をまたぐ画角内の時刻のため）。既定はその日の0〜24時
-  function frameDayPath(body, observer, dayMs, proj, { stepS = 60, startMs = null, endMs = null } = {}) {
+  function frameDayPath(body, observer, dayMs, proj, { stepS = 60, startMs = null, endMs = null, sampleState = null } = {}) {
     if (!Number.isFinite(dayMs) || !Number.isFinite(stepS) || stepS < 1 || stepS > 60) throw new RangeError("日付と採取間隔（1〜60秒）を指定してください");
+    const stateAt = sampleState ?? (ms => bodyAt(body, ms, observer));
     const out = [], start = Number.isFinite(startMs) ? startMs : dayMs, end = Number.isFinite(endMs) && endMs > start ? endMs : dayMs + 86400000;
     for (let at = start; at <= end; at = Math.min(end, at + stepS * 1000)) {
-      const st = bodyAt(body, at, observer);
+      const st = stateAt(at);
       const xy = proj(st.azimuth, st.apparentAltitude);
       out.push({ at, x: xy ? xy[0] : null, y: xy ? xy[1] : null, radius: st.angularRadius, azimuth: st.azimuth, altitude: st.apparentAltitude });
       if (at === end) break;
@@ -1762,10 +1764,10 @@
    * 図の範囲を通る太陽・月の道。重なる時刻 `at` から前後へ、範囲の外へ出るまで stepS 秒ごと（最大 maxMin 分）。
    * 重なる時刻の点を必ず含める（細い塔で、刻みが瞬間を飛び越えないように）
    */
-  function viewPath(body, observer, at, proj, win, { stepS = 20, maxMin = 240, includeAt = at, dayMs = null } = {}) {
+  function viewPath(body, observer, at, proj, win, { stepS = 20, maxMin = 240, includeAt = at, dayMs = null, sampleState = null } = {}) {
     if (!(stepS > 0) || !Number.isFinite(stepS)) throw new RangeError("stepS must be positive");
     if (!Number.isFinite(includeAt) || (!Number.isFinite(dayMs) && Math.abs(includeAt - at) > maxMin * 60000)) includeAt = at;
-    const stateAt = (t) => bodyAt(body, t, observer);
+    const stateAt = sampleState ?? (ms => bodyAt(body, ms, observer));
     const inside = (p) => p && Math.abs(p[0]) <= win.halfW * 1.15 && Math.abs(p[1]) <= win.halfH * 1.15;
     const pt = (t) => {
       const st = stateAt(t);

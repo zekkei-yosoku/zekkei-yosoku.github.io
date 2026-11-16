@@ -4,6 +4,7 @@ import {AimMap,aim,aimIsMountain,aimSceneBackdrop} from '../controller.js';
 import {aimLookRidge,aimTerrainBeyond,aimTerrainFront} from './terrain.js';
 import {AIM_SENSOR,aimDrawGrid,aimLens,aimLookHMS,aimLookHosts,aimLookRel} from './lens.js';
 import {aimLookSolidSilhouette,aimLookForeground} from './silhouette.js';
+import {aimLookEphemeris,aimLookSceneGeometry} from './calculations.js';
 import {aimLookPick} from './input.js';
 import {aimAirAngle,aimAirCompare,aimAirDescribe,aimLookKey,aimReverseClear} from '../reverse-and-entry.js';
 import {auth} from '../../account/session-and-access.js';
@@ -89,7 +90,7 @@ async function aimLookRender(host, spec) {
   const pickGeo = AstroNotesAlign.geometryFrom(spec.obs,t,{eyeM:spec.eyeM,partId:host.id==="aimLook"?aim.partId:null});
   const D = AstroNotesTerrain.distanceKm(spec.obs.latitude, spec.obs.longitude, t.latitude, t.longitude);
   const az = AstroNotesTerrain.bearing(spec.obs.latitude, spec.obs.longitude, t.latitude, t.longitude);
-  const outline = aimIsMountain(t) ? null : AstroNotesAlign.towerOutline(spec.obs, t, { eyeM: spec.eyeM });
+  const {outline,scene} = aimLookSceneGeometry(host, spec.obs, spec.eyeM, [t, ...aimSceneBackdrop()], aimIsMountain(t));
   const mountain = !outline;
   const topAngle = outline ? outline.topAngle : aimAirAngle(D, eye, t.parts[0].m);
   const baseAngle = outline ? outline.baseAngle : topAngle - 5 * Math.max(radius, 0.27);
@@ -128,14 +129,12 @@ async function aimLookRender(host, spec) {
   const plannerAt=transfer&&transfer.body===body&&transfer.day===S.JstCal.startOfDay(spec.at)&&transfer.latitude===spec.obs.latitude&&transfer.longitude===spec.obs.longitude?transfer.at:null;
   if(transfer&&(!Number.isFinite(plannerAt)))aim.plannerTransfer=null;
   const selectedAt = Number.isFinite(plannerAt)?plannerAt:pendingPlan ? pendingPlan.at : Number.isFinite(comparison)?comparison:sameLookSpec && Number.isFinite(host._lookAt) ? host._lookAt : spec.at;
-  const path = AstroNotesAlign.viewPath(body, eyeObs, spec.at, proj, win, { includeAt: selectedAt, dayMs: S.JstCal.startOfDay(spec.at) });
   const frameDay = S.JstCal.startOfDay(spec.at);
-  // 2026-10-20 ユーザー「日付を跨ぐ際に線が途切れる問題に対処して」：画角内の時刻は前日18時〜翌日6時で求め、図の線は前日の終わりと翌日のはじめ（3時間）をつなげて描く。時刻のバーは当日のまま
-  const framePoints = frame ? AstroNotesAlign.frameDayPath(body, eyeObs, frameDay, proj, { startMs: frameDay - 6 * 3600000, endMs: frameDay + 30 * 3600000 }) : null;
+  const {path,framePoints,sampleState} = aimLookEphemeris(host, body, eyeObs, frameDay, spec.at, selectedAt, win, proj, frame);
   // 海面の基準は軌道の日付分割と画角内の時間帯に使う。遠方の地形を塔の図へ重ねない。
   const seaAngle = AstroNotesAstro.seaHorizonAngle(eye, { k: AstroNotesAtmosphere.targetK() });
   const passagePoints = mountain ? framePoints?.map(q => q.altitude + q.radius < seaAngle ? {...q,x:null,y:null} : q) : framePoints;
-  const pathEdge = (at, keep) => { try { return AstroNotesAlign.viewPath(body, eyeObs, at, proj, win, { stepS: 60, maxMin: 180 }).filter(keep); } catch { return []; } };
+  const pathEdge = (at, keep) => { try { return AstroNotesAlign.viewPath(body, eyeObs, at, proj, win, { stepS: 60, maxMin: 180, sampleState }).filter(keep); } catch { return []; } };
   const pathBefore = pathEdge(frameDay, (q) => q.at < frameDay), pathAfter = pathEdge(frameDay + 86400000, (q) => q.at >= frameDay + 86400000);
   // 1日の中には前の晩と次の晩の通り道が両方入ることがある。地平線より上にいる間ごとに1本の通り道として区切り、
   // 描くのは見ている時刻を含む1本だけ（日付をまたいで端から端まで）。時刻のバーで別の晩へ動かせば、その晩の線に替わる
@@ -165,7 +164,6 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
   const i0 = path.reduce((best, p, i) => Math.abs(p.at - selectedAt) < Math.abs(path[best].at - selectedAt) ? i : best, 0);
   const k = (H / 2) / win.halfH;
   const toPx = (xy) => (xy ? [W / 2 + xy[0] * k, H / 2 - xy[1] * k] : null);
-  const scene = AstroNotesAlign.sceneTargets(spec.obs, [t, ...aimSceneBackdrop()], { eyeM: spec.eyeM });
   const sceneCenters = scene.map(item => proj(item.azimuth, item.topAngle)).filter(p => p && Math.abs(p[0]) < 330);
   const panLimit = Math.max(1, ...sceneCenters.map(p => Math.abs(p[0]) / (2 * win.halfW) + .5));
   let sceneVersion=0;
@@ -263,7 +261,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
   const every = [1, 2, 5, 10, 15, 30, 60].find((m) => span / m <= 10) || 60;
   const ticks = [];
   for (let m = Math.ceil(fullPath[0].at / (every * 60000)) * every * 60000; m <= fullPath[fullPath.length - 1].at; m += every * 60000) {
-    const s = AstroNotesBodies.state(body, m, eyeObs);
+    const s = sampleState(m);
     const p = toPx(proj(s.azimuth, s.apparentAltitude));
     if (p) ticks.push([p[0], p[1], m]);
   }

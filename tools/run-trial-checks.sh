@@ -40,5 +40,6 @@ run date CANDIDATE_DATE_BASE=$B node tools/test-candidate-date-navigation.cjs
 run compose COMPOSE_BASE=$B node tools/test-explore-compose.cjs
 run view-first VIEW_FIRST_BASE=$B node tools/test-explore-view-first.cjs
 run obstruction-display OBSTRUCTION_BASE=${B}index.html OBSTRUCTION_OUT="$OUT/obstruction" node tools/test-preview-obstruction-display.cjs
+run preview-calculation-cache PREVIEW_CACHE_BASE=$B PREVIEW_CACHE_OUT="$OUT/preview-calculation-cache" node tools/test-preview-calculation-cache.cjs
 run error-log ERROR_LOG_BASE=$B node tools/test-trial-error-log.cjs
 exit $failed

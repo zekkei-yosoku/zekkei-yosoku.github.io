@@ -36,6 +36,7 @@
     "src/features/framing/scene/terrain.js",
     "src/features/framing/scene/lens.js",
     "src/features/framing/scene/silhouette.js",
+    "src/features/framing/scene/calculations.js",
     "src/features/framing/scene/render.js",
     "src/features/framing/scene/input.js",
     "src/features/framing/scene/reverse.js",
@@ -197,6 +198,10 @@
     },
     {
       "path": "src/features/framing/scene/silhouette.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/framing/scene/calculations.js",
       "kind": "classic-fragment"
     },
     {
@@ -723,6 +728,13 @@
       },
       {
         "path": "src/features/framing/scene/silhouette.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/framing/scene/calculations.js",
         "layer": "presentation",
         "scope": "classic-composition",
         "provides": [],

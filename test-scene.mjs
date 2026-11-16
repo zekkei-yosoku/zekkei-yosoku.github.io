@@ -73,3 +73,47 @@ test('実レンダーが周囲の東京タワーを描き、古い主目標へ�
 
 
 });
+
+test('同じ天体の一日と画角用時刻は同じ標本を共有し、任意秒と大気条件は更新する',()=>{
+ const source=readFileSync(new URL('./src/features/framing/scene/calculations.js',import.meta.url),'utf8');
+ let air='standard',stateCalls=0;
+ const ctx=vm.createContext({AstroNotesAlign:AL,AstroNotesAtmosphere:{dataKey:()=>air},
+  AstroNotesBodies:{state:(_body,ms,_obs)=>{
+   stateCalls++;
+   return {azimuth:61,apparentAltitude:air==='none'?1:2,angularRadius:0.25,illuminatedFraction:ms%1000/1000};
+  }}});
+ vm.runInContext(source.replace(/^export .*;$/m,'')+';globalThis.samples=aimLookEphemeris;',ctx);
+ const host={},day=S.JstCal.startOfDay(at),win={az0:61,alt0:2,halfW:1,halfH:1},project=AL.viewProjector(win.az0,win.alt0);
+ const run=(selected=at,window=win,proj=project)=>ctx.samples(host,'moon',observer,day,at,selected,window,proj,true);
+ const first=run(),n=stateCalls;
+ assert.equal(first.path.length,4321);assert.equal(first.framePoints.length,2161);
+ assert(n<first.path.length+first.framePoints.length,'same-minute entries are sampled only once');
+ const zoom=run(at,{...win,halfW:.5,halfH:.5});
+ assert.strictEqual(zoom.path,first.path);assert.strictEqual(zoom.framePoints,first.framePoints);assert.equal(stateCalls,n);
+ const selected=at+137;
+ const moved=run(selected);
+ assert.equal(moved.path.find(p=>p.at===selected).illuminated,.137);
+ assert.equal(stateCalls,n+1);assert.strictEqual(moved.framePoints,first.framePoints);
+ const turn=run(selected,{...win,az0:62},AL.viewProjector(62,2));
+ assert.notEqual(turn.path[0].x,moved.path[0].x);
+ assert.equal(stateCalls,n+1,'another projection can reuse the same physical states');
+ air='none';
+ const refracted=run(selected);
+ assert.equal(refracted.path[0].altitude,1);assert(stateCalls>n+1);
+});
+
+test('同じモデルIDを別の形状に置き換えたときは描画用の頂点を更新する',()=>{
+ const id='outline-refresh-probe';
+ const target={id,latitude:35.7099,longitude:139.8107,groundM:2,parts:[{id:'tip',m:32}]};
+ const model=width=>({id:'same-model-id',heightM:30,referenceBearing:0,vertices:[[-width,0,0],[width,0,0],[0,0,30]],faces:[[0,1,2]]});
+ const previous=globalThis.AstroNotesCityModels;
+ try {
+  globalThis.AstroNotesCityModels={...previous,[id]:model(5)};
+  const first=AL.towerOutline(observer,target);
+  globalThis.AstroNotesCityModels[id]=model(20);
+  const revised=AL.towerOutline(observer,target);
+  assert.equal(revised.modelId,first.modelId);
+  assert.notDeepEqual(revised.vertices,first.vertices);
+  assert.equal(revised.vertices[2][1],first.vertices[2][1]);
+ } finally {globalThis.AstroNotesCityModels=previous;}
+});

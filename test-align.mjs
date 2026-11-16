@@ -5,6 +5,7 @@
 //   観測者は目標から見てその方位の**反対側**にいる。
 // 答え合わせは既知の名所で行う（高尾山の冬至のダイヤモンド富士）。
 import { createRequire } from "node:module";
+import { isDeepStrictEqual } from "node:util";
 const require = createRequire(import.meta.url);
 const TR = require("./astronotes-terrain.js");
 const AL = require("./astronotes-align.js");
@@ -516,6 +517,21 @@ console.log("== 見え方の図（2026-10-02） ==");
   const out = (p) => Math.abs(p.x) > win.halfW || Math.abs(p.y) > win.halfH;
   ok(out(path[0]) && out(path[path.length - 1]), "両端は図の外まで", `${path.length}点`);
   ok(path.every((p) => Number.isFinite(p.brightLimbZenithAngle) && Number.isFinite(p.illuminated)), "月の点は欠けの向きと割合を持つ");
+
+  const body = require("./astronotes-bodies.js");
+  const dayMs = Math.floor((at + 9 * 3600000) / 86400000) * 86400000 - 9 * 3600000;
+  const includeAt = at + 1234;
+  const frameOptions = { startMs: dayMs - 700, endMs: dayMs + 60201 };
+  const expectSharedSamples = (read, name) => {
+    const sampled = [];
+    const sampleState = ms => { sampled.push(ms); return body.state("moon", ms, eyeObs); };
+    const expected = read(null), result = read(sampleState);
+    ok(isDeepStrictEqual(result, expected), `${name}は天体状態を共有しても同じ値になる`);
+    ok(isDeepStrictEqual(sampled.sort((a, b) => a - b), expected.map(p => p.at)), `${name}の標本時刻はミリ秒まで同じ`);
+  };
+  expectSharedSamples(sampleState => AL.frameDayPath("moon", eyeObs, dayMs, proj, { ...frameOptions, sampleState }), "画角内の時刻判定");
+  expectSharedSamples(sampleState => AL.viewPath("moon", eyeObs, at, proj, win, { includeAt, dayMs, sampleState }), "当日の軌道");
+  expectSharedSamples(sampleState => AL.viewPath("moon", eyeObs, at, proj, win, { includeAt, sampleState }), "画角までの軌道");
 }
 
 console.log("== 写真と合う: 2026-10-03 鷺沼北公園の撮影地→スカイツリーと月（2026-10-05） ==");

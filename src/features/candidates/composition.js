@@ -339,7 +339,21 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
  }
  if(cancelled)return empty('cancelled',true);
  const eligible=candidates.filter(e=>e.eligible).sort((a,b)=>a.at-b.at),clusters=[];
- for(const row of eligible){let group=clusters.at(-1);const intervening=group&&[...samples.values()].some(e=>e.at>group.at(-1).at&&e.at<row.at&&!e.eligible);if(!group||row.at-group.at(-1).at>300000||intervening){group=[];clusters.push(group);}group.push(row);}
+ const ineligibleTimes=[];
+ if(eligible.length>1){
+  for(const sample of samples.values())if(!sample.eligible)ineligibleTimes.push(sample.at);
+  ineligibleTimes.sort((a,b)=>a-b);
+ }
+ let nextIneligible=0;
+ for(const row of eligible){
+  let group=clusters.at(-1);
+  const previous=group?.at(-1);
+  if(previous)while(ineligibleTimes[nextIneligible]<=previous.at)nextIneligible++;
+  if(!previous||row.at-previous.at>300000||ineligibleTimes[nextIneligible]<row.at){
+   group=[];clusters.push(group);
+  }
+  group.push(row);
+ }
  const solutions=[];
  for(const cluster of clusters){
   const best=cluster.reduce((a,b)=>b.gap<a.gap?b:a),interval=[cluster[0].at,cluster.at(-1).at];let sunAltitude=null,side=null;

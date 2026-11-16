@@ -157,6 +157,36 @@ test('secondary obstruction is evaluated at the same event and observer; require
  const r=await model.evaluate(p,point,{});assert(r.recommend);assert.equal(r.extraTargets[0].visibility,'blocked');assert.equal(r.extraTargets[0].at,r.event.at);assert.equal(r.extraTargets[0].observer.elevation,r.assumedObserver.elevation);assert(seen.some(x=>x.ray.endpoint?.longitude===extra.longitude));assert.equal(r.status,'visible-partial');
  assert.equal((await model.evaluate({...p,requireAllTargets:true},point,{})).status,'model-blocked');
 });
+test('visibility reuses the event sky across targets and refreshes it after weather changes during tracing',async()=>{
+ const oldAtmosphere=globalThis.AstroNotesAtmosphere,candidate={...plan,extraTargets:[
+  {...target,id:'second',longitude:139.01},{...target,id:'third',longitude:139.02}
+ ]};
+ try{
+  for(const changeWeather of [false,true]){
+   let weather=0,calls=0;
+   const rayAltitudes=new Map();
+   globalThis.AstroNotesAtmosphere={...oldAtmosphere,dataKey:()=>weather};
+   const weatherBodies={...bodies,state:(id,at,observer)=>{
+    if(id==='moon'&&at===plan.at)calls++;
+    return {...bodies.state(id,at,observer),apparentAltitude:10+weather};
+   }};
+   const terrain={...clearTerrain,trace:async(o,ray)=>{
+    if(!ray.endpoint&&!rayAltitudes.has(ray.targetKey)){
+     rayAltitudes.set(ray.targetKey,ray.altitude);
+     if(changeWeather&&ray.targetKey===target.id)weather=1;
+    }
+    return {status:'model-clear'};
+   }};
+   const result=await createGeneric({align:outlined,bodies:weatherBodies,geo:G,terrain,heights:openHeights,yieldTask:async()=>{}}).evaluate(candidate,point,{});
+   assert.equal(result.status,'model-visible');
+   assert.deepEqual(result.extraTargets.map(x=>[x.id,x.at,x.visibility]),[['second',0,'model-clear'],['third',0,'model-clear']]);
+   assert.equal(calls,changeWeather?3:2);
+   const primaryAltitude=rayAltitudes.get(target.id);
+   assert.equal(rayAltitudes.get('second'),primaryAltitude+(changeWeather?1:0));
+   assert.equal(rayAltitudes.get('third'),rayAltitudes.get('second'));
+  }
+ }finally{globalThis.AstroNotesAtmosphere=oldAtmosphere;}
+});
 test('a point whose line to the target top is blocked or unconfirmed is ruled out before any event search',async()=>{
  const seen=[],heights=status=>({trace:async(o,ray)=>{seen.push(ray);return {status,reason:status==='unknown'?'building-height-unknown':null};}});
  const blocked=await createGeneric({align:outlined,bodies,geo:G,terrain:openTerrain,heights:heights('blocked'),yieldTask:async()=>{}}).evaluate(plan,point,{});
