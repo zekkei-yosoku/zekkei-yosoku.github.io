@@ -1,5 +1,23 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {createRequire} from 'node:module';const require=createRequire(import.meta.url),C=require('./src/features/candidates/composition.js'),A=require('./astronotes-align.js'),B=require('./astronotes-bodies.js'),fs=require('node:fs');
 const target=A.targetById('skytree');
+test('auto refraction prefilter retains a body that can overlap after weather data changes its altitude',async()=>{
+ const at=0,observer={...require('./astronotes-terrain.js').destination(target.latitude,target.longitude,45,8),groundM:5,elevation:5,eyeM:1.5};
+ const g=A.geometryFrom(observer,target,{partId:'tip'}),base={body:'moon',target,partId:'tip',timeSpec:{kind:'instant',at}};
+ const previous=globalThis.AstroNotesAtmosphere;
+ try{
+  globalThis.AstroNotesAtmosphere={mode:()=> 'auto'};
+  for(const [azimuth,expected] of [[g.azimuth,false],[g.azimuth+30,true]]){
+   const bodies={definition:()=>({limbs:true}),state:(_body,_at,_observer,opts)=>({
+    azimuth,apparentAltitude:opts?.refraction===false?g.angle-12:g.angle,angularRadius:.25
+   })};
+   assert.equal(C.definiteAngularMiss(base,observer,{align:A,bodies}),expected);
+   if(expected)assert.equal((await C.opportunities(base,observer,{align:A,bodies,yieldTask:async()=>{}})).solutions.length,0);
+   else assert.equal((await C.opportunities(base,observer,{align:A,bodies,yieldTask:async()=>{}})).solutions.length,1);
+  }
+ }finally{
+  if(previous===undefined)delete globalThis.AstroNotesAtmosphere;else globalThis.AstroNotesAtmosphere=previous;
+ }
+});
 test('composition validates target height, offset, limb and explicit time widths',()=>{assert(C.valid({heightM:452,xM:0,limb:'lower'},target));for(const c of [{heightM:NaN,xM:0,limb:'center'},{heightM:1,xM:0,limb:'center'},{heightM:637,xM:0,limb:'center'},{heightM:452,xM:Infinity,limb:'center'},{heightM:452,xM:0,limb:'unknown'}])assert(!C.valid(c,target));assert(C.windowValid({kind:'none'}));assert(!C.windowValid({kind:'both',beforeMin:null,afterMin:30}));assert(C.windowValid({kind:'rise',beforeMin:0,afterMin:90}));});
 test('optional windows include both endpoints, neighbouring-day anchors and distinguish rise from set',()=>{const events=[{at:0,kind:'rise'},{at:600000,kind:'set'}];assert(C.inWindow(-60000,{kind:'rise',beforeMin:1,afterMin:2},events));assert(C.inWindow(120000,{kind:'rise',beforeMin:1,afterMin:2},events));assert(!C.inWindow(120001,{kind:'rise',beforeMin:1,afterMin:2},events));assert(!C.inWindow(600000,{kind:'rise',beforeMin:1,afterMin:2},events));assert(C.inWindow(600000,{kind:'both',beforeMin:1,afterMin:2},events));assert(C.inWindow(999999,{kind:'none'},events));});
 test('road eligibility respects holes and bridge classification',()=>{const ring=[[139,35,0],[139.01,35,0],[139.01,35.01,0],[139,35.01,0],[139,35,0]],hole=[[139.004,35.004],[139.006,35.004],[139.006,35.006],[139.004,35.006]],f={function:'2000',coordinatesLonLatHeight:ring,interiorRingsLonLatHeight:[hole],structureClassificationKnown:true,nonTerrainStructure:false};assert(C.roadAt({features:[f]},{latitude:35.002,longitude:139.002}));assert.equal(C.roadAt({features:[f]},{latitude:35.005,longitude:139.005}),null);assert.equal(C.roadAt({features:[{...f,nonTerrainStructure:true}]},{latitude:35.002,longitude:139.002}),null);});
@@ -51,4 +69,93 @@ test('closest point on an outline: the boxed rings give the same answer as check
  assert.deepEqual(C.closestPoint([0,0],tied),{point:[1,0],distance:1});
  for(const p of [[1,1],[NaN,0],[0,Infinity]])assert.deepEqual(C.closestPoint(p,[]),{point:[0,0],distance:Infinity});
  for(const p of [[NaN,0],[0,Infinity]])assert.deepEqual(C.closestPoint(p,polygons),{point:[0,0],distance:Infinity});
+});
+
+test('fixed-time angular exclusion matches the part solver around the tolerance and below-target boundaries',async()=>{
+ const observer={latitude:35.74546,longitude:139.893785,groundM:15.6,elevation:15.6,eyeM:1.5};
+ const at=1794823200000,plan={target,body:'moon',partId:'tip',timeSpec:{kind:'instant',at}};
+ const g=A.geometryFrom(observer,target,{partId:plan.partId,eyeM:observer.eyeM});
+ const unproject=A.viewUnprojector(g.azimuth,g.angle);
+ const degrees=Math.PI/180,limit=Math.tan(.75*degrees)/degrees;
+ let misses=0,kept=0;
+ for(const x of [-2,-limit-1e-7,-limit,-.25,0,.25,limit,limit+1e-7,2]){
+  for(const y of [-1,-.2501,-.25,0,.25,1]){
+   const [azimuth,apparentAltitude]=unproject(x,y);
+   const bodies={state:()=>({azimuth,apparentAltitude,angularRadius:.25})};
+   const options={align:A,bodies,yieldTask:async()=>{}};
+   const result=await C.opportunities(plan,observer,options);
+   const miss=C.definiteAngularMiss(plan,observer,options);
+   assert.equal(miss,result.solutions.length===0,`${x}, ${y}`);
+   if(miss)misses++;else kept++;
+  }
+ }
+ assert(misses>kept&&kept>0);
+});
+
+test('angular exclusion respects off-axis outlines, upper limbs and elevation, and leaves intervals to the solver',async()=>{
+ const observer={latitude:35.71,longitude:139.80,groundM:90,elevation:0,surfaceElevationM:90,eyeM:1.5};
+ const plan={target,body:'moon',partId:'__whole',timeSpec:{kind:'instant',at:0}};
+ let outlines=0;
+ const align={...A,geometryFrom:()=>({azimuth:0,angle:10,distanceKm:1,topM:100}),
+  viewProjector:(a,h)=>(x,y)=>x>90?null:[x-a,y-h],outlineScreenBounds:undefined,
+  towerOutline:()=>{outlines++;return {known:true,polygons:[[[1.9,9.8],[2.1,9.8],[2.1,10.2],[1.9,10.2]]]};}};
+ const sky={azimuth:2,apparentAltitude:10,angularRadius:.25};
+ const options={align,bodies:{state:()=>sky},yieldTask:async()=>{}};
+ assert.equal(C.definiteAngularMiss(plan,observer,options),false);
+ assert.equal(outlines,0,'the cheap check does not construct the target model');
+ assert.equal((await C.opportunities(plan,observer,options)).solutions.length,1);
+ const withSky=state=>({...options,bodies:{state:()=>({...sky,...state})}});
+ const low=withSky({apparentAltitude:-.8,upperAltitude:-.2});
+ assert.equal(C.definiteAngularMiss(plan,observer,low),false,'the actual refracted upper limb reaches the elevated horizon');
+ assert.equal(C.definiteAngularMiss(plan,{...observer,surfaceElevationM:0},low),true);
+ assert.equal(C.definiteAngularMiss(plan,observer,withSky({azimuth:180})),true);
+ assert.equal(C.definiteAngularMiss(plan,observer,withSky({azimuth:NaN})),false);
+ assert.equal(C.definiteAngularMiss({...plan,strict:true},observer,withSky({azimuth:180})),false);
+ assert.equal(C.definiteAngularMiss({...plan,timeWindow:{kind:'rise',beforeMin:0,afterMin:0}},observer,withSky({azimuth:180})),false);
+ const window={...plan,timeSpec:{kind:'window',start:0,end:10000}};
+ const changing={...options,bodies:{state:(_,t)=>({...sky,azimuth:t===5000?2:45})}};
+ assert.equal(C.definiteAngularMiss(window,observer,changing),false);
+ assert((await C.opportunities(window,observer,changing)).solutions.some(s=>s.event.at===5000));
+});
+
+test('fixed-time whole-target bounds contain the real Skytree outline and preserve every solver hit',async()=>{
+ const observer={latitude:35.7109998066,longitude:139.808572909,groundM:1.59,elevation:1.59,eyeM:1.5};
+ const plan={target,body:'moon',partId:'__whole',timeSpec:{kind:'instant',at:1795885135040.1123}};
+ const options={align:A,bodies:B,yieldTask:async()=>{}};
+ let rejected=0,hits=0,finiteBounds=0;
+ for(const dy of [-.006,-.0008,0,.0008,.006])for(const dx of [-.006,0,.006]){
+  const o={...observer,latitude:observer.latitude+dy,longitude:observer.longitude+dx};
+  const g=A.geometryFrom(o,target,{partId:null,eyeM:o.eyeM});
+  const box=A.outlineScreenBounds(o,target,g,{eyeM:o.eyeM});
+  if(box){
+   assert(Object.values(box).every(Number.isFinite));
+   finiteBounds++;
+   const project=A.viewProjector(g.azimuth,g.angle);
+   const outline=A.towerOutline(o,target,{eyeM:o.eyeM});
+   for(const ring of outline.hitPolygons||outline.polygons)for(const v of ring){
+    const q=project(...v);
+    if(!q)continue;
+    assert(q[0]>=box.minX&&q[0]<=box.maxX&&q[1]>=box.minY&&q[1]<=box.maxY);
+   }
+  }
+  const miss=C.definiteAngularMiss(plan,o,options);
+  const found=(await C.opportunities(plan,o,options)).solutions.length>0;
+  if(miss){assert.equal(found,false);rejected++;}
+  if(found)hits++;
+ }
+ assert(rejected>0&&hits>0&&finiteBounds>0);
+});
+
+test('whole-target angular bounds defer when the first part moves the camera axis off the model centre',()=>{
+ const observer={latitude:35.74546,longitude:139.893785,groundM:15.6,elevation:15.6,eyeM:1.5};
+ const [tip,...parts]=target.parts;
+ const shifted={...target,parts:[{...tip,latitude:target.latitude,longitude:target.longitude+.001},...parts]};
+ const normal=A.geometryFrom(observer,target,{partId:null,eyeM:observer.eyeM});
+ const moved=A.geometryFrom(observer,shifted,{partId:null,eyeM:observer.eyeM});
+ assert.notEqual(moved.azimuth,normal.azimuth);
+ assert(A.outlineScreenBounds(observer,target,normal,{eyeM:observer.eyeM}));
+ assert.equal(A.outlineScreenBounds(observer,shifted,moved,{eyeM:observer.eyeM}),null);
+ const plan={target:shifted,body:'moon',partId:'__whole',timeSpec:{kind:'instant',at:0}};
+ const bodies={state:()=>({azimuth:moved.azimuth+5,apparentAltitude:moved.angle,angularRadius:.25})};
+ assert.equal(C.definiteAngularMiss(plan,observer,{align:A,bodies}),false);
 });

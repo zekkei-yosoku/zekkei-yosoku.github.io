@@ -126,7 +126,7 @@ AstroNotesCandidatePicker.skylineView=(observer,target,azimuths,current=stillHer
 async function loadModel(){
  // The 3D band model is no longer loaded.
  if(!modelPromise)modelPromise=(async()=>{await AstroNotesAssets.ensureModels();const dem=await staticTerrain();
-  return AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:live,heights:sharedHeights(),trees:treeHeights,staticTerrain:dem,sidewalks:await loaded('candidate-sidewalks.json').catch(()=>null)});
+  return AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:live,heights:sharedHeights(),trees:treeHeights,staticTerrain:dem,sidewalks:await loaded('candidate-sidewalks.json').catch(()=>null),angularPrefilter:true});
   })().catch(e=>{modelPromise=null;throw e;});
  return modelPromise;
 }

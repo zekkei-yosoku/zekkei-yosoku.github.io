@@ -63,12 +63,20 @@ function walkGrid(x0,y0,x1,y1,d0,d1,visit){
  return true;
 }
 const sha=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
+function endpointKey(observer,ray){
+ const endpoint=ray.endpoint;
+ if(!endpoint||typeof ray.targetKey!=='string'||!ray.targetKey)return null;
+ const values=[observer.latitude,observer.longitude,observer.elevation,observer.eyeM??1.5,endpoint.latitude,endpoint.longitude,endpoint.elevation,ray.maxM,ray.refractionK||1];
+ return values.every(Number.isFinite)?JSON.stringify([ray.targetKey,...values]):null;
+}
 function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):null),base='data/building-heights/',loadIndex=null,gsiAlong=null,groundAt=null,ownFootprint=null,ownFootprintVersion=null,obstacles=null}={}){
  let indexPromise=null;const meshes=new Map(),ready=new Map(),overlays=new Map(),partLoads=new Map(),parts=new Map(),ownCells=new Map();
+ const blockedEndpoints=new Map(),BLOCKED_ENDPOINT_LIMIT=1024;
+ const footprintVersionOf=targetKey=>targetKey&&ownFootprint?ownFootprintVersion?.(targetKey):undefined;
  // Cells of a user's target building (lat/lon rings), widened by one cell: that building is the target, not an obstacle.
- function ownSet(targetKey){
+ function ownSet(targetKey,version=footprintVersionOf(targetKey)){
   if(!ownFootprint||!targetKey)return null;
-  const version=ownFootprintVersion?.(targetKey),cached=ownCells.get(targetKey);
+  const cached=ownCells.get(targetKey);
   if(cached&&cached.version===version)return cached.set;
   const rings=ownFootprint(targetKey);let set=null;
   if(rings?.length){set=new Set();for(const ring of rings){const xs=ring.map(p=>p[1]*LON),ys=ring.map(p=>p[0]*LAT);
@@ -196,12 +204,21 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
  // skipTrees: the caller read the trees' own heights on this line (tree-heights.js), so OSM woods add nothing.
  async function trace(observer,ray,{isCurrent=()=>true,skipTrees=false}={}){
   if(![observer.latitude,observer.longitude,observer.elevation,ray.maxM].every(Number.isFinite)||!(ray.maxM>0))return {status:'unknown',reason:'invalid-ray'};
-  const data=await index(),offset=data.grid.offsetM,pr=profile(observer,ray);
+  const data=await index();
+  requireCurrent(isCurrent);
+  const footprintVersion=footprintVersionOf(ray.targetKey),key=!ownFootprint||footprintVersion!==undefined?endpointKey(observer,ray):null;
+  const confirmed=key&&blockedEndpoints.get(key);
+  // The index instance pins all part/mesh versions. Footprint exclusions can change independently of it.
+  if(confirmed&&confirmed.data===data&&confirmed.footprintVersion===footprintVersion){
+   blockedEndpoints.delete(key);blockedEndpoints.set(key,confirmed);
+   return {...confirmed.result,hit:{...confirmed.result.hit}};
+  }
+  const offset=data.grid.offsetM,pr=profile(observer,ray);
   // Walk until the line is above every PLATEAU top and above any GSI footprint's bound, whichever is later.
   const stopAt=Math.max(data.highestM+MARGIN_M,observer.elevation+GSI_MAX_M[3103]+GROUND_RISE_M);
   const az=ray.endpoint?bearingM(observer,ray.endpoint).azimuth:ray.azimuth;
   const known=[],uncovered=[];let status='clear',hit=null,cellsChecked=0,reach=0;
-  let pending=null,lastKey=null,code=null;const own=ownSet(ray.targetKey);
+  let pending=null,lastKey=null,code=null;const own=ownSet(ray.targetKey,footprintVersion);
   const visit=(gx,gy,a,z)=>{
    if(own?.has(gx+','+gy)){known.push([a,z]);return;}
    const my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS);if(my*1e5+mx!==lastKey){lastKey=my*1e5+mx;code=meshCode(my,mx);}
@@ -234,7 +251,16 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
    }
    from=to;d=e;reach=e;
   }
-  if(status==='blocked')return {status:'blocked',hit,cellsChecked,source:'plateau-grid'};
+  if(status==='blocked'){
+   requireCurrent(isCurrent);
+   const result={status:'blocked',hit,cellsChecked,source:'plateau-grid'};
+   if(key&&footprintVersionOf(ray.targetKey)===footprintVersion){
+    blockedEndpoints.delete(key);
+    blockedEndpoints.set(key,{data,footprintVersion,result:{...result,hit:{...hit}}});
+    if(blockedEndpoints.size>BLOCKED_ENDPOINT_LIMIT)blockedEndpoints.delete(blockedEndpoints.keys().next().value);
+   }
+   return result;
+  }
   // GSI footprints the grid does not hold (new buildings, places outside the wards).
   const gsiEnd=reach;
   let estimated=false,gsiCount=0;
@@ -1216,6 +1242,64 @@ function nearPolicy(plan,bodies,state){
  const radius=Number.isFinite(state.angularRadius)?state.angularRadius:NaN;
  return {disc,radius,tolerance:disc?2*radius:(bodies.nearAngle?.(plan.body)??.5)};
 }
+const horizonAt=eye=>eye>0?-Math.acos(R/(R+eye))/rad:0;
+// Every apparent altitude at a fixed azimuth projects onto the same line.
+// The line equation comes from the azimuth plane's normal in the target's tangent basis.
+function azimuthDistance(box,g,azimuth){
+ const delta=(azimuth-g.azimuth)*rad,alt=g.angle*rad;
+ const x=Math.cos(delta),y=Math.sin(alt)*Math.sin(delta),c=-Math.cos(alt)*Math.sin(delta)/rad;
+ const lo=c+Math.min(x*box.minX,x*box.maxX)+Math.min(y*box.minY,y*box.maxY);
+ const hi=c+Math.max(x*box.minX,x*box.maxX)+Math.max(y*box.minY,y*box.maxY);
+ return Math.max(0,lo,-hi)/Math.hypot(x,y);
+}
+// A negative result leaves the normal solver in charge. Only a single instant
+// with no surface search or rise/set window has no unsampled positions or times.
+function definiteAngularMiss(plan,observer,{align,bodies}={}){
+ if(plan?.timeSpec?.kind!=='instant'||!Number.isFinite(plan.timeSpec.at)||plan.composition||plan.compositionInvalid||plan.strict||
+  plan.profile==='summit-contact'||plan.target?.rim||!windowValid(plan.timeWindow)||(plan.timeWindow?.kind&&plan.timeWindow.kind!=='none'))return false;
+ const target=targetInput(plan.target),partId=plan.partId==='__whole'?null:plan.partId;
+ if(!target||!align||!bodies||![observer?.latitude,observer?.longitude].every(Number.isFinite))return false;
+ const elevation=Number.isFinite(observer.standingElevationM)?observer.standingElevationM:
+  Number.isFinite(observer.surfaceElevationM)?observer.surfaceElevationM:observer.elevation;
+ const eyeM=observer.eyeM??observer.eyeHeightAGL??1.5;
+ if(!Number.isFinite(elevation)||!Number.isFinite(eyeM)||eyeM<0)return false;
+ const point={...observer,elevation,eyeM},eye=elevation+eyeM;
+ try{
+  if(bodies.definition&&!bodies.definition(plan.body))return false;
+  const g=align.geometryFrom(point,target,{partId,eyeM});
+  if(!g||![g.azimuth,g.angle,g.topM,g.distanceKm].every(Number.isFinite))return false;
+  // Weather data can arrive during the detailed checks in auto mode. Azimuth
+  // and the body's angular radius are independent of those refraction updates.
+  const auto=globalThis.AstroNotesAtmosphere?.mode?.()==='auto';
+  const state=bodies.state(plan.body,plan.timeSpec.at,{...point,elevation:eye},{refraction:!auto}),policy=nearPolicy(plan,bodies,state);
+  if(![state.azimuth,policy.radius,policy.tolerance].every(Number.isFinite)||policy.radius<0)return false;
+  let xy;
+  if(!auto){
+   if(!Number.isFinite(state.apparentAltitude))return false;
+   const upper=state.upperAltitude??state.apparentAltitude+policy.radius;
+   if(Number.isFinite(upper)&&upper<horizonAt(eye))return true;
+   xy=align.viewProjector(g.azimuth,g.angle)(state.azimuth,state.apparentAltitude);
+   if(!xy)return true;
+   if(!xy.every(Number.isFinite))return false;
+  }
+  // The origin is the solver's fallback if no outline projects into usable rings.
+  const box=partId?{minX:0,minY:0,maxX:0,maxY:0}:align.outlineScreenBounds?.(point,target,g,{eyeM});
+  if(!box||![box.minX,box.minY,box.maxX,box.maxY].every(Number.isFinite)||
+   box.minX>0||box.minY>0||box.maxX<0||box.maxY<0)return false;
+  if(auto){
+   const distance=azimuthDistance(box,g,state.azimuth);
+   return Number.isFinite(distance)&&Math.max(0,Math.atan(distance*rad)/rad-policy.radius)>policy.tolerance+1e-6;
+  }
+  if(!partId){
+   const [x,y]=xy,dx=Math.max(0,box.minX-x,x-box.maxX),dy=Math.max(0,box.minY-y,y-box.maxY);
+   const lowerAngle=Math.atan(Math.hypot(dx,dy)*rad)/rad;
+   return Math.max(0,lowerAngle-policy.radius)>policy.tolerance+1e-6;
+  }
+  const angle=Math.atan(Math.hypot(...xy)*rad)/rad,gap=Math.max(0,angle-policy.radius);
+  const below=angle>policy.radius&&xy[1]<0&&Math.abs(xy[1])>Math.abs(xy[0]);
+  return below||gap>policy.tolerance+1e-10;
+ }catch{return false;}
+}
 // One point evaluation asks this thousands of times against the same projected outline (2026-11-11: about half the
 // search time on a phone). The rings are flattened with their boxes once; a ring whose box is no nearer than the
 // best edge so far cannot hold a nearer edge, so the answer is the same as checking every edge.
@@ -1448,7 +1532,7 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
   const center=pointBody&&project(st.azimuth,st.apparentAltitude),selfOccluded=!!(center&&selfPolygons.length&&closestPoint(center,selfPolygons).distance<=1e-8);
   // An elevated observer can see below their local horizontal plane. This is
   // only the ellipsoid horizon; terrain/buildings are the evaluator's job.
-  const horizon=elevation+eyeM>0?-Math.acos(R/(R+elevation+eyeM))/rad:0;
+  const horizon=horizonAt(elevation+eyeM);
   const above=(st.upperAltitude??st.apparentAltitude+policy.radius)>=horizon;
   const row={at,score:gap-tolerance,eligible:above&&!below&&!selfOccluded&&gap<=tolerance+1e-10,state:st,gap,tolerance,overlaps,below,above,selfOccluded,geometryKind,geometry:activeGeometry,anchor:activeAnchor};samples.set(at,row);return row;
  }
@@ -1574,7 +1658,7 @@ async function inverseSeeds(plan,{bodies,isCurrent=()=>true,yieldTask=typeof Ast
  seeds.sort((a,b)=>a.priority-b.priority||a.at-b.at||a.distanceM-b.distanceM);
  return {seeds,partial:true,reason:exhausted?'seed-budget-exhausted':unknown?'some-ephemeris-unknown':'approximate-terrain-hypotheses'};
 }
-return {valid,windowValid,limb,anchorAt,geometry,roadAt,riseSet,inWindow,windowEvents,screenAnchor,make,timeRange,opportunities,inverseSeeds,closestPoint};
+return {valid,windowValid,limb,anchorAt,geometry,roadAt,riseSet,inWindow,windowEvents,screenAnchor,make,timeRange,opportunities,inverseSeeds,closestPoint,definiteAngularMiss};
 });
 
 /* Terrain/building MODEL LOS. Missing model range or standing height never becomes model-visible. */
@@ -2240,7 +2324,7 @@ function memoOutlines(align){
  };
  return Object.assign(Object.create(align),{towerOutline,__memoOutlines:true});
 }
-function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,trees=null,staticTerrain=null,sidewalks=null,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
+function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,trees=null,staticTerrain=null,sidewalks=null,angularPrefilter=false,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
  const align=memoOutlines(rawAlign);
  const visibilityCache=new Map(),targetLines=new Map();
  // Whether the place was surveyed as seeing this target (and not merely some other one).
@@ -2407,6 +2491,12 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   if(!Number.isFinite(ground))return {status:'unknown',recommend:false,reason:'standing-height-unknown'};
   const floor=Number.isFinite(point.surfaceElevationM)?point.surfaceElevationM:ground+(point.surfaceAglM??point.surfaceHeightM??0),eyeM=Number.isFinite(point.eyeM)?point.eyeM:1.5;
   let obs={...point,elevation:floor,eyeM};
+  const fixedStanding=!!point.nonTerrainStructure||Number.isFinite(point.surfaceElevationM)||Number.isFinite(point.standingElevationM);
+  // A movable point may match after the existing move up a bank, even when its seed misses.
+  if(angularPrefilter&&fixedStanding){
+   if(options.isCurrent?.()===false||options.signal?.aborted)throw Error('candidate-cancelled');
+   if(Composition.definiteAngularMiss(plan,obs,{align,bodies}))return {status:'no-overlap',recommend:false,reason:'angular-prefilter'};
+  }
   const missingHeights=b=>['building-height-unknown','height-data-unavailable','footprints-unavailable','footprint-ground-unknown'].includes(b?.reason);
   // Where the observer cannot move (no composition, not a mountain), every event's line ends on the
   // target's axis at or below its top, so a line to the top that buildings stop rules out every time
@@ -2436,7 +2526,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
      if(partsHidden(plan.target,hiddenTop(land.skyline,built,tr?.skyline)))return partsGone;
      break;
     }
-    const d=land.hit.distanceM,movable=Number.isFinite(d)&&d<=60&&step<3&&!obs.nonTerrainStructure&&!Number.isFinite(point.surfaceElevationM)&&!Number.isFinite(point.standingElevationM);
+    const d=land.hit.distanceM,movable=Number.isFinite(d)&&d<=60&&step<3&&!obs.nonTerrainStructure&&!fixedStanding;
     // The highest ground on the first 60 m towards the target: the top of the bank in front.
     let up=null,ground=-Infinity;if(movable&&terrain?.at)for(let m=3;m<=60;m+=3){const q=geo.destination(obs.latitude,obs.longitude,inv.azimuth,m/1000),h=await terrain.at(q,options);if(Number.isFinite(h)&&h>ground+.05){ground=h;up=q;}}
     const meta=up&&ground>obs.elevation+.3?standingMetadata({...up,elevation:ground},data,point):false;
@@ -3271,7 +3361,7 @@ AstroNotesCandidatePicker.skylineView=(observer,target,azimuths,current=stillHer
 async function loadModel(){
  // The 3D band model is no longer loaded.
  if(!modelPromise)modelPromise=(async()=>{await AstroNotesAssets.ensureModels();const dem=await staticTerrain();
-  return AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:live,heights:sharedHeights(),trees:treeHeights,staticTerrain:dem,sidewalks:await loaded('candidate-sidewalks.json').catch(()=>null)});
+  return AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:live,heights:sharedHeights(),trees:treeHeights,staticTerrain:dem,sidewalks:await loaded('candidate-sidewalks.json').catch(()=>null),angularPrefilter:true});
   })().catch(e=>{modelPromise=null;throw e;});
  return modelPromise;
 }

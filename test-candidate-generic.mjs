@@ -93,6 +93,22 @@ const unknownTerrain={at:async()=>50,trace:async()=>({status:'unknown',missing:1
 // A clear line needs every part known: terrain, building heights and the target's outline.
 const openTerrain={at:async()=>50,trace:async()=>({status:'model-clear',checked:1,missing:0})},openHeights={trace:async()=>({status:'clear',heights:'plateau'})};
 const outlined={...align,towerOutline:()=>({known:true,polygons:[[[-.001,0],[.001,0],[.001,10],[-.001,10]]]})};
+test('search skips obstruction work only for a proven fixed-time miss at a fixed standing point',async()=>{
+ const farBodies={...bodies,state:()=>({azimuth:3,apparentAltitude:10,angularRadius:.25})};
+ let traces=0;
+ const model=createGeneric({align:outlined,bodies:farBodies,geo:G,terrain:openTerrain,
+  heights:{trace:async()=>{traces++;return {status:'blocked'};}},angularPrefilter:true,yieldTask:async()=>{}});
+ const exact=await model.evaluate(plan,point,{});
+ assert.equal(exact.status,'no-overlap');assert.equal(exact.reason,'angular-prefilter');assert.equal(traces,0);
+ const movable={...point,nonTerrainStructure:false,surfaceElevationM:null,surfaceAglM:0,surfaceHeightM:0};
+ const blocked=await model.evaluate(plan,movable,{});
+ assert.equal(blocked.reason,'target-line-blocked');assert.equal(traces,1);
+ const window={...plan,timeSpec:{kind:'window',start:0,end:60000}};
+ const interval=await model.evaluate(window,point,{});
+ assert.equal(interval.reason,'target-line-blocked');assert.equal(traces,2);
+ await assert.rejects(model.evaluate(plan,point,{},{isCurrent:()=>false}),/candidate-cancelled/);
+ assert.equal(traces,2);
+});
 test('an unconfirmed line is not a candidate; a confirmed one keeps the arbitrary anchor and floor height',async()=>{
  const unknown=await createGeneric({align,bodies,geo:G,terrain:unknownTerrain,yieldTask:async()=>{}}).evaluate(plan,point,{});
  assert.equal(unknown.recommend,false);assert.equal(unknown.status,'unverified');

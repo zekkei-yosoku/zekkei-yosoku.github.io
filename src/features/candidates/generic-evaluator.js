@@ -103,7 +103,7 @@ function memoOutlines(align){
  };
  return Object.assign(Object.create(align),{towerOutline,__memoOutlines:true});
 }
-function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,trees=null,staticTerrain=null,sidewalks=null,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
+function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,trees=null,staticTerrain=null,sidewalks=null,angularPrefilter=false,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
  const align=memoOutlines(rawAlign);
  const visibilityCache=new Map(),targetLines=new Map();
  // Whether the place was surveyed as seeing this target (and not merely some other one).
@@ -270,6 +270,12 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   if(!Number.isFinite(ground))return {status:'unknown',recommend:false,reason:'standing-height-unknown'};
   const floor=Number.isFinite(point.surfaceElevationM)?point.surfaceElevationM:ground+(point.surfaceAglM??point.surfaceHeightM??0),eyeM=Number.isFinite(point.eyeM)?point.eyeM:1.5;
   let obs={...point,elevation:floor,eyeM};
+  const fixedStanding=!!point.nonTerrainStructure||Number.isFinite(point.surfaceElevationM)||Number.isFinite(point.standingElevationM);
+  // A movable point may match after the existing move up a bank, even when its seed misses.
+  if(angularPrefilter&&fixedStanding){
+   if(options.isCurrent?.()===false||options.signal?.aborted)throw Error('candidate-cancelled');
+   if(Composition.definiteAngularMiss(plan,obs,{align,bodies}))return {status:'no-overlap',recommend:false,reason:'angular-prefilter'};
+  }
   const missingHeights=b=>['building-height-unknown','height-data-unavailable','footprints-unavailable','footprint-ground-unknown'].includes(b?.reason);
   // Where the observer cannot move (no composition, not a mountain), every event's line ends on the
   // target's axis at or below its top, so a line to the top that buildings stop rules out every time
@@ -299,7 +305,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
      if(partsHidden(plan.target,hiddenTop(land.skyline,built,tr?.skyline)))return partsGone;
      break;
     }
-    const d=land.hit.distanceM,movable=Number.isFinite(d)&&d<=60&&step<3&&!obs.nonTerrainStructure&&!Number.isFinite(point.surfaceElevationM)&&!Number.isFinite(point.standingElevationM);
+    const d=land.hit.distanceM,movable=Number.isFinite(d)&&d<=60&&step<3&&!obs.nonTerrainStructure&&!fixedStanding;
     // The highest ground on the first 60 m towards the target: the top of the bank in front.
     let up=null,ground=-Infinity;if(movable&&terrain?.at)for(let m=3;m<=60;m+=3){const q=geo.destination(obs.latitude,obs.longitude,inv.azimuth,m/1000),h=await terrain.at(q,options);if(Number.isFinite(h)&&h>ground+.05){ground=h;up=q;}}
     const meta=up&&ground>obs.elevation+.3?standingMetadata({...up,elevation:ground},data,point):false;

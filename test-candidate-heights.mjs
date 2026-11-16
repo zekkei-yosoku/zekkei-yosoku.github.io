@@ -47,6 +47,36 @@ test('a building above the line blocks it; a line over every top with a margin i
  const graze=await h.trace(observer,north(Math.atan((30.5-6.5)/105)*180/Math.PI));assert.notEqual(graze.status,'clear');
 });
 
+test('fixed endpoint reuse keeps exact PLATEAU evidence and respects footprint, endpoint and cancellation changes',async()=>{
+ const {latitude:lat,longitude:lon}=observer;
+ const ray={...north(5),maxM:180,endpoint:{latitude:lat+180/110540,longitude:lon,elevation:15},targetKey:'fav:tower'};
+ const rings=[[[lat+50/110540,lon-.001],[lat+85/110540,lon-.001],[lat+85/110540,lon+.001],[lat+50/110540,lon+.001]]];
+ let attached=null,checks=0;
+ const worldOptions={buildings:[{north:60,top:45}],ownFootprint:()=>attached,ownFootprintVersion:()=>attached};
+ const heights=world(worldOptions),current={isCurrent:()=>{checks++;return true;}};
+ const first=await heights.trace(observer,ray,current),initialChecks=checks;
+ assert.equal(first.status,'blocked');
+ assert.equal(first.source,'plateau-grid');
+ assert(first.cellsChecked>0);
+ const evidence=structuredClone(first);
+ first.hit.topM=0;
+ checks=0;
+ assert.deepEqual(await heights.trace({...observer,at:86400000},ray,current),evidence);
+ assert(checks<initialChecks,'reuse skips the ordered cell traversal');
+ await assert.rejects(heights.trace(observer,ray,{isCurrent:()=>false}),/candidate-cancelled/);
+ assert.equal((await heights.trace(observer,{...ray,endpoint:{...ray.endpoint,elevation:140}})).status,'clear');
+ attached=rings;
+ assert.equal((await heights.trace(observer,ray)).status,'clear');
+ attached=null;
+ assert.deepEqual(await heights.trace(observer,ray),evidence);
+ assert.equal((await world({...worldOptions,buildings:[]}).trace(observer,ray)).status,'clear');
+
+ let gsiReads=0;
+ const missing=H.create({loadIndex:async()=>({grid:{offsetM:20},parts:{},targets:{}}),gsiAlong:async()=>{gsiReads++;return null;}});
+ for(let i=0;i<2;i++)assert.equal((await missing.trace(observer,ray)).reason,'footprints-unavailable');
+ assert.equal(gsiReads,2);
+});
+
 test('a building right beside the stand point is not called blocked, only unconfirmed',async()=>{
  const r=await world({buildings:[{north:8,top:40}]}).trace(observer,north(5));assert.equal(r.status,'unknown');
 });

@@ -99,6 +99,64 @@ function nearPolicy(plan,bodies,state){
  const radius=Number.isFinite(state.angularRadius)?state.angularRadius:NaN;
  return {disc,radius,tolerance:disc?2*radius:(bodies.nearAngle?.(plan.body)??.5)};
 }
+const horizonAt=eye=>eye>0?-Math.acos(R/(R+eye))/rad:0;
+// Every apparent altitude at a fixed azimuth projects onto the same line.
+// The line equation comes from the azimuth plane's normal in the target's tangent basis.
+function azimuthDistance(box,g,azimuth){
+ const delta=(azimuth-g.azimuth)*rad,alt=g.angle*rad;
+ const x=Math.cos(delta),y=Math.sin(alt)*Math.sin(delta),c=-Math.cos(alt)*Math.sin(delta)/rad;
+ const lo=c+Math.min(x*box.minX,x*box.maxX)+Math.min(y*box.minY,y*box.maxY);
+ const hi=c+Math.max(x*box.minX,x*box.maxX)+Math.max(y*box.minY,y*box.maxY);
+ return Math.max(0,lo,-hi)/Math.hypot(x,y);
+}
+// A negative result leaves the normal solver in charge. Only a single instant
+// with no surface search or rise/set window has no unsampled positions or times.
+function definiteAngularMiss(plan,observer,{align,bodies}={}){
+ if(plan?.timeSpec?.kind!=='instant'||!Number.isFinite(plan.timeSpec.at)||plan.composition||plan.compositionInvalid||plan.strict||
+  plan.profile==='summit-contact'||plan.target?.rim||!windowValid(plan.timeWindow)||(plan.timeWindow?.kind&&plan.timeWindow.kind!=='none'))return false;
+ const target=targetInput(plan.target),partId=plan.partId==='__whole'?null:plan.partId;
+ if(!target||!align||!bodies||![observer?.latitude,observer?.longitude].every(Number.isFinite))return false;
+ const elevation=Number.isFinite(observer.standingElevationM)?observer.standingElevationM:
+  Number.isFinite(observer.surfaceElevationM)?observer.surfaceElevationM:observer.elevation;
+ const eyeM=observer.eyeM??observer.eyeHeightAGL??1.5;
+ if(!Number.isFinite(elevation)||!Number.isFinite(eyeM)||eyeM<0)return false;
+ const point={...observer,elevation,eyeM},eye=elevation+eyeM;
+ try{
+  if(bodies.definition&&!bodies.definition(plan.body))return false;
+  const g=align.geometryFrom(point,target,{partId,eyeM});
+  if(!g||![g.azimuth,g.angle,g.topM,g.distanceKm].every(Number.isFinite))return false;
+  // Weather data can arrive during the detailed checks in auto mode. Azimuth
+  // and the body's angular radius are independent of those refraction updates.
+  const auto=globalThis.AstroNotesAtmosphere?.mode?.()==='auto';
+  const state=bodies.state(plan.body,plan.timeSpec.at,{...point,elevation:eye},{refraction:!auto}),policy=nearPolicy(plan,bodies,state);
+  if(![state.azimuth,policy.radius,policy.tolerance].every(Number.isFinite)||policy.radius<0)return false;
+  let xy;
+  if(!auto){
+   if(!Number.isFinite(state.apparentAltitude))return false;
+   const upper=state.upperAltitude??state.apparentAltitude+policy.radius;
+   if(Number.isFinite(upper)&&upper<horizonAt(eye))return true;
+   xy=align.viewProjector(g.azimuth,g.angle)(state.azimuth,state.apparentAltitude);
+   if(!xy)return true;
+   if(!xy.every(Number.isFinite))return false;
+  }
+  // The origin is the solver's fallback if no outline projects into usable rings.
+  const box=partId?{minX:0,minY:0,maxX:0,maxY:0}:align.outlineScreenBounds?.(point,target,g,{eyeM});
+  if(!box||![box.minX,box.minY,box.maxX,box.maxY].every(Number.isFinite)||
+   box.minX>0||box.minY>0||box.maxX<0||box.maxY<0)return false;
+  if(auto){
+   const distance=azimuthDistance(box,g,state.azimuth);
+   return Number.isFinite(distance)&&Math.max(0,Math.atan(distance*rad)/rad-policy.radius)>policy.tolerance+1e-6;
+  }
+  if(!partId){
+   const [x,y]=xy,dx=Math.max(0,box.minX-x,x-box.maxX),dy=Math.max(0,box.minY-y,y-box.maxY);
+   const lowerAngle=Math.atan(Math.hypot(dx,dy)*rad)/rad;
+   return Math.max(0,lowerAngle-policy.radius)>policy.tolerance+1e-6;
+  }
+  const angle=Math.atan(Math.hypot(...xy)*rad)/rad,gap=Math.max(0,angle-policy.radius);
+  const below=angle>policy.radius&&xy[1]<0&&Math.abs(xy[1])>Math.abs(xy[0]);
+  return below||gap>policy.tolerance+1e-10;
+ }catch{return false;}
+}
 // One point evaluation asks this thousands of times against the same projected outline (2026-11-11: about half the
 // search time on a phone). The rings are flattened with their boxes once; a ring whose box is no nearer than the
 // best edge so far cannot hold a nearer edge, so the answer is the same as checking every edge.
@@ -331,7 +389,7 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
   const center=pointBody&&project(st.azimuth,st.apparentAltitude),selfOccluded=!!(center&&selfPolygons.length&&closestPoint(center,selfPolygons).distance<=1e-8);
   // An elevated observer can see below their local horizontal plane. This is
   // only the ellipsoid horizon; terrain/buildings are the evaluator's job.
-  const horizon=elevation+eyeM>0?-Math.acos(R/(R+elevation+eyeM))/rad:0;
+  const horizon=horizonAt(elevation+eyeM);
   const above=(st.upperAltitude??st.apparentAltitude+policy.radius)>=horizon;
   const row={at,score:gap-tolerance,eligible:above&&!below&&!selfOccluded&&gap<=tolerance+1e-10,state:st,gap,tolerance,overlaps,below,above,selfOccluded,geometryKind,geometry:activeGeometry,anchor:activeAnchor};samples.set(at,row);return row;
  }
@@ -457,5 +515,5 @@ async function inverseSeeds(plan,{bodies,isCurrent=()=>true,yieldTask=typeof Ast
  seeds.sort((a,b)=>a.priority-b.priority||a.at-b.at||a.distanceM-b.distanceM);
  return {seeds,partial:true,reason:exhausted?'seed-budget-exhausted':unknown?'some-ephemeris-unknown':'approximate-terrain-hypotheses'};
 }
-return {valid,windowValid,limb,anchorAt,geometry,roadAt,riseSet,inWindow,windowEvents,screenAnchor,make,timeRange,opportunities,inverseSeeds,closestPoint};
+return {valid,windowValid,limb,anchorAt,geometry,roadAt,riseSet,inWindow,windowEvents,screenAnchor,make,timeRange,opportunities,inverseSeeds,closestPoint,definiteAngularMiss};
 });

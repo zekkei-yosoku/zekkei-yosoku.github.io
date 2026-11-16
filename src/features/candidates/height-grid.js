@@ -46,12 +46,20 @@ function walkGrid(x0,y0,x1,y1,d0,d1,visit){
  return true;
 }
 const sha=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
+function endpointKey(observer,ray){
+ const endpoint=ray.endpoint;
+ if(!endpoint||typeof ray.targetKey!=='string'||!ray.targetKey)return null;
+ const values=[observer.latitude,observer.longitude,observer.elevation,observer.eyeM??1.5,endpoint.latitude,endpoint.longitude,endpoint.elevation,ray.maxM,ray.refractionK||1];
+ return values.every(Number.isFinite)?JSON.stringify([ray.targetKey,...values]):null;
+}
 function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):null),base='data/building-heights/',loadIndex=null,gsiAlong=null,groundAt=null,ownFootprint=null,ownFootprintVersion=null,obstacles=null}={}){
  let indexPromise=null;const meshes=new Map(),ready=new Map(),overlays=new Map(),partLoads=new Map(),parts=new Map(),ownCells=new Map();
+ const blockedEndpoints=new Map(),BLOCKED_ENDPOINT_LIMIT=1024;
+ const footprintVersionOf=targetKey=>targetKey&&ownFootprint?ownFootprintVersion?.(targetKey):undefined;
  // Cells of a user's target building (lat/lon rings), widened by one cell: that building is the target, not an obstacle.
- function ownSet(targetKey){
+ function ownSet(targetKey,version=footprintVersionOf(targetKey)){
   if(!ownFootprint||!targetKey)return null;
-  const version=ownFootprintVersion?.(targetKey),cached=ownCells.get(targetKey);
+  const cached=ownCells.get(targetKey);
   if(cached&&cached.version===version)return cached.set;
   const rings=ownFootprint(targetKey);let set=null;
   if(rings?.length){set=new Set();for(const ring of rings){const xs=ring.map(p=>p[1]*LON),ys=ring.map(p=>p[0]*LAT);
@@ -179,12 +187,21 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
  // skipTrees: the caller read the trees' own heights on this line (tree-heights.js), so OSM woods add nothing.
  async function trace(observer,ray,{isCurrent=()=>true,skipTrees=false}={}){
   if(![observer.latitude,observer.longitude,observer.elevation,ray.maxM].every(Number.isFinite)||!(ray.maxM>0))return {status:'unknown',reason:'invalid-ray'};
-  const data=await index(),offset=data.grid.offsetM,pr=profile(observer,ray);
+  const data=await index();
+  requireCurrent(isCurrent);
+  const footprintVersion=footprintVersionOf(ray.targetKey),key=!ownFootprint||footprintVersion!==undefined?endpointKey(observer,ray):null;
+  const confirmed=key&&blockedEndpoints.get(key);
+  // The index instance pins all part/mesh versions. Footprint exclusions can change independently of it.
+  if(confirmed&&confirmed.data===data&&confirmed.footprintVersion===footprintVersion){
+   blockedEndpoints.delete(key);blockedEndpoints.set(key,confirmed);
+   return {...confirmed.result,hit:{...confirmed.result.hit}};
+  }
+  const offset=data.grid.offsetM,pr=profile(observer,ray);
   // Walk until the line is above every PLATEAU top and above any GSI footprint's bound, whichever is later.
   const stopAt=Math.max(data.highestM+MARGIN_M,observer.elevation+GSI_MAX_M[3103]+GROUND_RISE_M);
   const az=ray.endpoint?bearingM(observer,ray.endpoint).azimuth:ray.azimuth;
   const known=[],uncovered=[];let status='clear',hit=null,cellsChecked=0,reach=0;
-  let pending=null,lastKey=null,code=null;const own=ownSet(ray.targetKey);
+  let pending=null,lastKey=null,code=null;const own=ownSet(ray.targetKey,footprintVersion);
   const visit=(gx,gy,a,z)=>{
    if(own?.has(gx+','+gy)){known.push([a,z]);return;}
    const my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS);if(my*1e5+mx!==lastKey){lastKey=my*1e5+mx;code=meshCode(my,mx);}
@@ -217,7 +234,16 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
    }
    from=to;d=e;reach=e;
   }
-  if(status==='blocked')return {status:'blocked',hit,cellsChecked,source:'plateau-grid'};
+  if(status==='blocked'){
+   requireCurrent(isCurrent);
+   const result={status:'blocked',hit,cellsChecked,source:'plateau-grid'};
+   if(key&&footprintVersionOf(ray.targetKey)===footprintVersion){
+    blockedEndpoints.delete(key);
+    blockedEndpoints.set(key,{data,footprintVersion,result:{...result,hit:{...hit}}});
+    if(blockedEndpoints.size>BLOCKED_ENDPOINT_LIMIT)blockedEndpoints.delete(blockedEndpoints.keys().next().value);
+   }
+   return result;
+  }
   // GSI footprints the grid does not hold (new buildings, places outside the wards).
   const gsiEnd=reach;
   let estimated=false,gsiCount=0;

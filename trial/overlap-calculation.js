@@ -4991,14 +4991,17 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
    * 塔の輪郭（方位・高さの点の並び。左の根元から上がって右へ下りる）。既定の塔は模式図、
    * 地上の高さ heightM だけ分かる建物（他の目標）は**幅を推定した四角**（schematic: true）。山（地上 0m）は null（地形から描く）
    */
-  function towerOutline(observer, target, { eyeM = 1.5, heightM = null } = {}) {
-    if (target.id === "tower-terror") return modelOutline(observer,target,TERROR_MODEL,{eyeM,heightM});
-    if (target.id === "tinkerbell" && TINKERBELL_MODEL) return modelOutline(observer,target,TINKERBELL_MODEL,{eyeM,heightM});
-    if (target.id === "cinderella") return modelOutline(observer,target,CASTLE_MODEL,{eyeM,heightM});
-    if (target.id === "tocho-building") return modelOutline(observer,target,TOCHO_MODEL,{eyeM,heightM});
+  function outlineModel(target) {
+    if (target.id === "tower-terror") return TERROR_MODEL;
+    if (target.id === "tinkerbell" && TINKERBELL_MODEL) return TINKERBELL_MODEL;
+    if (target.id === "cinderella") return CASTLE_MODEL;
+    if (target.id === "tocho-building") return TOCHO_MODEL;
     const CM = global.AstroNotesCityModels || AstroNotesAlign.CITY_MODELS, TM = global.AstroNotesTowerModels || AstroNotesAlign.TOWER_MODELS;
-    if (CM?.[target.id]) return modelOutline(observer,target,CM[target.id],{eyeM,heightM});
-    if (TM?.[target.id]) return modelOutline(observer,target,TM[target.id],{eyeM,heightM});
+    return CM?.[target.id] || TM?.[target.id] || null;
+  }
+  function towerOutline(observer, target, { eyeM = 1.5, heightM = null } = {}) {
+    const model=outlineModel(target);
+    if(model)return modelOutline(observer,target,model,{eyeM,heightM});
     if (target.rim) return null;   // 富士山（火口の縁のデータを持つ山）
     const ground = target.groundM ?? 0;
     const top = heightM !== null ? heightM : ((partOf(target, "tip") || (target.parts || [])[0] || {}).m ?? ground) - ground;
@@ -5325,8 +5328,7 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
   function outlineBounds(observer,target,opts={}){
     const g=geometryFrom(observer,target,opts);if(!g)return null;
     const eyeM=opts.eyeM??1.5,heightM=opts.heightM??null,eye=(observer.elevation??0)+eyeM;
-    const CMs=global.AstroNotesCityModels||AstroNotesAlign.CITY_MODELS,TMs=global.AstroNotesTowerModels||AstroNotesAlign.TOWER_MODELS;
-    const model=target.id==="tower-terror"?TERROR_MODEL:target.id==="tinkerbell"&&TINKERBELL_MODEL?TINKERBELL_MODEL:target.id==="cinderella"?CASTLE_MODEL:target.id==="tocho-building"?TOCHO_MODEL:CMs?.[target.id]||TMs?.[target.id]||null;
+    const model=outlineModel(target);
     if(!model){
       const outline=target.rim?null:towerOutline(observer,target,{eyeM,heightM});
       if(!outline)return boxOf([g.azimuth],g.azimuth,g.angle,g.angle,g.distanceKm);
@@ -5356,6 +5358,51 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
     {let x=dLo,y=dHi;for(let k=0;k<60;k++){const m1=x+(y-x)/3,m2=y-(y-x)/3;if(targetAngle(m1,eye,hHi)<targetAngle(m2,eye,hHi))x=m1;else y=m2;}hi=Math.max(hi,targetAngle((x+y)/2,eye,hHi)+1e-9);}
     return boxOf([g.azimuth,...rays.map(r=>r.azimuth)],g.azimuth,Math.min(lo,g.angle),Math.max(hi,g.angle),dLo);
   }
+  // Bound the whole silhouette in the same tangent plane as the candidate solver.
+  // The rectangle also includes the origin used when an outline has no usable rings.
+  function outlineScreenBounds(observer,target,g,{eyeM=1.5}={}){
+    if(target.rim||!g||![g.azimuth,g.angle,g.distanceKm,observer.elevation,eyeM].every(Number.isFinite))return null;
+    const model=outlineModel(target);
+    if(!model){
+      const outline=towerOutline(observer,target,{eyeM});
+      let minX=0,maxX=0,minY=0,maxY=0;
+      if(outline?.known&&!outline.schematic){
+        const project=viewProjector(g.azimuth,g.angle);
+        for(const ring of outline.hitPolygons||outline.polygons||[outline.hitPoints||outline.points])for(const point of ring||[]){
+          const xy=project(...point);if(!xy||!xy.every(Number.isFinite))continue;
+          minX=Math.min(minX,xy[0]);maxX=Math.max(maxX,xy[0]);minY=Math.min(minY,xy[1]);maxY=Math.max(maxY,xy[1]);
+        }
+      }
+      return {minX,maxX,minY,maxY};
+    }
+    const center=partTarget(target,null);
+    if(center.latitude!==target.latitude||center.longitude!==target.longitude)return null;
+    const ground=target.groundM??0,top=(partOf(target,"tip")||target.parts[0]).m-ground;
+    if(!(top>.5)||Math.abs(observer.latitude)>=85||Math.abs(target.latitude)>=85)return null;
+    const footprint=modelFootprint(target,model,top);if(!footprint)return null;
+    const radius=footprint.radius/1000+.002,dLo=g.distanceKm-radius,dHi=g.distanceKm+radius;
+    if(dLo<=.05||dHi>100)return null;
+    // In WGS84 geodesic polar coordinates within 100 km, cross-range distance
+    // per radian is at least .99*d (curvature is bounded by 1/6300^2 km^-2).
+    // The path from the target centre to a vertex stays outside dLo.
+    const daz=radius/(.99*dLo)+.001*R;
+    if(daz>=Math.PI/2)return null;
+    const eye=observer.elevation+eyeM,hLo=ground+footprint.zlo,hHi=ground+footprint.zhi;
+    const effectiveRadius=6371.0088*(ATM?ATM.targetK():7/6);
+    const azimuthScale=Math.cos(daz),observerRadius=effectiveRadius+eye/1000,targetRadius=effectiveRadius+hHi/1000;
+    if(!(observerRadius>0)||!(effectiveRadius+hLo/1000>0)||dHi>=Math.PI*effectiveRadius/2)return null;
+    const turning=effectiveRadius*Math.acos(Math.min(1,targetRadius/observerRadius));
+    const lo=(Math.min(targetAngle(dLo,eye,hLo),targetAngle(dHi,eye,hLo))-.001)*R;
+    const hi=(Math.max(targetAngle(dLo,eye,hHi),targetAngle(dHi,eye,hHi),turning>dLo&&turning<dHi?targetAngle(turning,eye,hHi):-90)+.001)*R;
+    if(![lo,hi].every(Number.isFinite)||lo< -Math.PI/2||hi>Math.PI/2)return null;
+    const s0=Math.sin(g.angle*R),c0=Math.cos(g.angle*R),sLo=Math.sin(lo),sHi=Math.sin(hi),cHi=lo<=0&&hi>=0?1:Math.max(Math.cos(lo),Math.cos(hi));
+    const vLo=Math.min(Math.cos(lo),Math.cos(hi))*azimuthScale,vHi=cHi;
+    const dMin=Math.min(s0*sLo,s0*sHi)+c0*vLo;if(!(dMin>.1))return null;
+    const x=cHi*Math.sin(daz)/dMin/R+.00001;
+    const yLo=(c0*sLo+Math.min(-s0*vLo,-s0*vHi))/dMin/R-.00001;
+    const yHi=(c0*sHi+Math.max(-s0*vLo,-s0*vHi))/dMin/R+.00001;
+    return {minX:-x,maxX:x,minY:Math.min(0,yLo),maxY:Math.max(0,yHi)};
+  }
   /// 手前の地形で目標の下が隠れるときの文（2026-11-12 ユーザー「何割とかいらない。〇〇の〇〇から下が〇〇に隠れますとかでいい」
   /// 「何メートル先のとかいらない」）。hiddenM は目標の所で地形の線が通る海抜、kind は隠すもの（堤防・土手・崖の縁・高台・山・地球の丸み）。
   /// 先端まで隠れれば見えない。先端より下の部分の名前があれば「〇〇から下」、無ければ地上の高さ（10m単位、10m未満は出さない）
@@ -5381,7 +5428,7 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
                         altitudeCrossing, geometryFrom, upcoming, dailyView, prepareDailyView, alignmentAt, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, rimPoints, judge, buildingBlock,
                         viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, get CITY_MODELS(){return global.AstroNotesCityModels || CM || {};},get TOWER_MODELS(){return global.AstroNotesTowerModels || TM || {};
-                        }, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, outlineBounds, viewWindow, viewPath, sceneTargets, hiddenBelowText };
+                        }, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, outlineBounds, outlineScreenBounds, viewWindow, viewPath, sceneTargets, hiddenBelowText };
   global.AstroNotesAlign = AstroNotesAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = AstroNotesAlign;
 })(typeof globalThis !== "undefined" ? globalThis : window);
