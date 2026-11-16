@@ -52,6 +52,10 @@ async function search(p,visibleCount=3,checkFirst=false){
  if(checkFirst){
   await p.waitForFunction(()=>candidateFixture.releaseSecond&&AstroNotesCandidatePicker.visibleRows().length===1&&document.getElementById('candidateSearchAction')?.dataset.state==='searching');
   assert(await p.locator('#candidateUnifiedResults .list-item').first().isVisible());
+  const working=p.locator('.candidate-search-primary[data-candidate-searching]');
+  assert(await working.getByRole('status').isVisible());
+  assert(await working.getByRole('progressbar').isVisible());
+  assert(await working.getByRole('button',{name:'キャンセル',exact:true}).isVisible());
   await p.evaluate(()=>{candidateFixture.holdSecond=false;candidateFixture.releaseSecond();candidateFixture.releaseSecond=null;});
  }
  await p.waitForFunction(n=>document.querySelector('#candidateSearchFeedback [role=status]')?.textContent.includes(n+'件の新たな撮影地点の候補があります'),visibleCount);

@@ -194,9 +194,8 @@ const mainSearchActive=()=>active()&&!resultRequested&&!selectionPending&&flowOw
 function ensureSearchRoot(){
  if(!layout.mounted)return;
  if(!searchRoot){
-  searchRoot=node('section',{id:'exploreSearchResults'});searchRoot.setAttribute('aria-labelledby','exploreResultsHeading');
-  const heading=node('h2',{id:'exploreResultsHeading',className:'explore-section-title'},'撮影候補');
-  searchRoot.append(node('p',{id:'candidateSearchEmpty',className:'tiny'}),node('div',{id:'candidateSearchFeedback'}),heading,node('div',{id:'candidateSearchCredits'}));
+  searchRoot=node('section',{id:'exploreSearchResults'});searchRoot.setAttribute('aria-label','撮影候補');
+  searchRoot.append(node('p',{id:'candidateSearchEmpty',className:'tiny'}),node('div',{id:'candidateSearchResultStore',hidden:true}),node('div',{id:'candidateSearchCredits'}));
  }
  if(!searchRoot.isConnected)layout.conditions.after(searchRoot);
  const panel=$('recentCandidates');if(panel.parentNode!==searchRoot){candidatePanelHome={parent:panel.parentNode,next:panel.nextSibling};searchRoot.insertBefore(panel,$('candidateSearchCredits'));panel.setAttribute('role','region');panel.setAttribute('aria-label','撮影候補の一覧');
@@ -219,7 +218,6 @@ function syncWorkspace(){
  layout.conditions.hidden=false;if(!resultRequested)layout.conditions.open=true;placeBack();
  searchRoot.hidden=resultRequested;scene.hidden=!resultRequested;candidateBack.hidden=!resultRequested;
  $('recentCandidates').hidden=resultRequested||!searchStarted;$('candidateSearchEmpty').hidden=searchStarted;
- $('exploreResultsHeading').hidden=!searchStarted;
  const backLabel=globalThis.MyPlacesUI?.opportunities?.hasReturn()?'重なる日へ戻る':returnIntent?.searched?'候補へ戻る':'探すへ戻る';candidateBack.setAttribute('aria-label',backLabel);candidateBack.title=backLabel;
  syncRecordDiscovery();document.dispatchEvent(new Event('astronotes-search-state'));
 }
@@ -472,8 +470,8 @@ const mainCandidateWorkspace={separateRecords:true,newPlacesHost:()=>newPlacePan
    showSearch();return true;
   };
  },
- reveal(){if(!mainSearchActive())return;const first=!searchStarted;searchStarted=true;$('recentCandidates').hidden=false;$('candidateSearchEmpty').hidden=true;$('exploreResultsHeading').hidden=false;if(first)globalThis.MyPlacesUI?.renderPickerPanel($('recentCandidates'));},
- reset(){if(searchStarted)$('candidateSearchEmpty').textContent='条件を変更しました。もう一度候補を探してください。';searchStarted=false;$('recentCandidates').hidden=true;$('candidateSearchEmpty').hidden=false;$('exploreResultsHeading').hidden=true;},
+ reveal(){if(!mainSearchActive())return;const first=!searchStarted;searchStarted=true;$('recentCandidates').hidden=false;$('candidateSearchEmpty').hidden=true;if(first)globalThis.MyPlacesUI?.renderPickerPanel($('recentCandidates'));},
+ reset(){if(searchStarted)$('candidateSearchEmpty').textContent='条件を変更しました。もう一度候補を探してください。';searchStarted=false;$('recentCandidates').hidden=true;$('candidateSearchEmpty').hidden=false;},
  restoreScroll:restoreSearchScroll,scroller:()=>document.scrollingElement};
 candidateBack.onclick=showSearch;
 // Conditions changed in the view: showing the result again folds them back above the view.
@@ -639,12 +637,13 @@ main:has(>#skyMapView[data-explore-stage="search"]){max-width:1280px}
 #skyMapView[data-explore-stage="search"] #skyMapAlignmentControls .record-alignment-position>.tiny{display:none}
 #skyMapView[data-explore-stage="search"] #skyMapAlignmentControls select{min-height:48px;border-radius:10px;font-weight:600}
 #skyMapView[data-explore-stage="search"] #candidateWorkspaceAction{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin:8px 0 0;padding:20px 0 0;border-top:1px solid var(--line)}
-#skyMapView[data-explore-stage="search"] #additionalCandidateSearch{display:contents}
+#skyMapView[data-explore-stage="search"] #additionalCandidateSearch{display:grid;gap:8px}
 #skyMapView[data-explore-stage="search"] #candidateWorkspaceAction .aim-disclosure{grid-column:1/-1;margin:0;padding:0;border:0}
 #skyMapView[data-explore-stage="search"] #candidateWorkspaceAction .aim-disclosure>summary{display:flex;align-items:center;gap:8px;min-height:44px;font-size:.75rem;font-weight:600;color:var(--secondary);list-style:none;cursor:pointer}
 #skyMapView[data-explore-stage="search"] #candidateWorkspaceAction .aim-disclosure>summary::before{content:'›';display:inline-block;font-size:1.25rem;font-weight:400;color:var(--accent);transform-origin:center}
 #skyMapView[data-explore-stage="search"] #candidateWorkspaceAction .aim-disclosure[open]>summary::before{transform:rotate(90deg)}
 #skyMapView[data-explore-stage="search"] #candidateWorkspaceAction .aim-disclosure>summary::-webkit-details-marker{display:none}
+#skyMapView[data-explore-stage="search"] .candidate-query-range{margin-inline-start:auto;font-weight:400;color:var(--secondary);font-variant-numeric:tabular-nums}
 #skyMapView[data-explore-stage="search"] #candidateWorkspaceAction .aim-disclosure>p{font-size:.75rem;line-height:1.7;margin:8px 0}
 #skyMapView[data-explore-stage="search"] #candidateWorkspaceAction .aim-disclosure label{font-size:.75rem;line-height:1.7}
 #skyMapView[data-explore-stage="search"] #candidateWorkspaceAction :is(select,input){font-size:16px;min-height:44px;max-width:100%}
@@ -652,17 +651,28 @@ main:has(>#skyMapView[data-explore-stage="search"]){max-width:1280px}
 #skyMapView[data-explore-stage="search"] #candidateSearchAction{width:100%;min-height:48px}
 #skyMapView[data-explore-stage="search"] #candidateSearchAction{background:transparent;color:var(--accent);border:1px solid var(--line)}
 #skyMapView[data-explore-stage="search"] #candidateSearchAction:disabled{opacity:.5;cursor:not-allowed}
-#skyMapView[data-explore-stage="search"] #candidateSearchAction[data-state="searching"]{background:var(--card);color:var(--accent);border-color:var(--accent)}
+#skyMapView[data-explore-stage="search"] .candidate-search-primary{display:grid;position:relative;gap:8px}
+#skyMapView[data-explore-stage="search"] #additionalCandidateSearch[data-results-ready]:not(:has(>details[open])){
+ grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:12px}
+#skyMapView[data-explore-stage="search"] #additionalCandidateSearch[data-results-ready]:not(:has(>details[open]))>details{grid-column:1}
+#skyMapView[data-explore-stage="search"] #additionalCandidateSearch[data-results-ready] #candidateSearchAction{
+ justify-self:end;width:auto;min-height:44px;padding:6px 2px;border:0;font-size:.75rem}
+#skyMapView[data-explore-stage="search"] .candidate-search-primary[data-candidate-searching]{grid-template-columns:minmax(0,1fr) auto;align-items:center;padding:4px 8px 4px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+#skyMapView[data-explore-stage="search"] .candidate-search-primary[data-candidate-searching] #candidateSearchAction{grid-column:2;grid-row:1;width:auto;min-height:44px;padding:4px 8px;border:0;background:transparent;white-space:nowrap}
+#skyMapView[data-explore-stage="search"] .candidate-search-primary[data-candidate-searching] #candidateSearchFeedback{grid-column:1;grid-row:1;min-width:0;padding:5px 0}
 #skyMapView[data-explore-stage="search"] .explore-show-result{width:100%;min-height:48px;display:flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;background:var(--accent);color:var(--on-accent);border:1px solid var(--accent)}
 #skyMapView[data-explore-stage="search"] .explore-show-result svg{flex:none;width:20px;height:20px}
-#skyMapView[data-explore-stage="search"] #exploreSearchResults{width:100%;max-width:none;margin:12px 0 0;padding:0;border:0}
-#skyMapView[data-explore-stage="search"] #exploreResultsHeading{margin:16px 0 12px}
+#skyMapView[data-explore-stage="search"] #exploreSearchResults{width:100%;max-width:none;margin:0;padding:0;border:0}
+#skyMapView[data-explore-stage="search"] #exploreSearchResults:not(:has(#candidateSearchEmpty:not([hidden]):not(:empty),#recentCandidates:not([hidden]) #candidateListControls:not([hidden]),#candidateSearchCredits>:not([hidden]))){display:none}
 #skyMapView[data-explore-stage="search"] #candidateSearchEmpty:empty{display:none}
 #skyMapView[data-explore-stage="search"] #candidateSearchEmpty{margin:0;padding:0;background:transparent;border:0;border-radius:0;font-size:.75rem;line-height:1.7;text-align:left;color:var(--secondary)}
-#skyMapView[data-explore-stage="search"] #candidateSearchFeedback:empty,#skyMapView[data-explore-stage="search"] #candidateSearchCredits:empty{display:none}
-#skyMapView[data-explore-stage="search"] #candidateSearchFeedback>[role="status"]:empty{display:none}
-#skyMapView[data-explore-stage="search"] #candidateSearchFeedback>[role="status"]{font-size:.75rem;line-height:1.7;margin:0 0 12px;color:var(--secondary)}
-#skyMapView[data-explore-stage="search"] #candidateSearchFeedback .candidate-wait{background:var(--sunk);border-radius:10px;padding:12px}
+#skyMapView[data-explore-stage="search"] #candidateSearchFeedback:has(>[role="status"]:empty){display:none}
+#skyMapView[data-explore-stage="search"] #candidateSearchFeedback:has(>[data-announcement]){position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+#skyMapView[data-explore-stage="search"] #candidateSearchFeedback>[role="status"]{font-size:.78rem;line-height:1.5;color:var(--secondary)}
+#skyMapView[data-explore-stage="search"] #candidateSearchFeedback .note-progress{max-width:240px;height:3px;margin-top:6px}
+#skyMapView[data-explore-stage="search"] #additionalCandidateSearch[data-results-ready] .candidate-query-range{white-space:nowrap}
+#skyMapView[data-explore-stage="search"] .candidate-search-sources{margin-top:8px;color:var(--secondary)}
+#skyMapView[data-explore-stage="search"] .candidate-search-sources summary{min-height:44px;padding:12px 0;font-size:.74rem;cursor:pointer}
 #skyMapView[data-explore-stage="search"] #exploreSearchResults #recentCandidates{overflow:visible}
 #skyMapView[data-explore-stage="search"] #candidateListControls{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;align-items:center;border:0;margin:0!important;padding:0!important}
 #skyMapView[data-explore-stage="search"] .candidate-filter-fields{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0}
@@ -692,6 +702,35 @@ main:has(>#skyMapView[data-explore-stage="search"]){max-width:1280px}
  #skyMapView[data-explore-stage="search"] .candidate-filter-status{grid-column:1/-1}
  #skyMapView[data-explore-stage="search"] .candidate-list-actions{grid-column:1/-1;grid-row:3}
 }
+#skyMapView[data-explore-stage="search"] #candidateListControls[data-compact]{display:block}
+#skyMapView[data-explore-stage="search"] #candidateListControls[data-compact][hidden]{display:none}
+#skyMapView[data-explore-stage="search"] .candidate-results-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:6px 8px;padding:4px 0 8px;border-bottom:1px solid var(--line)}
+#skyMapView[data-explore-stage="search"] .candidate-results-title{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:8px}
+#skyMapView[data-explore-stage="search"] .candidate-results-title h2{margin:0;font-size:1rem;line-height:1.4;color:var(--text)}
+#skyMapView[data-explore-stage="search"] .candidate-results-action{
+ display:inline-flex;align-items:center;justify-content:center;gap:5px;box-sizing:border-box;min-height:44px;margin:0;padding:6px 9px;
+ border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--text);box-shadow:none;font-size:.8rem;font-weight:600;line-height:1.4;white-space:nowrap;cursor:pointer
+}
+#skyMapView[data-explore-stage="search"] .candidate-results-action svg{flex:none;width:18px;height:18px}
+#skyMapView[data-explore-stage="search"] .candidate-results-action:disabled{opacity:.5;cursor:default}
+#skyMapView[data-explore-stage="search"] #candidateRefinement > summary{list-style:none}
+#skyMapView[data-explore-stage="search"] #candidateRefinement > summary::-webkit-details-marker{display:none}
+#skyMapView[data-explore-stage="search"] .candidate-results-toolbar:has(#candidateRefinement[open]){grid-template-columns:minmax(0,1fr) auto}
+#skyMapView[data-explore-stage="search"] #candidateRefinement[open]{grid-column:1/-1}
+#skyMapView[data-explore-stage="search"] #candidateRefinement[open]>summary{display:flex;width:max-content;margin-inline-start:auto}
+#skyMapView[data-explore-stage="search"] #candidateRefinement .candidate-filter-fields{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:10px 0 2px}
+#skyMapView[data-explore-stage="search"] #candidateRefinement .candidate-filter-fields>label{display:flex!important;gap:4px!important}
+#skyMapView[data-explore-stage="search"] #candidateRefinement .candidate-filter-fields select{padding-inline-start:8px}
+#skyMapView[data-explore-stage="search"] #candidateResetFilters{margin:8px 0;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--accent);box-shadow:none}
+#skyMapView[data-explore-stage="search"] #candidateListControls[data-compact] #candidateUnifiedResults>.list-item{grid-template-columns:minmax(0,1fr) max-content!important;row-gap:3px!important;padding:10px 0!important}
+#skyMapView[data-explore-stage="search"] #candidateListControls[data-compact] [data-candidate-time]{text-align:right;font-weight:600}
+#skyMapView[data-explore-stage="search"] #candidateListControls[data-compact] [data-candidate-meta]{grid-column:1/-1;display:flex;flex-wrap:wrap;column-gap:8px}
+#skyMapView[data-explore-stage="search"] #candidateListControls[data-compact] [data-candidate-meta]>span{font-size:inherit!important;line-height:inherit}
+@media(max-width:479px){
+ #skyMapView[data-explore-stage="search"] #candidateRefinement .candidate-filter-fields{grid-template-columns:1fr}
+ #skyMapView[data-explore-stage="search"] #candidateRefinement .candidate-filter-fields>label{display:grid!important;grid-template-columns:76px minmax(0,1fr)!important;align-items:center}
+}
+@media(hover:hover){#skyMapView[data-explore-stage="search"] .candidate-results-action:hover{background:var(--sunk)}}
 @media(prefers-reduced-motion:reduce){
  #skyMapView[data-explore-stage="search"] #skyMapObserverDetails[open] #exploreHeightFields,#skyMapView[data-explore-stage="search"] #skyMapObserverDetails:not([open]) .height-summary-values{animation:none}
 }

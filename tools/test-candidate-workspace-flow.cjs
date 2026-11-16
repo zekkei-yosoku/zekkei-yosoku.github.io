@@ -33,8 +33,10 @@ async function assertIdleSearch(page){
     await page.locator('#skyMapCalendarOpen').click();const calendar=page.locator('dialog.tool-date-calendar[open]');await calendar.locator('[data-cal-day="'+Date.parse('2026-11-16T00:00:00+09:00')+'"]').click();
     await page.locator('#exploreDiscovery-new').click();await page.locator('#candidateSearchAction').click();await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2&&document.getElementById('candidateSearchAction').dataset.state==='idle');
     assert(await page.locator('#exploreScenePanel').isHidden());assert(!await sheet.evaluate(n=>n.open));assert.equal(await page.evaluate(()=>flowRenderCalls),0);
-    await page.locator('#candidateKindFilter').selectOption('park');await page.locator('[data-candidate-sort=name]').click();await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===1);
-    const row=page.locator('#candidateUnifiedResults .list-item:visible').first();await row.scrollIntoViewIfNeeded();
+    await page.locator('#candidateRefinement > summary').click();await page.locator('#candidateKindFilter').selectOption('park');
+    await page.locator('#candidateSort').selectOption('name');await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===1);
+    const row=page.locator('#candidateUnifiedResults .list-item:visible').first();await row.focus();await page.evaluate(()=>AstroNotesCandidatePicker.apply());
+    assert(await row.evaluate(n=>n===document.activeElement),'updating candidate details keeps keyboard focus on the existing row');await row.scrollIntoViewIfNeeded();
     const search=await page.evaluate(()=>({at:SkyMapUI.selectionState().at,body:SkyMapUI.selectionState().body,target:SkyMapUI.selectionState().target.id,loads:dateFixture.loads.length,scroll:document.scrollingElement.scrollTop}));
     const candidate=await page.evaluate(()=>structuredClone(AstroNotesCandidatePicker.visibleRows()[0]));
     await page.screenshot({path:out+'/'+engine+'-'+width+'-candidates.png'});await row.click();
@@ -51,7 +53,8 @@ async function assertIdleSearch(page){
     await detailCal.locator('[data-cal-day]').nth(16).click();if(await detailCal.isVisible())await detailCal.locator('[data-close]').click();
     await page.locator('#exploreBackToCandidates').click();await page.locator('#candidateSearchAction').waitFor({state:'visible'});await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===1);
     assert.equal(await page.locator('#skyMapBody').inputValue(),search.body);assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().target.id),search.target);assert.equal(await page.locator('#skyMapCalendarOpen').getAttribute('data-display-date'),'2026-11-16');
-    assert.equal(await page.locator('#candidateKindFilter').inputValue(),'park');assert.equal(await page.locator('[data-candidate-sort=name]').getAttribute('aria-pressed'),'true');
+    assert(await page.locator('#candidateRefinement').evaluate(n=>n.open),'the open refinement panel returns with its original scroll position');
+    assert.equal(await page.locator('#candidateKindFilter').inputValue(),'park');assert.equal(await page.locator('#candidateSort').inputValue(),'name');
     assert.equal(await page.evaluate(()=>dateFixture.loads.length),search.loads,'back restores cached candidates without searching again');assert(await page.locator('.sky-map-footer').isVisible());assert(await page.evaluate(()=>Object.entries(flowDateNodes).every(([id,n])=>n===document.getElementById(id))));
     await page.waitForFunction(top=>Math.abs(document.scrollingElement.scrollTop-top)<2,search.scroll);
     if(process.env.CANDIDATE_FLOW_LENS!=='manual'){

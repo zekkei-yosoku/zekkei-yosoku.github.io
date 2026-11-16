@@ -18,23 +18,35 @@ const grants=['records','tower','diamond','pearl','skymap','multiscene'];
    await p.goto(base+'#/explore');await p.waitForFunction(()=>typeof AstroNotesCandidatePicker==='object');
    await p.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>25;aimBuildingDays=async()=>[];SkyMapUI.setTarget('skytree');const body=document.getElementById('skyMapBody');body.value='moon';body.onchange();SkyMapUI.setTime(Date.parse('2026-11-07T09:00:00+09:00'));dateFixture.autoPages=true;dateFixture.nextCursor=7;dateFixture.holdCursor=7;});
    await p.locator('#exploreDiscovery-new').click();
-   const button=p.locator('#candidateSearchAction'),feedback=p.locator('#candidateSearchFeedback [role=status]'),progress=feedback.locator('[role=progressbar]');
+   const button=p.locator('#candidateSearchAction'),feedback=p.locator('#candidateSearchFeedback [role=status]');
+   const primary=p.locator('.candidate-search-primary'),working=p.locator('.candidate-search-primary[data-candidate-searching]');
+   const progress=primary.locator('[role=progressbar]');
    const state=async text=>{await p.waitForFunction(t=>document.getElementById('candidateSearchAction')?.textContent===t,text);assert.equal(await button.innerText(),text);};
+   async function activeProgress(){
+    await state('キャンセル');
+    assert.equal(await working.count(),1);
+    assert(await working.locator('#candidateSearchAction').isVisible());
+    assert(await working.getByRole('status').isVisible());
+    assert(await working.getByRole('progressbar').isVisible());
+    assert.equal(await working.locator('.note-wait-character:visible').count(),0);
+   }
    const loads=()=>p.evaluate(()=>dateFixture.loads.map(r=>r.cursor));
    const waitHold=()=>p.waitForFunction(()=>dateFixture.holds.length===1);
    const release=()=>p.evaluate(()=>dateFixture.holds.shift().release());
    const shown=()=>p.evaluate(()=>AstroNotesCandidatePicker.visibleRows().map(r=>r.id));
    await state('候補を探す');assert.deepEqual(await loads(),[]);
-   await button.click();await waitHold();assert.deepEqual(await loads(),[0,7]);await state('キャンセル');
-   assert(await progress.isVisible());assert(await feedback.locator('.note-wait-character').isVisible());assert.match(await feedback.innerText(),/2地点確認済み/);
+   await button.click();await waitHold();assert.deepEqual(await loads(),[0,7]);await activeProgress();
+   assert.match(await working.getByRole('status').innerText(),/2地点確認済み/);
    // 2026-11-11 the first page's rows show while the next page is still being searched; progress and cancel stay.
-   await p.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2);assert(await progress.isVisible());await state('キャンセル');
+   await p.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2);await activeProgress();
    await progress.scrollIntoViewIfNeeded();await p.screenshot({path:out+'/'+engine+'-auto-progress.png'});
-   await release();await state('候補を探し直す');assert.equal(await progress.count(),0);const first=await shown();assert.equal(first.length,2);assert.equal(new Set(first).size,2);
+   await release();await state('候補を探し直す');assert.equal(await progress.count(),0);assert.equal(await working.count(),0);const first=await shown();assert.equal(first.length,2);assert.equal(new Set(first).size,2);
    await p.evaluate(()=>dateFixture.repeatCursor=true);await button.click();await state('再試行');assert.match(await feedback.innerText(),/取得できなかった/);assert.deepEqual(await loads(),[0,7,0,7]);assert.deepEqual(await shown(),first);
    await p.evaluate(()=>dateFixture.repeatCursor=false);await button.click();await state('候補を探し直す');
-   await p.evaluate(()=>dateFixture.holdCursor=7);await button.click();await waitHold();await state('キャンセル');
-   await button.click();await state('続きを探す');assert.match(await feedback.innerText(),/キャンセルしました/);assert.deepEqual(await shown(),first);
+   await p.evaluate(()=>dateFixture.holdCursor=7);await button.click();await waitHold();await activeProgress();
+   await working.getByRole('button',{name:'キャンセル',exact:true}).click();await state('続きを探す');
+   assert.equal(await working.count(),0);assert.equal(await progress.count(),0);
+   assert.match(await feedback.innerText(),/キャンセルしました/);assert.deepEqual(await shown(),first);
    const beforeResume=(await loads()).length;
    await button.click();await state('候補を探し直す');assert.equal((await loads()).length,beforeResume+1);assert.equal((await loads()).at(-1),7);
    await release();assert.deepEqual(await shown(),first);
@@ -43,7 +55,7 @@ const grants=['records','tower','diamond','pearl','skymap','multiscene'];
    await button.click();await state('候補を探し直す');const next=await shown();assert(next.every(id=>id.startsWith('2026-11-08')));assert.equal(next.length,2);
    assert.equal(writes,0);assert.deepEqual(errors,[]);
    const version=await p.evaluate(()=>new URL([...document.scripts].find(s=>s.src.includes('astronotes-candidate-search.js')).src).searchParams.get('v'));
-   results.push({engine,width,theme,version,passed:true,autoPages:[0,7],stalledCursorReportsRetry:true,manualCancelAndResume:true,lateOldDateIgnored:true,writes,errors});fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log('PASS',engine,width,'automatic candidate search');
+   results.push({engine,width,theme,version,passed:true,compactProgressAndCancel:true,autoPages:[0,7],stalledCursorReportsRetry:true,manualCancelAndResume:true,lateOldDateIgnored:true,writes,errors});fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log('PASS',engine,width,'automatic candidate search');
   }finally{await browser.close();}
  }
 })().catch(e=>{console.error(e);process.exitCode=1;});
