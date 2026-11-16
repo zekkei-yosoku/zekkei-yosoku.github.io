@@ -196,7 +196,13 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   if(!g||![g.azimuth,g.angle,g.topM,g.distanceKm].every(Number.isFinite))return null;
   const k=root.AstroNotesAtmosphere?.targetK?.()??7/6;
   const ray={azimuth:g.azimuth,altitude:g.angle,maxM:g.distanceKm*1000,endpoint:{...target,elevation:g.topM},footM:target.groundM,targetKey:target.id,refractionK:k};
-  const tg=await terrainRay(obs,ray,{isCurrent}),built=await skylineOf(obs,ray,{isCurrent}),tr=await treesOf(obs,ray,{isCurrent}),tree=tr?.skyline||null;
+  // These three readers use separate terrain, building and canopy budgets.
+  const [tg,built,tr]=await Promise.all([
+   terrainRay(obs,ray,{isCurrent}),
+   skylineOf(obs,ray,{isCurrent}),
+   treesOf(obs,ray,{isCurrent}),
+  ]);
+  const tree=tr?.skyline||null;
   if(!tg?.skyline)return {status:tg?.status||'unknown',read:false,note:built||tree?await hiddenNote(target,obs,g.azimuth,null,built,tree):null};
   return {status:tg.status,read:true,note:await hiddenNote(target,obs,g.azimuth,tg.skyline,built,tree)};
  }

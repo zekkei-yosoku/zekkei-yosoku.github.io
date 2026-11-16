@@ -80,6 +80,27 @@ test('手前の木が建物や地形より高く隠すときは木と書く',asy
  assert.equal(r.note.text,'先端だけが見えます。トップデッキの上端から下は手前の木に隠れます');assert.equal(r.note.label,'手前の木');
  assert.equal(seen[0].footM,18,'木は対象の足元までの線で見る');
 });
+test('街並みの遮蔽を出す地形・建物・樹木は互いの読取完了を待たない', async () => {
+ const {createGeneric}=require('./src/features/candidates/generic-evaluator.js');
+ const calls=[];
+ let release;
+ const reading=new Promise(resolve=>{release=resolve;});
+ const read=(kind,result)=>async()=>{calls.push(kind);await reading;return result;};
+ const terrain={trace:read('terrain',{status:'model-clear',skyline:{toM:60}})};
+ const heights={skyline:read('building',{status:'ok',toM:260,distanceM:1500})};
+ const trees={sight:read('tree',{status:'clear',skyline:{toM:180}})};
+ const obs={latitude:35.58386,longitude:139.56853,elevation:87.2,eyeM:1.5};
+ const pending=createGeneric({align:A,bodies:{},geo:G,terrain,heights,trees}).hiddenView(obs,sky);
+ try{
+  assert.deepEqual(calls,['terrain','building','tree']);
+ }finally{
+  release();
+ }
+ const result=await pending;
+ assert.equal(result.note.label,'手前の街並み');
+ assert.equal(result.note.m,260);
+});
+
 test('街並みの影は対象までの方位ごとの建物の見上げ角を同じ部品から返し、読めなければ無い',async()=>{
  const {createGeneric}=require('./src/features/candidates/generic-evaluator.js'),obs={latitude:35.5846,longitude:139.576,elevation:87.2,eyeM:1.5},asked=[];
  const heights={angles:async(o,azimuths,maxM,options)=>{asked.push({o,azimuths,maxM,options});return azimuths.map((a,i)=>i?-Infinity:.4);}};
