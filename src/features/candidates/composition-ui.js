@@ -82,8 +82,7 @@ function bind(host,view){host._trialCompositionView=view;let st=states.get(host)
  if(st.dragging&&st.pointerStart&&Math.hypot(ev.clientX-st.pointerStart[0],ev.clientY-st.pointerStart[1])>6)st.pointerMoved=true;
  if(type==='pointerdown'||st.dragging&&st.pointerMoved&&type!=='pointercancel')choose(ev);if(type==='pointerup'||type==='pointercancel')st.dragging=false;},true);
  cv.addEventListener('click',e=>{if(st.active||st.suppressClick){st.suppressClick=false;e.preventDefault();e.stopImmediatePropagation();}},true);
- cv.addEventListener('keydown',e=>{if(!st.active)return;const dirs={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};if(e.key==='Escape'){st.suppressClick=!!st.dragging;cancelEdit(st);return;
- }if(!dirs[e.key])return;e.preventDefault();e.stopImmediatePropagation();
+ cv.addEventListener('keydown',e=>{if(!st.active)return;const dirs={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};if(!dirs[e.key])return;e.preventDefault();e.stopImmediatePropagation();
  if(!config.composition){if(!firstKeyboardPick(st,choose)){st.error=pickHint();notify();}return;}
  const c=config.composition,v=host._trialCompositionView,s=syncContext(),g=C.geometry({...v.spec.obs,eyeM:v.spec.eyeM},s.target,c,AstroNotesAlign),xy=AstroNotesAlign.viewProjector(v.win.az0,v.win.alt0)(g.azimuth,g.angle),off=host._lensOffset||[0,0],r=cv.getBoundingClientRect(),step=e.shiftKey?10:1;
  choose({clientX:r.left+(v.W/2+xy[0]*v.k+off[0]*v.W+dirs[e.key][0]*step)*r.width/v.W,clientY:r.top+(v.H/2-xy[1]*v.k+off[1]*v.H+dirs[e.key][1]*step)*r.height/v.H});},true);
@@ -95,6 +94,16 @@ st.overlay.hidden=!c||config.compositionInvalid||!st.available||!host.closest('#
 const g=C.geometry({...v.spec.obs,eyeM:v.spec.eyeM},s.target,c,AstroNotesAlign),xy=AstroNotesAlign.viewProjector(v.win.az0,v.win.alt0)(g.azimuth,g.angle);if(!xy){st.overlay.hidden=true;return;
 }const r=v.cv.getBoundingClientRect(),off=host._lensOffset||[0,0],x=(v.W/2+xy[0]*v.k+off[0]*v.W)*r.width/v.W,y=(v.H/2-xy[1]*v.k+off[1]*v.H)*r.height/v.H,rad=Math.max(2,(host._bodyRadius||.25)*v.k*r.width/v.W);Object.assign(st.marker.style,{left:x+'px',top:y+'px'});
 Object.assign(st.disc.style,{left:x+'px',top:(y+(c.limb==='upper'?rad:c.limb==='lower'?-rad:0))+'px',width:2*rad+'px',height:2*rad+'px'});st.disc.hidden=!st.active||!capabilities(s,v.spec.obs).limbs;}
+document.addEventListener('keydown', event => {
+ const st = editing;
+ if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing || !st?.active) return;
+ const scene = st.host.closest('#exploreScenePanel');
+ if (!scene || scene.hidden || document.querySelector('dialog[open],#toolsMenu:not([hidden])')) return;
+ event.preventDefault();
+ event.stopPropagation();
+ st.suppressClick = !!st.dragging;
+ cancelEdit(st);
+}, true);
 document.addEventListener('astronotes-preview-leave',()=>{editing=null;for(const st of statesList){if(st.active&&st.beforeEdit)config=structuredClone(st.beforeEdit);
  st.beforeEdit=null;st.active=false;st.dragging=false;st.error='';update(st);}notify();});
 globalThis.AstroNotesTrialComposition={bind,redraw,plan,label,clear,capabilities,syncToolbar};const host=document.getElementById('aimLook');if(host?._trialCompositionView)bind(host,host._trialCompositionView);

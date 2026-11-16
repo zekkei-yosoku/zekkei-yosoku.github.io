@@ -63,7 +63,8 @@ function create(deps){
   heightFields.append(row);}heights.insertBefore(heightFields,$('skyMapHeightError'));
   const candidates=mapView.querySelector('.sky-map-candidates');candidates.after(skyInfo,tabs,scene,map);
   mountDates(candidates);
-  conditions=node('details',{id:'exploreConditions',className:'explore-conditions',open:true});const summary=node('summary');summary.append(node('span',{id:'exploreConditionTitle'}),node('span',{id:'exploreConditionDetail'}),node('span',{className:'explore-condition-edit'},'条件を編集'));
+  // The controller opens conditions for search. A shared preview must mount closed so its initial state never triggers an edit.
+  conditions=node('details',{id:'exploreConditions',className:'explore-conditions'});const summary=node('summary');summary.append(node('span',{id:'exploreConditionTitle'}),node('span',{id:'exploreConditionDetail'}),node('span',{className:'explore-condition-edit'},'条件を編集'));
   conditions.append(summary);
   // Wait for the native summary action to expand the fields before returning to them.
   summary.addEventListener('click',()=>requestAnimationFrame(()=>{if(mounted&&conditions?.open)mapView.scrollIntoView({block:'start',behavior:'auto'});}));
@@ -241,11 +242,13 @@ function showCurrentSearch(){
  returnIntent=null;pendingScroll=null;syncWorkspace();return true;
 }
 function editConditions(){if(resultRequested&&layout.conditions?.open)showCurrentSearch();}
-function compositionSearchKey(){
+function compositionSearchRequest(){
  const s=SkyMapUI.selectionState(),c=globalThis.AstroNotesTrialComposition?.plan?.(s),api=globalThis.AstroNotesCandidateComposition;
  if(!s?.target||!Number.isFinite(s.at)||!AstroNotesBodies.definition(s.body)||!c?.composition||c.compositionInvalid||c.invalidDraft)return null;
- if(!api?.valid(c.composition,s.target)||!api.timeRange({...s,...c}))return null;
- return JSON.stringify([auth?.loginId,accessState.generation,s,c,aimLens,aimAirSettings]);
+ const timing=globalThis.AstroNotesCandidatePicker?.searchTiming?.(s.at);
+ if(!api?.valid(c.composition,s.target)||!timing)return null;
+ if(!timing.missingField&&!api.timeRange({...s,...c,timeSpec:timing.timeSpec}))return null;
+ return {key:JSON.stringify([auth?.loginId,accessState.generation,s,c,timing,aimLens,aimAirSettings]),missingField:timing.missingField};
 }
 function cancelCompositionSearch(){
  const pending=pendingCompositionSearch;pendingCompositionSearch=null;
@@ -253,21 +256,30 @@ function cancelCompositionSearch(){
 }
 function tryCompositionSearch(){
  const pending=pendingCompositionSearch;if(!pending)return;
- if(!mainSearchActive()||discoveryTab!=='new'||compositionSearchKey()!==pending.key){cancelCompositionSearch();return;}
+ if(!mainSearchActive()||discoveryTab!=='new'||compositionSearchRequest()?.key!==pending.key){cancelCompositionSearch();return;}
+ if(pending.missingField){
+  const field=$(pending.missingField);if(!field?.isConnected)return;
+  cancelCompositionSearch();
+  const details=field.closest('details');if(details)details.open=true;
+  field.focus();
+  field.reportValidity();
+  return;
+ }
  const button=$('candidateSearchAction');if(!button?.isConnected||button.disabled)return;
  // Repeated acceptance must never click the running action's "cancel" state.
  cancelCompositionSearch();if(button.dataset.state!=='searching')button.click();
  requestAnimationFrame(()=>{
-  if(mainSearchActive()&&discoveryTab==='new'&&compositionSearchKey()===pending.key)$('candidateSearchFeedback')?.scrollIntoView({block:'center',behavior:'auto'});
+  if(mainSearchActive()&&discoveryTab==='new'&&compositionSearchRequest()?.key===pending.key)$('candidateSearchFeedback')?.scrollIntoView({block:'center',behavior:'auto'});
  });
 }
 function searchCompositionPlaces(){
  if(!active()||selectionPending||flowOwner!==auth?.loginId||flowGeneration!==accessState.generation)return false;
- const key=compositionSearchKey();if(!key)return false;
+ const request=compositionSearchRequest();if(!request)return false;
+ const {key,missingField}=request;
  if(pendingCompositionSearch?.key===key)return true;
  cancelCompositionSearch();if(!showCurrentSearch())return false;chooseDiscovery('new');
- if(compositionSearchKey()!==key||!newPlacePane)return false;
- const pending={key,observer:null,frame:null};pendingCompositionSearch=pending;
+ if(compositionSearchRequest()?.key!==key||!newPlacePane)return false;
+ const pending={key,missingField,observer:null,frame:null};pendingCompositionSearch=pending;
  pending.observer=new MutationObserver(tryCompositionSearch);
  pending.observer.observe(newPlacePane,{childList:true,subtree:true,attributes:true,attributeFilter:['disabled','data-state']});
  // The adapter mounts on the search-state event. Also wait for a late mount without retaining an obsolete request.

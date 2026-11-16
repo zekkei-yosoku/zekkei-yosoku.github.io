@@ -4,9 +4,9 @@ import {execFileSync} from 'node:child_process';
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
 const AccountSync=require('./src/services/account-sync.js');
+const Storage=require('./src/ports/storage.js');
 const read=p=>p.startsWith('./src/')&&p.endsWith('.js')?sourceUnit(p):readFileSync(new URL(p,import.meta.url),'utf8');
 // 比較元はWeb97356e2のaccount controller実ソース。無ければ失敗させる（skipで合格にしない）。
-const OLD_CONTROLLER=process.env.ASTRONOTES_OLD_ACCOUNT_CONTROLLER??'/Users/okadayudai/Developer/AstroNotes/public-web/src/features/account/controller.js';
 const oldController=execFileSync('git',['show','97356e2:src/features/account/controller.js'],{cwd:new URL('.',import.meta.url),encoding:'utf8'});
 const oldSync=oldController.slice(oldController.indexOf('/// 送れなかったものを覚えておく。'),oldController.indexOf('// 「保持する」の希望。'));
 const status=read('./src/features/account/status.js'),toItemSource=status.slice(status.indexOf('const toItem ='));
@@ -40,7 +40,21 @@ async function same(makeServer,run,options){
   const out={};
   for(const kind of ['old','new']){
     const w=world(kind,makeServer(),typeof options==='function'?options():options);await run(w);await tick();
-    out[kind]={trace:w.trace,state:strip({pushQueue:w.c.pushQueue,syncInfo:w.c.syncInfo,syncError:w.c.syncError,favorites:w.c.favorites,sightings:w.c.sightings}),disk:[...w.disk].map(([k,v])=>[k,JSON.stringify(strip(JSON.parse(v)))])};
+    // The legacy comparison checks existing cursor fields. Separate tests assert the receipt migration.
+    const legacyCursor = value => {
+      if (value === null || value === undefined) return value;
+      if (kind === 'new') assert.equal(value.receiveVersion, 1);
+      const {receiveVersion, ...cursor} = value;
+      return cursor;
+    };
+    const trace = w.trace.map(entry => entry[0] === 'store' && entry[1] === 'sorami.sync'
+      ? [...entry.slice(0, 2), JSON.stringify(legacyCursor(JSON.parse(entry[2])))] : entry);
+    const disk = [...w.disk].map(([key, value]) => {
+      const data = JSON.parse(value);
+      return [key, JSON.stringify(strip(key === 'sorami.sync' ? legacyCursor(data) : data))];
+    });
+    const {pushQueue, syncInfo, syncError, favorites, sightings} = w.c;
+    out[kind] = {trace, state: strip({pushQueue, syncInfo: legacyCursor(syncInfo), syncError, favorites, sightings}), disk};
   }
   assert.deepEqual(out.new,out.old);
   return out.new;
@@ -77,11 +91,152 @@ test('500件ごとの分割と40回上限、未送信の文言が旧sourceと同
   assert.equal(capped.state.syncError,'未送信の変更が5件あります。同期を再試行してください');
 });
 
-test('GETは20頁で止め、拒否された項目は再送し続けない',async()=>{
-  const paged=await same(()=>({handle:async(m,p)=>({favorites:[],sightings:[],rev:Number(p.split('=')[1])+1,more:true})}),async w=>{await w.c.syncNow();});
-  assert.equal(gets(paged.trace).length,20);assert.equal(paged.state.syncInfo.rev,20);
+test('拒否された項目は再送し続けない',async()=>{
   const rejected=await same(()=>({handle:async m=>m==='POST'?{accepted:{favorites:[],sightings:[]}}:{favorites:[],sightings:[],rev:1}}),async w=>{await w.c.syncNow();},()=>({state:{pushQueue:[{kind:'fav',id:'f'}]}}));
   assert.equal(posts(rejected.trace).length,1);assert.match(rejected.state.syncError,/未送信の変更が1件/);
+});
+
+const cursor = rev => ({loginId:'owner', rev, records:1, receiveVersion:1});
+const withRealStore = w => connectAccountSync(w.c, {store: Storage.create(() => w.c.localStorage)});
+
+for (const list of ['favorites', 'sightings']) {
+  for (const deleted of [false, true]) {
+    test(`受信した ${list} の${deleted ? '削除' : '追加'}を保存できなくても再起動後に再受信する`, async () => {
+      const item = {id:'remote', name:'受信した項目'};
+      const before = deleted ? [item] : [];
+      const after = deleted ? [] : [item];
+      const key = 'sorami.' + list;
+      const server = {handle: async (method, path) => {
+        assert.equal(method, 'GET');
+        assert.equal(path, '/sync?since=9');
+        return {[list]: [{id:item.id, body:JSON.stringify(item), deleted}], rev:10, more:false};
+      }};
+      const w = world('new', server, {
+        seed: [[key, before], ['sorami.sync', cursor(9)]],
+        state: {[list]: before, syncInfo:cursor(9)},
+        failLocal: name => name === key,
+      });
+      withRealStore(w);
+      await w.c.syncNow();
+      assert.match(w.c.syncError, /端末に保存できませんでした/);
+      assert.deepEqual(w.c[list], before);
+      assert.deepEqual(JSON.parse(w.disk.get(key)), before);
+      assert.deepEqual(w.c.syncInfo, cursor(9));
+      assert.deepEqual(JSON.parse(w.disk.get('sorami.sync')), cursor(9));
+
+      const reloaded = world('new', server, {
+        seed: [...w.disk].map(([name, value]) => [name, JSON.parse(value)]),
+        state: {[list]:before, syncInfo:cursor(9)},
+      });
+      withRealStore(reloaded);
+      await reloaded.c.syncNow();
+      assert.equal(reloaded.c.syncError, null);
+      assert.deepEqual(JSON.parse(reloaded.disk.get(key)), after);
+      assert.deepEqual(JSON.parse(reloaded.disk.get('sorami.sync')), cursor(10));
+    });
+  }
+}
+
+test('カーソルだけ保存できないときも同期を警告し、同じ頁を再試行する', async () => {
+  let cursorWriteFails = true;
+  const w = world('new', {handle:async (method, path) => {
+    assert.equal(method, 'GET');
+    assert.equal(path, '/sync?since=9');
+    return {favorites:[{id:'f', body:'{"name":"f"}'}], rev:10, more:false};
+  }}, {
+    seed:[['sorami.sync', cursor(9)]],
+    state:{syncInfo:cursor(9)},
+    failLocal:key => key === 'sorami.sync' && cursorWriteFails,
+  });
+  withRealStore(w);
+  await w.c.syncNow();
+  assert.deepEqual(JSON.parse(w.disk.get('sorami.favorites')), [{id:'f', name:'f'}]);
+  assert.deepEqual(w.c.syncInfo, cursor(9));
+  assert.deepEqual(JSON.parse(w.disk.get('sorami.sync')), cursor(9));
+  assert.match(w.c.syncError, /端末に保存できませんでした/);
+  cursorWriteFails = false;
+  await w.c.syncNow();
+  assert.equal(w.c.syncError, null);
+  assert.deepEqual(JSON.parse(w.disk.get('sorami.sync')), cursor(10));
+  assert.deepEqual(JSON.parse(w.disk.get('sorami.favorites')), [{id:'f', name:'f'}]);
+});
+
+test('旧カーソルを先頭から修復し、送信拒否されたローカル変更を保持する', async () => {
+  const w = world('new', {handle: async method => method === 'POST' ? {accepted:{}} : {
+    favorites:[
+      {id:'missing', body:'{"name":"取りこぼした項目"}'},
+      {id:'local', body:'{"name":"サーバーの古い名前"}'},
+    ],
+    rev:10, more:false,
+  }}, {
+    state:{
+      syncInfo:{loginId:'owner', rev:10, records:1},
+      favorites:[{id:'local', name:'送信待ちの編集'}],
+      pushQueue:[{kind:'fav', id:'local'}],
+    },
+  });
+  await w.c.syncNow();
+  assert.deepEqual(w.c.favorites, [
+    {id:'local', name:'送信待ちの編集'}, {id:'missing', name:'取りこぼした項目'},
+  ]);
+  assert.deepEqual(w.c.pushQueue, [{kind:'fav', id:'local'}]);
+  assert.match(w.c.syncError, /未送信の変更が1件/);
+  assert.deepEqual(JSON.parse(w.disk.get('sorami.sync')), cursor(10));
+  await w.c.syncNow();
+  assert.deepEqual(gets(w.trace).map(entry => entry[2]), ['/sync?since=0', '/sync?since=10']);
+});
+
+test('20頁を超える受信を途中で切らず、上限に達した場合は続きへ再試行できる', async () => {
+  for (const head of [22,52]) {
+    const w = world('new', {handle:async (method, path) => {
+      assert.equal(method, 'GET');
+      const next = Number(path.split('=')[1]) + 1;
+      return {rev:next, more:next < head};
+    }});
+    await w.c.syncNow();
+    const first = Math.min(head, 50);
+    assert.equal(gets(w.trace).length, first);
+    assert.deepEqual(JSON.parse(w.disk.get('sorami.sync')), cursor(first));
+    if (head > first) {
+      assert.match(w.c.syncError, /まだ受信していない変更/);
+      await w.c.syncNow();
+      assert.equal(gets(w.trace)[first][2], '/sync?since=' + first);
+    }
+    assert.equal(gets(w.trace).length, head);
+    assert.deepEqual(JSON.parse(w.disk.get('sorami.sync')), cursor(head));
+    assert.equal(w.c.syncError, null);
+  }
+});
+
+test('旧アカウントの再受信が遅れて届いても新アカウントに保存しない', async () => {
+  let completeOldRead;
+  const server = {handle: async (method, path, body, state) => {
+    assert.equal(method, 'GET');
+    assert.equal(path, '/sync?since=0');
+    if (state.auth.loginId === 'owner') return new Promise(resolve => { completeOldRead = resolve; });
+    return {favorites:[{id:'other-place', body:'{"name":"新アカウントの地点"}'}], rev:3, more:false};
+  }};
+  const w = world('new', server, {state:{syncInfo:{loginId:'owner', rev:10, records:1}}});
+  const oldRead = w.c.syncNow();
+  await tick();
+  w.c.authGeneration++;
+  w.c.auth = {loginId:'other', token:'synthetic-other'};
+  w.c.syncInfo = null;
+  await w.c.syncNow();
+  const writesBeforeOldResponse = w.trace.filter(entry => entry[0] === 'store').length;
+  completeOldRead({favorites:[{id:'old-place', body:'{"name":"旧アカウントの地点"}'}], rev:10, more:false});
+  await oldRead;
+  assert.equal(w.trace.filter(entry => entry[0] === 'store').length, writesBeforeOldResponse);
+  assert.deepEqual(w.c.favorites, [{id:'other-place', name:'新アカウントの地点'}]);
+  assert.deepEqual(JSON.parse(w.disk.get('sorami.sync')), {...cursor(3), loginId:'other'});
+});
+
+test('続きがあるのにカーソルが進まない応答は受信完了にしない', async () => {
+  const w = world('new', {handle: async () => ({rev:9, more:true})}, {state:{syncInfo:cursor(9)}});
+  await w.c.syncNow();
+  assert.equal(gets(w.trace).length, 1);
+  assert.deepEqual(w.c.syncInfo, cursor(9));
+  assert.match(w.c.syncError, /まだ受信していない変更/);
 });
 
 test('POST中の編集と同世代の並行呼出しは直列化し、完了順も旧sourceと同じ',async()=>{

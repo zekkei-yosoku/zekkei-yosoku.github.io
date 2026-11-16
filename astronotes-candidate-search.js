@@ -2455,8 +2455,7 @@ function bind(host,view){host._trialCompositionView=view;let st=states.get(host)
  if(st.dragging&&st.pointerStart&&Math.hypot(ev.clientX-st.pointerStart[0],ev.clientY-st.pointerStart[1])>6)st.pointerMoved=true;
  if(type==='pointerdown'||st.dragging&&st.pointerMoved&&type!=='pointercancel')choose(ev);if(type==='pointerup'||type==='pointercancel')st.dragging=false;},true);
  cv.addEventListener('click',e=>{if(st.active||st.suppressClick){st.suppressClick=false;e.preventDefault();e.stopImmediatePropagation();}},true);
- cv.addEventListener('keydown',e=>{if(!st.active)return;const dirs={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};if(e.key==='Escape'){st.suppressClick=!!st.dragging;cancelEdit(st);return;
- }if(!dirs[e.key])return;e.preventDefault();e.stopImmediatePropagation();
+ cv.addEventListener('keydown',e=>{if(!st.active)return;const dirs={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};if(!dirs[e.key])return;e.preventDefault();e.stopImmediatePropagation();
  if(!config.composition){if(!firstKeyboardPick(st,choose)){st.error=pickHint();notify();}return;}
  const c=config.composition,v=host._trialCompositionView,s=syncContext(),g=C.geometry({...v.spec.obs,eyeM:v.spec.eyeM},s.target,c,AstroNotesAlign),xy=AstroNotesAlign.viewProjector(v.win.az0,v.win.alt0)(g.azimuth,g.angle),off=host._lensOffset||[0,0],r=cv.getBoundingClientRect(),step=e.shiftKey?10:1;
  choose({clientX:r.left+(v.W/2+xy[0]*v.k+off[0]*v.W+dirs[e.key][0]*step)*r.width/v.W,clientY:r.top+(v.H/2-xy[1]*v.k+off[1]*v.H+dirs[e.key][1]*step)*r.height/v.H});},true);
@@ -2468,6 +2467,16 @@ st.overlay.hidden=!c||config.compositionInvalid||!st.available||!host.closest('#
 const g=C.geometry({...v.spec.obs,eyeM:v.spec.eyeM},s.target,c,AstroNotesAlign),xy=AstroNotesAlign.viewProjector(v.win.az0,v.win.alt0)(g.azimuth,g.angle);if(!xy){st.overlay.hidden=true;return;
 }const r=v.cv.getBoundingClientRect(),off=host._lensOffset||[0,0],x=(v.W/2+xy[0]*v.k+off[0]*v.W)*r.width/v.W,y=(v.H/2-xy[1]*v.k+off[1]*v.H)*r.height/v.H,rad=Math.max(2,(host._bodyRadius||.25)*v.k*r.width/v.W);Object.assign(st.marker.style,{left:x+'px',top:y+'px'});
 Object.assign(st.disc.style,{left:x+'px',top:(y+(c.limb==='upper'?rad:c.limb==='lower'?-rad:0))+'px',width:2*rad+'px',height:2*rad+'px'});st.disc.hidden=!st.active||!capabilities(s,v.spec.obs).limbs;}
+document.addEventListener('keydown', event => {
+ const st = editing;
+ if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing || !st?.active) return;
+ const scene = st.host.closest('#exploreScenePanel');
+ if (!scene || scene.hidden || document.querySelector('dialog[open],#toolsMenu:not([hidden])')) return;
+ event.preventDefault();
+ event.stopPropagation();
+ st.suppressClick = !!st.dragging;
+ cancelEdit(st);
+}, true);
 document.addEventListener('astronotes-preview-leave',()=>{editing=null;for(const st of statesList){if(st.active&&st.beforeEdit)config=structuredClone(st.beforeEdit);
  st.beforeEdit=null;st.active=false;st.dragging=false;st.error='';update(st);}notify();});
 globalThis.AstroNotesTrialComposition={bind,redraw,plan,label,clear,capabilities,syncToolbar};const host=document.getElementById('aimLook');if(host?._trialCompositionView)bind(host,host._trialCompositionView);
@@ -2959,6 +2968,12 @@ const stop=()=>{if(autoSearchTimer!==null)clearTimeout(autoSearchTimer);autoSear
 // already found when going back to the list (2026-11-11, seen on the iPhone). The evaluator keys its own caches by the data.
 const air=()=>JSON.stringify([typeof aimAirSettings==='undefined'?'standard':aimAirSettings]);
 const context=s=>JSON.stringify([s.body,s.target,s.partId,s.limb,AstroNotesCandidateDiscovery.day(s.at),s.matchMode||'limb']);
+function missingSearchTime() {
+ if (timeChoice !== 'window') return null;
+ if (!windowStart) return 'candidateSearchStart';
+ return windowEnd ? null : 'candidateSearchEnd';
+}
+AstroNotesCandidatePicker.searchTiming = at => ({timeSpec: timeSpec(at), missingField: missingSearchTime()});
 function timeSpec(at){
  if(timeChoice==='instant')return {kind:'instant',at};
  if(timeChoice==='window'){const start=AstroNotesCandidateDiscovery.day(at),ms=x=>{const [h,m]=x.split(':').map(Number);return (h*60+m)*60000;},a=ms(windowStart),b=ms(windowEnd);return {kind:'window',start:start+a,end:start+b+(b<a?86400000:0)};}
@@ -3093,7 +3108,8 @@ function mount(){
  const timeLabel=document.createElement('label');timeLabel.className='tiny';timeLabel.textContent='探索する日時 ';const mode=document.createElement('select');mode.id='candidateSearchMode';mode.setAttribute('aria-label','探索する日時');
  for(const [value,label]of [['day','この日全体'],['instant','選択した時刻'],['window','時間帯を指定']])mode.add(new Option(label,value));mode.value=timeChoice;timeLabel.append(mode);evidence.append(timeLabel);
  const times=document.createElement('div');times.hidden=timeChoice!=='window';for(const [label,id,value]of [['開始','candidateSearchStart',windowStart],['終了','candidateSearchEnd',windowEnd]]){const l=document.createElement('label');l.textContent=label+' ';const input=document.createElement('input');
- input.type='time';input.id=id;input.value=value;input.style.minHeight='44px';input.onchange=()=>{returnSearch=null;if(id.endsWith('Start'))windowStart=input.value;else windowEnd=input.value;mount();};l.append(input);times.append(l);}evidence.append(times);mode.onchange=()=>{returnSearch=null;
+ input.type='time';input.required=true;input.id=id;input.value=value;input.style.minHeight='44px';
+ input.onchange=()=>{returnSearch=null;if(id.endsWith('Start'))windowStart=input.value;else windowEnd=input.value;mount();};l.append(input);times.append(l);}evidence.append(times);mode.onchange=()=>{returnSearch=null;
  timeChoice=mode.value;mount();};
  const notes=document.createElement('p');notes.className='tiny';notes.textContent='地形・建物の収録範囲や高さの精度に限界があります。未確認の見通しを撮影可能と保証しません。樹木・現地の変化・営業時間等は現地条件も確認してください。取得できない情報がある場合は、結果に表示します。';evidence.append(notes);
  const resultNotes=document.createElement('p');resultNotes.className='tiny';evidence.append(resultNotes);
@@ -3108,7 +3124,11 @@ function mount(){
  if(main){section.append(evidence,button);document.getElementById('candidateSearchFeedback').replaceChildren(status,resultList);document.getElementById('candidateSearchCredits').replaceChildren(visibleCredits);}else section.append(button,status,visibleCredits,resultList,evidence);
  panel.append(section);syncWorkspaceSection(panel);
  if(editing&&['candidateSearchMode','candidateSearchStart','candidateSearchEnd'].includes(editing))section.querySelector('#'+editing)?.focus({preventScroll:true});
- const valid=p&&AstroNotesBodies.definition(p.body)&&!p.compositionInvalid&&AstroNotesCandidateComposition.timeRange(p);button.disabled=!valid;status.textContent=!p?'天体・対象・日付を選んでください。':!valid?'指定した日時と構図を確認してください。':'';
+ const missingField=missingSearchTime();
+ const valid=p&&AstroNotesBodies.definition(p.body)&&!p.compositionInvalid&&!missingField&&AstroNotesCandidateComposition.timeRange(p);
+ button.disabled=!valid;
+ status.textContent=missingField?(missingField.endsWith('Start')?'探索の開始時刻を入力してください。':'探索の終了時刻を入力してください。')
+  :!p?'天体・対象・日付を選んでください。':!valid?'指定した日時と構図を確認してください。':'';
  let continuation=false,hasRun=false,searching=false,failed=false,items=new Map(),shown=null;
  // A place saved to the records leaves this list at once, and one removed from them comes back.
  againForRecords=()=>{if(shown&&!searching&&section.isConnected)present(...shown);};
@@ -3149,6 +3169,8 @@ function mount(){
   if(!button.isConnected||!contextActive()||main&&!main.selectable())return;dateRefreshPending=false;main?.reveal();
   if(searching){stop();const token=++run;hasSearched=false;continuation=true;failed=false;searching=false;renderAction();setStatus('探索をキャンセルしました。続きから探せます。');const completed=engine.cached(selected);if(completed)present(completed,selected,section,token,{cancelled:true}).catch(()=>{});return;}
   if(hasRun&&!continuation&&!engine.restart(selected))return;
+  // Once the inputs are accepted, keep progress and results next to the search action.
+  if(main&&evidence.open)evidence.open=false;
   AstroNotesCandidatePicker.unregister?.(resultList);resultList.replaceChildren();items=new Map();hasRun=true;hasSearched=true;const node=section,token=++run;stop();controller=new AbortController();const signal=controller.signal;live.resetBudget();
   footprintGround.resetBudget();treeGround.resetBudget();evaluationBudgetStarted=false;watch=setInterval(()=>{if(!current(token,selected,node)){stop();mount();}},250);
   searching=true;failed=false;renderAction();

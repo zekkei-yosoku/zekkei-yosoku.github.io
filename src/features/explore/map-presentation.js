@@ -9,7 +9,7 @@ import {aimAppendCandidatePage,aimBuildingDays,aimCalGridHtml,aimCalRows,aimCalS
 aimShootingView,candidateDatesAppend,candidateDatesMarkup,candidateWaitMarkup} from '../framing/observer.js';
 import {aimLookKey} from '../framing/reverse-and-entry.js';
 import {openPlaceSheet} from '../places/search.js';
-import {allowedTools,apiTransport,auth,renderTools,screenAllowed,toolAllowed} from '../account/session-and-access.js';
+import {accessState,allowedTools,apiTransport,auth,renderTools,screenAllowed,toolAllowed} from '../account/session-and-access.js';
 import {showSheet} from '../../app/overlays.js';
 import {UI_ICONS} from '../../ui/visual-primitives.js';
 
@@ -268,7 +268,10 @@ ctx.lineWidth=1;
   const transfer=aim.plannerTransfer;
   const transferredAt=fromAim&&from&&transfer?.body===aim.body&&transfer.day===AstroNotesSkyMap.dayStart(aim.dayMs)&&Math.abs(transfer.latitude-from.latitude)<1e-7&&Math.abs(transfer.longitude-from.longitude)<1e-7?transfer.at:null;
   const live=fromAim&&!!from&&!look.hidden&&look._planKey===aimLookKey()&&spec&&Number.isFinite(look._lookAt);
-  pending=fromAim?{ownerToken:auth?.token,sharedTarget:aim.sharedTarget?structuredClone(aim.sharedTarget):null,custom:aim.target?.id==='custom'?store.get('sorami.aimCustom',null):null,observer:live?{...from,latitude:spec.obs.latitude,longitude:spec.obs.longitude,
+  // Refreshing the token does not create a new account session or invalidate this handoff.
+  pending=fromAim?{owner:auth?.loginId,generation:accessState.generation,
+  sharedTarget:aim.sharedTarget?structuredClone(aim.sharedTarget):null,custom:aim.target?.id==='custom'?store.get('sorami.aimCustom',null):null,
+  observer:live?{...from,latitude:spec.obs.latitude,longitude:spec.obs.longitude,
   groundManualM:from.groundManualM??null,standAglM:spec.eyeM===aimObserverEye(from)?from.standAglM??null:spec.eyeM,name:spec.observerName||from.name}:from,body:aim.body,showSun:aim.body==='sun',showMoon:aim.body==='moon',
   at:Number.isFinite(exactAt)?exactAt:Number.isFinite(aim.pendingPlan?.at)?aim.pendingPlan.at:live?look._lookAt:Number.isFinite(transferredAt)?transferredAt:Number.isFinite(aim.dayMs)?aim.dayMs+43200000:Date.now(),targetId:aim.target?.id||'',partId:aim.partId,
   limb:aim.partId==='__whole'?'center':aim.limb,matchMode:aim.matchMode||'limb',ground:live?spec.obs.elevation:null}:null;
@@ -277,7 +280,8 @@ ctx.lineWidth=1;
  function start(){
   if(session&&active()&&!pending){map.redraw();return;}
   const resume=suspended?.token===auth?.token&&suspended?.loginId===auth?.loginId?suspended:null;suspended=null;
-  const saved=store.get(skyStoreKey(),null)||(store.get('sorami.owner',null)===auth?.loginId?store.get('sorami.skyMap',null):null),draft=(pending&&pending.ownerToken===auth?.token?pending:null)||saved;pending=null;
+  const saved=store.get(skyStoreKey(),null)||(store.get('sorami.owner',null)===auth?.loginId?store.get('sorami.skyMap',null):null);
+  const draft=(pending?.owner===auth?.loginId&&pending?.generation===accessState.generation?pending:null)||saved;pending=null;
   const sharedTarget=validPoint(draft?.sharedTarget)&&draft.sharedTarget.parts?.length?draft.sharedTarget:null;
   const list=mapTargets().filter(t=>!sharedTarget||t.id!==sharedTarget.id).concat(sharedTarget?[sharedTarget]:[]).filter(validPoint);
   const custom=draft?.custom||null,customTarget=custom?{id:'custom',name:custom.name,...custom,parts:[{id:'tip',name:'てっぺん',m:custom.topM}]}:null;
@@ -297,7 +301,8 @@ ctx.lineWidth=1;
  }
  function suspend(){if(!session){leave(true,true,true);return;}const resume=session&&active()?{at:skyPlayback.at(),playing:skyPlayback.running(),wall:Date.now(),token:auth?.token,loginId:auth?.loginId}:null;leave(true,true,true);suspended=resume;}
  function leave(persist=true,invalidate=true,preserveResume=false){if(!preserveResume)suspended=null;skyPlayback.stop(false);dateEntry=null;globalThis.MyPlacesUI?.leaveSky?.();stopSkyScrub();if(skyCalendar?.open)skyCalendar.close();if(skyTimeDialog?.open)skyTimeDialog.close();
- if(invalidate){accessSeq.cancel();accessPromise=null;checkingToken=null;}if(targetSheet.open)targetSheet.close();if(bodiesSheet.open)bodiesSheet.close();pickMode=null;mapWide=false;targetSeq.cancel();if(session&&persist&&hasAccess())save();seq.cancel();cancelAnimationFrame(frame);frame=0;
+ if(invalidate){accessSeq.cancel();accessPromise=null;checkingToken=null;if(!preserveResume)pending=null;}
+ if(targetSheet.open)targetSheet.close();if(bodiesSheet.open)bodiesSheet.close();pickMode=null;mapWide=false;targetSeq.cancel();if(session&&persist&&hasAccess())save();seq.cancel();cancelAnimationFrame(frame);frame=0;
  session=null;accessToken=null;accessTools=[];el('skyMapContent').hidden=true;el('skyMapCanvas').closest('.mapwrap').classList.remove('sky-map-wide');el('skyMapExpand').setAttribute('aria-pressed','false');el('skyMapExpand').setAttribute('aria-label','地図を全画面表示');el('skyMapExpand').title='地図を全画面表示';}
  function changeObserverHeight(change){
   const o=session.observer,legacy=Number.isFinite(o.observationElevationM)&&!Number.isFinite(o.standAglM)&&!Number.isFinite(o.groundManualM);

@@ -39,5 +39,14 @@ jobs:
           python3 tools/serve-checks.py 8992 &
           sleep 2
           NODE_PATH="$RUNNER_TEMP/pw/node_modules" OUT="$RUNNER_TEMP/checks" SKIP_UNIT=1 tools/run-trial-checks.sh
+      - name: 共有リンクの復元とログイン後の保存
+        run: |
+          python3 tools/serve-checks.py 8993 &
+          preview_pid=$!
+          trap 'kill "$preview_pid"' EXIT
+          sleep 2
+          export NODE_PATH="$RUNNER_TEMP/pw/node_modules"
+          PLAN_BASE=http://127.0.0.1:8993/trial/ python3 tools/run-check-command.py 300 node tools/test-plan-link-restoration.cjs
+          LOGIN_ACTION_BASE=http://127.0.0.1:8993/trial/ python3 tools/run-check-command.py 300 node tools/test-share-login-actions.cjs
       - if: failure()
         run: tail -n 60 "$RUNNER_TEMP"/checks/*.log

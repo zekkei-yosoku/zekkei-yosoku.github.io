@@ -2432,11 +2432,11 @@ ok(!/favorites\[favDraft\.index\]/.test(html), "編集・削除で位置を直�
 ok(/favorites\.findIndex\(\(f\) => f\.id === favDraft\.id\)/.test(html), "IDで引き直す");
 
 console.log("== 同期が取りこぼさない・黙って捨てない ==");
-// C-2: サーバーは 500件で打ち切ったらカーソルもそこで返す。画面は続きを取りに行く
-ok(/if \(!got\.more \|\| next <= since\) break;/.test(html), "打ち切られたら続きを取りに行く");
-ok(/for \(let round = 0; round < 20; round\+\+\)/.test(html), "無限には回さない");
-// **進まなくなったら止める。** 止め方が無いと、サーバーの不具合で画面が固まる
-ok(/next <= since/.test(html), "カーソルが進まなければ止める");
+// 実際の頁送りと再試行は test-sync-contract.mjs で検証する。
+ok(/if \(!got\.more\) break;/.test(html) && /since = next;/.test(html), "続きがあれば次のカーソルから受信する");
+ok(/for \(let round = 0; round < MAX_RECEIVE_PAGES; round\+\+\)/.test(html)
+  && /if \(round \+ 1 === MAX_RECEIVE_PAGES\) throw new Error\(RECEIVE_PENDING\);/.test(html), "受信上限に達したら未完了を知らせる");
+ok(/if \(got\.more && next <= since\) throw new Error\(RECEIVE_PENDING\);/.test(html), "カーソルが進まなければ停止して未完了を知らせる");
 
 // C-3: 送っただけで消さない。サーバーが受理したIDだけ外す
 ok(/res\?\.accepted\?\.favorites/.test(html) && /res\?\.accepted\?\.sightings/.test(html),

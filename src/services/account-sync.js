@@ -2,6 +2,12 @@
 'use strict';
 // state は呼出時に現在の値を読み書きする。写しを持つと controller 側の代入と食い違う。
 // records は RecordSync 本体を移さず、呼出時に取る（未定義なら記録の同期を飛ばす）。
+// The API allows 20,000 rows per account across the two storage tables.
+const MAX_RECEIVE_PAGES = 50;
+const RECEIVE_VERSION = 1;
+const RECEIVE_PENDING = "まだ受信していない変更があります。同期を再試行してください。";
+const RECEIVE_STORAGE_ERROR = "同期した変更を端末に保存できませんでした。空き容量や保存設定を確認して、同期を再試行してください。";
+
 function create({state,session,apiCall,store,toItem,cleanFavorite,cleanSighting,records,refresh,render}){
 
 /// 送れなかったものを覚えておく。次に繋がったときに送る。
@@ -47,15 +53,22 @@ async function syncNow() {
           store.set("sorami.queue", state.pushQueue);
           if (!batch.some(accepted)) break;
         }
-        let since = state.syncInfo?.loginId === session.auth().loginId && state.syncInfo.records === 1 ? (state.syncInfo.rev || 0) : 0;
-        for (let round = 0; round < 20; round++) {
+        const loginId = session.auth().loginId;
+        const saved = state.syncInfo;
+        // Replay cursors saved before local write failures could interrupt receipt.
+        const canResume = saved?.loginId === loginId && saved.records === 1 && saved.receiveVersion === RECEIVE_VERSION;
+        let since = canResume ? saved.rev || 0 : 0;
+        for (let round = 0; round < MAX_RECEIVE_PAGES; round++) {
           const got = await apiCall("GET", `/sync?since=${since}`);
           if (!current()) return;
-          applyIncoming(got);
           const next = got.rev ?? since;
-          state.syncInfo = { loginId: session.auth().loginId, rev: next, records: 1 };
-          store.set("sorami.sync", state.syncInfo);
-          if (!got.more || next <= since) break;
+          if (got.more && next <= since) throw new Error(RECEIVE_PENDING);
+          applyIncoming(got);
+          const received = { loginId, rev: next, records: 1, receiveVersion: RECEIVE_VERSION };
+          if (!store.set("sorami.sync", received)) throw new Error(RECEIVE_STORAGE_ERROR);
+          state.syncInfo = received;
+          if (!got.more) break;
+          if (round + 1 === MAX_RECEIVE_PAGES) throw new Error(RECEIVE_PENDING);
           since = next;
         }
         state.syncError = state.pushQueue.length ? `未送信の変更が${state.pushQueue.length}件あります。同期を再試行してください` : null;
@@ -86,12 +99,22 @@ function applyIncoming(got) {
     }
     return [...byId.values()];
   };
-  state.favorites = put(state.favorites, got.favorites, cleanFavorite, "fav");
-  state.sightings = put(state.sightings, got.sightings, cleanSighting, "sight");
+  const receivedFavorites = put(state.favorites, got.favorites, cleanFavorite, "fav");
+  const receivedSightings = put(state.sightings, got.sightings, cleanSighting, "sight");
   if (records()) records().apply(got.records);
-  store.set("sorami.favorites", state.favorites);
-  store.set("sorami.sightings", state.sightings);
+  saveReceivedList("favorites", receivedFavorites);
+  saveReceivedList("sightings", receivedSightings);
   refresh();
+}
+
+function saveReceivedList(name, value) {
+  const previous = state[name];
+  // Publish the list for the synchronous storage write hook.
+  state[name] = value;
+  if (!store.set("sorami." + name, value)) {
+    state[name] = previous;
+    throw new Error(RECEIVE_STORAGE_ERROR);
+  }
 }
 
 return {queuePush,syncNow,applyIncoming};

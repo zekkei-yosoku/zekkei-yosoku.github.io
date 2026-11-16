@@ -106,6 +106,12 @@ const stop=()=>{if(autoSearchTimer!==null)clearTimeout(autoSearchTimer);autoSear
 // already found when going back to the list (2026-11-11, seen on the iPhone). The evaluator keys its own caches by the data.
 const air=()=>JSON.stringify([typeof aimAirSettings==='undefined'?'standard':aimAirSettings]);
 const context=s=>JSON.stringify([s.body,s.target,s.partId,s.limb,AstroNotesCandidateDiscovery.day(s.at),s.matchMode||'limb']);
+function missingSearchTime() {
+ if (timeChoice !== 'window') return null;
+ if (!windowStart) return 'candidateSearchStart';
+ return windowEnd ? null : 'candidateSearchEnd';
+}
+AstroNotesCandidatePicker.searchTiming = at => ({timeSpec: timeSpec(at), missingField: missingSearchTime()});
 function timeSpec(at){
  if(timeChoice==='instant')return {kind:'instant',at};
  if(timeChoice==='window'){const start=AstroNotesCandidateDiscovery.day(at),ms=x=>{const [h,m]=x.split(':').map(Number);return (h*60+m)*60000;},a=ms(windowStart),b=ms(windowEnd);return {kind:'window',start:start+a,end:start+b+(b<a?86400000:0)};}
@@ -240,7 +246,8 @@ function mount(){
  const timeLabel=document.createElement('label');timeLabel.className='tiny';timeLabel.textContent='探索する日時 ';const mode=document.createElement('select');mode.id='candidateSearchMode';mode.setAttribute('aria-label','探索する日時');
  for(const [value,label]of [['day','この日全体'],['instant','選択した時刻'],['window','時間帯を指定']])mode.add(new Option(label,value));mode.value=timeChoice;timeLabel.append(mode);evidence.append(timeLabel);
  const times=document.createElement('div');times.hidden=timeChoice!=='window';for(const [label,id,value]of [['開始','candidateSearchStart',windowStart],['終了','candidateSearchEnd',windowEnd]]){const l=document.createElement('label');l.textContent=label+' ';const input=document.createElement('input');
- input.type='time';input.id=id;input.value=value;input.style.minHeight='44px';input.onchange=()=>{returnSearch=null;if(id.endsWith('Start'))windowStart=input.value;else windowEnd=input.value;mount();};l.append(input);times.append(l);}evidence.append(times);mode.onchange=()=>{returnSearch=null;
+ input.type='time';input.required=true;input.id=id;input.value=value;input.style.minHeight='44px';
+ input.onchange=()=>{returnSearch=null;if(id.endsWith('Start'))windowStart=input.value;else windowEnd=input.value;mount();};l.append(input);times.append(l);}evidence.append(times);mode.onchange=()=>{returnSearch=null;
  timeChoice=mode.value;mount();};
  const notes=document.createElement('p');notes.className='tiny';notes.textContent='地形・建物の収録範囲や高さの精度に限界があります。未確認の見通しを撮影可能と保証しません。樹木・現地の変化・営業時間等は現地条件も確認してください。取得できない情報がある場合は、結果に表示します。';evidence.append(notes);
  const resultNotes=document.createElement('p');resultNotes.className='tiny';evidence.append(resultNotes);
@@ -255,7 +262,11 @@ function mount(){
  if(main){section.append(evidence,button);document.getElementById('candidateSearchFeedback').replaceChildren(status,resultList);document.getElementById('candidateSearchCredits').replaceChildren(visibleCredits);}else section.append(button,status,visibleCredits,resultList,evidence);
  panel.append(section);syncWorkspaceSection(panel);
  if(editing&&['candidateSearchMode','candidateSearchStart','candidateSearchEnd'].includes(editing))section.querySelector('#'+editing)?.focus({preventScroll:true});
- const valid=p&&AstroNotesBodies.definition(p.body)&&!p.compositionInvalid&&AstroNotesCandidateComposition.timeRange(p);button.disabled=!valid;status.textContent=!p?'天体・対象・日付を選んでください。':!valid?'指定した日時と構図を確認してください。':'';
+ const missingField=missingSearchTime();
+ const valid=p&&AstroNotesBodies.definition(p.body)&&!p.compositionInvalid&&!missingField&&AstroNotesCandidateComposition.timeRange(p);
+ button.disabled=!valid;
+ status.textContent=missingField?(missingField.endsWith('Start')?'探索の開始時刻を入力してください。':'探索の終了時刻を入力してください。')
+  :!p?'天体・対象・日付を選んでください。':!valid?'指定した日時と構図を確認してください。':'';
  let continuation=false,hasRun=false,searching=false,failed=false,items=new Map(),shown=null;
  // A place saved to the records leaves this list at once, and one removed from them comes back.
  againForRecords=()=>{if(shown&&!searching&&section.isConnected)present(...shown);};
@@ -296,6 +307,8 @@ function mount(){
   if(!button.isConnected||!contextActive()||main&&!main.selectable())return;dateRefreshPending=false;main?.reveal();
   if(searching){stop();const token=++run;hasSearched=false;continuation=true;failed=false;searching=false;renderAction();setStatus('探索をキャンセルしました。続きから探せます。');const completed=engine.cached(selected);if(completed)present(completed,selected,section,token,{cancelled:true}).catch(()=>{});return;}
   if(hasRun&&!continuation&&!engine.restart(selected))return;
+  // Once the inputs are accepted, keep progress and results next to the search action.
+  if(main&&evidence.open)evidence.open=false;
   AstroNotesCandidatePicker.unregister?.(resultList);resultList.replaceChildren();items=new Map();hasRun=true;hasSearched=true;const node=section,token=++run;stop();controller=new AbortController();const signal=controller.signal;live.resetBudget();
   footprintGround.resetBudget();treeGround.resetBudget();evaluationBudgetStarted=false;watch=setInterval(()=>{if(!current(token,selected,node)){stop();mount();}},250);
   searching=true;failed=false;renderAction();

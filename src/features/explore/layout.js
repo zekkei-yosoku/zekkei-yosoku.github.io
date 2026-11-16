@@ -23,7 +23,8 @@ function create(deps){
   heightFields.append(row);}heights.insertBefore(heightFields,$('skyMapHeightError'));
   const candidates=mapView.querySelector('.sky-map-candidates');candidates.after(skyInfo,tabs,scene,map);
   mountDates(candidates);
-  conditions=node('details',{id:'exploreConditions',className:'explore-conditions',open:true});const summary=node('summary');summary.append(node('span',{id:'exploreConditionTitle'}),node('span',{id:'exploreConditionDetail'}),node('span',{className:'explore-condition-edit'},'条件を編集'));
+  // The controller opens conditions for search. A shared preview must mount closed so its initial state never triggers an edit.
+  conditions=node('details',{id:'exploreConditions',className:'explore-conditions'});const summary=node('summary');summary.append(node('span',{id:'exploreConditionTitle'}),node('span',{id:'exploreConditionDetail'}),node('span',{className:'explore-condition-edit'},'条件を編集'));
   conditions.append(summary);
   // Wait for the native summary action to expand the fields before returning to them.
   summary.addEventListener('click',()=>requestAnimationFrame(()=>{if(mounted&&conditions?.open)mapView.scrollIntoView({block:'start',behavior:'auto'});}));
