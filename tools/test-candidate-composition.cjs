@@ -23,7 +23,7 @@ function installCompositionFixture(tools){
   discovery=api;let factory;
   Object.defineProperty(api,'createGenericSearch',{configurable:true,get:()=>factory,set:original=>{factory=options=>original({...options,
    evaluate:async(...args)=>{const result=await options.evaluate(...args);compositionFixture.tested.push({status:result.status,reason:result.reason,recommend:result.recommend,partial:result.partial,residual:result.event?.compositionResidualDeg,heightUnknown:result.heightUnknown,nearBuilding:result.nearBuilding,obstacle:result.obstacle});return result;},
-   loadStatic:null,provider:{load:async plan=>{
+   provider:{load:async plan=>{
     compositionFixture.loads++;compositionFixture.plans.push(structuredClone(plan));
     // 2026-11-11 新しい地点は広場・展望施設・公園・河川敷だけで、建物のセルの上の地点は確かめられない。構図の検証なので、
     // 種類を広場にし、収録した歩道の37m北の建物の無いセル（先端への線がPLATEAUで通り、11/29 2:21頃に月の下端が先端に来る）へ移す。

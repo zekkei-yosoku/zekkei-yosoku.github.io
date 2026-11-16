@@ -30,7 +30,6 @@ test('surface hulls are bound to the exact drawing geometry and reject a mixed m
 test('invalid composition is distinct from the previous valid search and never loads data',async()=>{const D=require('./src/features/candidates/search.js'),plan={target,body:'moon',at:0},key=p=>D.keyFor(p,1,'standard');assert.notEqual(key(plan),key({...plan,compositionInvalid:true}));let loads=0;const engine=D.create({loadData:async()=>{loads++;return {};},evaluate:async()=>({})});await assert.rejects(engine.search({...plan,compositionInvalid:true}),/invalid-composition/);assert.equal(loads,0);});
 
 test('closest point on an outline: the boxed rings give the same answer as checking every edge',()=>{
- const C=createRequire(import.meta.url)('./src/features/candidates/composition.js');
  const inside=(r,x,y)=>{let on=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>y)!==(r[j][1]>y)&&x<(r[j][0]-r[i][0])*(y-r[i][1])/(r[j][1]-r[i][1])+r[i][0])on=!on;return on;};
  const every=(p,polygons)=>{let nearest=null,distance=Infinity;for(const ring of polygons){if(inside(ring,p[0],p[1]))return {point:p,distance:0};for(let i=0;i<ring.length;i++){const a=ring[i],b=ring[(i+1)%ring.length],dx=b[0]-a[0],dy=b[1]-a[1],u=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/(dx*dx+dy*dy||1))),q=[a[0]+u*dx,a[1]+u*dy],d=Math.hypot(p[0]-q[0],p[1]-q[1]);if(d<distance){distance=d;nearest=q;}}}return {point:nearest||[0,0],distance};};
  let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
@@ -38,5 +37,18 @@ test('closest point on an outline: the boxed rings give the same answer as check
   const polygons=Array.from({length:1+Math.floor(rnd()*12)},()=>{const cx=rnd()*20-10,cy=rnd()*20-10,n=1+Math.floor(rnd()*9);return Array.from({length:n},(_,i)=>{const a=2*Math.PI*i/n,r=.2+rnd()*3;return [cx+r*Math.cos(a),cy+r*Math.sin(a)];});});
   for(let k=0;k<20;k++){const p=[rnd()*30-15,rnd()*30-15],a=C.closestPoint(p,polygons),b=every(p,polygons);assert.equal(a.distance,b.distance);assert.deepEqual(a.point,b.point);}
  }
- assert.deepEqual(C.closestPoint([1,1],[]),{point:[0,0],distance:Infinity});
+ const shapeObserver={latitude:35.74546,longitude:139.893785,elevation:15.6};
+ const outline=A.towerOutline(shapeObserver,target);
+ const project=A.viewProjector(outline.azimuth,outline.topAngle);
+ const polygons=outline.polygons.map(ring=>ring.map(([az,alt])=>project(az,alt)));
+ assert(polygons.length>3000);
+ for(let k=0;k<180;k++){
+  const p=[rnd()*.5-.25,rnd()*(outline.topAngle-outline.baseAngle+1)-(outline.topAngle-outline.baseAngle+.5)];
+  assert.deepEqual(C.closestPoint(p,polygons),every(p,polygons));
+ }
+ // The lower-index ring is on the right of the query, in a different branch.
+ const tied=[[[1,0]],[[-1,0]],...Array.from({length:39},(_,i)=>[[i<19?-2-i:2+i,0]])];
+ assert.deepEqual(C.closestPoint([0,0],tied),{point:[1,0],distance:1});
+ for(const p of [[1,1],[NaN,0],[0,Infinity]])assert.deepEqual(C.closestPoint(p,[]),{point:[0,0],distance:Infinity});
+ for(const p of [[NaN,0],[0,Infinity]])assert.deepEqual(C.closestPoint(p,polygons),{point:[0,0],distance:Infinity});
 });

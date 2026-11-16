@@ -8,7 +8,7 @@ const out=process.env.CANDIDATE_GENERIC_OUT||'/tmp/astronotes-generic-runtime';f
 const granted=['records','tower','diamond','pearl','skymap','multiscene'];
 function installFixture(granted){
  sessionStorage.setItem('sorami.token',JSON.stringify({token:'synthetic-generic-runtime',loginId:'generic-runtime-test',tools:granted}));
- window.candidateFixture={plans:[],rows:[],loads:0};
+ window.candidateFixture={plans:[],rows:[],loads:0,holdSecond:false,releaseSecond:null};
  let discovery;
  Object.defineProperty(window,'AstroNotesCandidateDiscovery',{configurable:true,get:()=>discovery,set:api=>{
   discovery=api;let factory;
@@ -21,7 +21,8 @@ function installFixture(granted){
     {id:'deck-high',name:'同じ展望地点 上層',placeKind:'viewpoint',latitude:35.6906,longitude:139.7308,groundM:31,eyeM:101.5,rank:101}
    ].map(p=>({...p,surfaceId:p.id,standingSurfaceKnown:true,accessKnown:true}));
    // Synthetic places: the real visibility map (2026-11-13) is left out.
-   return original({...options,loadStatic:null,prefilter:null,provider:{load:async plan=>{candidateFixture.loads++;candidateFixture.plans.push(structuredClone(plan));return {points,coverage:{nextCursor:null},partial:false};}},evaluate:async(plan,point)=>{
+   return original({...options,prefilter:null,provider:{load:async plan=>{candidateFixture.loads++;candidateFixture.plans.push(structuredClone(plan));return {points,coverage:{nextCursor:null},partial:false};}},evaluate:async(plan,point)=>{
+    if(candidateFixture.holdSecond&&point.id==='deck-high')await new Promise(resolve=>{candidateFixture.releaseSecond=resolve;});
     const range=AstroNotesCandidateComposition.timeRange(plan),at=range.start===range.end?range.start:Math.min(range.end,range.start+12*3600000);
     const row={id:plan.body+'-'+point.id+'-'+at,requestKey:plan.requestKey,recommend:true,aligned:true,status:'model-visible',placeKind:point.placeKind,surfaceId:point.surfaceId,rank:point.rank,
      place:{name:point.name,latitude:point.latitude,longitude:point.longitude,elevation:point.groundM,groundManualM:point.groundM,standAglM:point.eyeM,eyeHeightAGL:point.eyeM,decks:[],stand:'ground'},
@@ -40,8 +41,14 @@ async function openCandidates(p){
  if(await p.locator('#exploreBackToCandidates').isVisible())await p.locator('#exploreBackToCandidates').click();
  await p.locator('#exploreDiscovery-new').click();await p.waitForFunction(()=>{const button=document.getElementById('candidateSearchAction');return button?.dataset.state==='idle'&&!button.disabled&&button.getBoundingClientRect().width>0;});
 }
-async function search(p,visibleCount=3){
+async function search(p,visibleCount=3,checkFirst=false){
+ if(checkFirst)await p.evaluate(()=>{candidateFixture.holdSecond=true;});
  await p.locator('#candidateSearchAction').click();
+ if(checkFirst){
+  await p.waitForFunction(()=>candidateFixture.releaseSecond&&AstroNotesCandidatePicker.visibleRows().length===1&&document.getElementById('candidateSearchAction')?.dataset.state==='searching');
+  assert(await p.locator('#candidateUnifiedResults .list-item').first().isVisible());
+  await p.evaluate(()=>{candidateFixture.holdSecond=false;candidateFixture.releaseSecond();candidateFixture.releaseSecond=null;});
+ }
  await p.waitForFunction(n=>document.querySelector('#candidateSearchFeedback [role=status]')?.textContent.includes(n+'件の新たな撮影地点の候補があります'),visibleCount);
  await p.waitForFunction(n=>AstroNotesCandidatePicker.visibleRows().length===n&&document.getElementById('candidateSearchAction')?.dataset.state==='idle'&&document.getElementById('additionalCandidateResults')?.getAttribute('aria-busy')==='false',visibleCount);
 }
@@ -82,7 +89,7 @@ async function assertSelected(p,row,before,body,target='custom'){
     const before=await saved(p),bodies=['sun','moon','sirius','mercury','venus','mars','jupiter','saturn'];
     for(const [index,body]of bodies.entries()){
      await prepare(p,body);await openCandidates(p);assert.equal(await p.evaluate(()=>SkyMapUI.selectionState().body),body);
-     const beforeLoads=await p.evaluate(()=>candidateFixture.loads);await search(p);assert.equal(await p.evaluate(()=>candidateFixture.loads),beforeLoads+1);
+     const beforeLoads=await p.evaluate(()=>candidateFixture.loads);await search(p,3,index===0);assert.equal(await p.evaluate(()=>candidateFixture.loads),beforeLoads+1);
      const names=await p.locator('#candidateUnifiedResults .list-item').evaluateAll(ns=>ns.map(n=>n.firstElementChild.textContent));// The list opens in time order (all three at 12:00 here); the new places are only parks, plazas, viewpoints and riverbanks.
      assert.deepEqual([...names].sort(),['任意対象の公園','同じ展望地点 下層','同じ展望地点 上層'].sort(),'only parks, plazas, viewpoints and riverbanks are new places');
      assert.equal(await p.evaluate(()=>AstroNotesCandidatePicker.visibleRows().filter(r=>r.place.latitude===35.6906).length),2,'same point different height preserved');

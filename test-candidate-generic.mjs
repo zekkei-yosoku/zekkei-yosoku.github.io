@@ -289,11 +289,13 @@ test('resuming a cancelled continuation preserves completed rows and pending wor
 });
 
 
-test('cancellation while static preparation is pending cannot advance past an uncommitted provider page',async()=>{
+test('cancellation while surveyed locations are pending cannot advance past an uncommitted provider page',async()=>{
  const original=C.inverseSeeds;C.inverseSeeds=async()=>({seeds:[{latitude:35,longitude:139,radiusM:300,priority:0}],partial:true});
  try{
   const cursors=[];let active=true,entered,release,hold=true;const started=new Promise(r=>entered=r);
-  const engine=createGenericSearch({provider:{load:async(p,{cursor})=>{cursors.push(cursor);return {points:[{...point,id:'page'+cursor}],coverage:{nextCursor:cursor===0?7:null}};}},bodies,yieldTask:async()=>{},loadStatic:async()=>{if(hold){hold=false;entered();await new Promise(r=>release=r);}return null;},evaluate:async(p,q)=>({recommend:true,id:q.id,place:q,event:{at:0}})});
+  const provider={load:async(p,{cursor})=>{cursors.push(cursor);return {points:[{...point,id:'page'+cursor}],coverage:{nextCursor:cursor===0?7:null}};},
+   surveyed:async()=>{if(hold){hold=false;entered();await new Promise(r=>release=r);}return [];}};
+  const engine=createGenericSearch({provider,bodies,yieldTask:async()=>{},evaluate:async(p,q)=>({recommend:true,id:q.id,place:q,event:{at:0}})});
   const old=engine.search(plan,{isCurrent:()=>active});await started;active=false;
   const resumed=await engine.search(plan,{more:true});assert.deepEqual(cursors,[0,0]);assert.deepEqual(resumed.rows.map(r=>r.id),['page0']);assert.equal(resumed.coverage.nextCursor,7);assert.equal(resumed.coverage.loaded.length,1);
   release();assert((await old).cancelled);assert.deepEqual(engine.cached(plan).rows.map(r=>r.id),['page0']);
@@ -348,6 +350,34 @@ test('one search drains multiple provider pages and small evaluation batches, wi
   }};
   const engine=createGenericSearch({provider,bodies,maxPointsPerBatch:1,evaluate:async(_,pt)=>{checked.push(pt.latitude);return {recommend:true,id:String(pt.latitude),place:pt,event:{at:0}};}});
   const result=await engine.searchAll(plan);assert.equal(result.canContinue,false);assert.deepEqual(loads,[0,2]);assert.equal(checked.length,4);assert.equal(result.rows.length,4);assert.equal(result.coverage.loaded[0].failedRegions[0].id,'tile-missing');
+ }finally{C.inverseSeeds=original;}
+});
+
+test('the first verified place is published and can be kept before the batch finishes',async()=>{
+ const original=C.inverseSeeds;C.inverseSeeds=async()=>({seeds:[],partial:true});
+ try{
+  const points=[{...point,latitude:35},{...point,latitude:35.001}];
+  const checked=[],firstPages=[];
+  const controller=new AbortController();
+  const engine=createGenericSearch({bodies,yieldTask:async()=>{},provider:{load:async(_plan,{pointKinds})=>{
+   assert.deepEqual([...pointKinds],['viewpoint','plaza','park','riverbank']);
+   return {points,coverage:{nextCursor:null}};
+  }},evaluate:async(_plan,place)=>{
+   checked.push(place.latitude);return {id:String(place.latitude),place,event:{at:0},recommend:true};
+  }});
+  const interrupted=await engine.searchAll(plan,{signal:controller.signal,onPage:page=>{
+   firstPages.push(page.rows.map(row=>row.id));
+   assert.deepEqual(checked,[35]);
+   controller.abort();
+  }});
+  assert.equal(interrupted.cancelled,true);
+  assert.deepEqual(firstPages,[['35']]);
+  const cached=engine.cached(plan);
+  assert.deepEqual(cached.rows.map(row=>row.id),['35']);
+  assert.equal(cached.coverage.pendingPoints,1);
+  const finished=await engine.searchAll(plan,{more:true});
+  assert.deepEqual(finished.rows.map(row=>row.id),['35','35.001']);
+  assert.deepEqual(checked,[35,35.001]);
  }finally{C.inverseSeeds=original;}
 });
 

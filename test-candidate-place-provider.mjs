@@ -28,6 +28,18 @@ test('堤防の上の道は広い川の河川敷、堤防の外の道は河川�
  const kind=lon=>new Set(result.points.filter(p=>Math.abs(p.longitude-lon)<1e-6).map(p=>p.placeKind));
  assert.deepEqual(kind(139.0027),new Set(['riverbank']));assert.deepEqual(kind(139.0049),new Set(['sidewalk']));
 });
+test('river proximity keeps the latitude-dependent cutoff for a shore far away in longitude',async()=>{
+ const lon=139.002,lat=80.0015;
+ const river=way(11,{waterway:'river'},[[lon,80],[lon,80.004]]);
+ const water=way(12,{natural:'water'},ring(lon-.001,80,lon,80.004));
+ const lonAt=metres=>lon+metres/(111195*Math.cos(lat*Math.PI/180));
+ const near=line(13,{},lat,lat+.000001,lonAt(149.99));
+ const far=line(14,{},lat,lat+.000001,lonAt(150.01));
+ const result=await provider([river,water,near,far]).load({}, {regions:[{bbox:[139.001,80.001,139.014,80.003]}]});
+ const kindsFor=id=>new Set(result.points.filter(p=>p.sourceId==='osm/way/'+id).map(p=>p.placeKind));
+ assert.deepEqual(kindsFor(13),new Set(['riverbank']));
+ assert.deepEqual(kindsFor(14),new Set(['sidewalk']));
+});
 test('広場・河川敷・展望地点を独立geometryから作り、歩道より先に選ぶ',async()=>{
  const square=way(2,{highway:'pedestrian',area:'yes',place:'square',name:'広場'},ring(139.0011,35.0011,139.0018,35.0018));
  const riverPark=way(3,{leisure:'park',name:'川テラス'},ring(139.0021,35.0021,139.0028,35.0028));
@@ -65,6 +77,47 @@ test('点上限でも同じ先頭を繰り返さず全点へ続き、その後�
  const p=provider([line(1,{},35.0012,35.0038)],{maxTiles:1,maxPoints:2}),regions=[{bbox:[139.001,35.001,139.009,35.004]}];
  let cursor=null,pages=0;const seen=new Set(),tiles=new Set();do{const r=await p.load({}, {regions,cursor});for(const p of r.points){const k=p.latitude+','+p.longitude;assert(!seen.has(k),'page must not repeat a point');seen.add(k);}r.coverage.evaluatedRegionIds.forEach(id=>tiles.add(id));cursor=r.coverage.nextCursor;assert(++pages<20);}while(cursor);
  assert(seen.size>5);assert.equal(tiles.size,2);
+});
+test('pointKinds skips unused height, water and point pages while keeping the retained points and coverage',async()=>{
+ const square=way(2,{highway:'pedestrian',area:'yes',place:'square'},ring(139.0011,35.0011,139.0018,35.0018));
+ const view={type:'node',id:7,lat:35.0032,lon:139.0032,tags:{tourism:'viewpoint'}};
+ const items=[line(1,{},35.0012,35.0038,139.0039),square,view,line(3,{},35.0012,35.0038,139.007)];
+ const regions=[{bbox:[139.001,35.001,139.009,35.004]}],wanted=new Set(['plaza','viewpoint']);
+ async function readPages(pointKinds){
+  const pages=[],calls={height:0,waterPoints:0};
+  const p=provider(items,{maxTiles:1,maxPoints:3,terrain:{...terrain,
+   groundElevation:async(lat)=>{calls.height++;return lat===view.lat?null:{elevation:12,source:'dem'};},
+   waterAt:async(points)=>{calls.waterPoints+=points.length;return points.map(()=>false);}
+  }});
+  let cursor=null;
+  do{
+   const page=await p.load({}, {regions,cursor,pointKinds});
+   pages.push(page);cursor=page.continuation;
+   assert(pages.length<20);
+  }while(cursor);
+  return {pages,calls};
+ }
+ const all=await readPages(),filtered=await readPages(wanted);
+ assert(filtered.pages.length<all.pages.length);
+ assert.deepEqual(filtered.pages[0].continuation,all.pages[0].continuation,'the point cursor stays while eligible points remain');
+ const allPoints=all.pages.flatMap(p=>p.points),retained=filtered.pages.flatMap(p=>p.points);
+ assert.deepEqual(retained,allPoints.filter(p=>wanted.has(p.placeKind)));
+ const tileIds=run=>new Set(run.pages.flatMap(p=>p.coverage.evaluatedRegionIds));
+ const features=run=>new Map(run.pages.flatMap(p=>p.features).map(f=>[f.id,f]));
+ assert.deepEqual(tileIds(filtered),tileIds(all));
+ assert.deepEqual(features(filtered),features(all));
+ assert.deepEqual(filtered.pages.flatMap(p=>p.coverage.failedRegions),all.pages.flatMap(p=>p.coverage.failedRegions));
+ assert(retained.some(row=>row.placeKind==='viewpoint'&&!row.groundKnown));
+ const skipped=filtered.pages.reduce((sum,p)=>sum+(p.coverage.pointsSkippedByKind||0),0);
+ assert(skipped>0);
+ const excluded=skipped+filtered.pages.reduce((sum,p)=>sum+p.coverage.pointsExcludedByKind,0);
+ assert(excluded>0);
+ assert.equal(all.calls.height-filtered.calls.height,excluded);
+ assert.equal(all.calls.waterPoints-filtered.calls.waterPoints,excluded);
+ const saturated=await provider(items,{maxPoints:1,spacingM:5}).load({}, {regions:[region],pointKinds:new Set(['park'])});
+ assert.equal(saturated.points.length,0);
+ assert.equal(saturated.coverage.samplingComplete,false);
+ assert(saturated.continuation?.batchTiles?.length,'point generation hit its cap, so later eligible points are still possible');
 });
 test('一部失敗tileは成功cacheを汚さず次回cursorで再試行できる',async()=>{
  let fail=true,calls=0;const p=provider([],{maxTiles:1,fetchImpl:async()=>{calls++;if(fail)throw Error('unavailable');return response([]);}});

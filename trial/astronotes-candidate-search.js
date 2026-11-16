@@ -1181,39 +1181,73 @@ function flat(polygons){
   for(let i=0;i<n;i++){const x=ring[i][0],y=ring[i][1];xs[i]=x;ys[i]=y;if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y;}return {n,xs,ys,minX,minY,maxX,maxY};});
  flatRings.set(polygons,rings);return rings;
 }
-// 2026-11-12 スカイツリーの輪郭は多角形3511個（頂点2.3万）で、1地点の時刻探しのたびに全部を見ていた（探索のCPUの14%）。
-// 左右の位置で32個ずつに分け、その中を上下の位置で8個ずつの塊にまとめ、届かない塊を飛ばす。結果は元の順番どおりに見た時と同じ:
-// 中なら距離0、外なら最も近い辺（同じ距離なら多角形・辺の番号が小さい方）。
+// Keep the existing small groups of projected rings. A hierarchy bounds whole
+// groups so a query need not scan every group before reaching nearby edges.
 const clusterCache=new WeakMap();
-function clusters(polygons){
- let found=clusterCache.get(polygons);if(found)return found;
- const rings=flat(polygons),order=rings.map((r,i)=>i).sort((a,b)=>(rings[a].minX+rings[a].maxX)-(rings[b].minX+rings[b].maxX)||a-b);found=[];
- for(let k=0;k<order.length;k+=32){const members=order.slice(k,k+32).sort((a,b)=>(rings[a].minY+rings[a].maxY)-(rings[b].minY+rings[b].maxY)||a-b);
+function groupTree(groups){
+ if(groups.length===1)return groups[0];
+ const box={minX:Infinity,minY:Infinity,maxX:-Infinity,maxY:-Infinity};
+ for(const g of groups){
+  box.minX=Math.min(box.minX,g.minX);box.minY=Math.min(box.minY,g.minY);
+  box.maxX=Math.max(box.maxX,g.maxX);box.maxY=Math.max(box.maxY,g.maxY);
+ }
+ const byX=box.maxX-box.minX>=box.maxY-box.minY;
+ groups.sort(byX?(a,b)=>(a.minX+a.maxX)-(b.minX+b.maxX):(a,b)=>(a.minY+a.maxY)-(b.minY+b.maxY));
+ const mid=Math.floor(groups.length/2);
+ return {...box,left:groupTree(groups.slice(0,mid)),right:groupTree(groups.slice(mid))};
+}
+function clusters(polygons,rings){
+ if(clusterCache.has(polygons))return clusterCache.get(polygons);
+ const order=rings.map((r,i)=>i).sort((a,b)=>(rings[a].minX+rings[a].maxX)-(rings[b].minX+rings[b].maxX)||a-b),groups=[];
+ for(let k=0;k<order.length;k+=32){
+  const members=order.slice(k,k+32).sort((a,b)=>(rings[a].minY+rings[a].maxY)-(rings[b].minY+rings[b].maxY)||a-b);
   for(let m=0;m<members.length;m+=8){const ids=members.slice(m,m+8);let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
-   for(const i of ids){const r=rings[i];if(r.minX<minX)minX=r.minX;if(r.maxX>maxX)maxX=r.maxX;if(r.minY<minY)minY=r.minY;if(r.maxY>maxY)maxY=r.maxY;}found.push({ids,minX,minY,maxX,maxY});}}
- clusterCache.set(polygons,found);return found;
+   for(const i of ids){const r=rings[i];if(r.minX<minX)minX=r.minX;if(r.maxX>maxX)maxX=r.maxX;if(r.minY<minY)minY=r.minY;if(r.maxY>maxY)maxY=r.maxY;}
+   groups.push({ids,minX,minY,maxX,maxY});
+  }
+ }
+ const tree=groups.length?groupTree(groups):null;
+ clusterCache.set(polygons,tree);return tree;
+}
+function outsideBox(x,y,b){return x<b.minX||x>b.maxX||y<b.minY||y>b.maxY;}
+function insideTree(x,y,node,rings){
+ if(outsideBox(x,y,node))return false;
+ if(!node.ids)return insideTree(x,y,node.left,rings)||insideTree(x,y,node.right,rings);
+ for(const i of node.ids){
+  const r=rings[i];if(outsideBox(x,y,r))continue;
+  const {n,xs,ys}=r;let on=false;
+  for(let a=0,b=n-1;a<n;b=a++)if((ys[a]>y)!==(ys[b]>y)&&x<(xs[b]-xs[a])*(y-ys[a])/(ys[b]-ys[a])+xs[a])on=!on;
+  if(on)return true;
+ }
+ return false;
 }
 function closestPoint(p,polygons){
- const px=p[0],py=p[1],rings=flat(polygons),groups=clusters(polygons);
- for(const c of groups){
-  if(px<c.minX||px>c.maxX||py<c.minY||py>c.maxY)continue;
-  for(const i of c.ids){const r=rings[i];
-   if(px<r.minX||px>r.maxX||py<r.minY||py>r.maxY)continue;
-   const {n,xs,ys}=r;let on=false;for(let a=0,b=n-1;a<n;b=a++)if((ys[a]>py)!==(ys[b]>py)&&px<(xs[b]-xs[a])*(py-ys[a])/(ys[b]-ys[a])+xs[a])on=!on;
-   if(on)return {point:p,distance:0};
-  }
- }
- let distance=Infinity,nx=0,ny=0,found=false,bestRing=Infinity,bestEdge=Infinity;
+ const px=p[0],py=p[1],rings=flat(polygons),tree=clusters(polygons,rings);
+ if(!tree)return {point:[0,0],distance:Infinity};
+ if(insideTree(px,py,tree,rings))return {point:p,distance:0};
+ let distance=Infinity,nx=0,ny=0,bestRing=Infinity,bestEdge=Infinity;
  const gap=b=>Math.hypot(Math.max(b.minX-px,0,px-b.maxX),Math.max(b.minY-py,0,py-b.maxY));
- for(const c of groups){
-  if(gap(c)>distance)continue;
-  for(const ri of c.ids){const r=rings[ri];if(gap(r)>distance)continue;
-   const {n,xs,ys}=r;
-   for(let i=0;i<n;i++){const k=i+1===n?0:i+1,ax=xs[i],ay=ys[i],dx=xs[k]-ax,dy=ys[k]-ay,u=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy||1))),qx=ax+u*dx,qy=ay+u*dy,d=Math.hypot(px-qx,py-qy);
-    if(d<distance||found&&d===distance&&(ri<bestRing||ri===bestRing&&i<bestEdge)){distance=d;nx=qx;ny=qy;found=true;bestRing=ri;bestEdge=i;}}
+ const visit=(node,bound)=>{
+  // Equal-distance branches still compete by the original ring and edge order.
+  if(bound>distance)return;
+  if(!node.ids){
+   const left=gap(node.left),right=gap(node.right);
+   if(left<=right){visit(node.left,left);visit(node.right,right);}
+   else{visit(node.right,right);visit(node.left,left);}
+   return;
   }
- }
- return {point:found?[nx,ny]:[0,0],distance};
+  for(const ri of node.ids){
+   const r=rings[ri];if(gap(r)>distance)continue;
+   const {n,xs,ys}=r;
+   for(let i=0;i<n;i++){
+    const k=i+1===n?0:i+1,ax=xs[i],ay=ys[i],dx=xs[k]-ax,dy=ys[k]-ay,u=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy||1)));
+    const qx=ax+u*dx,qy=ay+u*dy,d=Math.hypot(px-qx,py-qy);
+    if(d<distance||bestRing<Infinity&&d===distance&&(ri<bestRing||ri===bestRing&&i<bestEdge)){distance=d;nx=qx;ny=qy;bestRing=ri;bestEdge=i;}
+   }
+  }
+ };
+ visit(tree,gap(tree));
+ return {point:[nx,ny],distance};
 }
 function ridgeGeometry(observer,target,align){
  const raw=target.rim?.points||align.rimPoints?.(target.rim);if(!Array.isArray(raw)||!raw.length)return null;
@@ -1761,8 +1795,15 @@ function hash(s){let x=2166136261;for(let i=0;i<s.length;i++){x^=s.charCodeAt(i)
 function distance(a,b){return Math.hypot((a[0]-b[0])*Math.cos((a[1]+b[1])*RAD/2),a[1]-b[1])*M;}
 function inside(r,p){let yes=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>p.latitude)!==(r[j][1]>p.latitude)&&p.longitude<(r[j][0]-r[i][0])*(p.latitude-r[i][1])/(r[j][1]-r[i][1])+r[i][0])yes=!yes;return yes;}
 const contains=(f,p)=>(!f.bbox||bboxPoint(p,f.bbox))&&f.polygons.some(poly=>inside(poly[0],p)&&!poly.slice(1).some(r=>inside(r,p)));
-function edgeDistance(line,p){let d=Infinity;const c=Math.cos(p.latitude*RAD);for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],x=(b[0]-a[0])*c,y=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*c*x+(p.latitude-a[1])*y)/(x*x+y*y||1)));
+function edgeDistance(line,p,c){let d=Infinity;for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],x=(b[0]-a[0])*c,y=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*c*x+(p.latitude-a[1])*y)/(x*x+y*y||1)));
 d=Math.min(d,Math.hypot((p.longitude-a[0])*c-u*x,p.latitude-a[1]-u*y)*M);}return d;}
+function nearEdges(feature,p,metres,c){
+ const b=feature.bbox,limit=metres/M+1e-10;
+ // Use the same local projection as edgeDistance, with room for rounding at the threshold.
+ if(b?.every(finite)&&b[0]<=b[2]&&b[1]<=b[3]&&
+   (Math.max(b[0]-p.longitude,p.longitude-b[2])*Math.abs(c)>limit||Math.max(b[1]-p.latitude,p.latitude-b[3])>limit))return false;
+ return feature.lines.some(line=>edgeDistance(line,p,c)<=metres);
+}
 const xy=g=>(g||[]).filter(p=>p&&finite(p.lon)&&finite(p.lat)&&Math.abs(p.lon)<=180&&Math.abs(p.lat)<=90).map(p=>[p.lon,p.lat]);
 const closed=r=>r.length>=4&&distance(r[0],r[r.length-1])<.01;
 // Multipolygon member fragments are joined only by equal endpoints. An unclosed
@@ -1825,7 +1866,7 @@ function* tileQueue(regions){const seen=new Set();for(const r of regions){const 
  const id=x+':'+y;if(seen.has(id))continue;seen.add(id);
  yield {id,bbox:[Math.max(-180,x*TILE),Math.max(-90,y*TILE),Math.min(180,(x+1)*TILE),Math.min(90,(y+1)*TILE)],regionId:r.id};
  }}}
-function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0}={}){
+function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0,pointKinds}={}){
  const generationBudget=maxPoints+skipPoints;
  const areas=features.filter(f=>f.kind&&f.polygons.length),waters=features.filter(f=>f.water),rivers=features.filter(f=>['river','canal'].includes(f.tags.waterway)),buildings=features.filter(f=>f.building),groups=[],unknownGeometry=features.filter(f=>f.geometryIncomplete).map(f=>f.id);
  let generationLimited=false;
@@ -1854,13 +1895,14 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
    const water=waters.find(a=>contains(a,p));if(water&&!nonGround(f.tags))continue;
    const roofArea=containers.find(a=>nonGround(a.tags)),building=buildings.find(a=>contains(a,p)),viewpoint=containers.find(a=>a.kind==='viewpoint');
    const square=containers.find(a=>a.kind==='plaza'),park=containers.find(a=>a.kind==='park');
-   const river=rivers.find(a=>a.lines.some(line=>edgeDistance(line,p)<=80));
+   const longitudeScale=Math.cos(p.latitude*RAD);
+   const river=rivers.find(a=>nearEdges(a,p,80,longitudeScale));
    const riverArea=containers.find(a=>/河川敷|川テラス|川緑道|riverbank|riverside/i.test(a.name));
-   const riverPath=/河川敷|川.*テラス|riverside|riverbank/i.test(f.name)&&waters.some(a=>a.lines.some(line=>edgeDistance(line,p)<=80));
+   const riverPath=/河川敷|川.*テラス|riverside|riverbank/i.test(f.name)&&waters.some(a=>nearEdges(a,p,80,longitudeScale));
    // A levee-top path stands well back from a wide river's centre line: within 150 m of its water and
    // 300 m of the centre line it is the riverbank, while streets behind the levee are not.
-   const wideRiver=rivers.find(a=>a.tags.waterway==='river'&&a.lines.some(line=>edgeDistance(line,p)<=300))&&waters.some(a=>a.lines.some(line=>edgeDistance(line,p)<=150));
-   const riverside=riverArea||riverPath||river&&waters.some(a=>a.lines.some(line=>edgeDistance(line,p)<=80))||wideRiver;
+   const wideRiver=rivers.find(a=>a.tags.waterway==='river'&&nearEdges(a,p,300,longitudeScale))&&waters.some(a=>nearEdges(a,p,150,longitudeScale));
+   const riverside=riverArea||riverPath||river&&waters.some(a=>nearEdges(a,p,80,longitudeScale))||wideRiver;
    const area=viewpoint||square||riverArea||park;
    const placeKind=f.kind==='viewpoint'||viewpoint?'viewpoint':square||f.tags.highway==='pedestrian'&&(f.tags.area==='yes'||f.tags['area:highway'])?'plaza':riverside?'riverbank':park?'park':'sidewalk';
    const elevated=nonGround(f.tags)||!!roofArea||!!building;
@@ -1886,10 +1928,10 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
  // Round-robin surfaces within each priority group; one long path cannot consume
  // the entire budget before a small park or a viewpoint is considered.
  groups.sort((a,b)=>(a[0].placeKind==='sidewalk')-(b[0].placeKind==='sidewalk'));
- const rows=[],seen=new Set();let remaining=0,visited=0;
+ const rows=[],seen=new Set();let remaining=0,remainingWanted=0,visited=0;
  for(const priority of [false,true]){const g=groups.filter(a=>(a[0].placeKind==='sidewalk')===priority);for(let i=0;g.some(a=>i<a.length);i++)for(const a of g)if(i<a.length){const p=a[i],k=key(p)+'/'+p.surfaceId;if(seen.has(k))continue;seen.add(k);if(visited++<skipPoints)continue;
- if(rows.length<maxPoints)rows.push(p);else remaining++;}}
- return {rows,limited:remaining>0||generationLimited,omittedPoints:remaining,generationLimited,unknownGeometry};
+ if(rows.length<maxPoints)rows.push(p);else{remaining++;if(pointKinds?.has(p.placeKind))remainingWanted++;}}}
+ return {rows,limited:remaining>0||generationLimited,omittedPoints:remaining,remainingWanted,generationLimited,unknownGeometry};
 }
 function publishedViewpoints(data,regions){
  const points=[];
@@ -1931,7 +1973,7 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
  if(!terrain)throw Error('terrain provider is required');
  const servers=endpoints||terrain.OVERPASS||[],cache=new Map(),heightCache=new Map();
  let endpointCursor=0,overpassRetryAfter=0,overpassNextRequest=0;
- async function load(plan,{regions=plan?.regions||plan?.searchRegions||[],isCurrent=()=>true,onProgress=()=>{},signal,maxTiles:tileBudget=maxTiles,maxPoints:pointBudget=maxPoints,cursor,offset=0,retryFailed=true}={}){
+ async function load(plan,{regions=plan?.regions||plan?.searchRegions||[],isCurrent=()=>true,onProgress=()=>{},signal,maxTiles:tileBudget=maxTiles,maxPoints:pointBudget=maxPoints,pointKinds,cursor,offset=0,retryFailed=true}={}){
   offset=Math.max(0,Number(cursor?.offset??cursor??offset)||0);const retryTiles=Array.isArray(cursor?.retryTiles)?cursor.retryTiles:[],batchTiles=Array.isArray(cursor?.batchTiles)?cursor.batchTiles:null,pointOffset=Math.max(0,Number(cursor?.pointOffset)||0);
   const requested=regionsFor(regions),started=Date.now(),current=()=>!signal?.aborted&&providerCurrent()&&isCurrent(),controller=new AbortController();
   let timedOut=false;const cancel=()=>controller.abort(),timer=setInterval(()=>{if(!current())cancel();if(Date.now()-started>maxDurationMs){timedOut=true;cancel();}},100);signal?.addEventListener('abort',cancel,{once:true});
@@ -1990,19 +2032,31 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
    coverage.evaluatedRegionIds=coverage.fetchedRegions.map(r=>r.id);coverage.nextCursor=batchTiles?cursor.afterCursor||null:hasPending||retryFailed&&coverage.failedRegions.length?{offset:nextOffset,retryTiles:retryFailed?[...deferredRetries,...coverage.failedRegions]:[]}:null;
    coverage.osmComplete=requested.length>0&&!hasPending&&!coverage.failedRegions.length&&offset===0&&current()&&!timedOut;
    const selectionRegions=[];for(const r of requested)for(const tile of coverage.fetchedRegions){const b=[Math.max(r.bbox[0],tile.bbox[0]),Math.max(r.bbox[1],tile.bbox[1]),Math.min(r.bbox[2],tile.bbox[2]),Math.min(r.bbox[3],tile.bbox[3])];if(b[0]<b[2]&&b[1]<b[3])selectionRegions.push({...r,bbox:b});}
+   const wanted=pointKinds==null?null:new Set(pointKinds);
    const features=[...merged.values()],sampled=batchTiles&&coverage.failedRegions.length
     // A point offset is only valid for the same complete set of tiles.
     ?{rows:[],limited:true,omittedPoints:0,unknownGeometry:[]}
-    :sampleFeatures(features,selectionRegions,{spacingM,maxPoints:Math.max(1,pointBudget),skipPoints:pointOffset}),points=sampled.rows;
-   if(sampled.limited&&points.length)coverage.nextCursor={offset,pointOffset:pointOffset+points.length,batchTiles:coverage.fetchedRegions.map(r=>({id:r.id,bbox:r.bbox,regionId:r.regionId})),afterCursor:coverage.nextCursor};
+    :sampleFeatures(features,selectionRegions,{spacingM,maxPoints:Math.max(1,pointBudget),skipPoints:pointOffset,pointKinds:wanted});
+   let points=sampled.rows;
+   // Move past this batch only when the full sample proves all remaining points are excluded.
+   const skipRemaining=wanted&&sampled.omittedPoints>0&&sampled.remainingWanted===0&&!sampled.generationLimited&&!coverage.failedRegions.length;
+   const limited=sampled.limited&&!skipRemaining;
+   if(limited&&points.length)coverage.nextCursor={offset,pointOffset:pointOffset+points.length,batchTiles:coverage.fetchedRegions.map(r=>({id:r.id,bbox:r.bbox,regionId:r.regionId})),afterCursor:coverage.nextCursor};
    else if(batchTiles&&retryFailed&&coverage.failedRegions.length)coverage.nextCursor={...cursor};
-   coverage.samplingComplete=!sampled.limited;coverage.omittedPoints=sampled.omittedPoints;coverage.incompleteGeometry=sampled.unknownGeometry;
-   if(sampled.limited)coverage.missing.push('point-budget');if(hasPending)coverage.missing.push('tile-budget-or-timeout');if(sampled.unknownGeometry.length)coverage.missing.push('incomplete-osm-geometry');
+   coverage.samplingComplete=!limited;coverage.omittedPoints=skipRemaining?0:sampled.omittedPoints;coverage.incompleteGeometry=sampled.unknownGeometry;
+   if(skipRemaining)coverage.pointsSkippedByKind=sampled.omittedPoints;
+   if(limited)coverage.missing.push('point-budget');if(hasPending)coverage.missing.push('tile-budget-or-timeout');if(sampled.unknownGeometry.length)coverage.missing.push('incomplete-osm-geometry');
    // A small documented viewpoint supplement is independent of OSM availability.
    // Add once at the beginning; continuation pages only advance dynamic geometry.
    coverage.documentedViewpoints=0;
    if(!cursor&&offset===0&&typeof loadViewpoints==='function'&&current()&&!controller.signal.aborted)try{const supplement=publishedViewpoints(await bounded(loadViewpoints(plan,{signal:controller.signal,isCurrent:current}),timeoutMs),requested);points.unshift(...supplement);
    coverage.documentedViewpoints=supplement.length;}catch{coverage.missing.push('documented-viewpoints-unavailable');}
+   // The point cursor counts every sampled surface. Filter only the points sent for height and water checks.
+   if(wanted){
+    const sampleCount=points.length;
+    points=points.filter(p=>wanted.has(p.placeKind));
+    coverage.pointsExcludedByKind=sampleCount-points.length;
+   }
    // Query ground only for the sampled surfaces. GSI failures and sea sentinels
    // stay null; tileElevations() is deliberately not used (it maps failures to 0).
    terrain.resetBudget?.();
@@ -2436,7 +2490,7 @@ function regionsFor(seeds){
  return [...map.values()].sort((a,b)=>a.priority-b.priority||a.id.localeCompare(b.id));
 }
 const placeKinds=new Set(['viewpoint','plaza','park','riverbank']);
-function createGenericSearch({provider,evaluate,bodies,loadStatic=null,prefilter=null,maxPointsPerBatch=40,inverseOptions={},yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
+function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsPerBatch=40,inverseOptions={},yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
  const sessions=new Map();
  const fresh=(key,inverse,lastResult=null)=>({key,regions:regionsFor(inverse.seeds),inverse,lastResult,rows:[],queue:[],seen:new Set(),seenRows:new Set(),cursor:0,started:false,
  counts:{checked:0,unknown:0,blocked:0,noOverlap:0,unverified:0,heightUnknown:0,nearBuilding:0,obstacle:0,outsideFrame:0,mapRegions:0,mapPoints:0,
@@ -2444,7 +2498,7 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,prefilter
  // Rechecking the same conditions replaces only working progress. The last
  // complete result remains available when a recheck fails or is cancelled.
  function restart(plan){const key=requestKey(plan),previous=sessions.get(key);if(previous?.busy&&previous.current?.()!==false)return false;if(previous)sessions.set(key,fresh(key,previous.inverse,previous.lastResult));return true;}
- async function search(plan,{onProgress=()=>{},isCurrent=()=>true,signal,more=false,retryFailed=true}={}){
+ async function search(plan,{onProgress=()=>{},onFirstResult,isCurrent=()=>true,signal,more=false,retryFailed=true}={}){
   if(plan.compositionInvalid)throw Error('invalid-composition');
   const key=requestKey(plan);let session=sessions.get(key);
   const wanted=()=>!signal?.aborted&&isCurrent();
@@ -2476,16 +2530,11 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,prefilter
     catch(e){if(e?.message==='candidate-cancelled')return {cancelled:true};session.mapChecked=true;globalThis.AstroNotesErrors?.note('candidates.visibility-map',e);}}
    if(!session.queue.length&&(session.cursor!==null||!session.started)){
     onProgress({stage:'places',...session.counts});
-    const data=await provider.load(plan,{regions:session.regions,cursor:session.cursor??0,isCurrent:wanted,onProgress,signal,retryFailed});
+    const data=await provider.load(plan,{regions:session.regions,cursor:session.cursor??0,isCurrent:wanted,onProgress,signal,retryFailed,pointKinds:placeKinds});
     if(!wanted()||data.cancelled)return {cancelled:true};
     const points=[...(data.points||[])];
     // Surveyed places of this target go in once, wherever the regions lie (place-provider.js surveyedViewpoints).
     if(!session.started&&typeof provider.surveyed==='function'){const known=await provider.surveyed(plan);if(!wanted())return {cancelled:true};points.unshift(...known);}
-    if(!session.started&&loadStatic){
-     try{const legacy=await loadStatic();for(const p of api.sampleSidewalks(legacy).rows){if(!session.regions.some(r=>p.longitude>=r.bbox[0]&&p.longitude<=r.bbox[2]&&p.latitude>=r.bbox[1]&&p.latitude<=r.bbox[3]))continue;
-     points.push({...p,surfaceId:p.polygonId||p.sourceId,placeKind:'road',standingSurfaceKnown:p.structureClassificationKnown&&!p.nonTerrainStructure,accessKnown:undefined,sourceEvidence:{kind:'PLATEAU-pedestrian-surface',sourceId:p.sourceId},name:'歩道の撮影候補'});
-     }}catch{/* Live source remains usable. */}
-    }
     // Commit a provider page only after all awaited preparation is current.
     if(!wanted())return {cancelled:true};
     session.coverage.push(data.coverage||{});session.cursor=data.coverage?.nextCursor??null;session.providerPartial=!!data.partial;
@@ -2496,6 +2545,7 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,prefilter
     session.data=data;
    }
    session.started=true;let count=0;
+   let publishFirst=onFirstResult&&!session.rows.length;
    while(session.queue.length&&count<maxPointsPerBatch){
     if(!wanted())return {cancelled:true};
     const point=session.queue[0];
@@ -2514,6 +2564,13 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,prefilter
      const id=row.id||[row.surfaceId,row.place.latitude,row.place.longitude,row.event.at].join(',');
      if(!session.seenRows.has(id)){session.seenRows.add(id);session.rows.push({...row,id,requestKey:key});}
     }
+    if(publishFirst&&session.rows.length){
+     publishFirst=false;
+     // The first verified row can be selected immediately. Save its position in the
+     // search before showing it, just as with the later completed batches.
+     session.lastResult=result(session);
+     onFirstResult(session.lastResult);
+    }
     await yieldTask();
    }
    session.lastResult=result(session);return session.lastResult;
@@ -2526,7 +2583,7 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,prefilter
   const cursors=new Set();let more=!!options.more,waits=0;
   while(wanted()){
    onBatchStart();
-   const page=await search(plan,{...options,more,retryFailed:false});
+   const page=await search(plan,{...options,more,retryFailed:false,onFirstResult:onPage});
    if(!wanted()||page.cancelled)return {cancelled:true};
    if(!page.canContinue)return page;
    onPage(page);
@@ -3174,7 +3231,7 @@ async function loadModel(){
  return modelPromise;
 }
 let evaluationBudgetStarted=false;
-const engine=AstroNotesCandidateDiscovery.createGenericSearch({provider,bodies:AstroNotesBodies,prefilter,loadStatic:()=>loaded('candidate-sidewalks.json'),evaluate:async(p,point,data,options)=>{const model=await loadModel();
+const engine=AstroNotesCandidateDiscovery.createGenericSearch({provider,bodies:AstroNotesBodies,prefilter,evaluate:async(p,point,data,options)=>{const model=await loadModel();
 if(plateauShapes&&String(p.target?.id||'').startsWith('fav:')&&!plateauShapes.attachedTo(p.target.id))await plateauShapes.prepare([p.target]).catch(()=>{});if(!options.isCurrent())throw Error('candidate-cancelled');
 if(!evaluationBudgetStarted){live.resetBudget();footprintGround.resetBudget();treeGround.resetBudget();
 evaluationBudgetStarted=true;}

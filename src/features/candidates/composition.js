@@ -109,39 +109,73 @@ function flat(polygons){
   for(let i=0;i<n;i++){const x=ring[i][0],y=ring[i][1];xs[i]=x;ys[i]=y;if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y;}return {n,xs,ys,minX,minY,maxX,maxY};});
  flatRings.set(polygons,rings);return rings;
 }
-// 2026-11-12 スカイツリーの輪郭は多角形3511個（頂点2.3万）で、1地点の時刻探しのたびに全部を見ていた（探索のCPUの14%）。
-// 左右の位置で32個ずつに分け、その中を上下の位置で8個ずつの塊にまとめ、届かない塊を飛ばす。結果は元の順番どおりに見た時と同じ:
-// 中なら距離0、外なら最も近い辺（同じ距離なら多角形・辺の番号が小さい方）。
+// Keep the existing small groups of projected rings. A hierarchy bounds whole
+// groups so a query need not scan every group before reaching nearby edges.
 const clusterCache=new WeakMap();
-function clusters(polygons){
- let found=clusterCache.get(polygons);if(found)return found;
- const rings=flat(polygons),order=rings.map((r,i)=>i).sort((a,b)=>(rings[a].minX+rings[a].maxX)-(rings[b].minX+rings[b].maxX)||a-b);found=[];
- for(let k=0;k<order.length;k+=32){const members=order.slice(k,k+32).sort((a,b)=>(rings[a].minY+rings[a].maxY)-(rings[b].minY+rings[b].maxY)||a-b);
+function groupTree(groups){
+ if(groups.length===1)return groups[0];
+ const box={minX:Infinity,minY:Infinity,maxX:-Infinity,maxY:-Infinity};
+ for(const g of groups){
+  box.minX=Math.min(box.minX,g.minX);box.minY=Math.min(box.minY,g.minY);
+  box.maxX=Math.max(box.maxX,g.maxX);box.maxY=Math.max(box.maxY,g.maxY);
+ }
+ const byX=box.maxX-box.minX>=box.maxY-box.minY;
+ groups.sort(byX?(a,b)=>(a.minX+a.maxX)-(b.minX+b.maxX):(a,b)=>(a.minY+a.maxY)-(b.minY+b.maxY));
+ const mid=Math.floor(groups.length/2);
+ return {...box,left:groupTree(groups.slice(0,mid)),right:groupTree(groups.slice(mid))};
+}
+function clusters(polygons,rings){
+ if(clusterCache.has(polygons))return clusterCache.get(polygons);
+ const order=rings.map((r,i)=>i).sort((a,b)=>(rings[a].minX+rings[a].maxX)-(rings[b].minX+rings[b].maxX)||a-b),groups=[];
+ for(let k=0;k<order.length;k+=32){
+  const members=order.slice(k,k+32).sort((a,b)=>(rings[a].minY+rings[a].maxY)-(rings[b].minY+rings[b].maxY)||a-b);
   for(let m=0;m<members.length;m+=8){const ids=members.slice(m,m+8);let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
-   for(const i of ids){const r=rings[i];if(r.minX<minX)minX=r.minX;if(r.maxX>maxX)maxX=r.maxX;if(r.minY<minY)minY=r.minY;if(r.maxY>maxY)maxY=r.maxY;}found.push({ids,minX,minY,maxX,maxY});}}
- clusterCache.set(polygons,found);return found;
+   for(const i of ids){const r=rings[i];if(r.minX<minX)minX=r.minX;if(r.maxX>maxX)maxX=r.maxX;if(r.minY<minY)minY=r.minY;if(r.maxY>maxY)maxY=r.maxY;}
+   groups.push({ids,minX,minY,maxX,maxY});
+  }
+ }
+ const tree=groups.length?groupTree(groups):null;
+ clusterCache.set(polygons,tree);return tree;
+}
+function outsideBox(x,y,b){return x<b.minX||x>b.maxX||y<b.minY||y>b.maxY;}
+function insideTree(x,y,node,rings){
+ if(outsideBox(x,y,node))return false;
+ if(!node.ids)return insideTree(x,y,node.left,rings)||insideTree(x,y,node.right,rings);
+ for(const i of node.ids){
+  const r=rings[i];if(outsideBox(x,y,r))continue;
+  const {n,xs,ys}=r;let on=false;
+  for(let a=0,b=n-1;a<n;b=a++)if((ys[a]>y)!==(ys[b]>y)&&x<(xs[b]-xs[a])*(y-ys[a])/(ys[b]-ys[a])+xs[a])on=!on;
+  if(on)return true;
+ }
+ return false;
 }
 function closestPoint(p,polygons){
- const px=p[0],py=p[1],rings=flat(polygons),groups=clusters(polygons);
- for(const c of groups){
-  if(px<c.minX||px>c.maxX||py<c.minY||py>c.maxY)continue;
-  for(const i of c.ids){const r=rings[i];
-   if(px<r.minX||px>r.maxX||py<r.minY||py>r.maxY)continue;
-   const {n,xs,ys}=r;let on=false;for(let a=0,b=n-1;a<n;b=a++)if((ys[a]>py)!==(ys[b]>py)&&px<(xs[b]-xs[a])*(py-ys[a])/(ys[b]-ys[a])+xs[a])on=!on;
-   if(on)return {point:p,distance:0};
-  }
- }
- let distance=Infinity,nx=0,ny=0,found=false,bestRing=Infinity,bestEdge=Infinity;
+ const px=p[0],py=p[1],rings=flat(polygons),tree=clusters(polygons,rings);
+ if(!tree)return {point:[0,0],distance:Infinity};
+ if(insideTree(px,py,tree,rings))return {point:p,distance:0};
+ let distance=Infinity,nx=0,ny=0,bestRing=Infinity,bestEdge=Infinity;
  const gap=b=>Math.hypot(Math.max(b.minX-px,0,px-b.maxX),Math.max(b.minY-py,0,py-b.maxY));
- for(const c of groups){
-  if(gap(c)>distance)continue;
-  for(const ri of c.ids){const r=rings[ri];if(gap(r)>distance)continue;
-   const {n,xs,ys}=r;
-   for(let i=0;i<n;i++){const k=i+1===n?0:i+1,ax=xs[i],ay=ys[i],dx=xs[k]-ax,dy=ys[k]-ay,u=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy||1))),qx=ax+u*dx,qy=ay+u*dy,d=Math.hypot(px-qx,py-qy);
-    if(d<distance||found&&d===distance&&(ri<bestRing||ri===bestRing&&i<bestEdge)){distance=d;nx=qx;ny=qy;found=true;bestRing=ri;bestEdge=i;}}
+ const visit=(node,bound)=>{
+  // Equal-distance branches still compete by the original ring and edge order.
+  if(bound>distance)return;
+  if(!node.ids){
+   const left=gap(node.left),right=gap(node.right);
+   if(left<=right){visit(node.left,left);visit(node.right,right);}
+   else{visit(node.right,right);visit(node.left,left);}
+   return;
   }
- }
- return {point:found?[nx,ny]:[0,0],distance};
+  for(const ri of node.ids){
+   const r=rings[ri];if(gap(r)>distance)continue;
+   const {n,xs,ys}=r;
+   for(let i=0;i<n;i++){
+    const k=i+1===n?0:i+1,ax=xs[i],ay=ys[i],dx=xs[k]-ax,dy=ys[k]-ay,u=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy||1)));
+    const qx=ax+u*dx,qy=ay+u*dy,d=Math.hypot(px-qx,py-qy);
+    if(d<distance||bestRing<Infinity&&d===distance&&(ri<bestRing||ri===bestRing&&i<bestEdge)){distance=d;nx=qx;ny=qy;bestRing=ri;bestEdge=i;}
+   }
+  }
+ };
+ visit(tree,gap(tree));
+ return {point:[nx,ny],distance};
 }
 function ridgeGeometry(observer,target,align){
  const raw=target.rim?.points||align.rimPoints?.(target.rim);if(!Array.isArray(raw)||!raw.length)return null;

@@ -131,7 +131,7 @@ async function loadModel(){
  return modelPromise;
 }
 let evaluationBudgetStarted=false;
-const engine=AstroNotesCandidateDiscovery.createGenericSearch({provider,bodies:AstroNotesBodies,prefilter,loadStatic:()=>loaded('candidate-sidewalks.json'),evaluate:async(p,point,data,options)=>{const model=await loadModel();
+const engine=AstroNotesCandidateDiscovery.createGenericSearch({provider,bodies:AstroNotesBodies,prefilter,evaluate:async(p,point,data,options)=>{const model=await loadModel();
 if(plateauShapes&&String(p.target?.id||'').startsWith('fav:')&&!plateauShapes.attachedTo(p.target.id))await plateauShapes.prepare([p.target]).catch(()=>{});if(!options.isCurrent())throw Error('candidate-cancelled');
 if(!evaluationBudgetStarted){live.resetBudget();footprintGround.resetBudget();treeGround.resetBudget();
 evaluationBudgetStarted=true;}

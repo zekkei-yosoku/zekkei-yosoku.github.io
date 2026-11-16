@@ -21,8 +21,15 @@ function hash(s){let x=2166136261;for(let i=0;i<s.length;i++){x^=s.charCodeAt(i)
 function distance(a,b){return Math.hypot((a[0]-b[0])*Math.cos((a[1]+b[1])*RAD/2),a[1]-b[1])*M;}
 function inside(r,p){let yes=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>p.latitude)!==(r[j][1]>p.latitude)&&p.longitude<(r[j][0]-r[i][0])*(p.latitude-r[i][1])/(r[j][1]-r[i][1])+r[i][0])yes=!yes;return yes;}
 const contains=(f,p)=>(!f.bbox||bboxPoint(p,f.bbox))&&f.polygons.some(poly=>inside(poly[0],p)&&!poly.slice(1).some(r=>inside(r,p)));
-function edgeDistance(line,p){let d=Infinity;const c=Math.cos(p.latitude*RAD);for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],x=(b[0]-a[0])*c,y=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*c*x+(p.latitude-a[1])*y)/(x*x+y*y||1)));
+function edgeDistance(line,p,c){let d=Infinity;for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],x=(b[0]-a[0])*c,y=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*c*x+(p.latitude-a[1])*y)/(x*x+y*y||1)));
 d=Math.min(d,Math.hypot((p.longitude-a[0])*c-u*x,p.latitude-a[1]-u*y)*M);}return d;}
+function nearEdges(feature,p,metres,c){
+ const b=feature.bbox,limit=metres/M+1e-10;
+ // Use the same local projection as edgeDistance, with room for rounding at the threshold.
+ if(b?.every(finite)&&b[0]<=b[2]&&b[1]<=b[3]&&
+   (Math.max(b[0]-p.longitude,p.longitude-b[2])*Math.abs(c)>limit||Math.max(b[1]-p.latitude,p.latitude-b[3])>limit))return false;
+ return feature.lines.some(line=>edgeDistance(line,p,c)<=metres);
+}
 const xy=g=>(g||[]).filter(p=>p&&finite(p.lon)&&finite(p.lat)&&Math.abs(p.lon)<=180&&Math.abs(p.lat)<=90).map(p=>[p.lon,p.lat]);
 const closed=r=>r.length>=4&&distance(r[0],r[r.length-1])<.01;
 // Multipolygon member fragments are joined only by equal endpoints. An unclosed
@@ -85,7 +92,7 @@ function* tileQueue(regions){const seen=new Set();for(const r of regions){const 
  const id=x+':'+y;if(seen.has(id))continue;seen.add(id);
  yield {id,bbox:[Math.max(-180,x*TILE),Math.max(-90,y*TILE),Math.min(180,(x+1)*TILE),Math.min(90,(y+1)*TILE)],regionId:r.id};
  }}}
-function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0}={}){
+function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0,pointKinds}={}){
  const generationBudget=maxPoints+skipPoints;
  const areas=features.filter(f=>f.kind&&f.polygons.length),waters=features.filter(f=>f.water),rivers=features.filter(f=>['river','canal'].includes(f.tags.waterway)),buildings=features.filter(f=>f.building),groups=[],unknownGeometry=features.filter(f=>f.geometryIncomplete).map(f=>f.id);
  let generationLimited=false;
@@ -114,13 +121,14 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
    const water=waters.find(a=>contains(a,p));if(water&&!nonGround(f.tags))continue;
    const roofArea=containers.find(a=>nonGround(a.tags)),building=buildings.find(a=>contains(a,p)),viewpoint=containers.find(a=>a.kind==='viewpoint');
    const square=containers.find(a=>a.kind==='plaza'),park=containers.find(a=>a.kind==='park');
-   const river=rivers.find(a=>a.lines.some(line=>edgeDistance(line,p)<=80));
+   const longitudeScale=Math.cos(p.latitude*RAD);
+   const river=rivers.find(a=>nearEdges(a,p,80,longitudeScale));
    const riverArea=containers.find(a=>/河川敷|川テラス|川緑道|riverbank|riverside/i.test(a.name));
-   const riverPath=/河川敷|川.*テラス|riverside|riverbank/i.test(f.name)&&waters.some(a=>a.lines.some(line=>edgeDistance(line,p)<=80));
+   const riverPath=/河川敷|川.*テラス|riverside|riverbank/i.test(f.name)&&waters.some(a=>nearEdges(a,p,80,longitudeScale));
    // A levee-top path stands well back from a wide river's centre line: within 150 m of its water and
    // 300 m of the centre line it is the riverbank, while streets behind the levee are not.
-   const wideRiver=rivers.find(a=>a.tags.waterway==='river'&&a.lines.some(line=>edgeDistance(line,p)<=300))&&waters.some(a=>a.lines.some(line=>edgeDistance(line,p)<=150));
-   const riverside=riverArea||riverPath||river&&waters.some(a=>a.lines.some(line=>edgeDistance(line,p)<=80))||wideRiver;
+   const wideRiver=rivers.find(a=>a.tags.waterway==='river'&&nearEdges(a,p,300,longitudeScale))&&waters.some(a=>nearEdges(a,p,150,longitudeScale));
+   const riverside=riverArea||riverPath||river&&waters.some(a=>nearEdges(a,p,80,longitudeScale))||wideRiver;
    const area=viewpoint||square||riverArea||park;
    const placeKind=f.kind==='viewpoint'||viewpoint?'viewpoint':square||f.tags.highway==='pedestrian'&&(f.tags.area==='yes'||f.tags['area:highway'])?'plaza':riverside?'riverbank':park?'park':'sidewalk';
    const elevated=nonGround(f.tags)||!!roofArea||!!building;
@@ -146,10 +154,10 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
  // Round-robin surfaces within each priority group; one long path cannot consume
  // the entire budget before a small park or a viewpoint is considered.
  groups.sort((a,b)=>(a[0].placeKind==='sidewalk')-(b[0].placeKind==='sidewalk'));
- const rows=[],seen=new Set();let remaining=0,visited=0;
+ const rows=[],seen=new Set();let remaining=0,remainingWanted=0,visited=0;
  for(const priority of [false,true]){const g=groups.filter(a=>(a[0].placeKind==='sidewalk')===priority);for(let i=0;g.some(a=>i<a.length);i++)for(const a of g)if(i<a.length){const p=a[i],k=key(p)+'/'+p.surfaceId;if(seen.has(k))continue;seen.add(k);if(visited++<skipPoints)continue;
- if(rows.length<maxPoints)rows.push(p);else remaining++;}}
- return {rows,limited:remaining>0||generationLimited,omittedPoints:remaining,generationLimited,unknownGeometry};
+ if(rows.length<maxPoints)rows.push(p);else{remaining++;if(pointKinds?.has(p.placeKind))remainingWanted++;}}}
+ return {rows,limited:remaining>0||generationLimited,omittedPoints:remaining,remainingWanted,generationLimited,unknownGeometry};
 }
 function publishedViewpoints(data,regions){
  const points=[];
@@ -191,7 +199,7 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
  if(!terrain)throw Error('terrain provider is required');
  const servers=endpoints||terrain.OVERPASS||[],cache=new Map(),heightCache=new Map();
  let endpointCursor=0,overpassRetryAfter=0,overpassNextRequest=0;
- async function load(plan,{regions=plan?.regions||plan?.searchRegions||[],isCurrent=()=>true,onProgress=()=>{},signal,maxTiles:tileBudget=maxTiles,maxPoints:pointBudget=maxPoints,cursor,offset=0,retryFailed=true}={}){
+ async function load(plan,{regions=plan?.regions||plan?.searchRegions||[],isCurrent=()=>true,onProgress=()=>{},signal,maxTiles:tileBudget=maxTiles,maxPoints:pointBudget=maxPoints,pointKinds,cursor,offset=0,retryFailed=true}={}){
   offset=Math.max(0,Number(cursor?.offset??cursor??offset)||0);const retryTiles=Array.isArray(cursor?.retryTiles)?cursor.retryTiles:[],batchTiles=Array.isArray(cursor?.batchTiles)?cursor.batchTiles:null,pointOffset=Math.max(0,Number(cursor?.pointOffset)||0);
   const requested=regionsFor(regions),started=Date.now(),current=()=>!signal?.aborted&&providerCurrent()&&isCurrent(),controller=new AbortController();
   let timedOut=false;const cancel=()=>controller.abort(),timer=setInterval(()=>{if(!current())cancel();if(Date.now()-started>maxDurationMs){timedOut=true;cancel();}},100);signal?.addEventListener('abort',cancel,{once:true});
@@ -250,19 +258,31 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
    coverage.evaluatedRegionIds=coverage.fetchedRegions.map(r=>r.id);coverage.nextCursor=batchTiles?cursor.afterCursor||null:hasPending||retryFailed&&coverage.failedRegions.length?{offset:nextOffset,retryTiles:retryFailed?[...deferredRetries,...coverage.failedRegions]:[]}:null;
    coverage.osmComplete=requested.length>0&&!hasPending&&!coverage.failedRegions.length&&offset===0&&current()&&!timedOut;
    const selectionRegions=[];for(const r of requested)for(const tile of coverage.fetchedRegions){const b=[Math.max(r.bbox[0],tile.bbox[0]),Math.max(r.bbox[1],tile.bbox[1]),Math.min(r.bbox[2],tile.bbox[2]),Math.min(r.bbox[3],tile.bbox[3])];if(b[0]<b[2]&&b[1]<b[3])selectionRegions.push({...r,bbox:b});}
+   const wanted=pointKinds==null?null:new Set(pointKinds);
    const features=[...merged.values()],sampled=batchTiles&&coverage.failedRegions.length
     // A point offset is only valid for the same complete set of tiles.
     ?{rows:[],limited:true,omittedPoints:0,unknownGeometry:[]}
-    :sampleFeatures(features,selectionRegions,{spacingM,maxPoints:Math.max(1,pointBudget),skipPoints:pointOffset}),points=sampled.rows;
-   if(sampled.limited&&points.length)coverage.nextCursor={offset,pointOffset:pointOffset+points.length,batchTiles:coverage.fetchedRegions.map(r=>({id:r.id,bbox:r.bbox,regionId:r.regionId})),afterCursor:coverage.nextCursor};
+    :sampleFeatures(features,selectionRegions,{spacingM,maxPoints:Math.max(1,pointBudget),skipPoints:pointOffset,pointKinds:wanted});
+   let points=sampled.rows;
+   // Move past this batch only when the full sample proves all remaining points are excluded.
+   const skipRemaining=wanted&&sampled.omittedPoints>0&&sampled.remainingWanted===0&&!sampled.generationLimited&&!coverage.failedRegions.length;
+   const limited=sampled.limited&&!skipRemaining;
+   if(limited&&points.length)coverage.nextCursor={offset,pointOffset:pointOffset+points.length,batchTiles:coverage.fetchedRegions.map(r=>({id:r.id,bbox:r.bbox,regionId:r.regionId})),afterCursor:coverage.nextCursor};
    else if(batchTiles&&retryFailed&&coverage.failedRegions.length)coverage.nextCursor={...cursor};
-   coverage.samplingComplete=!sampled.limited;coverage.omittedPoints=sampled.omittedPoints;coverage.incompleteGeometry=sampled.unknownGeometry;
-   if(sampled.limited)coverage.missing.push('point-budget');if(hasPending)coverage.missing.push('tile-budget-or-timeout');if(sampled.unknownGeometry.length)coverage.missing.push('incomplete-osm-geometry');
+   coverage.samplingComplete=!limited;coverage.omittedPoints=skipRemaining?0:sampled.omittedPoints;coverage.incompleteGeometry=sampled.unknownGeometry;
+   if(skipRemaining)coverage.pointsSkippedByKind=sampled.omittedPoints;
+   if(limited)coverage.missing.push('point-budget');if(hasPending)coverage.missing.push('tile-budget-or-timeout');if(sampled.unknownGeometry.length)coverage.missing.push('incomplete-osm-geometry');
    // A small documented viewpoint supplement is independent of OSM availability.
    // Add once at the beginning; continuation pages only advance dynamic geometry.
    coverage.documentedViewpoints=0;
    if(!cursor&&offset===0&&typeof loadViewpoints==='function'&&current()&&!controller.signal.aborted)try{const supplement=publishedViewpoints(await bounded(loadViewpoints(plan,{signal:controller.signal,isCurrent:current}),timeoutMs),requested);points.unshift(...supplement);
    coverage.documentedViewpoints=supplement.length;}catch{coverage.missing.push('documented-viewpoints-unavailable');}
+   // The point cursor counts every sampled surface. Filter only the points sent for height and water checks.
+   if(wanted){
+    const sampleCount=points.length;
+    points=points.filter(p=>wanted.has(p.placeKind));
+    coverage.pointsExcludedByKind=sampleCount-points.length;
+   }
    // Query ground only for the sampled surfaces. GSI failures and sea sentinels
    // stay null; tileElevations() is deliberately not used (it maps failures to 0).
    terrain.resetBudget?.();

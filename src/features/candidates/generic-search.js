@@ -28,7 +28,7 @@ function regionsFor(seeds){
  return [...map.values()].sort((a,b)=>a.priority-b.priority||a.id.localeCompare(b.id));
 }
 const placeKinds=new Set(['viewpoint','plaza','park','riverbank']);
-function createGenericSearch({provider,evaluate,bodies,loadStatic=null,prefilter=null,maxPointsPerBatch=40,inverseOptions={},yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
+function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsPerBatch=40,inverseOptions={},yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
  const sessions=new Map();
  const fresh=(key,inverse,lastResult=null)=>({key,regions:regionsFor(inverse.seeds),inverse,lastResult,rows:[],queue:[],seen:new Set(),seenRows:new Set(),cursor:0,started:false,
  counts:{checked:0,unknown:0,blocked:0,noOverlap:0,unverified:0,heightUnknown:0,nearBuilding:0,obstacle:0,outsideFrame:0,mapRegions:0,mapPoints:0,
@@ -36,7 +36,7 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,prefilter
  // Rechecking the same conditions replaces only working progress. The last
  // complete result remains available when a recheck fails or is cancelled.
  function restart(plan){const key=requestKey(plan),previous=sessions.get(key);if(previous?.busy&&previous.current?.()!==false)return false;if(previous)sessions.set(key,fresh(key,previous.inverse,previous.lastResult));return true;}
- async function search(plan,{onProgress=()=>{},isCurrent=()=>true,signal,more=false,retryFailed=true}={}){
+ async function search(plan,{onProgress=()=>{},onFirstResult,isCurrent=()=>true,signal,more=false,retryFailed=true}={}){
   if(plan.compositionInvalid)throw Error('invalid-composition');
   const key=requestKey(plan);let session=sessions.get(key);
   const wanted=()=>!signal?.aborted&&isCurrent();
@@ -68,16 +68,11 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,prefilter
     catch(e){if(e?.message==='candidate-cancelled')return {cancelled:true};session.mapChecked=true;globalThis.AstroNotesErrors?.note('candidates.visibility-map',e);}}
    if(!session.queue.length&&(session.cursor!==null||!session.started)){
     onProgress({stage:'places',...session.counts});
-    const data=await provider.load(plan,{regions:session.regions,cursor:session.cursor??0,isCurrent:wanted,onProgress,signal,retryFailed});
+    const data=await provider.load(plan,{regions:session.regions,cursor:session.cursor??0,isCurrent:wanted,onProgress,signal,retryFailed,pointKinds:placeKinds});
     if(!wanted()||data.cancelled)return {cancelled:true};
     const points=[...(data.points||[])];
     // Surveyed places of this target go in once, wherever the regions lie (place-provider.js surveyedViewpoints).
     if(!session.started&&typeof provider.surveyed==='function'){const known=await provider.surveyed(plan);if(!wanted())return {cancelled:true};points.unshift(...known);}
-    if(!session.started&&loadStatic){
-     try{const legacy=await loadStatic();for(const p of api.sampleSidewalks(legacy).rows){if(!session.regions.some(r=>p.longitude>=r.bbox[0]&&p.longitude<=r.bbox[2]&&p.latitude>=r.bbox[1]&&p.latitude<=r.bbox[3]))continue;
-     points.push({...p,surfaceId:p.polygonId||p.sourceId,placeKind:'road',standingSurfaceKnown:p.structureClassificationKnown&&!p.nonTerrainStructure,accessKnown:undefined,sourceEvidence:{kind:'PLATEAU-pedestrian-surface',sourceId:p.sourceId},name:'歩道の撮影候補'});
-     }}catch{/* Live source remains usable. */}
-    }
     // Commit a provider page only after all awaited preparation is current.
     if(!wanted())return {cancelled:true};
     session.coverage.push(data.coverage||{});session.cursor=data.coverage?.nextCursor??null;session.providerPartial=!!data.partial;
@@ -88,6 +83,7 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,prefilter
     session.data=data;
    }
    session.started=true;let count=0;
+   let publishFirst=onFirstResult&&!session.rows.length;
    while(session.queue.length&&count<maxPointsPerBatch){
     if(!wanted())return {cancelled:true};
     const point=session.queue[0];
@@ -106,6 +102,13 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,prefilter
      const id=row.id||[row.surfaceId,row.place.latitude,row.place.longitude,row.event.at].join(',');
      if(!session.seenRows.has(id)){session.seenRows.add(id);session.rows.push({...row,id,requestKey:key});}
     }
+    if(publishFirst&&session.rows.length){
+     publishFirst=false;
+     // The first verified row can be selected immediately. Save its position in the
+     // search before showing it, just as with the later completed batches.
+     session.lastResult=result(session);
+     onFirstResult(session.lastResult);
+    }
     await yieldTask();
    }
    session.lastResult=result(session);return session.lastResult;
@@ -118,7 +121,7 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,prefilter
   const cursors=new Set();let more=!!options.more,waits=0;
   while(wanted()){
    onBatchStart();
-   const page=await search(plan,{...options,more,retryFailed:false});
+   const page=await search(plan,{...options,more,retryFailed:false,onFirstResult:onPage});
    if(!wanted()||page.cancelled)return {cancelled:true};
    if(!page.canContinue)return page;
    onPage(page);
