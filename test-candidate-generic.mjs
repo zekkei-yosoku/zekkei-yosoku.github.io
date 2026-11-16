@@ -37,6 +37,44 @@ test('DEM foreground occluder blocks while known flat ground permits a model ray
  const p={latitude:35,longitude:139,elevation:0,eyeM:1.5};assert((await mountain.trace(p,{azimuth:0,altitude:1,maxM:1000})).hit);
  const flat=createLive({geo:G,fetchImpl:async()=>({ok:true,text:async()=>dem('0')})});const r=await flat.trace(p,{azimuth:0,altitude:10,maxM:21000});assert.equal(r.status,'model-clear');assert(r.scopeM>=21000);
 });
+test('long native DEM traces overlap reads, keep the ordered result and cancel unused work',async()=>{
+ const from={latitude:35.69,longitude:139.85,elevation:8,eyeM:1.5},ray={azimuth:87,altitude:0,maxM:12000};
+ const low=dem('0'),high=dem('100');
+ function reader({blocked=false,cancel,lookAhead=true}={}){
+  let active=0,peak=0,calls=0,cancelled=0;
+  const terrain=createLive({geo:G,lookAhead,fetchImpl:async(url,{signal})=>{
+   calls++;active++;peak=Math.max(peak,active);
+   try{
+    if(active===2&&cancel&&!cancel.signal.aborted)queueMicrotask(()=>cancel.abort());
+    if(cancel&&!cancel.signal.aborted)await new Promise(resolve=>{
+     const done=()=>{clearTimeout(timer);signal.removeEventListener('abort',done);resolve();};
+     const timer=setTimeout(done,0);signal.addEventListener('abort',done,{once:true});
+    });
+    else await Promise.resolve();
+    if(signal.aborted){cancelled++;throw Error('aborted');}
+    return {ok:true,text:async()=>blocked?high:low};
+   }finally{active--;}
+  }});
+  return {terrain,stats:()=>({peak,calls,cancelled,active})};
+ }
+ const long=reader(),first=await long.terrain.trace(from,ray);
+ assert.equal(first.status,'model-clear');
+ assert.equal(long.stats().peak,2);
+ assert.equal(long.stats().calls,long.terrain.stats().fetched);
+ const serial=reader({lookAhead:false});
+ assert.deepEqual(await serial.terrain.trace(from,ray),first);
+ assert.equal(serial.stats().peak,1);
+ assert.equal(serial.stats().calls,long.stats().calls);
+ assert.deepEqual(await long.terrain.trace(from,ray),first);
+ const blocked=reader({blocked:true});
+ assert.equal((await blocked.terrain.trace(from,ray)).status,'blocked');
+ assert.equal(blocked.stats().calls,1);
+ const controller=new AbortController(),stop=reader({cancel:controller});
+ await assert.rejects(stop.terrain.trace(from,{...ray,signal:controller.signal}),/candidate-cancelled/);
+ assert(stop.stats().cancelled>0);
+ assert.equal(stop.stats().active,0);
+ assert.deepEqual(await stop.terrain.trace(from,ray),first);
+});
 test('terrain immediately before a target endpoint remains unknown rather than falsely clear, and blocks an ordinary sky ray',async()=>{
  const start={latitude:35,longitude:139,elevation:0,eyeM:1.5},end={...G.destination(35,139,0,.1),elevation:20},obstacle=G.destination(35,139,0,.098);
  const z=15,px=Math.floor((obstacle.longitude+180)/360*256*2**z),py=Math.floor((1-Math.asinh(Math.tan(obstacle.latitude*Math.PI/180))/Math.PI)/2*256*2**z);

@@ -3,30 +3,46 @@
 'use strict';
 const api=root.AstroNotesCandidateTerrain||(typeof require==='function'?require('./terrain-model.js'):null);
 const RAD=Math.PI/180,R=6371008.8;
-function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96,timeoutMs=7000,maxDurationMs=35000,layers=[['dem5a',15],['dem5b',15],['dem5c',15],['dem',14]]}={}){
+function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96,timeoutMs=7000,maxDurationMs=35000,lookAhead=false,layers=[['dem5a',15],['dem5b',15],['dem5c',15],['dem',14]]}={}){
  const cache=new Map(),done=new Map();let fetched=0,started=Date.now(),limit=maxTiles;
  const pixel=(p,z)=>[(p.longitude+180)/360*256*2**z,(1-Math.asinh(Math.tan(p.latitude*RAD))/Math.PI)/2*256*2**z];
+ async function fetchTile(key,layer,z,x,y,options){
+  if(lookAhead&&options.signal?.aborted)return {missing:true,reason:'terrain-fetch'};
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
+  const abort=()=>controller.abort();options.signal?.addEventListener('abort',abort,{once:true});
+  try{
+   const response=await fetchImpl(`https://cyberjapandata.gsi.go.jp/xyz/${key}.txt`,{signal:controller.signal});
+   if(!response.ok)return {missing:true,reason:response.status===404?'missing-tile':'terrain-fetch'};
+   const values=(await response.text()).trim().split(/[\s,]+/);
+   if(values.length!==65536)return {missing:true,reason:'terrain-size'};
+   const heights=new Float32Array(65536);
+   for(let i=0;i<values.length;i++){const v=values[i];heights[i]=v==='e'||v===''?NaN:Number(v);}
+   return {heights,z,x,y,layer};
+  }catch{return {missing:true,reason:'terrain-fetch'};}
+  finally{clearTimeout(timer);options.signal?.removeEventListener('abort',abort);}
+ }
  async function tile(layer,z,x,y,options){
   const key=[layer,z,x,y].join('/');
   if(cache.has(key))return cache.get(key);
   if(options.isCurrent?.()===false)throw Error('candidate-cancelled');
   if(fetched>=limit||Date.now()-started>=maxDurationMs)return {missing:true,reason:'terrain-budget'};
   fetched++;
-  const pending=(async()=>{
-   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
-   const abort=()=>controller.abort();options.signal?.addEventListener('abort',abort,{once:true});
-   try{
-    const response=await fetchImpl(`https://cyberjapandata.gsi.go.jp/xyz/${key}.txt`,{signal:controller.signal});
-    if(!response.ok)return {missing:true,reason:response.status===404?'missing-tile':'terrain-fetch'};
-    const values=(await response.text()).trim().split(/[\s,]+/);
-    if(values.length!==65536)return {missing:true,reason:'terrain-size'};
-    const heights=new Float32Array(65536);
-    for(let i=0;i<values.length;i++){const v=values[i];heights[i]=v==='e'||v===''?NaN:Number(v);}
-    return {heights,z,x,y,layer};
-   }catch{return {missing:true,reason:'terrain-fetch'};}
-   finally{clearTimeout(timer);options.signal?.removeEventListener('abort',abort);}
-  })();
-  cache.set(key,pending);const result=await pending;done.set(key,result);
+  // A staged read counts towards the budget and cache only when the ray actually needs it.
+  const ahead=options.prefetched?.get(key);
+  const stop=()=>ahead?.controller.abort();
+  if(ahead){
+   options.prefetched.delete(key);
+   if(options.signal?.aborted)stop();else options.signal?.addEventListener('abort',stop,{once:true});
+  }
+
+  const pending=ahead?ahead.data.then(r=>{
+   if(options.signal?.aborted||options.isCurrent?.()===false)return r;
+   return r.reason==='terrain-fetch'||r.reason==='terrain-size'?fetchTile(key,layer,z,x,y,options):r;
+  }):fetchTile(key,layer,z,x,y,options);
+  cache.set(key,pending);const result=await pending;
+  if(ahead)options.signal?.removeEventListener('abort',stop);
+  done.set(key,result);
+
   // A failed request is retryable, unlike an authoritative absent tile.
   if(result.reason==='terrain-fetch'||result.reason==='terrain-size'){cache.delete(key);done.delete(key);}
   return result;
@@ -49,7 +65,7 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
   let reason='missing-dem';
   for(const [layer,z]of layers){
    const [px,py]=pixel(point,z),x=Math.floor(px/256),y=Math.floor(py/256),data=await tile(layer,z,x,y,options);
-   if(options.isCurrent?.()===false)throw Error('candidate-cancelled');
+   if(options.isCurrent?.()===false||options.prefetched&&options.signal?.aborted)throw Error('candidate-cancelled');
    if(data.missing){reason=data.reason;if(reason==='terrain-budget')break;continue;}
    const h=data.heights[(Math.floor(py)%256+256)%256*256+(Math.floor(px)%256+256)%256];
    if(Number.isFinite(h))return {height:h,layer,z,x,y,resolutionM:40075016.686*Math.cos(point.latitude*RAD)/(256*2**z),heightDatum:'GSI orthometric; source epoch not certified'};
@@ -79,37 +95,66 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
   let checked=0,missing=0,minMarginM=Infinity,hit=null,d=0,steps=0,lastSource=null,lastHeight=null,endpointUncertain=false,farUncertain=false;
   // The highest ground seen from the eye: up to which height the target is hidden at maxM.
   let skyAlpha=-Infinity,skyAt=null,skyM=null;const seenD=[],seenH=[];
-  while(d<maxM){
-   if(options.isCurrent?.()===false||options.signal?.aborted)throw Error('candidate-cancelled');
+  function segment(d){
    const next=Math.min(maxM,d+100),from=geo.destination(observer.latitude,observer.longitude,azimuth,d/1000),to=next===maxM&&endpoint?endpoint:geo.destination(observer.latitude,observer.longitude,azimuth,next/1000);
    const far=d>=FAR_MIN_M&&height(d)-eye>NEAR_RISE_M,z=far?FAR_Z:15,a=pixel(from,z),b=pixel(to,z),marks=[0,1];
    for(let axis=0;axis<2;axis++)if(a[axis]!==b[axis])for(let edge=Math.floor(Math.min(a[axis],b[axis]))+1;edge<Math.max(a[axis],b[axis]);edge++)marks.push((edge-a[axis])/(b[axis]-a[axis]));
    marks.sort((x,y)=>x-y);
-   for(let i=1;i<marks.length;i++){
-    if(marks[i]-marks[i-1]<1e-12)continue;
-    const lo=d+marks[i-1]*(next-d),hi=d+marks[i]*(next-d),middle=(lo+hi)/2,p=geo.destination(observer.latitude,observer.longitude,azimuth,middle/1000);
-    let value=far?await sampleFar(p,options):await sample(p,options);
-    if(value.reason==='terrain-budget')return {status:'unknown',checked,missing,partial:true,reason:value.reason,hit};
-    // A pixel with no value in any layer (a river or lake surface) lies below its banks: the last bank
-    // read on the line stands in for it, which can only make the line look more hidden, never clearer.
-    if(!Number.isFinite(value.height)){if(Number.isFinite(lastHeight)&&['missing-dem','missing-tile'].includes(value.reason))value={...value,height:lastHeight,layer:'bank-for-water'};else{missing++;continue;}}
-    checked++;lastSource=value.layer;lastHeight=value.height;
-    const arc=middle/effectiveR,rise=Math.atan2((effectiveR+value.height)*Math.cos(arc)-(effectiveR+eye),(effectiveR+value.height)*Math.sin(arc));
-    seenD.push(middle);seenH.push(value.height);if(rise>skyAlpha){skyAlpha=rise;skyAt=middle;skyM=value.height;}
-    const distances=[lo,hi],vertex=-alpha*effectiveR;if(vertex>lo&&vertex<hi)distances.push(vertex);
-    const ray=Math.min(...distances.map(height)),endpointCell=endpoint&&maxM-lo<value.resolutionM*2;
-    const margin=ray-value.height;minMarginM=Math.min(minMarginM,margin);
-    if(far){if(margin<-FAR_MARGIN_M&&!hit)hit={distanceM:middle,terrainM:value.height,rayM:ray,coarse:true};else if(margin<FAR_MARGIN_M)farUncertain=true;}
-    else if(margin<-.1&&!hit){if(endpointCell)endpointUncertain=true;else hit={distanceM:middle,terrainM:value.height,rayM:ray};}
-    if(++steps%256===0)await (typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause?AstroNotesLibrary.pause():new Promise(resolve=>setTimeout(resolve,0)));
-    if(steps>=200000)return {status:hit?'blocked':'unknown',hit,checked,missing,partial:true,reason:'terrain-compute-budget'};
-    if(hit)break;
-   }
-   d=next;if(hit)break;
+   return {next,far,marks};
   }
-  const skyDen=Math.cos(theta)-Math.tan(skyAlpha)*Math.sin(theta),skyline=Number.isFinite(skyAt)&&skyDen>0?{distanceM:skyAt,terrainM:skyM,toM:(effectiveR+eye)/skyDen-effectiveR,riseM:fallAround(seenD,seenH,skyAt,skyM,-1),dropM:fallAround(seenD,seenH,skyAt,skyM,1)}:null;
-  return {status:hit?'blocked':missing||endpointUncertain||farUncertain?'unknown':'model-clear',reason:!hit&&farUncertain?'coarse-terrain-margin':undefined,hit,checked,missing,minMarginM:Number.isFinite(minMarginM)?minMarginM:null,source:lastSource,scopeM:d,nativeRaster:true,
-  endpointContactUncertain:endpointUncertain,datumUncertainty:true,skyline};
+  const prefetched=new Map(),enabled=lookAhead&&maxM>=8000&&layers.length>0;
+  let scan=2000;
+  if(enabled)options={...options,prefetched};
+  function prefetchNative(d){
+   if(!enabled||d<2000||fetched>limit-4||Date.now()-started>=maxDurationMs||prefetched.size>=2)return;
+   scan=Math.max(d,scan);
+   const [layer,z]=layers[0];
+   while(scan<Math.min(maxM,d+3000)&&prefetched.size<2){
+    const {next,far,marks}=segment(scan);
+    if(far)break;
+    for(let i=1;i<marks.length&&prefetched.size<2;i++){
+     if(marks[i]-marks[i-1]<1e-12)continue;
+     const lo=scan+marks[i-1]*(next-scan),hi=scan+marks[i]*(next-scan),middle=(lo+hi)/2;
+     const p=geo.destination(observer.latitude,observer.longitude,azimuth,middle/1000);
+     const [px,py]=pixel(p,z),x=Math.floor(px/256),y=Math.floor(py/256),key=[layer,z,x,y].join('/');
+     if(cache.has(key)||prefetched.has(key))continue;
+     const controller=new AbortController(),data=fetchTile(key,layer,z,x,y,{signal:controller.signal});
+     prefetched.set(key,{controller,data});
+    }
+    if(prefetched.size<2)scan=next;
+   }
+  }
+  try{
+   while(d<maxM){
+    if(options.isCurrent?.()===false||options.signal?.aborted)throw Error('candidate-cancelled');
+    const {next,far,marks}=segment(d);
+    if(!far)prefetchNative(d);
+    for(let i=1;i<marks.length;i++){
+     if(marks[i]-marks[i-1]<1e-12)continue;
+     const lo=d+marks[i-1]*(next-d),hi=d+marks[i]*(next-d),middle=(lo+hi)/2,p=geo.destination(observer.latitude,observer.longitude,azimuth,middle/1000);
+     let value=far?await sampleFar(p,options):await sample(p,options);
+     if(value.reason==='terrain-budget')return {status:'unknown',checked,missing,partial:true,reason:value.reason,hit};
+     // A pixel with no value in any layer (a river or lake surface) lies below its banks: the last bank
+     // read on the line stands in for it, which can only make the line look more hidden, never clearer.
+     if(!Number.isFinite(value.height)){if(Number.isFinite(lastHeight)&&['missing-dem','missing-tile'].includes(value.reason))value={...value,height:lastHeight,layer:'bank-for-water'};else{missing++;continue;}}
+     checked++;lastSource=value.layer;lastHeight=value.height;
+     const arc=middle/effectiveR,rise=Math.atan2((effectiveR+value.height)*Math.cos(arc)-(effectiveR+eye),(effectiveR+value.height)*Math.sin(arc));
+     seenD.push(middle);seenH.push(value.height);if(rise>skyAlpha){skyAlpha=rise;skyAt=middle;skyM=value.height;}
+     const distances=[lo,hi],vertex=-alpha*effectiveR;if(vertex>lo&&vertex<hi)distances.push(vertex);
+     const ray=Math.min(...distances.map(height)),endpointCell=endpoint&&maxM-lo<value.resolutionM*2;
+     const margin=ray-value.height;minMarginM=Math.min(minMarginM,margin);
+     if(far){if(margin<-FAR_MARGIN_M&&!hit)hit={distanceM:middle,terrainM:value.height,rayM:ray,coarse:true};else if(margin<FAR_MARGIN_M)farUncertain=true;}
+     else if(margin<-.1&&!hit){if(endpointCell)endpointUncertain=true;else hit={distanceM:middle,terrainM:value.height,rayM:ray};}
+     if(++steps%256===0)await (typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause?AstroNotesLibrary.pause():new Promise(resolve=>setTimeout(resolve,0)));
+     if(steps>=200000)return {status:hit?'blocked':'unknown',hit,checked,missing,partial:true,reason:'terrain-compute-budget'};
+     if(hit)break;
+    }
+    d=next;if(hit)break;
+   }
+   const skyDen=Math.cos(theta)-Math.tan(skyAlpha)*Math.sin(theta),skyline=Number.isFinite(skyAt)&&skyDen>0?{distanceM:skyAt,terrainM:skyM,toM:(effectiveR+eye)/skyDen-effectiveR,riseM:fallAround(seenD,seenH,skyAt,skyM,-1),dropM:fallAround(seenD,seenH,skyAt,skyM,1)}:null;
+   return {status:hit?'blocked':missing||endpointUncertain||farUncertain?'unknown':'model-clear',reason:!hit&&farUncertain?'coarse-terrain-margin':undefined,hit,checked,missing,minMarginM:Number.isFinite(minMarginM)?minMarginM:null,source:lastSource,scopeM:d,nativeRaster:true,
+   endpointContactUncertain:endpointUncertain,datumUncertainty:true,skyline};
+  }finally{for(const request of prefetched.values())request.controller.abort();}
  }
  // resetBudget(scale): a caller reading far more ground for one place (a surveyed observation room's rays) asks for
  // that many times the tiles; without a scale the budget is the one it was made with.
