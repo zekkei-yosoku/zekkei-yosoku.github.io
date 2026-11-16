@@ -66,7 +66,8 @@
 #exploreScenePanel #trialRecordSaveSheet .sheet-head button{width:auto;min-width:44px;height:auto;min-height:44px;margin:0;padding:8px 12px;display:block;border:0;background:transparent;color:var(--accent);font-size:14px}
 #trialRecordSaveSheet [data-quick-save] svg{width:24px;height:24px;flex:none;stroke-width:1.8}
 #exploreScenePanel #exploreExternalMap svg{width:24px;height:24px;stroke-width:1.8}
-#exploreScenePanel #trialCompositionToggle[aria-pressed=true]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+#exploreScenePanel #trialCompositionToggle[aria-pressed=true]:not(:disabled){background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+#exploreScenePanel #trialCompositionToggle:disabled{opacity:.5}
 /* Position selection uses the figure; the right tools are recenter, zoom, cancel. */
 #exploreScenePanel .preview-compose-toggle{position:absolute;top:64px;right:8px;z-index:4;width:44px;min-width:44px;height:44px;min-height:44px;margin:0;padding:0;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);box-shadow:none}
 #exploreScenePanel .preview-compose-toggle[aria-pressed=true]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}

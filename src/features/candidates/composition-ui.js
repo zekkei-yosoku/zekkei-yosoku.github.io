@@ -37,7 +37,8 @@ function update(st){
  st.available=!!t&&!!st.host.closest('#exploreScenePanel')&&!globalThis.AstroNotesTrialOverlap?.isAll?.(s)&&cap.surface;
  if(!st.available){st.active=st.dragging=false;if(editing===st)editing=null;}
  syncToolbar(st.host);
- st.button.disabled=!st.available;st.button.setAttribute('aria-description',st.available?'':'この対象は図から位置を選べません。');
+ const unselected=st.active&&(!config.composition||config.compositionInvalid);
+ st.button.disabled=!st.available||unselected;st.button.setAttribute('aria-description',!st.available?'この対象は図から位置を選べません。':unselected?pickHint():'');
  st.button.setAttribute('aria-label',st.active?'確定して撮影地点を探す':'重ねる位置を選ぶ');st.button.title=st.active?'確定して撮影地点を探す':'重ねる位置を選ぶ';st.button.setAttribute('aria-pressed',String(!!st.active));
  const buttonLabel=st.active?'確定':'位置を<wbr>選ぶ';if(st.buttonLabel.innerHTML!==buttonLabel)st.buttonLabel.innerHTML=buttonLabel;
  const glyph=st.active?'<path d="m5 12 4 4L19 6"/>':'<circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/>';
@@ -63,7 +64,7 @@ function bind(host,view){host._trialCompositionView=view;let st=states.get(host)
  Object.assign(disc.style,{position:'absolute',border:'2px dashed var(--accent)',borderRadius:'50%',transform:'translate(-50%,-50%)',background:'rgba(180,190,200,.12)'});overlay.append(disc,marker);figure.append(overlay,note,cancel);
  st={normalTouchAction:view.cv.style.touchAction,host,cv:view.cv,button,buttonIcon,buttonLabel,cancel,note,noteText,overlay,marker,disc,active:false,available:false};states.set(host,st);statesList.add(st);
  cancel.onclick=()=>cancelEdit(st);
- button.onclick=ev=>{st.dragging=false;if(!st.active){syncContext();st.beforeEdit=structuredClone(config);st.active=true;st.error='';editing=st;notify();if(ev?.detail===0)cv.focus({preventScroll:true});return;}
+ button.onclick=ev=>{st.dragging=false;if(!st.active){syncContext();st.beforeEdit=structuredClone(config);st.active=true;st.error='';editing=st;notify();cv.focus({preventScroll:true});return;}
  if(!config.composition||config.compositionInvalid){st.error=pickHint();notify();return;}
  st.active=false;st.error='';editing=null;notify();
  if(globalThis.TrialExplore?.searchCompositionPlaces?.()){st.beforeEdit=null;return;}st.active=true;editing=st;st.error='検索を開始できませんでした。もう一度押してください。';notify();};
@@ -71,7 +72,10 @@ function bind(host,view){host._trialCompositionView=view;let st=states.get(host)
  function choose(ev){if(!st.active)return;
  const v=host._trialCompositionView,s=syncContext(),r=cv.getBoundingClientRect(),px=(ev.clientX-r.left)*v.W/r.width,py=(ev.clientY-r.top)*v.H/r.height,off=host._lensOffset||[0,0],angle=AstroNotesAlign.viewUnprojector(v.win.az0,v.win.alt0)((px-off[0]*v.W-v.W/2)/v.k,(v.H/2-py+off[1]*v.H)/v.k);
  if(!angle)return;const obs={...v.spec.obs,elevation:v.spec.obs.elevation??0,eyeM:v.spec.eyeM},c=S.pick({azimuth:angle[0],altitude:angle[1],obs,target:s.target,align:AstroNotesAlign,limb:selectedLimb(s)});if(c){config.composition=c;st.invalid=false;config.compositionInvalid=false;
- config.invalidDraft=null;st.error='';}else {st.invalid=true;config.compositionInvalid=true;st.error=pickHint(s);}notify();return !!c;}
+ config.invalidDraft=null;st.error='';}else {
+ // A miss does not replace the last exact surface point shown in the drawing.
+ st.invalid=!config.composition||config.compositionInvalid;config.compositionInvalid=st.invalid;st.error=st.invalid?pickHint():'';
+ }notify();return !!c;}
  for(const type of ['pointerdown','pointermove','pointerup','pointercancel'])cv.addEventListener(type,ev=>{if(!st.active){if(type==='pointerdown')st.suppressClick=false;else if(st.suppressClick){ev.preventDefault();ev.stopImmediatePropagation();}return;}ev.preventDefault();
  ev.stopImmediatePropagation();if(type==='pointerdown'){st.dragging=true;st.pointerStart=[ev.clientX,ev.clientY];st.pointerMoved=false;try{cv.setPointerCapture(ev.pointerId);}catch{/* 既に離れた指は捕まえられないだけ */}}
  // A tap on a thin spire keeps its exact down-point when the finger lifts a few pixels away. Real drags still use exact surface picks.
@@ -86,7 +90,8 @@ function bind(host,view){host._trialCompositionView=view;let st=states.get(host)
  update(st);
 }
 function redraw(host){const st=states.get(host),v=host._trialCompositionView,c=config.composition;if(!st||!v)return;if(st.active){if(!st.wasEditing)st.normalTouchAction=v.cv.style.touchAction;v.cv.style.touchAction='none';st.wasEditing=true;
-}else if(st.wasEditing){v.cv.style.touchAction=st.normalTouchAction;st.wasEditing=false;}st.overlay.hidden=!c||!st.available||!host.closest('#exploreScenePanel');if(st.overlay.hidden)return;if(!c)return;const s=current();if(!s?.target)return;
+}else if(st.wasEditing){v.cv.style.touchAction=st.normalTouchAction;st.wasEditing=false;}
+st.overlay.hidden=!c||config.compositionInvalid||!st.available||!host.closest('#exploreScenePanel');if(st.overlay.hidden)return;if(!c)return;const s=current();if(!s?.target)return;
 const g=C.geometry({...v.spec.obs,eyeM:v.spec.eyeM},s.target,c,AstroNotesAlign),xy=AstroNotesAlign.viewProjector(v.win.az0,v.win.alt0)(g.azimuth,g.angle);if(!xy){st.overlay.hidden=true;return;
 }const r=v.cv.getBoundingClientRect(),off=host._lensOffset||[0,0],x=(v.W/2+xy[0]*v.k+off[0]*v.W)*r.width/v.W,y=(v.H/2-xy[1]*v.k+off[1]*v.H)*r.height/v.H,rad=Math.max(2,(host._bodyRadius||.25)*v.k*r.width/v.W);Object.assign(st.marker.style,{left:x+'px',top:y+'px'});
 Object.assign(st.disc.style,{left:x+'px',top:(y+(c.limb==='upper'?rad:c.limb==='lower'?-rad:0))+'px',width:2*rad+'px',height:2*rad+'px'});st.disc.hidden=!st.active||!capabilities(s,v.spec.obs).limbs;}

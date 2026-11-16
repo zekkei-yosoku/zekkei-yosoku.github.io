@@ -65,6 +65,22 @@ async function pickSurface(page){
  await page.waitForFunction(()=>{const p=AstroNotesTrialComposition.plan();return p.composition&&!p.compositionInvalid;});
  return page.evaluate(()=>structuredClone(AstroNotesTrialComposition.plan()));
 }
+async function missKeepsSelection(page,expected){
+ // R06: an empty-sky tap must not leave a visible marker with confirmation silently rejected.
+ const point=await page.evaluate(()=>{
+  const h=document.getElementById('aimLook'),v=h._trialCompositionView,s=SkyMapUI.selectionState(),r=v.cv.getBoundingClientRect(),off=h._lensOffset||[0,0],obs={...v.spec.obs,eyeM:v.spec.eyeM};
+  for(const u of [.12,.88,.25,.75])for(const y of [.45,.6]){
+   const a=AstroNotesAlign.viewUnprojector(v.win.az0,v.win.alt0)((v.W*u-off[0]*v.W-v.W/2)/v.k,(v.H/2-v.H*y+off[1]*v.H)/v.k);
+   if(a&&!AstroNotesTrialSurface.pick({obs,target:s.target,align:AstroNotesAlign,azimuth:a[0],altitude:a[1]}))return {x:r.left+r.width*u,y:r.top+r.height*y};
+  }throw Error('No empty sky fixture');
+ });
+ await page.mouse.click(point.x,point.y);await frames(page);
+ assert.deepEqual(await page.evaluate(()=>AstroNotesTrialComposition.plan()),expected,'outside tap retains the exact point passed to search');
+ const height=await page.evaluate(()=>{const s=SkyMapUI.selectionState(),c=AstroNotesTrialComposition.plan().composition;return '高さ '+(c.heightM-(s.target.groundM??0)).toFixed(1)+' m';});
+ assert.equal(await page.locator('#trialCompositionStatus').innerText(),height);
+ assert(await page.locator('#aimLook .aim-look-figure > div[aria-hidden="true"]').isVisible(),'retained point remains visible');
+ assert(await page.locator('#trialCompositionToggle').isEnabled(),'the visible point remains confirmable');
+}
 async function waitSearch(page,count){
  await page.waitForFunction(n=>compositionEntryFixture.searches.length===n&&document.getElementById('candidateSearchAction')?.dataset.state==='searching',count);
  assert.equal(await page.locator('#skyMapView').getAttribute('data-explore-stage'),'search');
@@ -126,7 +142,7 @@ async function complete(page,kind){
     await page.screenshot({path:prefix+'-new.png',fullPage:true});
 
     stage('pick-surface');
-    await preview(page);const composition=await pickSurface(page);result.composition=composition;
+    await preview(page);const composition=await pickSurface(page);await missKeepsSelection(page,composition);result.composition=composition;result.outsideTapKeepsSelection=true;
     stage('first-search');
     await page.locator('#trialCompositionToggle').click();await waitSearch(page,1);
     assert.deepEqual(await selection(page),current);assert.deepEqual(await page.evaluate(()=>compositionEntryFixture.searches[0].composition),composition.composition);
