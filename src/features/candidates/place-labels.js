@@ -27,8 +27,25 @@ function resolve(data,p,kind){
  return {status:'matched',names,sourceIds:matches.map(f=>f.id)};
 }
 function enrich(row,{addresses=null,facilities=null}={}){
- const p=row.place,address=resolve(addresses,p,'census-town-areas'),facility=resolve(facilities,p,'osm-named-areas'),area=address.status==='matched'?address.names[0]:null,name=facility.status==='matched'?facility.names.join('／'):area;
- return {...row,place:{...p,...(name?{name:name+'（モデル候補）'}:{}),subtitle:area||'住所未確認'},labels:{address,facility,coordinate:point(p)?p.latitude.toFixed(5)+', '+p.longitude.toFixed(5):'',addressYear:addresses?.year??null,facilityDataDate:facilities?.dataDate??null}};
+ const p=row.place,address=resolve(addresses,p,'census-town-areas'),facility=resolve(facilities,p,'osm-named-areas');
+ const area=address.status==='matched'?address.names[0]:'',fallback=facility.status==='matched'?facility.names.join('／'):area;
+ const riverName=row.placeKind==='riverbank'&&typeof row.sourceEvidence?.riverName==='string'?row.sourceEvidence.riverName.trim():'';
+ let name=p.name;
+ if(riverName&&(!name||name==='河川沿いの歩道'||/^(?:撮影候補|モデル候補)/.test(name)))name=riverName+'沿いの歩道';
+ else if(fallback&&(!name||/^(?:撮影候補|モデル候補)/.test(name)))name=fallback+'（モデル候補）';
+ return {...row,place:{...p,name,subtitle:area,...(riverName?{riverName}:{})},labels:{address,facility,coordinate:point(p)?p.latitude.toFixed(5)+', '+p.longitude.toFixed(5):'',addressYear:addresses?.year??null,facilityDataDate:facilities?.dataDate??null}};
 }
-return {resolve,enrich,edgeDistance};
+function townFiles(index,p){
+ if(index?.version!==1||!Array.isArray(index.wards)||!point(p))return [];
+ return index.wards.filter(ward=>/^\d{5}\.json$/.test(ward?.file)&&/^[0-9a-f]{64}$/.test(ward.sha256)&&
+  Array.isArray(ward.bbox)&&ward.bbox.length===4&&ward.bbox.every(Number.isFinite)&&within(p,ward.bbox));
+}
+function townAddress(layers,p){
+ const matches=layers.map(layer=>resolve(layer,p,'census-town-areas'));
+ if(matches.some(r=>['boundary','ambiguous','unavailable'].includes(r.status)))return null;
+ const found=matches.filter(r=>r.status==='matched');
+ if(new Set(found.flatMap(r=>r.names)).size!==1)return null;
+ return {status:'matched',names:found[0].names,sourceIds:found.flatMap(r=>r.sourceIds)};
+}
+return {resolve,enrich,edgeDistance,townFiles,townAddress};
 });

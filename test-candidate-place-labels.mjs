@@ -9,6 +9,32 @@ test('holes and multipart islands are respected independently of winding',()=>{c
 test('metric boundary and overlapping census areas stay unknown',()=>{assert.equal(L.resolve(layer('census-town-areas'),{latitude:35.002,longitude:139.000001},'census-town-areas').status,'boundary');const data=layer('census-town-areas',[feature,{...feature,id:'other',name:'Other town'}]);assert.equal(L.resolve(data,p,'census-town-areas').status,'ambiguous');});
 test('invalid, missing, mismatched kind and version data cannot invent names',()=>{const d=layer();assert.equal(L.resolve(d,p,'osm-named-areas').status,'matched');assert.equal(L.resolve(d,p,'census-town-areas').status,'unavailable');for(const bad of [null,{...layer(),version:2},{...layer(),features:[{...feature,polygons:[[[139,35],[139.1,35],[139.1,35.1]]]}]}])assert.equal(L.resolve(bad,p,'osm-named-areas').status,'unavailable');});
 test('enrichment leaves coordinates, event and visibility evidence unchanged and never mutates cache rows',()=>{const row={place:{name:'Coordinate candidate',...p,elevation:12.4},event:{at:12345},modelEvidence:{kind:'terrain-and-building-model-los',scope:'observer-to-target'},recommend:true},before=structuredClone(row),result=L.enrich(row,{facilities:layer()});assert.deepEqual(row,before);assert.notEqual(result.place,row.place);for(const key of ['latitude','longitude','elevation'])assert.equal(result.place[key],row.place[key]);assert.equal(result.event,row.event);assert.equal(result.modelEvidence,row.modelEvidence);assert.equal(result.recommend,true);assert.equal(result.labels.address.status,'unavailable');assert.equal(result.labels.facility.status,'matched');const failed=L.enrich(row);assert.equal(failed.place.name,row.place.name);assert.equal(failed.labels.facility.status,'unavailable');});
+test('river evidence names a generic walk and preserves an existing place name',()=>{
+ const row={place:{name:'河川沿いの歩道',...p},placeKind:'riverbank',sourceEvidence:{riverName:' 新中川 '}};
+ const titled=L.enrich(row);assert.equal(titled.place.name,'新中川沿いの歩道');assert.equal(titled.place.riverName,'新中川');
+ assert.equal(titled.place.subtitle,'');assert.equal(titled.labels.coordinate,'35.00200, 139.00200');
+ assert.equal(row.place.name,'河川沿いの歩道');
+ const named=L.enrich({...row,place:{...row.place,name:'固有の遊歩道'}});
+ assert.equal(named.place.name,'固有の遊歩道');assert.equal(named.place.riverName,'新中川');
+ assert.equal(L.enrich({...row,sourceEvidence:{}}).place.name,row.place.name);
+ assert.equal(L.enrich({...row,placeKind:'park'}).place.riverName,undefined);
+});
+test('ward lookup uses only overlapping verified shards and requires a single town',()=>{
+ const index=require('./data/candidate-towns/index.json');
+ const bank={latitude:35.73521881818182,longitude:139.8707811818182};
+ const files=L.townFiles(index,bank);assert(files.some(f=>f.file==='13122.json'));assert(files.length<6);
+ const fs=require('node:fs'),crypto=require('node:crypto');
+ const layers=files.map(f=>{
+  const bytes=fs.readFileSync(new URL('./data/candidate-towns/'+f.file,import.meta.url));
+  assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),f.sha256);
+  return JSON.parse(bytes);
+ });
+ assert.deepEqual(L.townAddress(layers,bank)?.names,['東京都葛飾区奥戸九丁目']);
+ assert.equal(L.townAddress([...layers,null],bank),null);
+ assert.equal(L.townAddress([layer('census-town-areas'),layer('census-town-areas',[{...feature,name:'Conflicting name'}])],p),null);
+ assert.equal(L.townAddress([layer('census-town-areas')],{latitude:35.002,longitude:139.000001}),null);
+ assert.deepEqual(L.townFiles(index,{latitude:34,longitude:135}),[]);
+});
 test('actual source area resolves Skytree town and excludes a service district as a facility',()=>{const p={latitude:35.710063,longitude:139.8107},a=L.resolve(addresses,p,'census-town-areas'),f=L.resolve(facilities,p,'osm-named-areas');assert.deepEqual(a.names,['東京都墨田区押上一丁目']);assert(f.names.includes('東京スカイツリー'));assert(!f.names.some(n=>n.includes('熱供給')));assert.equal(addresses.year,2020);assert.equal(addresses.license,'CC BY 4.0');assert.equal(facilities.license,'ODbL 1.0');});
 test('actual named park is resolved by its area while an ordinary candidate remains facility-unknown',()=>{const park=L.resolve(facilities,{latitude:35.68284939,longitude:139.72799657},'osm-named-areas');assert(park.names.includes('四谷見附公園'));assert(park.sourceIds.includes('way/556414550'));const street=L.resolve(facilities,{latitude:35.71165,longitude:139.81237},'osm-named-areas');assert.equal(street.status,'no-area-match');assert.deepEqual(L.resolve(addresses,{latitude:35.71165,longitude:139.81237},'census-town-areas').names,['東京都墨田区押上二丁目']);});
 test('independent data layers have traceable geometry, limited coverage and no contact or access promises',()=>{for(const d of [addresses,facilities]){assert.equal(d.coverageBboxes.length,2);assert(d.sourceUrl.startsWith('https:'));assert(d.features.length);for(const f of d.features){assert(f.name.trim());assert(!('opening_hours' in (f.tags||{})));assert(!('phone' in (f.tags||{})));assert(!('access' in (f.tags||{})));}}assert(addresses.sources.every(s=>/^[a-f0-9]{64}$/.test(s.sha256)));assert(/^[a-f0-9]{64}$/.test(facilities.sourceSha256));assert.equal(facilities.skipped.length,0);});

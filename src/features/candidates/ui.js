@@ -11,10 +11,21 @@ const dataTag=new URL(document.currentScript.src,location.href).searchParams.get
 const dataHashes=/* BUILD_DATA_HASHES */{};
 // The trial keeps no copy of this data: its page points at the production folder (build-preview.py).
 const dataBase=document.querySelector('meta[name="astronotes-data-base"]')?.content||'data/';
-const readData=async(name,{signal}={})=>{const r=await fetch(dataBase+name+'?v='+dataTag,{signal});if(!r.ok)throw Error('data');const bytes=await r.arrayBuffer(),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
-if(hash!==dataHashes[name])throw Error('data-version');return JSON.parse(new TextDecoder().decode(bytes));};
+async function readData(name,{signal,expectedHash=dataHashes[name],priority}={}){
+ const r=await fetch(dataBase+name+'?v='+dataTag,{signal,priority});
+ if(!r.ok)throw Error('data');
+ const bytes=await r.arrayBuffer(),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
+ if(hash!==expectedHash)throw Error('data-version');
+ return JSON.parse(new TextDecoder().decode(bytes));
+}
 const cachedData=new Map();
-function loaded(name){if(!cachedData.has(name)){const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),10000);cachedData.set(name,readData(name,{signal:ctrl.signal}).catch(e=>{cachedData.delete(name);throw e;}).finally(()=>clearTimeout(timer)));}return cachedData.get(name);}
+function loaded(name,options={}){
+ if(!cachedData.has(name)){
+  const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),10000);
+  cachedData.set(name,readData(name,{...options,signal:ctrl.signal}).catch(e=>{cachedData.delete(name);throw e;}).finally(()=>clearTimeout(timer)));
+ }
+ return cachedData.get(name);
+}
 // Saved targets standing on a PLATEAU building take its shape on this page (見え方 and new places).
 const plateauShapes=globalThis.AstroNotesPlateauBuildings?.create({load:loaded,base:dataBase+'building-shapes/'})||null;globalThis.AstroNotesPlateauShapes=plateauShapes;
 // The targets the app lists carry their PLATEAU shape, so the overlap list and registered places (calculation
@@ -32,6 +43,30 @@ document.addEventListener('astronotes-records-change',refreshShapes);
 let againForRecords=null;document.addEventListener('astronotes-records-change',()=>againForRecords?.());
 (globalThis.startupSessionReady||Promise.resolve()).then(refreshShapes,()=>{});
 const loadLabels=async()=>{const [addresses,facilities]=await Promise.all(['candidate-label-addresses.json','candidate-label-facilities.json'].map(n=>loaded(n).catch(()=>null)));return {addresses,facilities};};
+const knownTownAddresses=new Map(),townKey=({latitude,longitude})=>latitude+','+longitude;
+function setTownAddress(row,{address,year}){
+ row.place.subtitle=address.names[0];row.labels.address=address;row.labels.addressYear=year;
+}
+async function fillTownAddresses(rows,isCurrent){
+ const unresolved=rows.filter(row=>['outside-coverage','no-area-match','unavailable'].includes(row.labels.address.status));
+ if(!unresolved.length)return false;
+ const index=await loaded('candidate-towns/index.json',{priority:'low'}).catch(()=>null);
+ if(!index||!isCurrent())return false;
+ const matches=await Promise.all(unresolved.map(async row=>{
+  const files=AstroNotesCandidateLabels.townFiles(index,row.place);
+  const layers=await Promise.all(files.map(ward=>loaded('candidate-towns/'+ward.file,{expectedHash:ward.sha256,priority:'low'}).catch(()=>null)));
+  return {row,address:AstroNotesCandidateLabels.townAddress(layers,row.place)};
+ }));
+ if(!isCurrent())return false;
+ let changed=false;
+ for(const {row,address} of matches)if(address){
+  const value={address,year:index.year};
+  knownTownAddresses.set(townKey(row.place),value);
+  if(knownTownAddresses.size>1024)knownTownAddresses.delete(knownTownAddresses.keys().next().value);
+  setTownAddress(row,value);changed=true;
+ }
+ return changed;
+}
 const filterKey=p=>JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode]);
 AstroNotesCandidatePicker.configure({loadLabels,createMapView,filterKey,getScroller:()=>mainWorkspace()?.scroller(),getReturnScroll:()=>mainWorkspace()?.returnScroll?.(),onRendered:count=>mainWorkspace()?.restoreScroll(count),requestKey:p=>AstroNotesCandidateDiscovery.requestKey(p)});
 const live=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxDurationMs:120000,lookAhead:true});
@@ -308,18 +343,21 @@ function mount(){
  status.textContent=missingField?(missingField.endsWith('Start')?'探索の開始時刻を入力してください。':'探索の終了時刻を入力してください。')
   :!p?'天体・対象・日付を選んでください。':!valid?'指定した日時と構図を確認してください。':'';
  let continuation=false,hasRun=false,searching=false,failed=false,items=new Map(),shown=null;
+ const presentation=AstroNotesLibrary.gate();
  // A place saved to the records leaves this list at once, and one removed from them comes back.
  againForRecords=()=>{if(shown&&!searching&&section.isConnected)present(...shown);};
  function renderAction(){button.dataset.state=searching?'searching':'idle';button.textContent=searching?'キャンセル':failed?'再試行':continuation?'続きを探す':hasRun?(main?'候補を探し直す':'もう一度確認'):main?'候補を探す':'ほかの候補地点を探す';button.disabled=!valid;resultList.setAttribute('aria-busy',String(searching));}
  renderAction();
  // partial: rows found so far while the search goes on; the list is replaced, the progress and the action stay.
  async function present(result,selected,node,token,{cancelled=false,interrupted=false,partial=false}={}){
-   const labels=result.rows.length?await loadLabels():{};if(!current(token,selected,node)||partial&&!searching)return;
+   const ticket=presentation.next(),isPresented=()=>presentation.current(ticket)&&current(token,selected,node);
+   const labels=result.rows.length?await loadLabels():{};if(!isPresented()||partial&&!searching)return;
    // Rows already shown keep their buttons and new ones wait hidden until the list places them: emptying and
    // refilling the list for every place found made the page jump while searching (2026-11-13, seen on the iPhone).
    // Places already among the user's saved shooting places are shown on the records side only (candidate-picker.js inRecords).
    const rows=[],nodes=[],kept=new Map(),recorded=globalThis.MyPlacesUI?.savedPlaces?.()||[];if(!partial)shown=[result,selected,node,token,{cancelled,interrupted}];
-   for(const raw of result.rows){if(AstroNotesCandidatePicker.inRecords(raw,recorded))continue;const row=AstroNotesCandidateLabels.enrich(raw,labels);if(raw.place.name&&!/^(?:撮影候補|モデル候補)/.test(raw.place.name))row.place.name=raw.place.name;rows.push(row);
+   for(const raw of result.rows){if(AstroNotesCandidatePicker.inRecords(raw,recorded))continue;const row=AstroNotesCandidateLabels.enrich(raw,labels),town=knownTownAddresses.get(townKey(row.place));
+   if(town&&row.labels.address.status!=='matched')setTownAddress(row,town);rows.push(row);
    let item=items.get(row.id);if(!item){item=document.createElement('button');item.type='button';item.className='list-item';item.hidden=true;item.textContent=row.place.name;resultList.append(item);}
    kept.set(row.id,item);nodes.push(item);item.dataset.modelBasis=row.modelEvidence?.kind||'unknown';item.dataset.candidateName=row.place.name;item.dataset.candidateId=row.id;
     item.onclick=()=>{if(mainWorkspace()&&!mainWorkspace().selectable()||!current(token,selected,node)||row.requestKey!==key(snapshot()))return;const event={...row.event};delete event.matchMode;const candidate={...row,event};const host=document.getElementById('aimLook'),previous=host?._compose;
@@ -329,6 +367,8 @@ function mount(){
    }
    for(const [id,old] of items)if(!kept.has(id))old.remove();items=kept;
    AstroNotesCandidatePicker.registerAdditional(resultList,rows,selected,()=>current(token,selected,node),nodes);
+   fillTownAddresses(rows,isPresented).then(changed=>{if(changed&&isPresented())AstroNotesCandidatePicker.apply();})
+    .catch(error=>globalThis.AstroNotesErrors?.note('candidates.town-address',error));
    if(partial){visibleCredits.hidden=!rows.length;main?.reveal();return;}
    const incomplete=!!result.stalled||interrupted||result.coverage.loaded?.some(c=>c.failedRegions?.length||c.missing?.includes('time-budget'));
    continuation=cancelled||interrupted||!!result.canContinue;failed=!cancelled&&incomplete;

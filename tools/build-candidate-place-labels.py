@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Build two independently licensed, local-only place-label layers. No geocoding API calls."""
+"""Build local-only place-label layers from downloaded CODH and OSM source data."""
 import argparse, hashlib, json
 from pathlib import Path
 
 parser=argparse.ArgumentParser()
 parser.add_argument('--source-dir',type=Path,required=True)
 parser.add_argument('--output-dir',type=Path)
+parser.add_argument('--tokyo-wards',action='store_true',help='build candidate-towns from the 23 ward TopoJSON files')
 args=parser.parse_args()
 root=Path(__file__).resolve().parent.parent
 out=args.output_dir or root/'data'
@@ -50,15 +51,18 @@ def feature(id,name,polys,**extra):
                 if any(intersects(a,b,c,d) for a,b in zip(r,r[1:]) for c,d in zip(other,other[1:])):raise ValueError('intersecting rings: '+id)
     return dict(id=id,name=name,bbox=b,polygons=polys,**extra)
 
-towns=[];sources=[]
-for code in ['13101','13103','13104','13106','13107']:
-    path=args.source_dir/(code+'.topojson');d=json.loads(path.read_text());arcs=d['arcs']
+def town_source(code):
+    path=args.source_dir/(code+'.topojson')
+    d=json.loads(path.read_bytes())
+    arcs=d['arcs']
     def arc(i):
+        if args.tokyo_wards and type(i) is not int:raise ValueError('invalid town arc index')
         a=arcs[i if i>=0 else ~i]
         if d.get('transform'):
             x=y=0;scale=d['transform']['scale'];trans=d['transform']['translate'];result=[]
             for dx,dy in a:x+=dx;y+=dy;result.append([x*scale[0]+trans[0],y*scale[1]+trans[1]])
         else:result=[p[:2] for p in a]
+        if args.tokyo_wards and len(result)<2:raise ValueError('incomplete town arc')
         return result if i>=0 else result[::-1]
     def ring(ids):
         result=[]
@@ -67,12 +71,72 @@ for code in ['13101','13103','13104','13106','13107']:
             if result and result[-1]!=a[0]:raise ValueError('disconnected town arc')
             result+=a if not result else a[1:]
         return result
+    if args.tokyo_wards and (d.get('type')!='Topology' or d['objects']['town'].get('type')!='GeometryCollection'):
+        raise ValueError('unexpected town layer: '+code)
     for g in d['objects']['town']['geometries']:
-        p=g['properties'];a=g['arcs'];polys=[[ring(r) for r in a]] if g['type']=='Polygon' else [[ring(r) for r in poly] for poly in a]
+        if args.tokyo_wards and g['type'] not in ('Polygon','MultiPolygon'):raise ValueError('unexpected town geometry: '+code)
+        a=g['arcs'];polys=[[ring(r) for r in a]] if g['type']=='Polygon' else [[ring(r) for r in poly] for poly in a]
+        yield g['properties'],polys
+
+address_meta=dict(version=1,kind='census-town-areas',year=2020,license='CC BY 4.0',licenseUrl='https://creativecommons.org/licenses/by/4.0/',sourceUrl='https://geoshape.ex.nii.ac.jp/ka/resource/',doi='10.20676/00000450',attribution='国勢調査町丁・字等別境界データセット（CODH作成）、令和2年国勢調査町丁・字等別境界データ（e-Stat）を加工',coordinateBasis='CODH geographic coordinates, derived from JGD2000 census source; not survey/address parcel boundaries')
+def town_attribution(code):
+    path=args.source_dir/(code+'.topojson')
+    return dict(url=f'https://geoshape.ex.nii.ac.jp/ka/topojson/2020/13/r2ka{code}.topojson',sha256=digest(path))
+
+def ward_feature(code,p,polys):
+    ident=str(p['KEY_CODE'])
+    if not ident.startswith(code) or p['PREF_NAME']!='東京都' or not p['CITY_NAME'].endswith('区'):
+        raise ValueError('town outside the expected ward: '+ident)
+    if not polys or not all(poly and all(ring_valid(r) for r in poly) for poly in polys):
+        raise ValueError('invalid source town ring: '+ident)
+    # TopoJSON supplies shared boundary arcs. Preserve their order and strip
+    # only consecutive duplicates after sub-metre coordinate rounding.
+    def compact(r):
+        result=[]
+        for lon,lat in r:
+            point=[round(lon,6),round(lat,6)]
+            if not result or result[-1]!=point:result.append(point)
+        if not ring_valid(result):raise ValueError('collapsed town ring: '+ident)
+        x,y=result[0]
+        area=sum((a[0]-x)*(b[1]-y)-(a[1]-y)*(b[0]-x) for a,b in zip(result,result[1:]))
+        if not area:raise ValueError('empty town ring: '+ident)
+        return result
+    shapes=[[compact(r) for r in poly] for poly in polys]
+    b=bbox(shapes)
+    if not (139<b[0]<b[2]<140.5 and 35<b[1]<b[3]<36.5):raise ValueError('unexpected town coordinates: '+ident)
+    municipality=p['PREF_NAME']+p['CITY_NAME'];town=p['S_NAME']
+    return dict(id=ident,name=municipality+town,bbox=b,polygons=shapes,municipality=municipality,town=town)
+
+def write_json(path,data):
+    path.write_text(json.dumps(data,ensure_ascii=False,separators=(',',':'))+'\n',encoding='utf-8')
+
+if args.tokyo_wards:
+    ward_dir=out/'candidate-towns'
+    ward_data=[]
+    for number in range(13101,13124):
+        code=str(number)
+        features=[ward_feature(code,p,polys) for p,polys in town_source(code) if p.get('S_NAME')]
+        bounds=[f['bbox'] for f in features]
+        b=[min(a[0] for a in bounds),min(a[1] for a in bounds),max(a[2] for a in bounds),max(a[3] for a in bounds)]
+        data={**address_meta,'coverageBboxes':[b],'sources':[town_attribution(code)],'features':features}
+        ward_data.append((code,b,data))
+    ward_dir.mkdir(parents=True,exist_ok=True)
+    wards=[]
+    for code,b,data in ward_data:
+        path=ward_dir/(code+'.json')
+        write_json(path,data)
+        wards.append(dict(file=path.name,bbox=b,sha256=digest(path)))
+        print(path.name,len(data['features']),path.stat().st_size,'bytes')
+    write_json(ward_dir/'index.json',{**address_meta,'wards':wards})
+    raise SystemExit(0)
+
+towns=[];sources=[]
+for code in ['13101','13103','13104','13106','13107']:
+    for p,polys in town_source(code):
         if not p.get('S_NAME'):continue
         f=feature(str(p['KEY_CODE']),p['PREF_NAME']+p['CITY_NAME']+p['S_NAME'],polys,municipality=p['PREF_NAME']+p['CITY_NAME'],town=p['S_NAME'])
         if f:towns.append(f)
-    sources.append(dict(url=f'https://geoshape.ex.nii.ac.jp/ka/topojson/2020/13/r2ka{code}.topojson',sha256=digest(path)))
+    sources.append(town_attribution(code))
 addresses=dict(version=1,kind='census-town-areas',year=2020,coverageBboxes=boxes,license='CC BY 4.0',licenseUrl='https://creativecommons.org/licenses/by/4.0/',sourceUrl='https://geoshape.ex.nii.ac.jp/ka/resource/',doi='10.20676/00000450',attribution='国勢調査町丁・字等別境界データセット（CODH作成）、令和2年国勢調査町丁・字等別境界データ（e-Stat）を加工',coordinateBasis='CODH geographic coordinates, derived from JGD2000 census source; not survey/address parcel boundaries',sources=sources,features=towns)
 
 path=args.source_dir/'facilities-osm.json';osm=json.loads(path.read_bytes());facilities=[];skipped=[];excluded=0

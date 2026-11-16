@@ -27,6 +27,27 @@ test('堤防の上の道は広い川の河川敷、堤防の外の道は河川�
  const result=await provider([river,water,levee,street]).load({}, {regions:[{id:'r',bbox:[139.0001,35.001,139.006,35.004]}]});
  const kind=lon=>new Set(result.points.filter(p=>Math.abs(p.longitude-lon)<1e-6).map(p=>p.placeKind));
  assert.deepEqual(kind(139.0027),new Set(['riverbank']));assert.deepEqual(kind(139.0049),new Set(['sidewalk']));
+ assert.deepEqual(new Set(result.points.filter(p=>p.placeKind==='riverbank').map(p=>p.sourceEvidence.riverName)),new Set(['江戸川']));
+ assert(result.points.filter(p=>p.placeKind==='sidewalk').every(p=>!p.sourceEvidence.riverName));
+});
+test('河川敷の名前は実際にそばにある水域から取り、合流部や並行する池では川名を選ばない',async()=>{
+ const river=way(11,{waterway:'river',name:'River A','name:ja':'甲川'},[[139.0012,35],[139.0012,35.005]]);
+ const fork=way(12,{waterway:'canal',name:'乙川'},[[139.0014,35.001],[139.0014,35.004]]);
+ const geometry=ring(139.001,35,139.0016,35.005),banks=way(13,{natural:'water',water:'river'},geometry);
+ const path=line(14,{name:'川テラス'},35.0015,35.0035,139.0020);
+ const pond=way(15,{natural:'water',water:'pond',name:'並行する池'},ring(139.0021,35,139.0025,35.005));
+ const forWater=async(data,expected)=>{
+  const {points}=await provider(data).load({}, {regions:[region]});
+  const pathPoints=points.filter(p=>p.sourceId==='osm/way/14');
+  assert(pathPoints.length);
+  assert(pathPoints.every(p=>p.placeKind==='riverbank'&&p.name==='川テラス'));
+  assert.deepEqual(new Set(pathPoints.map(p=>p.sourceEvidence.riverName)),new Set([expected]));
+ };
+ await forWater([banks,river,path],'甲川');
+ await forWater([banks,river,fork,path],undefined);
+ await forWater([banks,river,{...fork,tags:{waterway:'canal'}},path],undefined);
+ await forWater([banks,river,pond,path],undefined);
+ await forWater([way(13,{natural:'water',water:'river',name:'River A','name:ja':'甲川'},geometry),path],'甲川');
 });
 test('river proximity keeps the latitude-dependent cutoff for a shore far away in longitude',async()=>{
  const lon=139.002,lat=80.0015;

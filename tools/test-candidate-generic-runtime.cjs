@@ -20,14 +20,19 @@ function installFixture(granted){
     {id:'deck-low',name:'同じ展望地点 下層',placeKind:'viewpoint',latitude:35.6906,longitude:139.7308,groundM:31,eyeM:2,rank:100},
     {id:'deck-high',name:'同じ展望地点 上層',placeKind:'viewpoint',latitude:35.6906,longitude:139.7308,groundM:31,eyeM:101.5,rank:101}
    ].map(p=>({...p,surfaceId:p.id,standingSurfaceKnown:true,accessKnown:true}));
+   const riverPoints=[
+    {id:'named-river',name:'河川沿いの歩道',placeKind:'riverbank',latitude:35.73521881818182,longitude:139.8707811818182,groundM:4,eyeM:1.5,rank:0,riverName:'新中川'},
+    {id:'unlocated-river',name:'河川沿いの歩道',placeKind:'riverbank',latitude:35.59,longitude:140.02,groundM:2,eyeM:1.5,rank:1}
+   ].map(p=>({...p,surfaceId:p.id,standingSurfaceKnown:true,accessKnown:true}));
    // Synthetic places: the real visibility map (2026-11-13) is left out.
-   return original({...options,prefilter:null,provider:{load:async plan=>{candidateFixture.loads++;candidateFixture.plans.push(structuredClone(plan));return {points,coverage:{nextCursor:null},partial:false};}},evaluate:async(plan,point)=>{
+   return original({...options,prefilter:null,provider:{load:async plan=>{candidateFixture.loads++;candidateFixture.plans.push(structuredClone(plan));return {points:candidateFixture.riverRows?riverPoints:points,coverage:{nextCursor:null},partial:false};}},evaluate:async(plan,point)=>{
     if(candidateFixture.holdSecond&&point.id==='deck-high')await new Promise(resolve=>{candidateFixture.releaseSecond=resolve;});
     const range=AstroNotesCandidateComposition.timeRange(plan),at=range.start===range.end?range.start:Math.min(range.end,range.start+12*3600000);
     const row={id:plan.body+'-'+point.id+'-'+at,requestKey:plan.requestKey,recommend:true,aligned:true,status:'model-visible',placeKind:point.placeKind,surfaceId:point.surfaceId,rank:point.rank,
      place:{name:point.name,latitude:point.latitude,longitude:point.longitude,elevation:point.groundM,groundManualM:point.groundM,standAglM:point.eyeM,eyeHeightAGL:point.eyeM,decks:[],stand:'ground'},
      assumedObserver:{latitude:point.latitude,longitude:point.longitude,elevation:point.groundM,eyeM:point.eyeM},
      event:{at,partId:plan.partId,matchMode:'limb',side:'rise',relation:point.id==='park'?'near':'exact',gapAngleDeg:point.id==='park'?.08:0},
+     sourceEvidence:point.riverName?{riverName:point.riverName}:undefined,
      quality:{photographyClass:'normal',visibility:'model-clear'},modelEvidence:{kind:'synthetic-runtime-fixture',status:'model-clear'}};
     candidateFixture.rows.push(structuredClone(row));return row;
    }});
@@ -117,8 +122,40 @@ async function assertSelected(p,row,before,body,target='custom'){
     await p.waitForFunction(()=>{const button=document.getElementById('candidateSearchAction');return button?.dataset.state==='idle'&&!button.disabled;});await search(p);
     const rangeBefore=await state(p);await p.evaluate(()=>{const click=document.querySelector('#candidateUnifiedResults .list-item').onclick,mode=document.getElementById('candidateSearchMode');mode.value='window';mode.onchange();click();});assert.deepEqual(await state(p),rangeBefore,'changed time range candidate refused');
     await search(p);await p.evaluate(()=>{const mode=document.getElementById('candidateSearchMode');mode.value='day';mode.onchange();});
+    const townShard=/\/candidate-towns\/13122\.json(?:\?|$)/;
+    let releaseTown;const heldTown=new Promise(resolve=>{releaseTown=resolve;});
+    await context.route(townShard,async route=>{await heldTown;await route.continue().catch(()=>{});},{times:1});
+    await p.evaluate(()=>{candidateFixture.riverRows=true;SkyMapUI.setTime(Date.parse('2026-11-06T12:00:00+09:00'));});
+    await openCandidates(p);
+    const namedRiver='新中川沿いの歩道',town='東京都葛飾区奥戸九丁目',riverCoords='35.73522, 139.87078',unnamedCoords='35.59000, 140.02000';
+    const rows=p.locator('#candidateUnifiedResults .list-item');
+    const named=rows.filter({hasText:namedRiver}),unnamed=rows.filter({hasText:'河川沿いの歩道'});
+    const choices=p.locator('#candidateMapChoice'),riverChoice=choices.locator('option').filter({hasText:namedRiver});
+    const detail=p.locator('#candidateMapDetail'),mapToggle=p.locator('#candidateMapToggle');
+    let labelledBefore;
+    try{
+     await Promise.all([p.waitForRequest(townShard),search(p,2)]);
+     assert.equal(await named.locator('[data-candidate-address]').innerText(),riverCoords,'search completes and lists the river while its town file waits');
+     assert.equal(await unnamed.locator('[data-candidate-address]').innerText(),unnamedCoords);
+     labelledBefore=await state(p);await mapToggle.click();await choices.selectOption(await riverChoice.getAttribute('value'));
+     assert((await detail.innerText()).includes(riverCoords),'map works while the town file waits');
+    }finally{releaseTown();}
+    await p.waitForFunction(town=>document.querySelector('#candidateMapDetail')?.textContent.includes(town),town);
+    await mapToggle.click();await named.getByText(town,{exact:true}).waitFor();
+    assert.equal(await named.locator('[data-candidate-address]').innerText(),town);
+    assert.equal(await unnamed.locator('[data-candidate-address]').innerText(),unnamedCoords);
+    const labelledMetrics=await p.locator('#candidateListControls').evaluate(n=>({overflow:n.scrollWidth>n.clientWidth+1,bodyOverflow:document.documentElement.scrollWidth>innerWidth+1}));assert(!labelledMetrics.overflow&&!labelledMetrics.bodyOverflow,JSON.stringify(labelledMetrics));
+    const labelled=await p.evaluate(name=>structuredClone(AstroNotesCandidatePicker.visibleRows().find(r=>r.place.name===name)),namedRiver);
+    await mapToggle.click();await choices.selectOption(await riverChoice.getAttribute('value'));
+    assert((await p.locator('#candidateMapDetail').innerText()).includes(town));
+    const unnamedChoice=choices.locator('option').filter({hasText:'河川沿いの歩道'});
+    await choices.selectOption(await unnamedChoice.getAttribute('value'));
+    assert((await detail.innerText()).includes(unnamedCoords));
+    assert.deepEqual(await state(p),labelledBefore,'river labels do not change the selected place or time');
+    await choices.selectOption(await riverChoice.getAttribute('value'));
+    await p.locator('#candidateMapUse').click();await assertSelected(p,labelled,before,'moon');
     assert.equal(await saved(p),before);assert.equal(writes,0,'no API writes');assert.deepEqual(errors,[]);
-    results.push({engine,width,theme,bodies:bodies.length,arbitraryTarget:true,distinctHeights:[2,4,101.5],exactMapToAppearance:true,placeKindsOnly:true,staleInstantRangeRefusedLensKept:true,personalDataUnchanged:true,writes,externalBlocked:external});console.log(engine,width,theme,'passed');
+    results.push({engine,width,theme,bodies:bodies.length,arbitraryTarget:true,distinctHeights:[2,4,101.5],exactMapToAppearance:true,placeKindsOnly:true,staleInstantRangeRefusedLensKept:true,riverAndTownLabels:true,personalDataUnchanged:true,writes,externalBlocked:external});console.log(engine,width,theme,'passed');
    }catch(e){await p.screenshot({path:out+'/'+engine+'-'+width+'-'+theme+'-failure.png'}).catch(()=>{});console.error('fixture failure',engine,width,theme,await p.evaluate(()=>({status:document.querySelector('#candidateSearchFeedback [role=status]')?.textContent,rows:globalThis.AstroNotesCandidatePicker?.visibleRows?.().length,fixture:globalThis.candidateFixture,selection:typeof SkyMapUI==='object'?SkyMapUI.selectionState():null})).catch(()=>null));throw e;}
    finally{await context.close();}
   }}finally{await browser.close();}

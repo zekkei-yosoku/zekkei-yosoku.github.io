@@ -1924,14 +1924,62 @@ function hash(s){let x=2166136261;for(let i=0;i<s.length;i++){x^=s.charCodeAt(i)
 function distance(a,b){return Math.hypot((a[0]-b[0])*Math.cos((a[1]+b[1])*RAD/2),a[1]-b[1])*M;}
 function inside(r,p){let yes=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>p.latitude)!==(r[j][1]>p.latitude)&&p.longitude<(r[j][0]-r[i][0])*(p.latitude-r[i][1])/(r[j][1]-r[i][1])+r[i][0])yes=!yes;return yes;}
 const contains=(f,p)=>(!f.bbox||bboxPoint(p,f.bbox))&&f.polygons.some(poly=>inside(poly[0],p)&&!poly.slice(1).some(r=>inside(r,p)));
-function edgeDistance(line,p,c){let d=Infinity;for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],x=(b[0]-a[0])*c,y=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*c*x+(p.latitude-a[1])*y)/(x*x+y*y||1)));
-d=Math.min(d,Math.hypot((p.longitude-a[0])*c-u*x,p.latitude-a[1]-u*y)*M);}return d;}
-function nearEdges(feature,p,metres,c){
+function edgeDistance(line,p,c,closest=null){let d=Infinity;for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],x=(b[0]-a[0])*c,y=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*c*x+(p.latitude-a[1])*y)/(x*x+y*y||1)));
+ const m=Math.hypot((p.longitude-a[0])*c-u*x,p.latitude-a[1]-u*y)*M;
+ if(m<d){d=m;if(closest){closest.longitude=a[0]+(b[0]-a[0])*u;closest.latitude=a[1]+y*u;}}
+ }return d;}
+function edgeBoxInReach(feature,p,metres,c){
  const b=feature.bbox,limit=metres/M+1e-10;
  // Use the same local projection as edgeDistance, with room for rounding at the threshold.
- if(b?.every(finite)&&b[0]<=b[2]&&b[1]<=b[3]&&
-   (Math.max(b[0]-p.longitude,p.longitude-b[2])*Math.abs(c)>limit||Math.max(b[1]-p.latitude,p.latitude-b[3])>limit))return false;
- return feature.lines.some(line=>edgeDistance(line,p,c)<=metres);
+ return !(b?.every(finite)&&b[0]<=b[2]&&b[1]<=b[3]&&
+   (Math.max(b[0]-p.longitude,p.longitude-b[2])*Math.abs(c)>limit||Math.max(b[1]-p.latitude,p.latitude-b[3])>limit));
+}
+function nearEdges(feature,p,metres,c){
+ return edgeBoxInReach(feature,p,metres,c)&&feature.lines.some(line=>edgeDistance(line,p,c)<=metres);
+}
+// Look for the name of the water beside the sampled walking point. A centerline
+// must actually pass through that water; proximity alone can pick a different
+// river across a levee, or a river running alongside a pond.
+function riverNameAt(point,waters,rivers){
+ const c=Math.cos(point.latitude*RAD),nearby=[];
+ let nearest=150;
+ for(const water of waters){
+  if(!water.polygons.length||!edgeBoxInReach(water,point,nearest+8,c))continue;
+  let distance=contains(water,point)?0:Infinity;
+  for(const line of water.lines)distance=Math.min(distance,edgeDistance(line,point,c));
+  if(distance>150)continue;
+  nearby.push({water,distance});nearest=Math.min(nearest,distance);
+ }
+ let name=null;
+ for(const {water,distance} of nearby){
+  // Nearby banks within the map's walking-width uncertainty must agree.
+  if(distance>nearest+8)continue;
+  if(water.geometryIncomplete)return null;
+  const {water:kind,waterway}=water.tags;
+  if(kind&&!['river','canal','stream'].includes(kind))return null;
+  const typed=!!kind||['river','canal','stream','riverbank'].includes(waterway);
+  const mapped=water.name.trim(),names=new Set();
+  if(typed&&mapped)names.add(mapped);
+  let namedDistance=Infinity,unnamedDistance=Infinity;
+  for(const river of rivers){
+   if(!edgeBoxInReach(river,point,300,c))continue;
+   const closest={};let best=Infinity,contact=null;
+   for(const line of river.lines){
+    const metres=edgeDistance(line,point,c,closest);
+    if(metres<best){best=metres;contact={...closest};}
+   }
+   if(best>300||!contact||!contains(water,contact))continue;
+   const lineName=river.name.trim();
+   if(lineName){names.add(lineName);namedDistance=Math.min(namedDistance,best);}
+   else unnamedDistance=Math.min(unnamedDistance,best);
+  }
+  if(!mapped&&Number.isFinite(unnamedDistance)&&unnamedDistance<=namedDistance+8)return null;
+  if(names.size!==1)return null;
+  const found=names.values().next().value;
+  if(mapped&&found!==mapped||name&&found!==name)return null;
+  name=found;
+ }
+ return name;
 }
 const xy=g=>(g||[]).filter(p=>p&&finite(p.lon)&&finite(p.lat)&&Math.abs(p.lon)<=180&&Math.abs(p.lat)<=90).map(p=>[p.lon,p.lat]);
 const closed=r=>r.length>=4&&distance(r[0],r[r.length-1])<.01;
@@ -2060,6 +2108,11 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
  const rows=[],seen=new Set();let remaining=0,remainingWanted=0,visited=0;
  for(const priority of [false,true]){const g=groups.filter(a=>(a[0].placeKind==='sidewalk')===priority);for(let i=0;g.some(a=>i<a.length);i++)for(const a of g)if(i<a.length){const p=a[i],k=key(p)+'/'+p.surfaceId;if(seen.has(k))continue;seen.add(k);if(visited++<skipPoints)continue;
  if(rows.length<maxPoints)rows.push(p);else{remaining++;if(pointKinds?.has(p.placeKind))remainingWanted++;}}}
+ // Enrich only the rows returned by this page. Classification, ordering and
+ // height/visibility checks stay driven by the same original walking points.
+ for(const p of rows)if(p.placeKind==='riverbank'&&(!pointKinds||pointKinds.has('riverbank'))){
+  const name=riverNameAt(p,waters,rivers);if(name)p.sourceEvidence.riverName=name;
+ }
  return {rows,limited:remaining>0||generationLimited,omittedPoints:remaining,remainingWanted,generationLimited,unknownGeometry};
 }
 function publishedViewpoints(data,regions){
@@ -2884,10 +2937,27 @@ function resolve(data,p,kind){
  return {status:'matched',names,sourceIds:matches.map(f=>f.id)};
 }
 function enrich(row,{addresses=null,facilities=null}={}){
- const p=row.place,address=resolve(addresses,p,'census-town-areas'),facility=resolve(facilities,p,'osm-named-areas'),area=address.status==='matched'?address.names[0]:null,name=facility.status==='matched'?facility.names.join('／'):area;
- return {...row,place:{...p,...(name?{name:name+'（モデル候補）'}:{}),subtitle:area||'住所未確認'},labels:{address,facility,coordinate:point(p)?p.latitude.toFixed(5)+', '+p.longitude.toFixed(5):'',addressYear:addresses?.year??null,facilityDataDate:facilities?.dataDate??null}};
+ const p=row.place,address=resolve(addresses,p,'census-town-areas'),facility=resolve(facilities,p,'osm-named-areas');
+ const area=address.status==='matched'?address.names[0]:'',fallback=facility.status==='matched'?facility.names.join('／'):area;
+ const riverName=row.placeKind==='riverbank'&&typeof row.sourceEvidence?.riverName==='string'?row.sourceEvidence.riverName.trim():'';
+ let name=p.name;
+ if(riverName&&(!name||name==='河川沿いの歩道'||/^(?:撮影候補|モデル候補)/.test(name)))name=riverName+'沿いの歩道';
+ else if(fallback&&(!name||/^(?:撮影候補|モデル候補)/.test(name)))name=fallback+'（モデル候補）';
+ return {...row,place:{...p,name,subtitle:area,...(riverName?{riverName}:{})},labels:{address,facility,coordinate:point(p)?p.latitude.toFixed(5)+', '+p.longitude.toFixed(5):'',addressYear:addresses?.year??null,facilityDataDate:facilities?.dataDate??null}};
 }
-return {resolve,enrich,edgeDistance};
+function townFiles(index,p){
+ if(index?.version!==1||!Array.isArray(index.wards)||!point(p))return [];
+ return index.wards.filter(ward=>/^\d{5}\.json$/.test(ward?.file)&&/^[0-9a-f]{64}$/.test(ward.sha256)&&
+  Array.isArray(ward.bbox)&&ward.bbox.length===4&&ward.bbox.every(Number.isFinite)&&within(p,ward.bbox));
+}
+function townAddress(layers,p){
+ const matches=layers.map(layer=>resolve(layer,p,'census-town-areas'));
+ if(matches.some(r=>['boundary','ambiguous','unavailable'].includes(r.status)))return null;
+ const found=matches.filter(r=>r.status==='matched');
+ if(new Set(found.flatMap(r=>r.names)).size!==1)return null;
+ return {status:'matched',names:found[0].names,sourceIds:found.flatMap(r=>r.sourceIds)};
+}
+return {resolve,enrich,edgeDistance,townFiles,townAddress};
 });
 
 // Trial-only candidate presentation. A row keeps its evidence and selection handler.
@@ -3029,20 +3099,33 @@ const uncertainty=row=>[row.quality?.surveyed?'調査で確認':'',row.quality?.
 function configure(value){if(typeof value==='function')loadLabels=value;else if(value){ports={...ports,...value};if(typeof value.loadLabels==='function')loadLabels=value.loadLabels;}}
 function planKey(plan){return typeof ports.requestKey==='function'?ports.requestKey(plan):JSON.stringify([plan.requestKey,plan.owner,plan.body,plan.target,plan.partId,plan.limb,plan.matchMode,plan.composition,plan.compositionInvalid,plan.timeSpec||null,day(plan.at),plan.atmosphere,
 plan.cameraHeight]);}
+function locationText(row){
+ const {name,riverName,subtitle}=row.place;
+ const address=row.labels?.address?.status==='matched'?subtitle:row.placeKind==='riverbank'?row.labels?.coordinate:null;
+ const river=riverName&&!name?.includes(riverName)?riverName:null;
+ return [river,address].filter(Boolean).join(' ・ ');
+}
 function formatRow(node,row,types){
  if(!node.hasAttribute('data-candidate-columns')){
   const notes=[...node.querySelectorAll('.sub-line')].filter(n=>!n.hasAttribute('data-place-kind')).map(n=>n.textContent.replace(/^\d{2}:\d{2}・/,'').replace(/ · \d{2}:\d{2}/,''));
   node.replaceChildren();node.dataset.candidateColumns='';
   Object.assign(node.style,{display:'grid',gridTemplateColumns:columns,columnGap:'8px',rowGap:'4px',alignItems:'start',textAlign:'left',padding:'12px 0',minHeight:'44px'});
-  const title=document.createElement('span');title.dataset.candidatePlace='';title.textContent=row.place.name;Object.assign(title.style,{minWidth:'0',overflowWrap:'anywhere',fontSize:'14px',fontWeight:'600'});
+  const title=document.createElement('span');title.dataset.candidatePlace='';Object.assign(title.style,{minWidth:'0',overflowWrap:'anywhere',fontSize:'14px',fontWeight:'600'});
   const clock=document.createElement('span');clock.dataset.candidateTime='';clock.textContent=clockText(row.event?.at);Object.assign(clock.style,{fontSize:'14px',fontVariantNumeric:'tabular-nums',whiteSpace:'nowrap'});
   const kind=document.createElement('span');kind.dataset.placeKind='';Object.assign(kind.style,{fontSize:'14px',minWidth:'0',overflowWrap:'anywhere'});
   const angle=document.createElement('span');angle.dataset.candidateAngle='';Object.assign(angle.style,{fontSize:'14px',fontVariantNumeric:'tabular-nums',whiteSpace:'nowrap',textAlign:'right'});node.append(title,clock,kind,angle);
   if(notes.length){const detail=document.createElement('span');detail.className='tiny sub-line';detail.textContent=notes.join(' · ');Object.assign(detail.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});node.append(detail);}
  }
+ const title=node.querySelector('[data-candidate-place]');if(title.textContent!==row.place.name)title.textContent=row.place.name;
  node.querySelector('[data-place-kind]').textContent=types.map(t=>names[t]).join('・');
  node.querySelector('[data-candidate-time]').textContent=clockText(row.event?.at);
  const angleCell=node.querySelector('[data-candidate-angle]');if(angleCell){const a=angleOf(row);angleCell.textContent=Number.isFinite(a)?Math.round(a)+'°':'—';angleCell.setAttribute('aria-label',Number.isFinite(a)?'見上げる角度 '+Math.round(a)+'度':'見上げる角度 不明');}
+ const location=locationText(row);let address=node.querySelector('[data-candidate-address]');
+ if(location){
+  if(!address){address=document.createElement('span');address.dataset.candidateAddress='';address.className='tiny sub-line';Object.assign(address.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});
+   const before=node.querySelector('[data-candidate-area],[data-candidate-composition],[data-candidate-uncertainty]');if(before)node.insertBefore(address,before);else node.append(address);}
+  if(address.textContent!==location)address.textContent=location;
+ }else address?.remove();
  const framed=compositionText(row);let line=node.querySelector('[data-candidate-composition]');
  if(framed){if(!line){line=document.createElement('span');line.dataset.candidateComposition='';line.className='tiny sub-line';Object.assign(line.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});
   const before=node.querySelector('[data-candidate-uncertainty]');if(before)node.insertBefore(line,before);else node.append(line);}line.textContent=framed;}else line?.remove();
@@ -3195,7 +3278,8 @@ function refreshMap(){
  if(select.dataset.signature!==signature){select.replaceChildren();visibleEntries.forEach((e,i)=>select.add(new Option(`${i+1}. ${e.row.place.name} ・ ${clockText(e.row.event?.at)}`,e.id)));select.dataset.signature=signature;}
  select.value=selectedId||'';const e=mapSelection();
  const detail=mapPanel.querySelector('#candidateMapDetail');if(e){const obs=e.row.assumedObserver,p=e.row.place,base=Number.isFinite(obs?.elevation)?obs.elevation:p.groundManualM??p.elevation,eye=Number.isFinite(obs?.eyeM)?obs.eyeM:p.standAglM??p.eyeHeightAGL;
- detail.textContent=e.types.map(t=>names[t]).join('・')+' ・ '+clockText(e.row.event?.at)+(Number.isFinite(base)&&Number.isFinite(eye)?' ・ 撮影位置の標高 '+(base+eye).toFixed(1)+'m':' ・ 高さ未確認')+uncertainty(e.row).map(s=>' ・ '+s).join('');}
+ detail.textContent=[locationText(e.row),e.types.map(t=>names[t]).join('・'),clockText(e.row.event?.at),
+  Number.isFinite(base)&&Number.isFinite(eye)?'撮影位置の標高 '+(base+eye).toFixed(1)+'m':'高さ未確認',...uncertainty(e.row)].filter(Boolean).join(' ・ ');}
  mapPanel.querySelector('#candidateMapUse').disabled=!currentEntry(e);
  if(mapFitPending){mapFitPending=false;const ps=visibleEntries.map(e=>e.row.place).filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude));
  if(ps.length){const lat0=Math.min(...ps.map(p=>p.latitude)),lat1=Math.max(...ps.map(p=>p.latitude)),lon0=Math.min(...ps.map(p=>p.longitude)),lon1=Math.max(...ps.map(p=>p.longitude)),lat=(lat0+lat1)/2,lon=(lon0+lon1)/2,cv=mapPanel.querySelector('canvas'),dx=Math.max(.00001,(lon1-lon0)/360),
@@ -3243,13 +3327,24 @@ const contextActive=()=>{const main=mainWorkspace();return main?main.active():do
 let dateNavigation=null,dateCalendar=null,autoSearchTimer=null,dateRefreshPending=false,hasSearched=false,returnSearch=null;
 let timeChoice='day',windowStart='00:00',windowEnd='23:59';
 const dataTag=new URL(document.currentScript.src,location.href).searchParams.get('v')||'0';
-const dataHashes={"candidate-viewpoints.json":"f9496da00f09be194ea770c3c7e851afd84f388fe5fa388922635e53c86950c5","candidate-surveyed-viewpoints.json":"01f8c9352dafae2dca533e727b5952e8fcca0dec8c69cad67cbf3091c004cbaf","candidate-terrain.json":"5c78165203510383eab45feb0e2195a06c6f4d8ec5f3e682db941ca705279779","candidate-buildings.json":"e4ec51ed732be60108959a7854cdd5ae8aab46a94aaa026f0d5094101e1f4c8a","building-heights/index.json":"6c50fb9f8e0792f34d99cefb9b5aeb300a5a43f722bd0b0aa4ba8572c2676e19","building-shapes/index.json":"0298fc54cd928ed403b637b456b0871fe984d3978a02961a40e89e07c7d6c10c","osm-places/index.json":"101f0c969fcfdf205b775f6dad761b00b99264fd4c6905a751da38de859a4bdc","candidate-surfaces.json":"de16ae6e56aa05a1d4a7d6d0fa8974a4373183f35e8282f412f7fbd7c637751f","candidate-sidewalks.json":"efc42ec01902232f52ec36e84808dc3400892d91c5ddf663d91ef34bb123e48a","candidate-label-addresses.json":"3919fc5e919863ba593174cdd805f860d41882938667055ab456b9abe33d869b","candidate-label-facilities.json":"ca92359defa9b765fe86db8bf5053cd5921182a39af1975b9324274615efdf53","visibility/tokyotower.json":"c84ac9ff18a62aa3441c6a7a099f94de7873e7a4c49e86c39cec7dd52d65fdc6","visibility/skytree.json":"014ae6629d51233b56fb73f8dcafdfd7df45a632070e08c030defeae75cb7630","visibility/tocho-building.json":"9d953e2b62591e2b67fafd7f841cfc8d4643ab945309bb2eb89f495e88c40458","visibility/shibuya-sky.json":"fb4c4990b1fcd55dac45d92a96cffc0062c0fb5dbaaedc14b31c466f2e3b6bc5","visibility/azabudai-hills.json":"ac28e1b2ec05a20d5e98159e19961428e2e137e70a33e1ad644c1f2c2a907a64","visibility/kabukicho-tower.json":"f237c33491c5643248c5a8e5acd40671b604b5cc559fe1f05440d4df7903c298","visibility/tower-terror.json":"8c7c0e667c8ee8699cfe44db094b40668a8596f36edd9e9558554451f07c037f","visibility/cinderella.json":"d8df5afa0b15b14d1ccfb448c4a035c3821f9f0b63f34895d6ac112dc9902201","visibility/tinkerbell.json":"4f8936733b89e0816c1146e71b1dd20f57f79e99020a1202f31fd52e005b50ac"};
+const dataHashes={"candidate-viewpoints.json":"f9496da00f09be194ea770c3c7e851afd84f388fe5fa388922635e53c86950c5","candidate-surveyed-viewpoints.json":"01f8c9352dafae2dca533e727b5952e8fcca0dec8c69cad67cbf3091c004cbaf","candidate-terrain.json":"5c78165203510383eab45feb0e2195a06c6f4d8ec5f3e682db941ca705279779","candidate-buildings.json":"e4ec51ed732be60108959a7854cdd5ae8aab46a94aaa026f0d5094101e1f4c8a","building-heights/index.json":"6c50fb9f8e0792f34d99cefb9b5aeb300a5a43f722bd0b0aa4ba8572c2676e19","building-shapes/index.json":"0298fc54cd928ed403b637b456b0871fe984d3978a02961a40e89e07c7d6c10c","osm-places/index.json":"101f0c969fcfdf205b775f6dad761b00b99264fd4c6905a751da38de859a4bdc","candidate-surfaces.json":"de16ae6e56aa05a1d4a7d6d0fa8974a4373183f35e8282f412f7fbd7c637751f","candidate-sidewalks.json":"efc42ec01902232f52ec36e84808dc3400892d91c5ddf663d91ef34bb123e48a","candidate-label-addresses.json":"3919fc5e919863ba593174cdd805f860d41882938667055ab456b9abe33d869b","candidate-label-facilities.json":"ca92359defa9b765fe86db8bf5053cd5921182a39af1975b9324274615efdf53","candidate-towns/index.json":"5ef17e0a21bd0dbad7d4b7244b157cafa0205a07d0e088d1f1876c06435df1b1","visibility/tokyotower.json":"c84ac9ff18a62aa3441c6a7a099f94de7873e7a4c49e86c39cec7dd52d65fdc6","visibility/skytree.json":"014ae6629d51233b56fb73f8dcafdfd7df45a632070e08c030defeae75cb7630","visibility/tocho-building.json":"9d953e2b62591e2b67fafd7f841cfc8d4643ab945309bb2eb89f495e88c40458","visibility/shibuya-sky.json":"fb4c4990b1fcd55dac45d92a96cffc0062c0fb5dbaaedc14b31c466f2e3b6bc5","visibility/azabudai-hills.json":"ac28e1b2ec05a20d5e98159e19961428e2e137e70a33e1ad644c1f2c2a907a64","visibility/kabukicho-tower.json":"f237c33491c5643248c5a8e5acd40671b604b5cc559fe1f05440d4df7903c298","visibility/tower-terror.json":"8c7c0e667c8ee8699cfe44db094b40668a8596f36edd9e9558554451f07c037f","visibility/cinderella.json":"d8df5afa0b15b14d1ccfb448c4a035c3821f9f0b63f34895d6ac112dc9902201","visibility/tinkerbell.json":"4f8936733b89e0816c1146e71b1dd20f57f79e99020a1202f31fd52e005b50ac"};
 // The trial keeps no copy of this data: its page points at the production folder (build-preview.py).
 const dataBase=document.querySelector('meta[name="astronotes-data-base"]')?.content||'data/';
-const readData=async(name,{signal}={})=>{const r=await fetch(dataBase+name+'?v='+dataTag,{signal});if(!r.ok)throw Error('data');const bytes=await r.arrayBuffer(),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
-if(hash!==dataHashes[name])throw Error('data-version');return JSON.parse(new TextDecoder().decode(bytes));};
+async function readData(name,{signal,expectedHash=dataHashes[name],priority}={}){
+ const r=await fetch(dataBase+name+'?v='+dataTag,{signal,priority});
+ if(!r.ok)throw Error('data');
+ const bytes=await r.arrayBuffer(),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
+ if(hash!==expectedHash)throw Error('data-version');
+ return JSON.parse(new TextDecoder().decode(bytes));
+}
 const cachedData=new Map();
-function loaded(name){if(!cachedData.has(name)){const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),10000);cachedData.set(name,readData(name,{signal:ctrl.signal}).catch(e=>{cachedData.delete(name);throw e;}).finally(()=>clearTimeout(timer)));}return cachedData.get(name);}
+function loaded(name,options={}){
+ if(!cachedData.has(name)){
+  const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),10000);
+  cachedData.set(name,readData(name,{...options,signal:ctrl.signal}).catch(e=>{cachedData.delete(name);throw e;}).finally(()=>clearTimeout(timer)));
+ }
+ return cachedData.get(name);
+}
 // Saved targets standing on a PLATEAU building take its shape on this page (見え方 and new places).
 const plateauShapes=globalThis.AstroNotesPlateauBuildings?.create({load:loaded,base:dataBase+'building-shapes/'})||null;globalThis.AstroNotesPlateauShapes=plateauShapes;
 // The targets the app lists carry their PLATEAU shape, so the overlap list and registered places (calculation
@@ -3267,6 +3362,30 @@ document.addEventListener('astronotes-records-change',refreshShapes);
 let againForRecords=null;document.addEventListener('astronotes-records-change',()=>againForRecords?.());
 (globalThis.startupSessionReady||Promise.resolve()).then(refreshShapes,()=>{});
 const loadLabels=async()=>{const [addresses,facilities]=await Promise.all(['candidate-label-addresses.json','candidate-label-facilities.json'].map(n=>loaded(n).catch(()=>null)));return {addresses,facilities};};
+const knownTownAddresses=new Map(),townKey=({latitude,longitude})=>latitude+','+longitude;
+function setTownAddress(row,{address,year}){
+ row.place.subtitle=address.names[0];row.labels.address=address;row.labels.addressYear=year;
+}
+async function fillTownAddresses(rows,isCurrent){
+ const unresolved=rows.filter(row=>['outside-coverage','no-area-match','unavailable'].includes(row.labels.address.status));
+ if(!unresolved.length)return false;
+ const index=await loaded('candidate-towns/index.json',{priority:'low'}).catch(()=>null);
+ if(!index||!isCurrent())return false;
+ const matches=await Promise.all(unresolved.map(async row=>{
+  const files=AstroNotesCandidateLabels.townFiles(index,row.place);
+  const layers=await Promise.all(files.map(ward=>loaded('candidate-towns/'+ward.file,{expectedHash:ward.sha256,priority:'low'}).catch(()=>null)));
+  return {row,address:AstroNotesCandidateLabels.townAddress(layers,row.place)};
+ }));
+ if(!isCurrent())return false;
+ let changed=false;
+ for(const {row,address} of matches)if(address){
+  const value={address,year:index.year};
+  knownTownAddresses.set(townKey(row.place),value);
+  if(knownTownAddresses.size>1024)knownTownAddresses.delete(knownTownAddresses.keys().next().value);
+  setTownAddress(row,value);changed=true;
+ }
+ return changed;
+}
 const filterKey=p=>JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode]);
 AstroNotesCandidatePicker.configure({loadLabels,createMapView,filterKey,getScroller:()=>mainWorkspace()?.scroller(),getReturnScroll:()=>mainWorkspace()?.returnScroll?.(),onRendered:count=>mainWorkspace()?.restoreScroll(count),requestKey:p=>AstroNotesCandidateDiscovery.requestKey(p)});
 const live=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxDurationMs:120000,lookAhead:true});
@@ -3543,18 +3662,21 @@ function mount(){
  status.textContent=missingField?(missingField.endsWith('Start')?'探索の開始時刻を入力してください。':'探索の終了時刻を入力してください。')
   :!p?'天体・対象・日付を選んでください。':!valid?'指定した日時と構図を確認してください。':'';
  let continuation=false,hasRun=false,searching=false,failed=false,items=new Map(),shown=null;
+ const presentation=AstroNotesLibrary.gate();
  // A place saved to the records leaves this list at once, and one removed from them comes back.
  againForRecords=()=>{if(shown&&!searching&&section.isConnected)present(...shown);};
  function renderAction(){button.dataset.state=searching?'searching':'idle';button.textContent=searching?'キャンセル':failed?'再試行':continuation?'続きを探す':hasRun?(main?'候補を探し直す':'もう一度確認'):main?'候補を探す':'ほかの候補地点を探す';button.disabled=!valid;resultList.setAttribute('aria-busy',String(searching));}
  renderAction();
  // partial: rows found so far while the search goes on; the list is replaced, the progress and the action stay.
  async function present(result,selected,node,token,{cancelled=false,interrupted=false,partial=false}={}){
-   const labels=result.rows.length?await loadLabels():{};if(!current(token,selected,node)||partial&&!searching)return;
+   const ticket=presentation.next(),isPresented=()=>presentation.current(ticket)&&current(token,selected,node);
+   const labels=result.rows.length?await loadLabels():{};if(!isPresented()||partial&&!searching)return;
    // Rows already shown keep their buttons and new ones wait hidden until the list places them: emptying and
    // refilling the list for every place found made the page jump while searching (2026-11-13, seen on the iPhone).
    // Places already among the user's saved shooting places are shown on the records side only (candidate-picker.js inRecords).
    const rows=[],nodes=[],kept=new Map(),recorded=globalThis.MyPlacesUI?.savedPlaces?.()||[];if(!partial)shown=[result,selected,node,token,{cancelled,interrupted}];
-   for(const raw of result.rows){if(AstroNotesCandidatePicker.inRecords(raw,recorded))continue;const row=AstroNotesCandidateLabels.enrich(raw,labels);if(raw.place.name&&!/^(?:撮影候補|モデル候補)/.test(raw.place.name))row.place.name=raw.place.name;rows.push(row);
+   for(const raw of result.rows){if(AstroNotesCandidatePicker.inRecords(raw,recorded))continue;const row=AstroNotesCandidateLabels.enrich(raw,labels),town=knownTownAddresses.get(townKey(row.place));
+   if(town&&row.labels.address.status!=='matched')setTownAddress(row,town);rows.push(row);
    let item=items.get(row.id);if(!item){item=document.createElement('button');item.type='button';item.className='list-item';item.hidden=true;item.textContent=row.place.name;resultList.append(item);}
    kept.set(row.id,item);nodes.push(item);item.dataset.modelBasis=row.modelEvidence?.kind||'unknown';item.dataset.candidateName=row.place.name;item.dataset.candidateId=row.id;
     item.onclick=()=>{if(mainWorkspace()&&!mainWorkspace().selectable()||!current(token,selected,node)||row.requestKey!==key(snapshot()))return;const event={...row.event};delete event.matchMode;const candidate={...row,event};const host=document.getElementById('aimLook'),previous=host?._compose;
@@ -3564,6 +3686,8 @@ function mount(){
    }
    for(const [id,old] of items)if(!kept.has(id))old.remove();items=kept;
    AstroNotesCandidatePicker.registerAdditional(resultList,rows,selected,()=>current(token,selected,node),nodes);
+   fillTownAddresses(rows,isPresented).then(changed=>{if(changed&&isPresented())AstroNotesCandidatePicker.apply();})
+    .catch(error=>globalThis.AstroNotesErrors?.note('candidates.town-address',error));
    if(partial){visibleCredits.hidden=!rows.length;main?.reveal();return;}
    const incomplete=!!result.stalled||interrupted||result.coverage.loaded?.some(c=>c.failedRegions?.length||c.missing?.includes('time-budget'));
    continuation=cancelled||interrupted||!!result.canContinue;failed=!cancelled&&incomplete;
@@ -3874,4 +3998,4 @@ sync();
  addEventListener('unhandledrejection',e=>{const r=e?.reason;if(r?.name==='AbortError')return;const where=/([\w.-]+\.js)[^:\s]*:(\d+)/.exec(String(r?.stack||''));keep('rejection',r?.message||r,where?.[1],where?.[2]);});
 })();
 
-// data-release 13860db77643730bf6ea6dd4090cfe76b5920a82a8bdaba241625b005a94eee9
+// data-release f9cd25876ae7170c3d0e9a2eb639f63f41731dd1c25650a52336746e1a3ba6fc

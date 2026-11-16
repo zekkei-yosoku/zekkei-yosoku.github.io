@@ -21,14 +21,62 @@ function hash(s){let x=2166136261;for(let i=0;i<s.length;i++){x^=s.charCodeAt(i)
 function distance(a,b){return Math.hypot((a[0]-b[0])*Math.cos((a[1]+b[1])*RAD/2),a[1]-b[1])*M;}
 function inside(r,p){let yes=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>p.latitude)!==(r[j][1]>p.latitude)&&p.longitude<(r[j][0]-r[i][0])*(p.latitude-r[i][1])/(r[j][1]-r[i][1])+r[i][0])yes=!yes;return yes;}
 const contains=(f,p)=>(!f.bbox||bboxPoint(p,f.bbox))&&f.polygons.some(poly=>inside(poly[0],p)&&!poly.slice(1).some(r=>inside(r,p)));
-function edgeDistance(line,p,c){let d=Infinity;for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],x=(b[0]-a[0])*c,y=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*c*x+(p.latitude-a[1])*y)/(x*x+y*y||1)));
-d=Math.min(d,Math.hypot((p.longitude-a[0])*c-u*x,p.latitude-a[1]-u*y)*M);}return d;}
-function nearEdges(feature,p,metres,c){
+function edgeDistance(line,p,c,closest=null){let d=Infinity;for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],x=(b[0]-a[0])*c,y=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*c*x+(p.latitude-a[1])*y)/(x*x+y*y||1)));
+ const m=Math.hypot((p.longitude-a[0])*c-u*x,p.latitude-a[1]-u*y)*M;
+ if(m<d){d=m;if(closest){closest.longitude=a[0]+(b[0]-a[0])*u;closest.latitude=a[1]+y*u;}}
+ }return d;}
+function edgeBoxInReach(feature,p,metres,c){
  const b=feature.bbox,limit=metres/M+1e-10;
  // Use the same local projection as edgeDistance, with room for rounding at the threshold.
- if(b?.every(finite)&&b[0]<=b[2]&&b[1]<=b[3]&&
-   (Math.max(b[0]-p.longitude,p.longitude-b[2])*Math.abs(c)>limit||Math.max(b[1]-p.latitude,p.latitude-b[3])>limit))return false;
- return feature.lines.some(line=>edgeDistance(line,p,c)<=metres);
+ return !(b?.every(finite)&&b[0]<=b[2]&&b[1]<=b[3]&&
+   (Math.max(b[0]-p.longitude,p.longitude-b[2])*Math.abs(c)>limit||Math.max(b[1]-p.latitude,p.latitude-b[3])>limit));
+}
+function nearEdges(feature,p,metres,c){
+ return edgeBoxInReach(feature,p,metres,c)&&feature.lines.some(line=>edgeDistance(line,p,c)<=metres);
+}
+// Look for the name of the water beside the sampled walking point. A centerline
+// must actually pass through that water; proximity alone can pick a different
+// river across a levee, or a river running alongside a pond.
+function riverNameAt(point,waters,rivers){
+ const c=Math.cos(point.latitude*RAD),nearby=[];
+ let nearest=150;
+ for(const water of waters){
+  if(!water.polygons.length||!edgeBoxInReach(water,point,nearest+8,c))continue;
+  let distance=contains(water,point)?0:Infinity;
+  for(const line of water.lines)distance=Math.min(distance,edgeDistance(line,point,c));
+  if(distance>150)continue;
+  nearby.push({water,distance});nearest=Math.min(nearest,distance);
+ }
+ let name=null;
+ for(const {water,distance} of nearby){
+  // Nearby banks within the map's walking-width uncertainty must agree.
+  if(distance>nearest+8)continue;
+  if(water.geometryIncomplete)return null;
+  const {water:kind,waterway}=water.tags;
+  if(kind&&!['river','canal','stream'].includes(kind))return null;
+  const typed=!!kind||['river','canal','stream','riverbank'].includes(waterway);
+  const mapped=water.name.trim(),names=new Set();
+  if(typed&&mapped)names.add(mapped);
+  let namedDistance=Infinity,unnamedDistance=Infinity;
+  for(const river of rivers){
+   if(!edgeBoxInReach(river,point,300,c))continue;
+   const closest={};let best=Infinity,contact=null;
+   for(const line of river.lines){
+    const metres=edgeDistance(line,point,c,closest);
+    if(metres<best){best=metres;contact={...closest};}
+   }
+   if(best>300||!contact||!contains(water,contact))continue;
+   const lineName=river.name.trim();
+   if(lineName){names.add(lineName);namedDistance=Math.min(namedDistance,best);}
+   else unnamedDistance=Math.min(unnamedDistance,best);
+  }
+  if(!mapped&&Number.isFinite(unnamedDistance)&&unnamedDistance<=namedDistance+8)return null;
+  if(names.size!==1)return null;
+  const found=names.values().next().value;
+  if(mapped&&found!==mapped||name&&found!==name)return null;
+  name=found;
+ }
+ return name;
 }
 const xy=g=>(g||[]).filter(p=>p&&finite(p.lon)&&finite(p.lat)&&Math.abs(p.lon)<=180&&Math.abs(p.lat)<=90).map(p=>[p.lon,p.lat]);
 const closed=r=>r.length>=4&&distance(r[0],r[r.length-1])<.01;
@@ -157,6 +205,11 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
  const rows=[],seen=new Set();let remaining=0,remainingWanted=0,visited=0;
  for(const priority of [false,true]){const g=groups.filter(a=>(a[0].placeKind==='sidewalk')===priority);for(let i=0;g.some(a=>i<a.length);i++)for(const a of g)if(i<a.length){const p=a[i],k=key(p)+'/'+p.surfaceId;if(seen.has(k))continue;seen.add(k);if(visited++<skipPoints)continue;
  if(rows.length<maxPoints)rows.push(p);else{remaining++;if(pointKinds?.has(p.placeKind))remainingWanted++;}}}
+ // Enrich only the rows returned by this page. Classification, ordering and
+ // height/visibility checks stay driven by the same original walking points.
+ for(const p of rows)if(p.placeKind==='riverbank'&&(!pointKinds||pointKinds.has('riverbank'))){
+  const name=riverNameAt(p,waters,rivers);if(name)p.sourceEvidence.riverName=name;
+ }
  return {rows,limited:remaining>0||generationLimited,omittedPoints:remaining,remainingWanted,generationLimited,unknownGeometry};
 }
 function publishedViewpoints(data,regions){

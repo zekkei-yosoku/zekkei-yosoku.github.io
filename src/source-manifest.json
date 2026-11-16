@@ -386,6 +386,7 @@
         "candidate-sidewalks.json": "data/candidate-sidewalks.json",
         "candidate-label-addresses.json": "data/candidate-label-addresses.json",
         "candidate-label-facilities.json": "data/candidate-label-facilities.json",
+        "candidate-towns/index.json": "data/candidate-towns/index.json",
         "visibility/tokyotower.json": "data/visibility/tokyotower.json",
         "visibility/skytree.json": "data/visibility/skytree.json",
         "visibility/tocho-building.json": "data/visibility/tocho-building.json",
@@ -1972,6 +1973,7 @@
           "src/features/candidates/generic-search.js",
           "src/features/candidates/composition-ui.js",
           "src/features/candidates/candidate-picker.js",
+          "src/features/candidates/ui.js",
           "src/features/candidates/error-log.js"
         ],
         "purpose": "握って続行した失敗を端末内の異常記録へ残す（外へは送らない）",
