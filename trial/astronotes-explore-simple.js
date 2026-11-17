@@ -223,17 +223,19 @@ function syncWorkspace(){
 }
 function captureSearch(){
  const s=SkyMapUI.selectionState();if(!s)return;
+ const candidatePlan=searchStarted?globalThis.AstroNotesCandidatePicker?.captureSearchPlan?.():null;
  returnIntent={owner:auth.loginId,generation:accessState.generation,selection:structuredClone(s),custom:structuredClone(SkyMapUI.workspaceHost()?.session.custom??null),customTarget:structuredClone(SkyMapUI.workspaceHost()?.session.customTarget??null),searched:searchStarted,
- scrollTop:document.scrollingElement.scrollTop,count:globalThis.AstroNotesCandidatePicker?.visibleRows().length||0};
+ candidatePlan:structuredClone(candidatePlan??null),scrollTop:document.scrollingElement.scrollTop,count:globalThis.AstroNotesCandidatePicker?.visibleRows().length||0};
 }
 function enterResult(){
  cancelCompositionSearch();
  if(!selectionPending)captureSearch();selectionPending=false;resultRequested=true;previewBackEpoch.cancel();foldConditions();syncWorkspace();SkyMapUI.render();
 }
 // Editing the current view is not "back": keep its selected place/time, not the earlier search selection.
-function showCurrentSearch(){
+function showCurrentSearch(keepSearchFrame=true){
  if(!active()||selectionPending||flowOwner!==auth?.loginId||flowGeneration!==accessState.generation)return false;
  if(resultRequested){
+  globalThis.AstroNotesCandidatePicker?.restoreSearchFrame?.(keepSearchFrame?returnIntent?.candidatePlan:null);
   previewBackEpoch.cancel();resultRequested=false;invalidate();look.hidden=true;
   document.dispatchEvent(new Event('astronotes-preview-leave'));
  }
@@ -275,7 +277,7 @@ function searchCompositionPlaces(){
  const request=compositionSearchRequest();if(!request)return false;
  const {key,missingField}=request;
  if(pendingCompositionSearch?.key===key)return true;
- cancelCompositionSearch();if(!showCurrentSearch())return false;chooseDiscovery('new');
+ cancelCompositionSearch();if(!showCurrentSearch(false))return false;chooseDiscovery('new');
  if(compositionSearchRequest()?.key!==key||!newPlacePane)return false;
  const pending={key,missingField,observer:null,frame:null};pendingCompositionSearch=pending;
  pending.observer=new MutationObserver(tryCompositionSearch);
@@ -295,10 +297,13 @@ function showSearch(){
  // Restore the full target as well: custom target coordinates/heights are part of the search.
  SkyMapUI.workspaceHost()?.restoreTarget({target:structuredClone(s.target),custom:saved.custom,customTarget:saved.customTarget});
  const body=$('skyMapBody');body.value=s.body;body.dispatchEvent(new Event('change',{bubbles:true}));SkyMapUI.setAlignment(s.partId,s.limb,s.matchMode);SkyMapUI.setTime(s.at);
- SkyMapUI.workspaceHost()?.restoreObserver(structuredClone(s.observer));selectionPending=false;searchStarted=saved.searched;pendingScroll={top:saved.scrollTop,count:saved.count};syncWorkspace();if(discoveryTab==='records'||!searchStarted)restoreSearchScroll(0);
+ SkyMapUI.workspaceHost()?.restoreObserver(structuredClone(s.observer));
+ globalThis.AstroNotesCandidatePicker?.restoreSearchFrame?.(saved.candidatePlan);
+ selectionPending=false;searchStarted=saved.searched;pendingScroll={top:saved.scrollTop,count:saved.count};syncWorkspace();if(discoveryTab==='records'||!searchStarted)restoreSearchScroll(0);
 }
 function leaveSearchFlow(){
  cancelCompositionSearch();
+ globalThis.AstroNotesCandidatePicker?.restoreSearchFrame?.(null);
  recordSeq.cancel();recordCalendarSeq.cancel();if(recordTimer!==null)clearTimeout(recordTimer);recordTimer=null;recordState={key:'',status:'idle'};recordPane?.replaceChildren();recordCache.clear();recordJobs.clear();recordMemo=null;recordCalendarArgs=null;
  previewBackEpoch.cancel();
  document.dispatchEvent(new Event('astronotes-preview-leave'));

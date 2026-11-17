@@ -64,6 +64,39 @@ async function assertIdleSearch(page){
     assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().observer.name),'登録した公園');assert(await page.locator('#exploreBackToCandidates').isVisible());
     await page.locator('#exploreBackToCandidates').click();await page.locator('#exploreDiscovery-new').click();await page.locator('#candidateSearchAction').waitFor({state:'visible'});assert.equal(await page.locator('#skyMapCalendarOpen').getAttribute('data-display-date'),'2026-11-16');
     }
+    // A named part makes the lens part of the search. The preview changes the
+    // focal length automatically when a candidate is selected.
+    await page.evaluate(()=>{
+     aimLens.on=true;aimLens.mode='manual';aimLens.focal=50;
+     document.getElementById('aimLook')._lensOffset=[0,0];
+     dateFixture.autoPages=true;dateFixture.nextCursor=7;dateFixture.holdCursor=7;
+     SkyMapUI.setAlignment('tip','center','limb');
+    });
+    if(process.env.CANDIDATE_FLOW_WINDOW==='overnight'){
+     await page.evaluate(()=>{
+      dateFixture.windowOffsetHours=1.5;
+      const change=(id,value)=>{const field=document.getElementById(id);field.value=value;field.onchange();};
+      change('candidateSearchMode','window');change('candidateSearchStart','23:00');change('candidateSearchEnd','01:00');
+     });
+    }
+    const action=page.locator('#candidateSearchAction'),rows=page.locator('#candidateUnifiedResults .list-item:visible');
+    await page.waitForFunction(()=>document.getElementById('candidateSearchAction')?.textContent==='候補を探す');
+    await action.click();
+    await page.waitForFunction(()=>dateFixture.holds.length===1&&AstroNotesCandidatePicker.visibleRows().length===2);
+    const namedPart=await page.evaluate(()=>({ids:AstroNotesCandidatePicker.visibleRows().map(r=>r.id),
+     key:AstroNotesCandidateDiscovery.requestKey(dateFixture.lastPlan),focal:dateFixture.lastPlan.lens.focal,loads:dateFixture.loads.length}));
+    await rows.first().click();await page.waitForFunction(focal=>!document.getElementById('aimLook').hidden&&aimLens.focal!==focal,namedPart.focal);
+    await page.locator('#exploreBackToCandidates').click();await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2);
+    assert.equal(await action.innerText(),'続きを探す');assert.deepEqual(await page.evaluate(()=>AstroNotesCandidatePicker.visibleRows().map(r=>r.id)),namedPart.ids);
+    const keyAndLoads=()=>page.evaluate(()=>({key:AstroNotesCandidateDiscovery.requestKey(AstroNotesCandidatePicker.registeredPlan()),loads:dateFixture.loads.length}));
+    assert.deepEqual(await keyAndLoads(),{key:namedPart.key,loads:namedPart.loads});
+    await page.evaluate(()=>{dateFixture.holds.shift().release();dateFixture.autoPages=false;dateFixture.nextCursor=null;});
+    await rows.first().click();await page.locator('#exploreBackToCandidates').waitFor({state:'visible'});
+    const previewAt=await page.evaluate(()=>SkyMapUI.selectionState().at);
+    await page.locator('#exploreConditions > summary .explore-condition-edit').click();
+    await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2);
+    assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().at),previewAt,'opening the editor keeps the time shown in the preview');
+    assert.deepEqual(await keyAndLoads(),{key:namedPart.key,loads:namedPart.loads});
     await page.evaluate(()=>SkyMapUI.setTarget('tokyotower')); await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===0);
     const changedNotice=page.locator('#candidateSearchEmpty');await changedNotice.waitFor({state:'visible'});assert(await changedNotice.isVisible(),'changing a searched condition keeps the re-search instruction visible');assert.equal(await changedNotice.innerText(),'条件を変更しました。もう一度候補を探してください。');assert(await page.locator('#recentCandidates').isHidden());assert.equal(await page.locator('#candidateUnifiedResults .list-item:visible').count(),0,'old candidates disappear after the target changes');await page.screenshot({path:out+'/'+engine+'-'+width+'-changed-condition.png'});
     assert(await page.locator('#exploreScenePanel').isHidden());

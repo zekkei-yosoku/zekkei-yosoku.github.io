@@ -5,7 +5,7 @@ let run=0,section=null,condition='',watch=null,controller=null,homeCondition='';
 const mainWorkspace=()=>globalThis.TrialExplore?.candidateWorkspace?.();
 const dateSelection=()=>{const s=SkyMapUI.selectionState();return Number.isFinite(s?.at)?s:SkyMapUI.workspaceHost()?.session;};
 const contextActive=()=>{const main=mainWorkspace();return main?main.active():document.getElementById('placeSheet')?.open&&typeof placeSheetFor!=='undefined'&&placeSheetFor==='skymap'&&!document.getElementById('recentCandidates')?.hidden;};
-let dateNavigation=null,dateCalendar=null,autoSearchTimer=null,dateRefreshPending=false,hasSearched=false,returnSearch=null;
+let dateNavigation=null,dateCalendar=null,autoSearchTimer=null,dateRefreshPending=false,hasSearched=false,returnSearch=null,returnedSearchFrame=null;
 let timeChoice='day',windowStart='00:00',windowEnd='23:59';
 const dataTag=new URL(document.currentScript.src,location.href).searchParams.get('v')||'0';
 const dataHashes=/* BUILD_DATA_HASHES */{};
@@ -209,11 +209,24 @@ function snapshot(){
  const searchLens=s.partId==='__whole'&&!extraTargets.length?{mode:'unspecified'}:lens;
  const selected={...s,authGeneration:mainWorkspace()?.epoch(),owner:auth.loginId,expected:context(s),atmosphere:air(),lens:searchLens,extraTargets,timeSpec:timeSpec(s.at),profile:typeof aimIsMountain==='function'&&aimIsMountain(s.target)?'summit-contact':'building-near',...(globalThis.AstroNotesTrialComposition?.plan(s)||{}),...(globalThis.AstroNotesTrialOverlap?.searchPlan?.(s)||{})};
  // A next-day event in an overnight window does not change the search day.
- if(returnSearch&&s.candidateOpportunity?.id===returnSearch.rowId&&s.at===returnSearch.viewAt){const restored={...selected,at:returnSearch.plan.at,timeSpec:returnSearch.plan.timeSpec};if(AstroNotesCandidateDiscovery.requestKey(restored)===returnSearch.key)return restored;}
+ const overnight=returnSearch&&s.candidateOpportunity?.id===returnSearch.rowId&&s.at===returnSearch.viewAt?
+  {...selected,at:returnSearch.plan.at,timeSpec:returnSearch.plan.timeSpec}:null;
+ // The preview can change the focal length and pan to frame a candidate.
+ // On return, keep those preview values out of the original search's identity.
+ if(returnedSearchFrame&&mainWorkspace()?.active()){
+  for(const plan of overnight?[overnight,selected]:[selected]){
+   const originalFrame={...plan,lens:returnedSearchFrame.lens};
+   if(uiKey(originalFrame)===returnedSearchFrame.identity)return originalFrame;
+  }
+  returnedSearchFrame=null;
+ }
+ if(overnight&&key(overnight)===returnSearch.key)return overnight;
  return selected;
 }
 const key=p=>p?AstroNotesCandidateDiscovery.requestKey(p):'';
 const uiKey=p=>key(p)+'|'+(p?.authGeneration??'');
+AstroNotesCandidatePicker.captureSearchPlan=()=>{const plan=snapshot();return plan&&engine.cached(plan)?plan:null;};
+AstroNotesCandidatePicker.restoreSearchFrame=plan=>{returnedSearchFrame=plan?{lens:plan.lens,identity:uiKey(plan)}:null;};
 AstroNotesCandidatePicker.registeredPlan=fallback=>mainWorkspace()||typeof placeSheetFor!=='undefined'&&placeSheetFor==='skymap'?snapshot()||fallback:fallback;
 // Registered rows keep their original selection action, but use the same full
 // request identity and explicit time/lens eligibility as generated rows.
