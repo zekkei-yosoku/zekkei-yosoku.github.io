@@ -537,6 +537,18 @@ async function paint(force=false){
  }catch(e){if((!run||plan.current(run))&&resultActive()){invalidate();look.hidden=true;scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');scene.style.minHeight='';message('見え方を計算できませんでした。条件を確認して再試行してください');updateConditions();}}
  finally{if(run&&plan.settle(run)&&resultActive()){scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');if(!look.hidden)scene.style.minHeight='';updateConditions();}}
 }
+let lastScrubSkyInfo=0;
+function paintScrubTime(){
+ if(!resultActive()||mode!=='scene'||forceNext||plan.pendingKey||!plan.frameKey||look.hidden||!look._uiTime)return false;
+ let s;
+ try{s=snapshot();if(stamp(s)!==plan.frameKey||!canFrame(s))return false;}catch{return false;}
+ // The scroll ruler already emits at most once per animation frame.
+ try{if(Math.abs(look._lookAt-s.at)>.5)look._uiTime.set(s.at);}
+ catch(error){globalThis.AstroNotesErrors?.note('explore.scrubScene',error);sync(true);return false;}
+ const now=performance.now();
+ if(now-lastScrubSkyInfo>=120){lastScrubSkyInfo=now;updateSkyInfo(s);}
+ return true;
+}
 function sync(force=false){
  forceNext=forceNext||force;if(scheduled)return;scheduled=true;
  requestAnimationFrame(()=>{scheduled=false;const f=forceNext;forceNext=false;void paint(f);});
@@ -751,7 +763,7 @@ window.addEventListener('pagehide',cancelCompositionSearch);
 // 探すを開いた時点で塔の模型を読み始め、地点を選んだ後の待ちから外す。
 const warmModels=()=>{if(/^#\/explore/.test(location.hash)&&eligible())AstroNotesAssets.ensureModels().catch(()=>{});};addEventListener('hashchange',warmModels);setTimeout(warmModels,0);
 globalThis.TrialExplore={candidateWorkspace:()=>layout.mounted?mainCandidateWorkspace:null,active,ownsScene,render,routeChanged,
- preferMap:()=>{transferMode='map';if(active())choose('map');},sync,invalidate:()=>{plan.forgetFrame();SkyMapUI.render();sync(true);},sceneDraw,assertScene,searchCompositionPlaces,
+ preferMap:()=>{transferMode='map';if(active())choose('map');},sync,paintScrubTime,invalidate:()=>{plan.forgetFrame();SkyMapUI.render();sync(true);},sceneDraw,assertScene,searchCompositionPlaces,
  camera:()=>{let timelapse=null;try{if(plan.frameKey===stamp(snapshot())&&AstroNotesTimelapse.settings(look._timelapseConfig))timelapse={...look._timelapseConfig};}catch(e){globalThis.AstroNotesErrors?.note('explore.timelapse',e);
  }return {l:{...aimLens,focal:Number(look.querySelector('[data-lens-focal]')?.value)||aimLens.focal||50},pan:[...(look._lensOffset||[0,0])],timelapse};}};
 document.addEventListener('visibilitychange',()=>{if(document.hidden)invalidate();else sync();});

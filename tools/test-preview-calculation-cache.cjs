@@ -90,6 +90,53 @@ async function measure(page,label,at){
  return {label,...row};
 }
 
+async function scrubMinutes(page,at){
+ const check=await page.evaluate(startAt=>new Promise(resolve=>{
+  const ruler=document.getElementById('skyMapTimeline'),look=document.getElementById('aimLook');
+  const original=MyPlacesUI.skyRender,prepare=AstroNotesAlign.prepareDailyView,checks=[];
+  let renders=0,preparations=0;
+  MyPlacesUI.skyRender=function(...args){renders++;return original.apply(this,args);};
+  AstroNotesAlign.prepareDailyView=function(...args){preparations++;return prepare.apply(this,args);};
+  const finish=()=>{
+   watcher.disconnect();clearTimeout(timeout);
+   MyPlacesUI.skyRender=original;AstroNotesAlign.prepareDailyView=prepare;
+   resolve({frames:checks,renders,preparations,initialSky,buildings:look._lookLayers.stats.buildings-initialBuildings});
+  };
+  const initialSky=look._lookSkyKey,initialBuildings=look._lookLayers.stats.buildings;
+  const watcher=new MutationObserver(()=>{
+   const at=Number(ruler.getAttribute('aria-valuenow'));
+   if(at===startAt||checks.some(frame=>frame.at===at))return;
+   const {observer,ground,eyeM}=SkyMapUI.renderState();
+   const sun=AstroNotesAstro.sun(at,{latitude:observer.latitude,longitude:observer.longitude,elevation:ground+eyeM});
+   const expectedSky=AstroNotesSceneAppearance.aimLookSky(sun.apparentAltitude).map(rgb=>rgb.join(',')).join('|');
+   checks.push({at,drawnAt:look._lookAt,uiAt:look._uiTime.current,sky:look._lookSkyKey,expectedSky});
+   if(checks.length===1){ruler.scrollLeft+=25;ruler.dispatchEvent(new Event('scroll'));}
+   else finish();
+  });
+  const timeout=setTimeout(finish,5000);
+  watcher.observe(ruler,{attributes:true,attributeFilter:['aria-valuenow']});
+  ruler.dispatchEvent(new Event('touchstart'));ruler.scrollLeft+=5;ruler.dispatchEvent(new Event('scroll'));
+ }),at);
+ await page.locator('#skyMapTimeline').evaluate(ruler=>ruler.dispatchEvent(new Event('touchend')));
+ assert.deepEqual(check.frames.map(frame=>frame.at),[at+75000,at+450000]);
+ for(const frame of check.frames){
+  assert.equal(frame.drawnAt,frame.at,'scene follows the same update as the ruler, including seconds');
+  assert.equal(frame.uiAt,frame.at);
+  assert.equal(frame.sky,frame.expectedSky,'sky color is from the same instant as the body');
+ }
+ assert.notEqual(check.frames[1].sky,check.initialSky,'test moves through changing twilight');
+ assert.equal(check.renders,0,'held gesture does not rerender the map workspace');
+ assert.equal(check.preparations,0,'held gesture reuses the prepared overlap geometry');
+ assert.equal(check.buildings,0,'held gesture leaves the building pixels cached');
+ const snappedAt=at+8*60000;
+ await page.waitForFunction(ms=>{
+  const look=document.getElementById('aimLook'),ruler=document.getElementById('skyMapTimeline');
+  const saved=JSON.parse(localStorage.getItem('sorami.skyMap:preview-cache'));
+  return look._lookAt===ms&&SkyMapUI.selectionState().at===ms&&+ruler.getAttribute('aria-valuenow')===ms&&saved?.at===ms;
+ },snappedAt);
+ return snappedAt;
+}
+
 function reused(before,after,kinds=['dayPath','framePath','scene']){
  for(const kind of kinds)assert.equal(after.counts[kind],before.counts[kind],after.label+': no repeated '+kind+' calculation');
 }
@@ -118,9 +165,9 @@ function invalidated(before,after,kinds){
    await lens(page,400,initialAt);const repeat=await record('repeat-400',initialAt);reused(zoom,repeat);assert.deepEqual(repeat.canvas,zoom.canvas,'identical render preserves the canvas pixels');assert.equal(repeat.frameTimes,zoom.frameTimes);
    await lens(page,200,initialAt);const back=await record('return-200',initialAt);reused(repeat,back);assert.deepEqual(back.canvas,first.canvas,'cached angular data is not mutated by projection');assert.equal(back.frameTimes,first.frameTimes);
 
-   const minute=initialAt+60000;
-   await action(page,at=>SkyMapUI.setTime(at),minute,minute);const later=await record('next-minute',minute);
-   assert.notEqual(later.canvas.hash,back.canvas.hash,'a new minute renders its current Moon, not the cached selected instant');
+   const minute=await scrubMinutes(page,initialAt);
+   const later=await record('next-minute',minute);reused(back,later);
+   assert.notEqual(later.canvas.hash,back.canvas.hash,'a new minute renders its current Moon and sky');
 
    await action(page,()=>{aimAirSettings.mode='none';AstroNotesAtmosphere.configure('none',aimAirSettings);document.querySelector('#aimLook [data-lens-focal]').onchange();},null,minute);
    const air=await record('atmosphere-none',minute);invalidated(later,air,['dayPath','framePath','scene']);assert.notEqual(air.atmosphereKey,later.atmosphereKey);assert.notEqual(air.canvas.hash,later.canvas.hash,'atmosphere invalidation updates visible geometry');

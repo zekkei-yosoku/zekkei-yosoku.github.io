@@ -497,8 +497,9 @@ async function renderPickerPanel(panel) {
 }
 
 // ---------------------------------------------------------------- 地図：指定日の撮影ポイント候補
-let skySession=null,skyKey='',skyToken=0,skyOwner=null;
-function leaveSky(){el('skyMapAlignmentControls')?.replaceChildren();const alignmentDetail=el('skyMapAlignmentDetails');if(alignmentDetail)alignmentDetail.hidden=true;skySession=null;skyKey='';skyToken++;candidateState={status:'idle',rows:[],failed:0};candidateCache.clear();candidateSheet?.close();
+let skySession=null,skyKey='',skyToken=0,skyOwner=null,overlapCheck=null;
+function leaveSky(){el('skyMapAlignmentControls')?.replaceChildren();const alignmentDetail=el('skyMapAlignmentDetails');if(alignmentDetail)alignmentDetail.hidden=true;skySession=null;skyKey='';skyToken++;
+ candidateState={status:'idle',rows:[],failed:0};candidateCache.clear();overlapCheck=null;candidateSheet?.close();
 el('shootingCandidatesList')?.replaceChildren();const condition=el('shootingCandidatesCondition');if(condition)condition.textContent='';el('mySkyPlaces')?.replaceChildren();overlapGate(false,'');}
 let pinsOn=store.get('sorami.candidatePins',true)!==false;
 let candidateState={status:'idle',rows:[],failed:0},candidateSheet=null,selectedCandidate=null;
@@ -548,9 +549,21 @@ function updateCandidateUI(){
 function checkOverlap(s){
  const out=el('shootingOverlap');if(!out)return;if(!s.observer){overlapGate(false,'');out.textContent='';out.classList.remove('shooting-overlap-on');return;}if(!s.daily||!s.eye){if(!out.textContent)out.textContent='重なりを確認しています…';return;}
  let hit=null;
- if(s.daily&&s.eye&&s.target)try{const o=AstroNotesShooting.searchOptions(s,aimIsMountain);hit=o.broad&&o.disc?AstroNotesAlign.dailyView(s.eye,s.target,s.body,s.at,{partId:o.partId,eyeM:0,at:s.at})[0]:AstroNotesAlign.alignmentAt(s.eye,s.target,s.body,s.at,{partId:o.partId,limb:o.limb,eyeM:0});
- if(o.broad&&o.disc)hit={...hit,matched:!!hit?.intersects};}catch(e){globalThis.AstroNotesErrors?.note('myplaces.alignment',e);}
- const matched=!!hit?.matched,key=JSON.stringify([auth?.loginId,s.observer,s.target,s.body,s.partId,s.limb,AstroNotesShooting.day(s.at)]);
+ const inputs=[auth?.loginId,s.observer,s.target,s.body,s.partId,s.limb];
+ if(s.target)try{
+  const o=AstroNotesShooting.searchOptions(s,aimIsMountain),broad=o.broad&&o.disc;
+  const key=JSON.stringify([s.eye,s.target,s.body,o.partId,o.limb,broad,AstroNotesAtmosphere.targetK()]);
+  const model=AstroNotesAlign.outlineModel(s.target);
+  // The observer's projection of the model is independent of the selected instant.
+  if(overlapCheck?.key!==key||overlapCheck.model!==model){
+   const opts={partId:o.partId,limb:o.limb,eyeM:0};
+   const judge=broad?AstroNotesAlign.prepareDailyView(s.eye,s.target,s.body,opts):AstroNotesAlign.prepareAlignmentAt(s.eye,s.target,s.body,opts);
+   overlapCheck={key,model,judge};
+  }
+  const row=broad?overlapCheck.judge(s.at,s.at)[0]:overlapCheck.judge(s.at);
+  hit=broad?{matched:!!row?.intersects}:row;
+ }catch(e){globalThis.AstroNotesErrors?.note('myplaces.alignment',e);}
+ const matched=!!hit?.matched,key=JSON.stringify([...inputs,AstroNotesShooting.day(s.at)]);
  overlapGate(matched,key);
  const text=matched?'重なる位置です':hit?'時間を動かして重なりを確認':'重なりを確認しています…';
  if(out.textContent!==text)out.textContent=text;
@@ -3412,7 +3425,7 @@ async function discoverySearch(plan,points,isCurrent,terrainCache,onProgress){
 
 window.MyPlacesUI = { discoveryPoints,discoverySearch,discoveryRevision,savedPlaces,
   recordSortControl,sortRecordPlaces, eyeAdjustmentFor, opportunities,recordProgress:showRecordProgress, backupState:()=>({observations:load(),shapes:shapeData()}),imported:()=>{version++;candidateCache.clear();changed();
-},selectShape, resetShapePicker, shapeFor, withShape, drawShape, renderAim, renderPickerPanel, skyDraw, skyRender, leaveSky, pickSky, badge, openPlace, recordFor, quickRecord, load, renderRecordsHub };
+},selectShape, resetShapePicker, shapeFor, withShape, drawShape, renderAim, renderPickerPanel, skyDraw, skyRender, skyOverlap:s=>{if(s===skySession&&skyOwner===auth?.token)checkOverlap(s);}, leaveSky, pickSky, badge, openPlace, recordFor, quickRecord, load, renderRecordsHub };
 // 読み込みより先に構図が描かれていたら、ここで一覧を出す
 if (el('aimView') && !el('aimView').hidden) { try { renderAim(); } catch { /* 構図を止めない */ } }
 // A map without an observer renders synchronously, before this deferred module arrives.

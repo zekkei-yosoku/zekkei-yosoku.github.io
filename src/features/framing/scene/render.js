@@ -337,12 +337,12 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
       const input = document.getElementById('previewTime');
       if (input && document.activeElement !== input) input.value = S.JstCal.hhmm(p.at).padStart(5,'0');
     }
-    const sunAlt = AstroNotesAstro.sun(p.at, eyeObs).apparentAltitude;
-    // Captions follow the displayed time; rise/set summaries run once after scrubbing settles.
-    if(host.id==='aimLook'){
+    const sunState = AstroNotesAstro.sun(p.at, eyeObs);
+    // Explore renders its own sky information above the figure.
+    if(host.id==='aimLook'&&!globalThis.TrialExplore?.ownsScene()){
       const light=host.querySelector('[data-look-light]');
       const moonPrefix=body==='moon'?`${moonGlyphAt(p.at, eyeObs)} 輝面 ${Math.round((p.illuminated??0)*100)}%`:'';
-      const sky=AstroNotesBodies.sky(AstroNotesAstro.sun(p.at,eyeObs).geometricAltitude);
+      const sky=AstroNotesBodies.sky(sunState.geometricAltitude);
       const msg=body==='moon'?[moonPrefix,sky].join(' ・ '):!AstroNotesBodies.definition(body).limbs?sky:'';
       // 2026-10-14 ユーザー「見え方の図が動いてズレるのが気に食わない」。月の説明を動かしている間だけ短い文へ替えると
       // 行数が変わり、下の図が上下していた。月も常に出入りまでの文で出し、計算は120msに1回へ間引く。
@@ -357,7 +357,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
       }
     }
 
-    const [skyTop, skyLow] = AstroNotesSceneAppearance.aimLookSky(sunAlt);
+    const [skyTop, skyLow] = AstroNotesSceneAppearance.aimLookSky(sunState.apparentAltitude);
     const bright = (skyTop[0] * 0.3 + skyTop[1] * 0.59 + skyTop[2] * 0.11) > 120;
     const ink = bright ? "rgba(20,30,50,0.78)" : "rgba(255,255,255,0.82)";
     const nextSkyKey=skyTop.join(',')+'|'+skyLow.join(',');

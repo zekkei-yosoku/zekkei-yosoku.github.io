@@ -1894,12 +1894,20 @@
       sunAltitude: body === "sun" ? c.st.apparentAltitude : body === "moon" ? bodyAt("sun",t,eye).apparentAltitude : A.sun(t, eye).geometricAltitude };
   }
 
+  function prepareAlignmentAt(observer,target,body,opts={}) {
+    const view=prepareDailyView(observer,target,body,opts);
+    if(opts.partId==='__whole')return at=>{
+      const row=view(at,at)[0];return row?{...row,matched:!!row.intersects}:null;
+    };
+    const g=geometryFrom(observer,target,opts),obs={...observer,elevation:(observer.elevation??0)+(opts.eyeM??1.5)},sign=limbById(opts.limb||'center').sign;
+    return at=>{
+      const row=view(at,at)[0];if(!row)return null;
+      const st=bodyAt(body,at,obs),gap=limbAltitude(st,sign)-g.angle,tolerance=Math.max(1/60,.2*st.angularRadius);
+      return {...row,gap,matched:Math.abs(azDiff(st.azimuth,g.azimuth))<=tolerance&&Math.abs(gap)<=tolerance&&(st.upperAltitude??st.apparentAltitude+st.angularRadius)>0};
+    };
+  }
   function alignmentAt(observer,target,body,at,opts={}) {
-    const row=dailyView(observer,target,body,at,{...opts,at})[0];if(!row)return null;
-    if(opts.partId==='__whole')return {...row,matched:!!row.intersects};
-    const g=geometryFrom(observer,target,opts),obs={...observer,elevation:(observer.elevation??0)+(opts.eyeM??1.5)},st=bodyAt(body,at,obs);
-    const gap=limbAltitude(st,limbById(opts.limb||'center').sign)-g.angle,tolerance=Math.max(1/60,.2*st.angularRadius);
-    return {...row,gap,matched:Math.abs(azDiff(st.azimuth,g.azimuth))<=tolerance&&Math.abs(gap)<=tolerance&&(st.upperAltitude??st.apparentAltitude+st.angularRadius)>0};
+    return prepareAlignmentAt(observer,target,body,opts)(at);
   }
   // Raw directions that bound the outline prepareDailyView projects for this observer and eye height.
   function heightVertices(observer, target, opts = {}) {
@@ -2028,10 +2036,10 @@
     return `${head}が見えます。${below}は${round ? "地球の丸みで" : `手前の${kind}に`}隠れます`;
   }
   const AstroNotesAlign = { heightVertices, TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
-                        altitudeCrossing, geometryFrom, upcoming, dailyView, prepareDailyView, alignmentAt, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,
+                        altitudeCrossing, geometryFrom, upcoming, dailyView, prepareDailyView, alignmentAt, prepareAlignmentAt, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, rimPoints, judge, buildingBlock,
                         viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, get CITY_MODELS(){return global.AstroNotesCityModels || CM || {};},get TOWER_MODELS(){return global.AstroNotesTowerModels || TM || {};
-                        }, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, outlineBounds, outlineScreenBounds, viewWindow, viewPath, sceneTargets, hiddenBelowText };
+                        }, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, outlineModel, towerOutline, outlineBounds, outlineScreenBounds, viewWindow, viewPath, sceneTargets, hiddenBelowText };
   global.AstroNotesAlign = AstroNotesAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = AstroNotesAlign;
 })(typeof globalThis !== "undefined" ? globalThis : window);
