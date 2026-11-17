@@ -21,7 +21,9 @@ async function prepare(page){
   AstroNotesCandidatePicker.skylineView=async(_o,_t,azimuths)=>azimuths.map(()=>({angle:-Infinity,complete:true}));
   aimLookRidge=async(o,_eye,t)=>{const az=AstroNotesTerrain.bearing(o.latitude,o.longitude,t.latitude,t.longitude);return [[az-2,0],[az,1],[az+2,0]];};
   aimTerrainFront=async()=>({ridge:[],block:null});aimTerrainBeyond=async()=>[];
-  const f=window.previewCacheFixture={renders:0,counts:{dayPath:0,edgePath:0,framePath:0,scene:0},calls:[],modelsKey:null};
+  const f=window.previewCacheFixture={renders:0,mapRenders:0,counts:{dayPath:0,edgePath:0,framePath:0,scene:0},calls:[],modelsKey:null};
+  const skyRender=MyPlacesUI.skyRender;
+  MyPlacesUI.skyRender=function(...args){f.mapRenders++;return skyRender.apply(this,args);};
   for(const name of ['viewPath','frameDayPath','sceneTargets']){
    const original=AstroNotesAlign[name];
    AstroNotesAlign[name]=function(...args){
@@ -91,6 +93,7 @@ async function measure(page,label,at){
 }
 
 async function scrubMinutes(page,at,offsets=[5,30]){
+ const mapRenders=await page.evaluate(()=>previewCacheFixture.mapRenders);
  const check=await page.evaluate(({startAt,offsets})=>new Promise(resolve=>{
   const ruler=document.getElementById('skyMapTimeline'),look=document.getElementById('aimLook');
   const original=MyPlacesUI.skyRender,prepare=AstroNotesAlign.prepareDailyView,checks=[];
@@ -142,6 +145,7 @@ async function scrubMinutes(page,at,offsets=[5,30]){
   return look._lookAt===ms&&look._uiTime.day===AstroNotesSkyMap.dayStart(ms)&&!look.querySelector('[data-look-frame-times]').style.visibility&&
    SkyMapUI.selectionState().at===ms&&+ruler.getAttribute('aria-valuenow')===ms&&saved?.at===ms;
  },snappedAt);
+ assert.equal(await page.evaluate(()=>previewCacheFixture.mapRenders),mapRenders,'settling a minute gesture does not rebuild the hidden map workspace');
  return snappedAt;
 }
 
@@ -189,6 +193,15 @@ function invalidated(before,after,kinds){
    const backBeforeMidnight=await measure(page,'back-before-midnight',sameDay);reused(beforeGesture,backBeforeMidnight);
    const midnight=await scrubMinutes(page,beforeMidnight);
    const nextDay=await record('next-day',midnight);invalidated(backBeforeMidnight,nextDay,['dayPath','framePath']);
+   const detail=await page.evaluate(()=>{
+    const more=document.getElementById('skyMapTimeMore'),s=SkyMapUI.renderState();
+    const {observer,ground,eyeM,at}=s,eye={latitude:observer.latitude,longitude:observer.longitude,elevation:ground+eyeM};
+    const moon=AstroNotesAstro.moon(at,eye);
+    more.click();
+    const dialog=document.querySelector('.sky-map-time-dialog'),result={open:dialog.open,actual:document.getElementById('skyMapAngles').textContent,expected:moon.geometricAltitude.toFixed(2)};
+    dialog.close();return result;
+   });
+   assert(detail.open&&detail.actual.includes(detail.expected),'time details uses the settled day and exact current altitude');
    const dayCall=nextDay.recentCalls.filter(q=>q.kind==='dayPath').at(-1);assert.equal(dayCall.day,Date.parse('2026-11-26T00:00:00+09:00'),'day samples switch at JST midnight');
 
    await action(page,()=>{if(!SkyMapUI.setEyeHeight(11.5))throw Error('eye height change rejected');},null,midnight);

@@ -491,7 +491,7 @@ function choose(next,focus=false){
  tabs.hidden=true;scene.setAttribute('aria-label','見え方');scene.removeAttribute('aria-labelledby');scene.tabIndex=-1;
  for(const [tab,pane,name] of [[sceneTab,scene,'scene'],[mapTab,map,'map']]){const on=mode===name;tab.setAttribute('aria-selected',String(on));tab.tabIndex=on?0:-1;pane.hidden=!on;if(on&&focus)scene.focus({preventScroll:true});}
  mapView.dataset.exploreMode=mode;
- if(mode==='map'){if(plan.pendingKey)invalidate();scene.style.minHeight='';scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');SkyMapUI.redraw();}
+ if(mode==='map'){if(plan.pendingKey)invalidate();scene.style.minHeight='';scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');SkyMapUI.render();}
  else sync();
 }
 sceneTab.onclick=()=>choose('scene');mapTab.onclick=()=>choose('map');
