@@ -74,8 +74,25 @@ test('日付/分の線とラベルの原点を幅によらず一致させ、同�
  for(const width of [160,223,240,340,780]){const f=setup(width,{getObserver:()=>({latitude:35}),sun:at=>({geometricAltitude:Math.sin(at/20000000)*15})});assert.equal(f.root.children[0].style.backgroundPosition,(4096+width/2)+'px 5px');f.state.mode='time';f.controller.sync(f.state.at,'time');const tape=f.root.children[0],initial=tape.style.backgroundImage;
  f.root.listeners.touchstart({timeStamp:1});f.root.scrollLeft+=2048;const before=rgbAt(initial,f.root.scrollLeft+width/2);f.root.listeners.scroll();f.flush();const after=rgbAt(tape.style.backgroundImage,f.root.scrollLeft+width/2);assert.ok(before.every((v,i)=>Math.abs(v-after[i])<.01));const fraction=(f.state.at/60000)%1;assert.ok(Math.abs(parseFloat(tape.style.backgroundPosition)-(4096+width/2-fraction*4))<.00001);f.root.listeners.touchend({timeStamp:500});const settled=rgbAt(tape.style.backgroundImage,4096+width/2);assert.ok(after.every((v,i)=>Math.abs(v-settled[i])<.01));}
 });
-test('慣性中の境界rebaseは速度を引き継ぎ、触り直すと代行慣性を即座に止める',()=>{
- const f=setup();f.state.mode='time';f.controller.sync(f.state.at,'time');f.root.listeners.touchstart({timeStamp:1});f.root.listeners.touchmove({timeStamp:10});f.root.scrollLeft+=2000;f.root.listeners.scroll();f.flush();f.root.listeners.touchend({timeStamp:20});f.flush();f.root.scrollLeft+=80;f.root.listeners.scroll();f.flush();const at=f.state.at;assert.equal(f.root.scrollLeft,4096);f.flush();assert.ok(f.root.scrollLeft>4096);f.root.listeners.scroll();f.flush();assert.ok(f.state.at>at);f.root.listeners.touchstart({timeStamp:100});f.flush();const left=f.root.scrollLeft;for(let i=0;i<10;i++)f.flush();assert.equal(f.root.scrollLeft,left);f.root.listeners.touchcancel({timeStamp:500});f.settle();for(let i=0;i<12;i++)f.flush();f.settle();assert.equal(f.root.scrollLeft,4096);
+test('native慣性中にrebaseや代行スクロールをせず、次のタッチは同じ時刻から続く',()=>{
+ for(const direction of [1,-1]){
+  const f=setup();f.state.mode='time';f.controller.sync(f.state.at,'time');const start=f.state.at;
+  const scroll=px=>{f.root.scrollLeft=4096+direction*px;f.root.listeners.scroll();f.flush();};
+  f.root.listeners.touchstart({timeStamp:1});f.root.listeners.touchmove({timeStamp:10});scroll(1960);
+  f.root.listeners.touchend({timeStamp:20});
+  for(const px of [1980,2050,2250,2800,3880,4130]){
+   scroll(px);const at=start+direction*Math.min(px,4096)*15000;assert.equal(f.state.at,at);
+   for(let i=0;i<3;i++)f.flush();
+   assert.equal(f.root.scrollLeft,4096+direction*px,'browser retains control of its scroll position');
+   assert.equal(f.state.at,at);
+  }
+  const current=f.state.at;
+  f.root.listeners.touchstart({timeStamp:190});
+  assert.equal(f.root.scrollLeft,4096);assert.equal(f.state.at,current);
+  f.root.listeners.touchmove({timeStamp:210});scroll(28);
+  f.root.listeners.touchend({timeStamp:500});f.settle();
+  assert.equal(f.state.at,current+direction*7*60000);assert.equal(f.root.scrollLeft,4096);
+ }
 });
 test('時刻モードは動かしている間を連続の時刻で描き、止めたら近い1分へ滑らかに寄せる',()=>{
  const f=setup();f.state.mode='time';f.controller.sync(f.state.at,'time');const at=f.state.at;let settled=null;
