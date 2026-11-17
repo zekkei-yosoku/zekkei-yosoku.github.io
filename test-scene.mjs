@@ -102,6 +102,26 @@ test('同じ天体の一日と画角用時刻は同じ標本を共有し、任�
  assert.equal(refracted.path[0].altitude,1);assert(stateCalls>n+1);
 });
 
+test('一日の準備を中断でき、大気が途中で変わっても新しい標本を揃えてから投影する',async()=>{
+ const source=readFileSync(new URL('./src/features/framing/scene/calculations.js',import.meta.url),'utf8');
+ let air='standard',clock=0,yields=0,calls=0,active=true,abortOnYield=false;
+ const ctx=vm.createContext({AstroNotesAlign:AL,AstroNotesAtmosphere:{dataKey:()=>air},performance:{now:()=>clock},
+  setTimeout:f=>queueMicrotask(()=>{yields++;air='none';if(abortOnYield)active=false;f();}),
+  AstroNotesBodies:{state:()=>{clock+=.05;calls++;return {azimuth:61,apparentAltitude:air==='none'?1:2,angularRadius:.25};}}});
+ vm.runInContext(source.replace(/^export .*;$/m,'')+';globalThis.warm=warmLookEphemeris;globalThis.samples=aimLookEphemeris;',ctx);
+ const host={},day=S.JstCal.startOfDay(at),win={az0:61,alt0:1,halfW:1,halfH:1};
+ assert(await ctx.warm(host,'moon',observer,day,()=>active));
+ assert(yields>2,'traversal yields between short batches');
+ const before=calls,used=ctx.samples(host,'moon',observer,day,day,day,win,AL.viewProjector(61,1),null);
+ assert.equal(calls,before+1,'projection only needs the existing exact final-second sample');
+ assert(used.path.every(p=>p.altitude===1));
+ assert(await ctx.warm(host,'moon',observer,day,()=>active));
+ assert.equal(calls,before+1,'a prepared day does not resample at the same camera position');
+ abortOnYield=true;
+ assert.equal(await ctx.warm(host,'moon',observer,day+86400000,()=>active),false);
+ assert(calls-before<250,'a superseded scene stops instead of completing the unused day');
+});
+
 test('同じモデルIDを別の形状に置き換えたときは描画用の頂点を更新する',()=>{
  const id='outline-refresh-probe';
  const target={id,latitude:35.7099,longitude:139.8107,groundM:2,parts:[{id:'tip',m:32}]};

@@ -569,12 +569,21 @@ function checkOverlap(s){
  if(out.textContent!==text)out.textContent=text;
  out.classList.toggle('shooting-overlap-on',matched);
 }
-function skyRender(s){
+function skyPlaceControls(s){
  if(skyOwner!==auth?.token){leaveSky();skyOwner=auth?.token;}
- skySession=s;if(!s||!auth?.token||!toolAllowed('skymap'))return;
- const box=skyBox(),t=s.target;
- const shareRow=el('skyMapShareRow');if(shareRow){shareRow.hidden=!s.observer||!t;for(const b of shareRow.querySelectorAll('[data-plan-action]'))b.disabled=!s.daily||!s.eye;}
- const detail=el('skyMapAlignmentDetails');renderSkyAlignment(s);renderPreviewEyeHeight(s);box.hidden=!t;
+ skySession=s;if(!s||!auth?.token||!toolAllowed('skymap'))return false;
+ const shareRow=el('skyMapShareRow');if(shareRow){shareRow.hidden=!s.observer||!s.target;for(const b of shareRow.querySelectorAll('[data-plan-action]'))b.disabled=!s.daily||!s.eye;}
+ renderSkyAlignment(s);renderPreviewEyeHeight();
+ return true;
+}
+function skyPreview(s){
+ if(!skyPlaceControls(s))return;
+ // The legacy map candidate solver has no consumers while the scene is open.
+ if(skyKey){skyToken++;skyKey='';}
+}
+function skyRender(s){
+ if(!skyPlaceControls(s))return;
+ const box=skyBox(),t=s.target;box.hidden=!t;
  if(!t){skyKey='';candidateState={status:'idle',rows:[],failed:0};box.replaceChildren();candidateSheet?.close();return;}
  const key=currentSkyQuery(s);
  if(key!==skyKey){
@@ -3425,7 +3434,7 @@ async function discoverySearch(plan,points,isCurrent,terrainCache,onProgress){
 
 window.MyPlacesUI = { discoveryPoints,discoverySearch,discoveryRevision,savedPlaces,
   recordSortControl,sortRecordPlaces, eyeAdjustmentFor, opportunities,recordProgress:showRecordProgress, backupState:()=>({observations:load(),shapes:shapeData()}),imported:()=>{version++;candidateCache.clear();changed();
-},selectShape, resetShapePicker, shapeFor, withShape, drawShape, renderAim, renderPickerPanel, skyDraw, skyRender, skyOverlap:s=>{if(s===skySession&&skyOwner===auth?.token)checkOverlap(s);}, leaveSky, pickSky, badge, openPlace, recordFor, quickRecord, load, renderRecordsHub };
+},selectShape, resetShapePicker, shapeFor, withShape, drawShape, renderAim, renderPickerPanel, skyDraw, skyRender, skyPreview, skyOverlap:s=>{if(s===skySession&&skyOwner===auth?.token)checkOverlap(s);}, leaveSky, pickSky, badge, openPlace, recordFor, quickRecord, load, renderRecordsHub };
 // 読み込みより先に構図が描かれていたら、ここで一覧を出す
 if (el('aimView') && !el('aimView').hidden) { try { renderAim(); } catch { /* 構図を止めない */ } }
 // A map without an observer renders synchronously, before this deferred module arrives.

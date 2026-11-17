@@ -21,9 +21,14 @@ async function prepare(page){
   AstroNotesCandidatePicker.skylineView=async(_o,_t,azimuths)=>azimuths.map(()=>({angle:-Infinity,complete:true}));
   aimLookRidge=async(o,_eye,t)=>{const az=AstroNotesTerrain.bearing(o.latitude,o.longitude,t.latitude,t.longitude);return [[az-2,0],[az,1],[az+2,0]];};
   aimTerrainFront=async()=>({ridge:[],block:null});aimTerrainBeyond=async()=>[];
-  const f=window.previewCacheFixture={renders:0,mapRenders:0,counts:{dayPath:0,edgePath:0,framePath:0,scene:0},calls:[],modelsKey:null};
+  const f=window.previewCacheFixture={renders:0,mapRenders:0,hiddenMapRenders:0,counts:{dayPath:0,edgePath:0,framePath:0,scene:0},calls:[],modelsKey:null};
   const skyRender=MyPlacesUI.skyRender;
-  MyPlacesUI.skyRender=function(...args){f.mapRenders++;return skyRender.apply(this,args);};
+  MyPlacesUI.skyRender=function(...args){
+   f.mapRenders++;
+   const view=document.getElementById('skyMapView');
+   if(view.classList.contains('explore-mounted')&&view.dataset.exploreMode!=='map')f.hiddenMapRenders++;
+   return skyRender.apply(this,args);
+  };
   for(const name of ['viewPath','frameDayPath','sceneTargets']){
    const original=AstroNotesAlign[name];
    AstroNotesAlign[name]=function(...args){
@@ -49,6 +54,7 @@ async function prepare(page){
   SkyMapUI.setTime(at);
  },{observer:initialObserver,at:initialAt});
  await page.locator('#exploreShowResult').click();await ready(page,0,initialAt);
+ assert.equal(await page.evaluate(()=>previewCacheFixture.hiddenMapRenders),0,'the combined search and scene must not start hidden legacy map or candidate work');
 }
 
 async function ready(page,previous,at){

@@ -214,12 +214,15 @@ ctx.lineWidth=1;
  function render(timeOnly=false){
   normalizeWholeAlignment();
   const canRender=hasAccess()&&session&&active();
-  const previewTime=!!canRender&&(timeOnly===true||minuteScrubbing())&&view.dataset.exploreStage==='preview'&&view.dataset.exploreMode==='scene';
+  // The combined workspace has its own candidate list and does not display the legacy map.
+  const stage=view.dataset.exploreStage;
+  const ownWorkspace=!!canRender&&(stage==='search'||stage==='preview')&&view.dataset.exploreMode!=='map';
+  const previewTime=ownWorkspace&&stage==='preview'&&(timeOnly===true||minuteScrubbing());
   queueMicrotask(()=>globalThis.TrialExplore?.sync(false,previewTime));
   if(previewTime){
    if(!minuteScrubbing())renderCandidateDates();
    renderTimeControls();
-   globalThis.MyPlacesUI?.skyOverlap?.(session);
+   globalThis.MyPlacesUI?.skyPreview?.(session);
    if(skyTimeDialog.open)renderMapTime();
    save();return;
   }
@@ -234,6 +237,11 @@ ctx.lineWidth=1;
   el('skyMapMoreBodies').setAttribute('aria-label',session.extraBody?`その他の天体を選ぶ、${bodyName(session.extraBody)}を表示中`:'その他の天体を選ぶ');
   for(const id of [...extraIds,'none'])el('skyMapExtra-'+id).setAttribute('aria-pressed',String(id===(session.extraBody||'none')));
   renderTimeControls();
+  if(ownWorkspace){
+   globalThis.MyPlacesUI?.skyPreview?.(session);
+   if(skyTimeDialog.open)renderMapTime();
+   save();return;
+  }
   renderPassages();try{globalThis.MyPlacesUI?.skyRender(session);}catch(e){const box=el('mySkyPlaces');
   if(box)box.textContent='撮影地点を確認できません。地図を開き直して再試行してください';}
   renderMapTime();map.redraw();save();

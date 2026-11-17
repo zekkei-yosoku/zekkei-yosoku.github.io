@@ -177,7 +177,10 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     }
     guides.clear();frameTimesKey=null;
   }
-  setDayPaths(S.JstCal.startOfDay(spec.at),spec.at,selectedAt);
+  const initialDay=S.JstCal.startOfDay(spec.at);
+  if(host.id==='aimLook'&&globalThis.TrialExplore?.ownsScene?.()&&
+    !await warmLookEphemeris(host,body,eyeObs,initialDay,currentLook))return;
+  setDayPaths(initialDay,spec.at,selectedAt);
   const i0 = path.reduce((best, p, i) => Math.abs(p.at - selectedAt) < Math.abs(path[best].at - selectedAt) ? i : best, 0);
   const sceneCenters = scene.map(item => proj(item.azimuth, item.topAngle)).filter(p => p && Math.abs(p[0]) < 330);
   const panLimit = Math.max(1, ...sceneCenters.map(p => Math.abs(p[0]) / (2 * win.halfW) + .5));

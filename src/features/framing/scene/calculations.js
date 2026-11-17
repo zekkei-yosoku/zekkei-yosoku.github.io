@@ -26,18 +26,24 @@ function lookSkyFor(host, body, observer, frameDay) {
 }
 
 async function warmLookEphemeris(host, body, observer, frameDay, isCurrent) {
-  const {sampleState} = lookSkyFor(host, body, observer, frameDay);
   const end=frameDay+86400000;
-  let started=performance.now();
-  for(let at=frameDay;at<end;at+=LOOK_PATH_STEP_SECONDS*1000){
-    sampleState(at);
-    if(performance.now()-started>=4){
+  while(isCurrent()){
+    const sky=lookSkyFor(host,body,observer,frameDay);
+    if(sky.fullDaySampled)return true;
+    let started=performance.now();
+    let at=frameDay;
+    for(;at<end;at+=LOOK_PATH_STEP_SECONDS*1000){
+      sky.sampleState(at);
+      if(performance.now()-started<4)continue;
       await new Promise(resolve=>setTimeout(resolve,0));
-      if(!isCurrent())return false;
+      if(!isCurrent()||lookSkyFor(host,body,observer,frameDay)!==sky)break;
       started=performance.now();
     }
+    if(at>=end){sky.fullDaySampled=true;return isCurrent();}
+    // An atmosphere arrival invalidates the partial set. Warm the new key before
+    // any synchronous projection, using the same budget as the previous key.
   }
-  return isCurrent();
+  return false;
 }
 
 function aimLookEphemeris(host, body, observer, frameDay, at, selectedAt, win, proj, frame) {
