@@ -354,7 +354,7 @@ ctx.lineWidth=1;
   const timeOnly=session.scrubMode==='time';
   if(session.timelinePending)refresh(timeOnly);else render(timeOnly);
  }
- const skyTimeline=AstroNotesScrollTimeline.mount({root:el('skyMapTimeline'),getAt:()=>session?.at,getMode:()=>session?.scrubMode,enabled:()=>hasAccess()&&!!session&&active(),onChange:at=>{
+ const skyTimeline=AstroNotesScrollTimeline.mount({root:el('skyMapTimeline'),stableMinutes:()=>view.dataset.exploreStage==='preview'&&view.dataset.exploreMode==='scene',getAt:()=>session?.at,getMode:()=>session?.scrubMode,enabled:()=>hasAccess()&&!!session&&active(),onChange:at=>{
   if(!hasAccess()||!session||!active())return;
   const day=AstroNotesSkyMap.dayStart(at),changed=day!==AstroNotesSkyMap.dayStart(session.at);
   timelineMoving=true;session.at=at;
@@ -371,7 +371,6 @@ ctx.lineWidth=1;
     el('skyMapDate').value=dateAt(at);
     const button=el('skyMapCalendarOpen');ToolDateTimeBar.dateText(button,at);button.setAttribute('aria-label',ToolDateTimeBar.label(at));
    }
-   globalThis.MyPlacesUI?.skyOverlap?.(session);
   }else render(session.scrubMode==='time');
  },onBlend:b=>{if(!session)return;session.blend=b;map.redraw();},onSettle:settleSkyScrub,
  format:(at,mode)=>mode==='date'?dateAt(at).slice(5).replace('-','/'):textAt(at),getObserver:()=>session?.observer,sun:(at,o)=>AstroNotesAstro.sun(at,o),describe:(at,mode)=>ToolDateTimeBar.label(at)+(mode!=='date'?' '+textAt(at):'')});

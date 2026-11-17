@@ -207,3 +207,30 @@ test('未描画の境界越えを指離しで確定しても、rebaseの停止ti
  f.settle();for(let i=0;i<12;i++)f.flush();f.settle();for(let i=0;i<12;i++)f.flush();
  assert.equal(f.state.at,at+513*60000);assert.equal(f.root.scrollLeft,4096);assert.equal(settled,1);
 });
+
+test('見え方の分目盛りは通知の間も追従し、通常停止で表示を作り直さずに次のフリックを続ける',()=>{
+ const f=setup(240,{stableMinutes:()=>true});
+ f.state.mode='time';const start=Math.floor(f.state.at/60000)*60000;
+ f.state.at=start;f.controller.sync(start,'time');
+ const tape=f.root.children[0],labels=tape.children;
+ const overflow=[];
+ Object.defineProperty(f.root.style,'overflowX',{set:value=>overflow.push(value)});
+ f.root.listeners.touchstart({timeStamp:1});
+ f.root.scrollLeft+=4;f.root.listeners.touchmove({timeStamp:2});f.flush();
+ assert.equal(f.state.at,start+60000,'position is sampled before a scroll event');
+ f.root.scrollLeft+=40;f.flush();
+ assert.equal(f.state.at,start+11*60000,'inertial position remains sampled without a new notice');
+ f.root.listeners.touchend({timeStamp:12});f.settle();
+ assert.equal(f.root.scrollLeft,4140);
+ assert.equal(tape.children,labels);
+ assert.deepEqual(overflow,[]);
+ f.root.listeners.touchstart({timeStamp:300});
+ f.root.scrollLeft=8192;f.root.listeners.scroll();f.flush();
+ assert.equal(f.root.scrollLeft,8192,'the native scroller keeps its extent under the pointer');
+ const edge=f.state.at;
+ f.root.listeners.touchend({timeStamp:310});f.settle();
+ f.root.listeners.touchstart({timeStamp:700});
+ assert.equal(f.root.scrollLeft,4096,'next gesture safely continues from the prior edge');
+ assert.equal(f.state.at,edge);
+ assert.deepEqual(overflow,[]);
+});

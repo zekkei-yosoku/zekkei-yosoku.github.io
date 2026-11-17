@@ -294,11 +294,39 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
   const displayCtx = cv.getContext("2d");
   const makeLayer=()=>{const canvas=document.createElement('canvas');canvas.width=cv.width;canvas.height=cv.height;return {canvas,ctx:canvas.getContext('2d')};};
   const oldSky=host._lookLayers?.sky;
-  const keepSky=oldSky&&oldSky.width===cv.width&&oldSky.height===cv.height;
-  const skyLayer=keepSky?{canvas:oldSky,ctx:oldSky.getContext('2d')}:makeLayer(),bodyLayer=makeLayer(),buildingLayer=makeLayer();
+  // The gradient varies only vertically. Keep the exact colors in a one-pixel strip for exports.
+  const keepSky=oldSky&&oldSky.width===1&&oldSky.height===cv.height;
+  const skyCanvas=keepSky?oldSky:document.createElement('canvas');
+  if(!keepSky){skyCanvas.width=1;skyCanvas.height=cv.height;}
+  const skyCtx=skyCanvas.getContext('2d'),bodyLayer=makeLayer(),buildingLayer=makeLayer();
   const layerStats={frames:0,sky:0,body:0,buildings:0,ms:0};
-  host._lookLayers={sky:skyLayer.canvas,body:bodyLayer.canvas,buildings:buildingLayer.canvas,stats:layerStats};
+  host._lookLayers={sky:skyCanvas,body:bodyLayer.canvas,buildings:buildingLayer.canvas,stats:layerStats};
   let ctx=displayCtx,skyKey=keepSky?host._lookSkyKey:null,buildingCache=null;
+  let skyTarget=null,skyShown=null,skyStyle='',skyFrame=0,skyFrameAt=null;
+  const reducedMotion=typeof matchMedia==='function'?matchMedia('(prefers-reduced-motion: reduce)'):null;
+  const showSky=colors=>{
+    const rgb=colors.map(Math.round),style=`linear-gradient(rgb(${rgb.slice(0,3)}),rgb(${rgb.slice(3)}))`;
+    if(skyStyle!==style){skyStyle=style;cv.style.backgroundImage=style;}
+    skyShown=colors;
+  };
+  const skyDistance=()=>Math.max(...skyTarget.map((value,i)=>Math.abs(value-skyShown[i])));
+  const stepSky=now=>{
+    skyFrame=0;
+    if(host._lookSeq!==seq)return;
+    const elapsed=skyFrameAt===null?16:Math.max(0,Math.min(32,now-skyFrameAt));
+    skyFrameAt=now;
+    const gap=skyDistance(),travel=Math.min(1,elapsed*Math.max(1.1,gap/110)/(gap||1));
+    showSky(travel===1?skyTarget:skyShown.map((value,i)=>value+(skyTarget[i]-value)*travel));
+    if(travel<1)skyFrame=requestAnimationFrame(stepSky);else skyFrameAt=null;
+  };
+  function displaySky(top,bottom,smooth,now){
+    skyTarget=[...top,...bottom];
+    // Rapid flings can skip most of twilight between frames. Ease just its visible colors.
+    if(!smooth||!skyShown||reducedMotion?.matches||!skyFrame&&skyDistance()<=18){
+      if(skyFrame)cancelAnimationFrame(skyFrame);
+      skyFrame=0;skyFrameAt=null;showSky(skyTarget);
+    }else if(!skyFrame)stepSky(now);
+  }
   const resetLayer=(context,canvas)=>{if(typeof context.reset==='function')context.reset();else canvas.width=canvas.width;context.setTransform(dpr,0,0,dpr,0,0);};
   const clipWorld=(context,panX,panY,bottom)=>{context.save();context.translate(panX,panY);context.beginPath();context.rect(-panX,-panY,W,bottom);context.clip();};
   // 図の下の説明（形の出どころ・大気の屈折・縮尺）は出さない（2026-10-03 ユーザー「この説明文いらないわ」「いらない説明文結構ない？」）。
@@ -319,7 +347,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     const ms = path[i].at + (path[j].at - path[i].at) * f;
     return pack(ms, AstroNotesBodies.state(body, ms, eyeObs));
   };
-  const draw = (v, exactAt = null) => {
+  const draw = (v, exactAt = null, smoothSky = false) => {
     const started=typeof performance==='undefined'?Date.now():performance.now();
     const p = host._blendP || (Number.isFinite(exactAt) ? pack(exactAt, AstroNotesBodies.state(body, exactAt, eyeObs)) : at(v));
     host._lookAt = p.at;
@@ -367,10 +395,11 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     const ink = bright ? "rgba(20,30,50,0.78)" : "rgba(255,255,255,0.82)";
     const nextSkyKey=skyTop.join(',')+'|'+skyLow.join(',');
     if(skyKey!==nextSkyKey){
-      ctx=skyLayer.ctx;resetLayer(ctx,skyLayer.canvas);
-      const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,`rgb(${skyTop})`);g.addColorStop(1,`rgb(${skyLow})`);
-      ctx.fillStyle=g;ctx.fillRect(0,0,W,H);skyKey=host._lookSkyKey=nextSkyKey;layerStats.sky++;
+      const gradient=skyCtx.createLinearGradient(0,0,0,skyCanvas.height);
+      gradient.addColorStop(0,`rgb(${skyTop})`);gradient.addColorStop(1,`rgb(${skyLow})`);
+      skyCtx.fillStyle=gradient;skyCtx.fillRect(0,0,1,skyCanvas.height);skyKey=host._lookSkyKey=nextSkyKey;layerStats.sky++;
     }
+    displaySky(skyTop,skyLow,smoothSky,started);
     if(host._compose?.apply){const c=host._compose;c.apply=false;if(c.mode==="body")host._lensOffset=[0,0];else{const bottom=frame?H/2+frame.halfH*k:H-12;host._lensOffset=[0,Math.max(-1,Math.min(1,(bottom-groundEdge)/H))];}host._lensSnap={ground:c.mode!=="body",center:c.mode!=="body"};}
     const pan = host._lensOffset || [0, 0], panX = pan[0] * W, panY = pan[1] * H;
     const times = host.querySelector("[data-look-frame-times]");
@@ -513,7 +542,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     }
     const {visibleTargets,groundText}=buildingCache;
     ctx=displayCtx;resetLayer(ctx,cv);
-    ctx.drawImage(skyLayer.canvas,0,0,W,H);ctx.drawImage(bodyLayer.canvas,0,0,W,H);ctx.drawImage(buildingLayer.canvas,0,0,W,H);
+    ctx.drawImage(bodyLayer.canvas,0,0,W,H);ctx.drawImage(buildingLayer.canvas,0,0,W,H);
     clipWorld(ctx,panX,panY,clipBottom);
     // 円盤の縁にはガイドを重ねず、天体と地形の自然な輪郭を表示する。
     // 字は空にも形にも重なるので、縁取りして読めるようにする
@@ -592,7 +621,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
       this.set(ms);this.window();
       return true;
     },
-    set(ms) { if (host._lookSeq !== seq || !Number.isFinite(ms)) return; host._blendP = null; draw(timeIndex(ms), ms); },
+    set(ms, smoothSky = false) { if (host._lookSeq !== seq || !Number.isFinite(ms)) return; host._blendP = null; draw(timeIndex(ms), ms, smoothSky); },
     blend(b) {
       if (host._lookSeq !== seq) return;
       if (!b) { if (!host._blendP) return; host._blendP = null; draw(timeIndex(this.current), this.current); return; }

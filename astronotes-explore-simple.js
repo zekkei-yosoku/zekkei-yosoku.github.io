@@ -559,17 +559,15 @@ async function paint(force=false,timeOnly=false){
  }catch(e){if((!run||plan.current(run))&&resultActive()){invalidate();look.hidden=true;scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');scene.style.minHeight='';message('見え方を計算できませんでした。条件を確認して再試行してください');updateConditions();}}
  finally{if(run&&plan.settle(run)&&resultActive()){scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');if(!look.hidden)scene.style.minHeight='';updateConditions();}}
 }
-let lastScrubSkyInfo=0,timeNext=false,deferredForce=false;
+let timeNext=false,deferredForce=false;
 function paintScrubTime(){
  if(!resultActive()||mode!=='scene')return false;
  let s;
  // The sky's current weather is read at the selected time, independently of the camera projection.
  try{s=snapshot();if(!retainedProjection(s)||!canFrame(s))return false;}catch{return false;}
  // The scroll ruler already emits at most once per animation frame.
- try{if(Math.abs(look._lookAt-s.at)>.5)look._uiTime.set(s.at);}
+ try{if(Math.abs(look._lookAt-s.at)>.5)look._uiTime.set(s.at,true);}
  catch(error){globalThis.AstroNotesErrors?.note('explore.scrubScene',error);sync(true);return false;}
- const now=performance.now();
- if(now-lastScrubSkyInfo>=120){lastScrubSkyInfo=now;updateSkyInfo(s);}
  return true;
 }
 function sync(force=false,timeOnly=false){
@@ -783,7 +781,10 @@ main:has(>#skyMapView[data-explore-stage="search"]){max-width:1280px}
 
 html:has(#skyMapView[data-explore-stage="search"]),body:has(#skyMapView[data-explore-stage="search"]){overscroll-behavior-y:none}
 html:has(#skyMapView.explore-mounted:not([hidden])){scroll-padding-bottom:calc(var(--sky-footer-h,100px) + 12px)}
-@media(max-width:959px){#skyMapView[data-explore-stage="search"] .sky-map-footer{transform:translate3d(0,0,0);backface-visibility:hidden}}
+#skyMapView[data-explore-stage="preview"][data-explore-mode="scene"] #skyMapTimeline[data-mode="time"]{overscroll-behavior-x:none;background-color:var(--sunk)}
+@media(max-width:959px){
+ #skyMapView.explore-mounted:not([hidden]) .sky-map-footer{transform:translate3d(0,0,0);backface-visibility:hidden}
+}
 main:has(>#skyMapView.explore-mounted:not([hidden]))>#footer>summary{min-height:44px;display:list-item;padding-block:12px}
 `;document.head.append(style);
 document.addEventListener('astronotes-composition-change',updateConditions);

@@ -58,7 +58,10 @@ function planSnapshot(button) {
     if(t.kind)target.kind=t.kind;if(Number.isFinite(t.widthM))target.widthM=t.widthM;
     payload={v:1,kind:'aim',o:AstroNotesPlan.compactPoint(observer,spec.eyeM),at,t:target,body:aim.body,part:globalThis.TrialExplore?.active()?(aim.partId??t.parts[0].id):aim.partId,limb:aim.limb,matchMode:aim.matchMode||'limb',
       air:aimAirSettings.mode,l:{...aimLens,focal},pan:[...(host._lensOffset || [0,0])],...(AstroNotesTimelapse.settings(host._timelapseConfig)?{timelapse:{...host._timelapseConfig}}:{})};
-    const scene=document.createElement('canvas');scene.width=cv.width;scene.height=cv.height;scene.getContext('2d').drawImage(cv,0,0);
+    const scene=document.createElement('canvas');scene.width=cv.width;scene.height=cv.height;
+    const sceneCtx=scene.getContext('2d'),sky=host._lookLayers?.sky;
+    if(sky)sceneCtx.drawImage(sky,0,0,scene.width,scene.height);
+    sceneCtx.drawImage(cv,0,0);
     const st=AstroNotesBodies.state(aim.body,at,{...observer,elevation:(observer.elevation||0)+spec.eyeM});
     const spans=host._uiTime.frameSpans || [],span=spans.find(p=>p.start<=at&&p.end>=at);
     const start=span?.start ?? at-900000,end=span?.end ?? at+900000;

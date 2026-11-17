@@ -73,7 +73,12 @@ async function lens(page,focal,at){
 
 async function measure(page,label,at){
  const row=await page.evaluate(()=>{
-  const canvas=document.querySelector('#aimLook [data-look-canvas]'),data=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+  const look=document.getElementById('aimLook'),canvas=look.querySelector('[data-look-canvas]');
+  const flat=document.createElement('canvas');flat.width=canvas.width;flat.height=canvas.height;
+  const ctx=flat.getContext('2d');
+  ctx.drawImage(look._lookLayers.sky,0,0,flat.width,flat.height);
+  ctx.drawImage(canvas,0,0);
+  const data=ctx.getImageData(0,0,flat.width,flat.height).data;
   let hash=2166136261,opaque=0;for(let i=0;i<data.length;i++){hash=Math.imul(hash^data[i],16777619);if(i%4===3&&data[i]>0)opaque++;}
   const s=SkyMapUI.selectionState();
   return {counts:{...previewCacheFixture.counts},renders:previewCacheFixture.renders,at:s.at,
@@ -168,6 +173,48 @@ async function scrubMinutes(page,at,offsets=[5,30],changeWeather=false){
  return snappedAt;
 }
 
+async function checkFastTwilight(page){
+ await page.emulateMedia({reducedMotion:'no-preference'});
+ const start=Date.parse('2026-11-25T16:55:00+09:00'),end=start+3*3600000;
+ await action(page,at=>SkyMapUI.setTime(at),start,start);
+ const result=await page.evaluate(async()=>{
+  const ruler=document.getElementById('skyMapTimeline'),tape=ruler.firstElementChild;
+  const labels=[...tape.children],look=document.getElementById('aimLook'),canvas=look.querySelector('canvas');
+  const colors=()=>[...canvas.style.backgroundImage.matchAll(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/g)].map(m=>m.slice(1).join(',')).join('|');
+  const read=()=>({sky:colors(),exact:look._lookSkyKey,draw:look._lookAt,at:SkyMapUI.selectionState().at});
+  const start=read(),rows=[];
+  const awaitFrame=()=>new Promise(requestAnimationFrame);
+  let overflowEdits=0;
+  const style=new MutationObserver(changes=>overflowEdits+=changes.length);
+  style.observe(ruler,{attributes:true,attributeFilter:['style']});
+  // Simulate a large delivered delta before the next animation frame.
+  ruler.dispatchEvent(new Event('touchstart'));
+  ruler.scrollLeft+=720;
+  ruler.dispatchEvent(new Event('scroll'));
+  for(let i=0;i<12;i++){await awaitFrame();rows.push(read());}
+  ruler.dispatchEvent(new Event('touchend'));
+  for(let i=0;i<90&&(SkyMapUI.minuteScrubbing()||colors()!==look._lookSkyKey);i++)await awaitFrame();
+  style.disconnect();
+  const strip=look._lookLayers.sky,top=Array.from(strip.getContext('2d').getImageData(0,0,1,1).data);
+  const out=planSnapshot({dataset:{planSource:'aim'}}).scene;
+  const capture=Array.from(out.getContext('2d').getImageData(0,0,1,1).data);
+  return {start,rows,final:read(),canvasHeight:canvas.height,stripHeight:strip.height,stripWidth:strip.width,top,capture,
+   settled:!SkyMapUI.minuteScrubbing(),retained:labels.every((node,i)=>node===tape.children[i]),overflowEdits};
+ });
+ const shown=new Set(result.rows.map(row=>row.sky));
+ assert(result.rows.some(row=>row.draw===end&&row.at===end&&row.sky!==result.start.sky&&row.sky!==row.exact),'visible twilight eases while the time and body are already exact');
+ assert(shown.size>=4,'a large time delta produces intermediate visible shades');
+ assert.equal(result.final.sky,result.final.exact,'visible gradient converges to the selected instant');
+ assert.equal(result.final.at,end);
+ assert.equal(result.final.draw,end);
+ assert(result.settled&&result.retained&&result.overflowEdits===0,'the native ruler stays mounted and paintable when the fling ends');
+ assert.equal(result.stripWidth,1);
+ assert.equal(result.stripHeight,result.canvasHeight);
+ assert.deepEqual(result.capture,result.top,'the shared image includes the exact gradient');
+ assert.equal(result.capture[3],255);
+ return {visibleShades:shown.size,overflowEdits:result.overflowEdits};
+}
+
 function reused(before,after,kinds=['dayPath','framePath','scene']){
  for(const kind of kinds)assert.equal(after.counts[kind],before.counts[kind],after.label+': no repeated '+kind+' calculation');
 }
@@ -235,8 +282,9 @@ function invalidated(before,after,kinds){
    await action(page,()=>{const key=previewCacheFixture.modelsKey;globalThis[key]={...globalThis[key],skytree:{...globalThis[key].skytree}};document.querySelector('#aimLook [data-lens-focal]').onchange();},null,midnight);
    const models=await record('registry-entry-replaced',midnight);invalidated(table,models,['scene']);assert.deepEqual(models.canvas,table.canvas,'equivalent replacement model renders the same picture');
    await lens(page,200,midnight);const modelsRepeat=await record('registry-repeat',midnight);reused(models,modelsRepeat);assert.deepEqual(modelsRepeat.canvas,models.canvas);
+   const fastTwilight=await checkFastTwilight(page);
    assert.deepEqual(errors,[]);assert.equal(writes,0,'preview work never writes user data');
-   results.push({engine,passed:true,writes,externalBlocked,rows});fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log('PASS',engine,'preview calculation reuse',JSON.stringify(modelsRepeat.counts));
+   results.push({engine,passed:true,writes,externalBlocked,rows,fastTwilight});fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log('PASS',engine,'preview calculation reuse',JSON.stringify(modelsRepeat.counts));
   }catch(e){const current=await page.evaluate(()=>({counts:previewCacheFixture?.counts,renders:previewCacheFixture?.renders,aria:document.querySelector('#aimLook [data-look-canvas]')?.getAttribute('aria-label'),shownTime:document.querySelector('#aimLook [data-look-at]')?.textContent,selectedAt:SkyMapUI.selectionState().at,recentCalls:previewCacheFixture?.calls.slice(-6)})).catch(()=>null);fs.writeFileSync(`${out}/${engine}-failure.json`,JSON.stringify({error:String(e),errors,writes,rows,current},null,2));await page.screenshot({path:`${out}/${engine}-failure.png`,fullPage:true}).catch(()=>{});throw e;}
   finally{await context.close();await browser.close();}
  }
