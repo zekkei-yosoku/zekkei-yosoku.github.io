@@ -6,8 +6,11 @@ import {aimFromPoint,aimRenderFrom,aimRenderSelectedPoint,aimRenderTargetCard,ca
 import {aimCandidateAccessible,aimCandidateSiteSupported,aimPlaces,aimRefreshSheetCands,aimSideName} from './candidates.js';
 import {aimAirEnsure,aimMapView,aimTitleFor} from './reverse-and-entry.js';
 import {screenAllowed,toolAllowed} from '../account/session-and-access.js';
-function aimApply({ redraw = true, recenter = false } = {}) {
-  if(globalThis.TrialExplore?.ownsScene?.()??globalThis.TrialExplore?.active()){globalThis.TrialExplore.invalidate();return false;}
+function aimApply({ redraw = true, recenter = false, reuseProjection = false } = {}) {
+  if(globalThis.TrialExplore?.ownsScene?.()??globalThis.TrialExplore?.active()){
+    if(reuseProjection)globalThis.TrialExplore.sync(false,true);else globalThis.TrialExplore.invalidate();
+    return false;
+  }
   aimRenderSelectedPoint();
   if (!AstroNotesBodies.definition(aim.body).limbs && !AstroNotesBodies.ready()) {
     const request = aim.bodySeq.next();

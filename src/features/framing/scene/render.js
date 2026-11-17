@@ -4,7 +4,7 @@ import {AimMap,aim,aimIsMountain,aimSceneBackdrop} from '../controller.js';
 import {aimLookRidge,aimTerrainBeyond,aimTerrainFront} from './terrain.js';
 import {AIM_SENSOR,aimDrawGrid,aimLens,aimLookHMS,aimLookHosts,aimLookRel} from './lens.js';
 import {aimLookSolidSilhouette,aimLookForeground} from './silhouette.js';
-import {aimLookEphemeris,aimLookSceneGeometry} from './calculations.js';
+import {aimLookEphemeris,aimLookSceneGeometry,warmLookEphemeris} from './calculations.js';
 import {aimLookPick} from './input.js';
 import {aimAirAngle,aimAirCompare,aimAirDescribe,aimLookKey,aimReverseClear} from '../reverse-and-entry.js';
 import {auth} from '../../account/session-and-access.js';
@@ -23,7 +23,7 @@ async function aimLookRender(host, spec) {
   if (!sameLookSpec) { host._lensGesture = null; host._lookAt = null; }
   host._lookSpec = spec;
   host._planKey = null;
-  const planRenderKey = aimLookKey();
+  let planRenderKey = aimLookKey();
   host._planObserverName = spec.observerName || spec.title || "撮影地点";
   host._uiTime = null; host._blendP = null;
   aimLookHosts.add(host);
@@ -129,22 +129,12 @@ async function aimLookRender(host, spec) {
   const plannerAt=transfer&&transfer.body===body&&transfer.day===S.JstCal.startOfDay(spec.at)&&transfer.latitude===spec.obs.latitude&&transfer.longitude===spec.obs.longitude?transfer.at:null;
   if(transfer&&(!Number.isFinite(plannerAt)))aim.plannerTransfer=null;
   const selectedAt = Number.isFinite(plannerAt)?plannerAt:pendingPlan ? pendingPlan.at : Number.isFinite(comparison)?comparison:sameLookSpec && Number.isFinite(host._lookAt) ? host._lookAt : spec.at;
-  const frameDay = S.JstCal.startOfDay(spec.at);
-  const {path,framePoints,sampleState} = aimLookEphemeris(host, body, eyeObs, frameDay, spec.at, selectedAt, win, proj, frame);
-  // 海面の基準は軌道の日付分割と画角内の時間帯に使う。遠方の地形を塔の図へ重ねない。
+  // The projection is fixed until the camera or the shooting conditions change.
   const seaAngle = AstroNotesAstro.seaHorizonAngle(eye, { k: AstroNotesAtmosphere.targetK() });
-  const passagePoints = mountain ? framePoints?.map(q => q.altitude + q.radius < seaAngle ? {...q,x:null,y:null} : q) : framePoints;
-  const pathEdge = (at, keep) => { try { return AstroNotesAlign.viewPath(body, eyeObs, at, proj, win, { stepS: 60, maxMin: 180, sampleState }).filter(keep); } catch { return []; } };
-  const pathBefore = pathEdge(frameDay, (q) => q.at < frameDay), pathAfter = pathEdge(frameDay + 86400000, (q) => q.at >= frameDay + 86400000);
-  // 1日の中には前の晩と次の晩の通り道が両方入ることがある。地平線より上にいる間ごとに1本の通り道として区切り、
-  // 描くのは見ている時刻を含む1本だけ（日付をまたいで端から端まで）。時刻のバーで別の晩へ動かせば、その晩の線に替わる
-  const fullPath = [...pathBefore, ...path, ...pathAfter];
-  const pathRuns = [];
-  for (let i = 0, start = -1; i <= fullPath.length; i++) {
-    const up = i < fullPath.length && Number.isFinite(fullPath[i].altitude) && fullPath[i].altitude > Math.min(-1, seaAngle - 0.3);
-    if (up && start < 0) start = i;
-    if (!up && start >= 0) { pathRuns.push([start, i - 1]); start = -1; }
-  }
+  const path=[],guides=new Map();
+  let frameDay,passagePoints,fullPath,pathRuns,relevantRuns,ticks,frameTimesKey=null;
+  const k = (H / 2) / win.halfH;
+  const toPx = (xy) => (xy ? [W / 2 + xy[0] * k, H / 2 - xy[1] * k] : null);
   const visibleDayRuns=function visibleDayRuns(path,runs,win,day){
  const crosses=(a,b)=>{
   if(a.x===null||b.x===null||![a.x,a.y,b.x,b.y].every(Number.isFinite)||b.at<day||a.at>=day+86400000)return false;
@@ -158,12 +148,37 @@ async function aimLookRender(host, spec) {
  return runs.filter(([start,end])=>{for(let i=start+1;i<=end;i++)if(crosses(path[i-1],path[i]))return true;return false;});
 };
 const nearestPathRun=function nearestPathRun(path,runs,at){let best=null,gap=Infinity;for(const run of runs){const a=path[run[0]].at,b=path[run[1]].at,d=at<a?a-at:at>b?at-b:0;if(d<gap){gap=d;best=run;}}return best;};
-const relevantRuns=visibleDayRuns(fullPath,pathRuns,win,frameDay);
 const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns,t);
-  let frameTimesKey = null;
+  function setDayPaths(day,reference,selected){
+    const {path:nextPath,framePoints,sampleState}=aimLookEphemeris(host,body,eyeObs,day,reference,selected,win,proj,frame);
+    frameDay=day;
+    path.length=0;
+    for(const point of nextPath)path.push(point);
+    passagePoints = mountain ? framePoints?.map(q => q.altitude + q.radius < seaAngle ? {...q,x:null,y:null} : q) : framePoints;
+    const pathEdge=(at,keep)=>{
+      try{return AstroNotesAlign.viewPath(body,eyeObs,at,proj,win,{stepS:60,maxMin:180,sampleState}).filter(keep);}
+      catch{return [];}
+    };
+    const end=day+86400000,pathBefore=pathEdge(day,q=>q.at<day),pathAfter=pathEdge(end,q=>q.at>=end);
+    fullPath=[...pathBefore,...path,...pathAfter];
+    pathRuns=[];
+    for(let i=0,start=-1;i<=fullPath.length;i++){
+      const up=i<fullPath.length&&Number.isFinite(fullPath[i].altitude)&&fullPath[i].altitude>Math.min(-1,seaAngle-0.3);
+      if(up&&start<0)start=i;
+      if(!up&&start>=0){pathRuns.push([start,i-1]);start=-1;}
+    }
+    relevantRuns=visibleDayRuns(fullPath,pathRuns,win,day);
+    const span=(path.at(-1).at-path[0].at)/60000;
+    const step=([1,2,5,10,15,30,60].find(m=>span/m<=10)||60)*60000;
+    ticks=[];
+    for(let at=Math.ceil(fullPath[0].at/step)*step;at<=fullPath.at(-1).at;at+=step){
+      const state=sampleState(at),p=toPx(proj(state.azimuth,state.apparentAltitude));
+      if(p)ticks.push([p[0],p[1],at]);
+    }
+    guides.clear();frameTimesKey=null;
+  }
+  setDayPaths(S.JstCal.startOfDay(spec.at),spec.at,selectedAt);
   const i0 = path.reduce((best, p, i) => Math.abs(p.at - selectedAt) < Math.abs(path[best].at - selectedAt) ? i : best, 0);
-  const k = (H / 2) / win.halfH;
-  const toPx = (xy) => (xy ? [W / 2 + xy[0] * k, H / 2 - xy[1] * k] : null);
   const sceneCenters = scene.map(item => proj(item.azimuth, item.topAngle)).filter(p => p && Math.abs(p[0]) < 330);
   const panLimit = Math.max(1, ...sceneCenters.map(p => Math.abs(p[0]) / (2 * win.halfW) + .5));
   let sceneVersion=0;
@@ -256,16 +271,6 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     skyline = { left: side((r) => r < from), right: side((r) => r > to) };
     sceneVersion++; draw(cur, host._lookAt);
   };
-  // 時刻の目盛り。道のりの長さに合わせて1〜60分ごとに、多くても10個
-  const span = (path[path.length - 1].at - path[0].at) / 60000;
-  const every = [1, 2, 5, 10, 15, 30, 60].find((m) => span / m <= 10) || 60;
-  const ticks = [];
-  for (let m = Math.ceil(fullPath[0].at / (every * 60000)) * every * 60000; m <= fullPath[fullPath.length - 1].at; m += every * 60000) {
-    const s = sampleState(m);
-    const p = toPx(proj(s.azimuth, s.apparentAltitude));
-    if (p) ticks.push([p[0], p[1], m]);
-  }
-  const guides = new Map();
   function guideAt(run){
     if (guides.has(run)) return guides.get(run);
     const line = new Path2D(), marks = new Path2D();
@@ -576,9 +581,17 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (path[mid].at <= ms) lo = mid; else hi = mid; }
     return lo + (ms - path[lo].at) / Math.max(1, path[hi].at - path[lo].at);
   };
-  const uiDay = S.JstCal.startOfDay(spec.at), uiEnd = uiDay + 86400000 - 1;
   const uiState = host._uiTime = {
-    day: uiDay, reference: spec.at, name: spec.atName || '重なる', current: selectedAt,
+    day: frameDay, reference: spec.at, name: spec.atName || '重なる', current: selectedAt,
+    async updateDay(ms,isCurrent) {
+      const day=S.JstCal.startOfDay(ms),current=()=>host._lookSeq===seq&&isCurrent();
+      if(!current()||!await warmLookEphemeris(host,body,eyeObs,day,current))return false;
+      globalThis.AstroNotesCameraUI?.invalidate(host);
+      setDayPaths(day,ms,ms);
+      spec.at=ms;this.day=day;this.reference=ms;planRenderKey=aimLookKey(day);
+      this.set(ms);this.window();
+      return true;
+    },
     set(ms) { if (host._lookSeq !== seq || !Number.isFinite(ms)) return; host._blendP = null; draw(timeIndex(ms), ms); },
     blend(b) {
       if (host._lookSeq !== seq) return;
@@ -588,7 +601,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
       draw(timeIndex(near));
     },
     window(includeAt=null) {
-      const center=spec.at;
+      const center=spec.at,uiDay=this.day,uiEnd=uiDay+86400000-1;
       const all = host._uiAllDay;
       const a = AstroNotesBodies.state(body, center - 1000, eyeObs), b = AstroNotesBodies.state(body, center + 1000, eyeObs);
       const pa = proj(a.azimuth, a.apparentAltitude), pb = proj(b.azimuth, b.apparentAltitude);
@@ -607,14 +620,14 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
   uiState.window();
   let uiPending = null;
   range.oninput = () => {
-    const first = uiPending === null; uiPending = uiDay + Number(range.value)*1000;
+    const first = uiPending === null; uiPending = uiState.day + Number(range.value)*1000;
     if (first) requestAnimationFrame(() => { const ms = uiPending; uiPending = null; if (host._lookSeq === seq && ms !== null) uiState.set(ms); });
   };
-  range.onchange = () => { const ms = uiDay + Number(range.value)*1000; uiPending = null; uiState.set(ms);  };
+  range.onchange = () => { const ms = uiState.day + Number(range.value)*1000; uiPending = null; uiState.set(ms);  };
   range.onkeydown = e => {
     if (!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) return;
     e.preventDefault(); const delta = (e.shiftKey ? 10000 : 1000) * (['ArrowLeft','ArrowDown'].includes(e.key) ? -1 : 1);
-    uiState.set(Math.max(uiDay + +range.min*1000, Math.min(uiDay + +range.max*1000, host._lookAt + delta)));
+    uiState.set(Math.max(uiState.day + +range.min*1000, Math.min(uiState.day + +range.max*1000, host._lookAt + delta)));
   };
   // 道をさわって時刻を選ぶ（いちばん近い点。36px より遠ければ何もしない）。
   // pointerdown では iPhone の指のタップで動かなかった（2026-10-02 シミュレーターで確認。マウスでは動く）ので click で受ける

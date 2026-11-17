@@ -115,7 +115,7 @@ test('重ねるから戻ると現在の選択天体を表示し以前の非表�
 });
 test('カレンダー指定時刻を微調整の秒範囲へ含め、表示の端への丸めを防ぐ',()=>{
  const start=html.indexOf('  const uiState = host._uiTime = {'),end=html.indexOf('  uiState.window();',start),day=Date.parse('2026-11-03T00:00:00+09:00'),range={setAttribute(){}},host={_lookAt:day+43200000};
- const c={host,range,uiDay:day,uiEnd:day+86400000-1,spec:{at:day+43200000},selectedAt:day+43200000,Number,Math,AstroNotesBodies:{state:()=>({azimuth:0,apparentAltitude:0})},body:'sun',eyeObs:{},proj:()=>[0,0],win:{halfW:100,halfH:100},aimLookHMS:()=>'',seq:1,timeIndex:x=>x,draw(){}};
+ const c={host,range,frameDay:day,spec:{at:day+43200000},selectedAt:day+43200000,Number,Math,AstroNotesBodies:{state:()=>({azimuth:0,apparentAltitude:0})},body:'sun',eyeObs:{},proj:()=>[0,0],win:{halfW:100,halfH:100},aimLookHMS:()=>'',seq:1,timeIndex:x=>x,draw(){}};
  vm.createContext(c);c.AstroNotesLibrary=__L;vm.runInContext(html.slice(start,end)+'host._uiTime.window('+String(day+64800000)+');',c);assert.ok(+range.max>=64800);assert.equal(+range.value,43200);assert.equal(host._uiTime.maxSeconds,+range.max);
 });
 

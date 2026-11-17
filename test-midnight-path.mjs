@@ -9,7 +9,7 @@ test('frameDayPath は前日・翌日へ広げられ、既定はその日の0〜
  const w=Al.frameDayPath('moon',obs,day,proj,{startMs:day-6*3600000,endMs:day+30*3600000});assert.equal(w[0].at,day-6*3600000);assert.equal(w.at(-1).at,day+30*3600000);
 });
 test('図は見ている時刻の通り道を日境界へつなげ、画角内時間を現在のpanへ追従して予定へ渡す',()=>{
- assert.match(html,/const fullPath = \[\.\.\.pathBefore, \.\.\.path, \.\.\.pathAfter\];/);
+ assert.match(html,/fullPath\s*=\s*\[\.\.\.pathBefore,\s*\.\.\.path,\s*\.\.\.pathAfter\];/);
  assert.match(html,/frameDayCurrent\?runAt\(p\.at\):nearestPathRun\(fullPath,pathRuns,p\.at\)/);
  assert.match(html,/frameDayCurrent\|\|run&&p\.at>=fullPath\[run\[0\]\]\.at&&p\.at<=fullPath\[run\[1\]\]\.at/);
  assert.match(html,/guideAt\(run\)/);assert.match(html,/for \(const q of run \? fullPath\.slice\(run\[0\], run\[1\] \+ 1\) : path\)/);
@@ -47,7 +47,7 @@ test('天体の位置調整と逆算入口を撤去し、Undoと残像を出さ�
 });
 
 test('塔の画角時刻は遠方の地平で切らず、山の従来の海面基準は保つ',()=>{
- const expr=html.match(/^  const passagePoints = (.+);$/m)?.[1];assert(expr);
+ const expr=html.match(/^\s+passagePoints = (.+);$/m)?.[1];assert(expr);
  const points=[{altitude:-1,radius:.2,x:10,y:20},{altitude:1,radius:.2,x:11,y:21}];
  const c=vm.createContext({framePoints:points,mountain:false,seaAngle:0});
  assert.deepEqual(JSON.parse(JSON.stringify(vm.runInContext(expr,c))),points);

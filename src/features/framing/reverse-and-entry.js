@@ -200,7 +200,7 @@ function aimReverseShow(r, points) {
 }
 
 /// 逆引きを解き始めたときの条件（替わったら結果を捨てる）
-const aimLookKey = () => `${aim.target && aim.target.id}|${aim.body}|${aim.dayMs}|${aim.limb}|${aim.partId}`;
+const aimLookKey = (day = aim.dayMs) => `${aim.target && aim.target.id}|${aim.body}|${day}|${aim.limb}|${aim.partId}`;
 
 /// 逆引きの結果: どこから・座標・時刻・目標の方角・地図
 function aimLookFound(found, r, D) {
@@ -310,7 +310,8 @@ function aimAirEnsure(f,day){
  // 長時間かかった取得でも、この完了描画で直ちに再取得をループしない。
  aimAirLoadUntil=Math.max(Date.now()+1000,aimAirLoadUntil);
  }catch{if(!aimAirSeq.current(seq))return;aimAirLoadUntil=Date.now()+60000;}
- if(!aimAirSeq.current(seq))return;document.dispatchEvent(new Event("astronotes-opportunity-input"));aimApply();})();
+ if(!aimAirSeq.current(seq))return;document.dispatchEvent(new Event("astronotes-opportunity-input"));
+ aimApply({reuseProjection:true});})();
  return true;
 }
 function aimAirChange(){

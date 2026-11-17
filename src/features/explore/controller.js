@@ -405,18 +405,40 @@ function message(text){status.textContent=text;status.hidden=!text;retry.hidden=
 function updateRetainedTime(s){
  if(plan.frameBase===baseStamp(s)&&!look.hidden&&look._uiTime&&Math.abs(look._lookAt-s.at)>.5)look._uiTime.set(s.at);
 }
-async function paint(force=false){
- if(!active())return;updateConditions();if(!resultRequested)return;let s;
+function retainedProjection(s){
+ return !look.hidden&&!!look._uiTime&&!!plan.frameBase&&baseStamp(s)===plan.frameBase;
+}
+async function paint(force=false,timeOnly=false){
+ if(!active())return;
+ if(SkyMapUI.minuteScrubbing?.()&&paintScrubTime()){
+  deferredForce=deferredForce||force;
+  return;
+ }
+ updateConditions();if(!resultRequested)return;let s;
  try{s=snapshot();updateSkyInfo(s);}catch{updateSkyInfo(null);invalidate();look.hidden=true;scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');scene.style.minHeight='';message(!SkyMapUI.selectionState()?.target?'対象を選ぶと見え方を確認できます':'撮影地点を選ぶと見え方を確認できます');return;}
  const key=stamp(s);
  if(mode!=='scene'){if(plan.frameKey&&plan.frameKey!==key)invalidate();return;}
  if(!canFrame(s)){invalidate();look.hidden=true;scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');scene.style.minHeight='';message('この条件の見え方を利用する権限がありません');return;}
+ if(deferredForce){force=true;deferredForce=false;}
  let run=null;
  try{
  if(plan.pendingKey===key&&!force){updateRetainedTime(s);return;}
  if(!force&&plan.frameKey===key&&look._uiTime&&!look.hidden){
   if(Math.abs(look._lookAt-s.at)>.5)look._uiTime.set(s.at);
   const cv=look.querySelector('[data-look-canvas]');if(cv&&Math.round(cv.clientWidth)===look._lookW){addSaveAction(look.querySelector('.aim-figure-share'),'aim');updateConditions();message('');return;}
+ }
+ if(!force&&timeOnly&&retainedProjection(s)&&look._uiTime.updateDay&&Math.round(look.querySelector('[data-look-canvas]')?.clientWidth)===look._lookW){
+  run=plan.begin(key,true);scene.setAttribute('aria-busy','true');
+  const current=()=>plan.current(run)&&resultActive()&&mode==='scene'&&!SkyMapUI.minuteScrubbing?.()&&plan.matches(key);
+  if(await look._uiTime.updateDay(s.at,current)){
+   if(!current())return;
+   const latest=snapshot();
+   aim.dayMs=AstroNotesSkyMap.dayStart(latest.at);$('aimDate').value=new Date(latest.at+32400000).toISOString().slice(0,10);
+   clearAimAirCompare();
+   if(Math.abs(look._lookAt-latest.at)>.5)look._uiTime.set(latest.at);
+   plan.commit(key,latest);message('');aimAirEnsure(aim.from,aim.dayMs);
+  }
+  return;
  }
  // 日付だけが変わったときは、前の見え方を出したまま描き直す（2026-10-22 ユーザー「ブラックアウトして全て再読み込みするのはやめて必要な箇所だけの更新で」）
  const soft=!!plan.frameBase&&(plan.frameBase===baseStamp(s)||globalThis.MyPlacesUI?.eyeAdjustmentFor?.(s))&&!look.hidden&&!!look.querySelector('[data-look-canvas]');
@@ -434,12 +456,12 @@ async function paint(force=false){
  }catch(e){if((!run||plan.current(run))&&resultActive()){invalidate();look.hidden=true;scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');scene.style.minHeight='';message('見え方を計算できませんでした。条件を確認して再試行してください');updateConditions();}}
  finally{if(run&&plan.settle(run)&&resultActive()){scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');if(!look.hidden)scene.style.minHeight='';updateConditions();}}
 }
-let lastScrubSkyInfo=0;
+let lastScrubSkyInfo=0,timeNext=false,deferredForce=false;
 function paintScrubTime(){
- if(!resultActive()||mode!=='scene'||forceNext||plan.pendingKey||!plan.frameKey||look.hidden||!look._uiTime)return false;
+ if(!resultActive()||mode!=='scene')return false;
  let s;
- // Reuse the committed projection across midnight. Its daily guides are replaced when the ruler settles.
- try{s=snapshot();if(stamp({...s,at:look._uiTime.day})!==plan.frameKey||!canFrame(s))return false;}catch{return false;}
+ // The sky's current weather is read at the selected time, independently of the camera projection.
+ try{s=snapshot();if(!retainedProjection(s)||!canFrame(s))return false;}catch{return false;}
  // The scroll ruler already emits at most once per animation frame.
  try{if(Math.abs(look._lookAt-s.at)>.5)look._uiTime.set(s.at);}
  catch(error){globalThis.AstroNotesErrors?.note('explore.scrubScene',error);sync(true);return false;}
@@ -447,9 +469,15 @@ function paintScrubTime(){
  if(now-lastScrubSkyInfo>=120){lastScrubSkyInfo=now;updateSkyInfo(s);}
  return true;
 }
-function sync(force=false){
- forceNext=forceNext||force;if(scheduled)return;scheduled=true;
- requestAnimationFrame(()=>{scheduled=false;const f=forceNext;forceNext=false;void paint(f);});
+function sync(force=false,timeOnly=false){
+ forceNext=forceNext||force;timeNext=timeNext||timeOnly;if(scheduled)return;scheduled=true;
+ requestAnimationFrame(()=>{scheduled=false;const f=forceNext,t=timeNext;forceNext=false;timeNext=false;void paint(f,t);});
+}
+function invalidateScene(){
+ if(SkyMapUI.minuteScrubbing?.()&&resultActive()){
+  deferredForce=true;sync();return;
+ }
+ plan.forgetFrame();SkyMapUI.render();sync(true);
 }
 function render(){
  menu();if(viewState.skyMap&&eligible()){layout.mount();aimView.hidden=false;renderAimAccess();sync();}
@@ -661,7 +689,7 @@ window.addEventListener('pagehide',cancelCompositionSearch);
 // 探すを開いた時点で塔の模型を読み始め、地点を選んだ後の待ちから外す。
 const warmModels=()=>{if(/^#\/explore/.test(location.hash)&&eligible())AstroNotesAssets.ensureModels().catch(()=>{});};addEventListener('hashchange',warmModels);setTimeout(warmModels,0);
 globalThis.TrialExplore={candidateWorkspace:()=>layout.mounted?mainCandidateWorkspace:null,active,ownsScene,render,routeChanged,
- preferMap:()=>{transferMode='map';if(active())choose('map');},sync,paintScrubTime,invalidate:()=>{plan.forgetFrame();SkyMapUI.render();sync(true);},sceneDraw,assertScene,searchCompositionPlaces,
+ preferMap:()=>{transferMode='map';if(active())choose('map');},sync,paintScrubTime,invalidate:invalidateScene,sceneDraw,assertScene,searchCompositionPlaces,
  camera:()=>{let timelapse=null;try{if(plan.frameKey===stamp(snapshot())&&AstroNotesTimelapse.settings(look._timelapseConfig))timelapse={...look._timelapseConfig};}catch(e){globalThis.AstroNotesErrors?.note('explore.timelapse',e);
  }return {l:{...aimLens,focal:Number(look.querySelector('[data-lens-focal]')?.value)||aimLens.focal||50},pan:[...(look._lensOffset||[0,0])],timelapse};}};
 document.addEventListener('visibilitychange',()=>{if(document.hidden)invalidate();else sync();});

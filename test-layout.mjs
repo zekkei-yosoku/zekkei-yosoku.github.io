@@ -929,7 +929,7 @@ ok(/\}, \{ target: c\.heightM \|\| 0 \}\);/.test(html) && /\$\("aimTarget"\)\.va
 ok(/const aimFavTargets = \(\) => favorites\.filter\(\(f\) => Number\.isFinite\(f\.targetHeightM\)\);/.test(html), "目標として登録したお気に入り（高さつき）をプルダウンに出す");
 ok(/`<optgroup label="自分の対象">\$\{favs\.map\(opt\)\.join\(""\)\}<\/optgroup>`/.test(html), "プルダウンでは「お気に入り」のまとまりにする");
 ok(/if \(!c\.fav\) store\.set\("sorami\.aimCustom", null\);/.test(html), "登録したら他の対象は空ける（同じものを2つ並べない）");
-ok(/function aimApply\(\{ redraw = true, recenter = false \} = \{\}\) \{[\s\S]*?aimFillSelects\(\);/.test(html), "お気に入りを消したらプルダウンからも消える（毎回組み直す）");
+ok(/function aimApply\(\{[^}]*\} = \{\}\) \{[\s\S]*?aimFillSelects\(\);/.test(html), "お気に入りを消したらプルダウンからも消える（毎回組み直す）");
 ok(/\{ \.\.\.before, targetHeightM: h \}/.test(html), "お気に入りの目標の高さを直すと、お気に入りも直る");
 ok(/<div id="favTargetBox" hidden>\s*<label class="fav-l" for="favTargetH">重ねる対象の高さ/.test(html), "登録の画面に「重ねる対象の高さ」");
 ok(/\$\("favStandBox"\)\.hidden = \$\("favPhBox"\)\.hidden = target !== null \|\| shooting;/.test(html), "目標として開いたら、立って見る場所の項目は隠す");

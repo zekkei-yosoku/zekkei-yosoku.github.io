@@ -2,8 +2,9 @@
 // of the focal length, and the target's outline is independent of the camera.
 const lookSkySamples = new WeakMap();
 const lookTargetGeometry = new WeakMap();
+const LOOK_PATH_STEP_SECONDS = 20;
 
-function aimLookEphemeris(host, body, observer, frameDay, at, selectedAt, win, proj, frame) {
+function lookSkyFor(host, body, observer, frameDay) {
   const atmosphere = AstroNotesAtmosphere.dataKey?.();
   const key = JSON.stringify([body, observer.latitude, observer.longitude, observer.elevation, frameDay, atmosphere]);
   let sky = lookSkySamples.get(host);
@@ -21,6 +22,26 @@ function aimLookEphemeris(host, body, observer, frameDay, at, selectedAt, win, p
     sky = {key, sampleState};
     lookSkySamples.set(host, sky);
   }
+  return sky;
+}
+
+async function warmLookEphemeris(host, body, observer, frameDay, isCurrent) {
+  const {sampleState} = lookSkyFor(host, body, observer, frameDay);
+  const end=frameDay+86400000;
+  let started=performance.now();
+  for(let at=frameDay;at<end;at+=LOOK_PATH_STEP_SECONDS*1000){
+    sampleState(at);
+    if(performance.now()-started>=4){
+      await new Promise(resolve=>setTimeout(resolve,0));
+      if(!isCurrent())return false;
+      started=performance.now();
+    }
+  }
+  return isCurrent();
+}
+
+function aimLookEphemeris(host, body, observer, frameDay, at, selectedAt, win, proj, frame) {
+  const sky=lookSkyFor(host,body,observer,frameDay);
   const {sampleState} = sky;
   // Same axis means the angular projection is identical at any focal length.
   if (sky.az0 !== win.az0 || sky.alt0 !== win.alt0) {
@@ -30,7 +51,7 @@ function aimLookEphemeris(host, body, observer, frameDay, at, selectedAt, win, p
     sky.framePoints = null;
   }
   if (!sky.path || sky.at !== at || sky.selectedAt !== selectedAt) {
-    sky.path = AstroNotesAlign.viewPath(body, observer, at, proj, win, {includeAt: selectedAt, dayMs: frameDay, sampleState});
+    sky.path = AstroNotesAlign.viewPath(body, observer, at, proj, win, {stepS:LOOK_PATH_STEP_SECONDS,includeAt: selectedAt, dayMs: frameDay, sampleState});
     sky.at = at;
     sky.selectedAt = selectedAt;
   }
@@ -59,4 +80,4 @@ function aimLookSceneGeometry(host, observer, eyeM, targets, isMountain) {
   return {outline:geometry.outline, scene};
 }
 
-export {aimLookEphemeris,aimLookSceneGeometry};
+export {aimLookEphemeris,aimLookSceneGeometry,warmLookEphemeris};

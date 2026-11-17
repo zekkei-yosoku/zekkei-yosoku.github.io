@@ -92,9 +92,13 @@ async function measure(page,label,at){
  return {label,...row};
 }
 
-async function scrubMinutes(page,at,offsets=[5,30]){
- const mapRenders=await page.evaluate(()=>previewCacheFixture.mapRenders);
- const check=await page.evaluate(({startAt,offsets})=>new Promise(resolve=>{
+async function scrubMinutes(page,at,offsets=[5,30],changeWeather=false){
+ const mapRenders=await page.evaluate(()=>{
+  const look=document.getElementById('aimLook');
+  previewCacheFixture.retained={lookSeq:look._lookSeq,layers:look._lookLayers,buildings:look._lookLayers.stats.buildings};
+  return previewCacheFixture.mapRenders;
+ });
+ const check=await page.evaluate(({startAt,offsets,changeWeather})=>new Promise(resolve=>{
   const ruler=document.getElementById('skyMapTimeline'),look=document.getElementById('aimLook');
   const original=MyPlacesUI.skyRender,prepare=AstroNotesAlign.prepareDailyView,checks=[];
   const frameTimes=look.querySelector('[data-look-frame-times]'),initialDay=look._uiTime.day;
@@ -117,12 +121,18 @@ async function scrubMinutes(page,at,offsets=[5,30]){
    const expectedSky=AstroNotesSceneAppearance.aimLookSky(sun.apparentAltitude).map(rgb=>rgb.join(',')).join('|');
    checks.push({at,drawnAt:look._lookAt,uiAt:look._uiTime.current,sky:look._lookSkyKey,expectedSky,
     barDate:document.getElementById('skyMapDate').value,frameTimesHidden:frameTimes.style.visibility==='hidden'});
+   if(changeWeather&&checks.length===1){
+    const dataKey=AstroNotesAtmosphere.dataKey;
+    AstroNotesAtmosphere.dataKey=()=>dataKey()+'-new-weather';
+    previewCacheFixture.restoreDataKey=()=>{AstroNotesAtmosphere.dataKey=dataKey;};
+    TrialExplore.sync(false,true);
+   }
    if(checks.length<offsets.length)move(offsets[checks.length]);else finish();
   });
   const timeout=setTimeout(finish,5000);
   watcher.observe(ruler,{attributes:true,attributeFilter:['aria-valuenow']});
   ruler.dispatchEvent(new Event('touchstart'));move(offsets[0]);
- }),{startAt:at,offsets});
+ }),{startAt:at,offsets,changeWeather});
  await page.locator('#skyMapTimeline').evaluate(ruler=>ruler.dispatchEvent(new Event('touchend')));
  assert.deepEqual(check.frames.map(frame=>frame.at),offsets.map(px=>at+px*15000));
  for(const frame of check.frames){
@@ -146,6 +156,15 @@ async function scrubMinutes(page,at,offsets=[5,30]){
    SkyMapUI.selectionState().at===ms&&+ruler.getAttribute('aria-valuenow')===ms&&saved?.at===ms;
  },snappedAt);
  assert.equal(await page.evaluate(()=>previewCacheFixture.mapRenders),mapRenders,'settling a minute gesture does not rebuild the hidden map workspace');
+ const sameScene=await page.evaluate(()=>{
+  const look=document.getElementById('aimLook'),saved=previewCacheFixture.retained;
+  return look._lookSeq===saved.lookSeq&&look._lookLayers===saved.layers&&look._lookLayers.stats.buildings===saved.buildings&&look._planKey===aimLookKey();
+ });
+ assert(sameScene,'day change or weather arrival keeps the exact ground canvas and scene generation');
+ if(changeWeather){
+  await page.evaluate(()=>{previewCacheFixture.restoreDataKey();TrialExplore.sync(false,true);});
+  await page.waitForFunction(()=>{try{TrialExplore.assertScene();return true;}catch{return false;}});
+ }
  return snappedAt;
 }
 
@@ -191,7 +210,7 @@ function invalidated(before,after,kinds){
    const sameDay=await scrubMinutes(page,beforeMidnight,[5,30,0]);
    assert.equal(sameDay,beforeMidnight,'moving across midnight and back retains the selected day on release');
    const backBeforeMidnight=await measure(page,'back-before-midnight',sameDay);reused(beforeGesture,backBeforeMidnight);
-   const midnight=await scrubMinutes(page,beforeMidnight);
+   const midnight=await scrubMinutes(page,beforeMidnight,[5,30],true);
    const nextDay=await record('next-day',midnight);invalidated(backBeforeMidnight,nextDay,['dayPath','framePath']);
    const detail=await page.evaluate(()=>{
     const more=document.getElementById('skyMapTimeMore'),s=SkyMapUI.renderState();

@@ -210,12 +210,15 @@ ctx.lineWidth=1;
   el('skyMapDate').value=dateAt(session.at);el('skyMapTime').value=textAt(session.at);syncScrubRange();
   const button=el('skyMapCalendarOpen');ToolDateTimeBar.dateText(button,session.at);button.setAttribute('aria-label',ToolDateTimeBar.label(session.at));
  }
+ const minuteScrubbing=()=>timelineMoving&&session?.scrubMode==='time';
  function render(timeOnly=false){
   normalizeWholeAlignment();
-  queueMicrotask(()=>globalThis.TrialExplore?.sync());
   const canRender=hasAccess()&&session&&active();
-  if(timeOnly===true&&canRender&&view.dataset.exploreStage==='preview'&&view.dataset.exploreMode==='scene'){
-   renderCandidateDates();renderTimeControls();
+  const previewTime=!!canRender&&(timeOnly===true||minuteScrubbing())&&view.dataset.exploreStage==='preview'&&view.dataset.exploreMode==='scene';
+  queueMicrotask(()=>globalThis.TrialExplore?.sync(false,previewTime));
+  if(previewTime){
+   if(!minuteScrubbing())renderCandidateDates();
+   renderTimeControls();
    globalThis.MyPlacesUI?.skyOverlap?.(session);
    if(skyTimeDialog.open)renderMapTime();
    save();return;
@@ -369,7 +372,7 @@ ctx.lineWidth=1;
     const button=el('skyMapCalendarOpen');ToolDateTimeBar.dateText(button,at);button.setAttribute('aria-label',ToolDateTimeBar.label(at));
    }
    globalThis.MyPlacesUI?.skyOverlap?.(session);
-  }else render();
+  }else render(session.scrubMode==='time');
  },onBlend:b=>{if(!session)return;session.blend=b;map.redraw();},onSettle:settleSkyScrub,
  format:(at,mode)=>mode==='date'?dateAt(at).slice(5).replace('-','/'):textAt(at),getObserver:()=>session?.observer,sun:(at,o)=>AstroNotesAstro.sun(at,o),describe:(at,mode)=>ToolDateTimeBar.label(at)+(mode!=='date'?' '+textAt(at):'')});
  let lastPlaybackDetail=0;
@@ -549,7 +552,8 @@ ctx.lineWidth=1;
   else{aim.plannerTransfer=null;aim.candPick=null;aim.spot=null;aim.wantSpot=null;aim.wantKey=null;}
   save();return true;
  }
- setSkyMapUI({resuming:()=>!!suspended,workspaceHost:()=>hasAccess()&&session&&active()?{session,map,pickMode,targetOn,extraCount:()=>session.target?aimSceneExtraTargets(session.target.id).length:0,setTime,setScrubMode,shownBodies,skyState,placePoint,restoreObserver:o=>{session.observer=o;
+ setSkyMapUI({minuteScrubbing,resuming:()=>!!suspended,
+ workspaceHost:()=>hasAccess()&&session&&active()?{session,map,pickMode,targetOn,extraCount:()=>session.target?aimSceneExtraTargets(session.target.id).length:0,setTime,setScrubMode,shownBodies,skyState,placePoint,restoreObserver:o=>{session.observer=o;
  session.ground=null;if(validPoint(o))map.setCenter(o.latitude,o.longitude);refresh();},restoreTarget:b=>{Object.assign(session,b);targetOn=validPoint(b.target);const sel=el('skyMapTarget'),custom=[...sel.options].find(o=>o.value==='custom');if(custom){if(b.custom)custom.textContent=b.custom.name;
  else custom.remove();}sel.value=b.target?.id||'';syncBodies();refresh();},setTargetHeight:height=>{const c=session.custom;if(session.target?.id!=='custom'||!c||!Number.isFinite(c.groundM)||!AstroNotesLibrary.height(height))return false;
  session.custom={...c,heightM:height,topM:c.groundM+height,heightAuto:false};session.target={...session.target,...session.custom,parts:[{id:'tip',name:'てっぺん',m:c.groundM+height}]};session.customTarget=session.target;refresh();return true;
