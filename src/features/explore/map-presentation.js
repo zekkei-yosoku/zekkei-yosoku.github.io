@@ -276,7 +276,9 @@ ctx.lineWidth=1;
   skyTimeline.stop();
   const changed=AstroNotesSkyMap.dayStart(at)!==AstroNotesSkyMap.dayStart(session.at);
   session.at=at;timelineMoving=false;
- notifyCandidateDate(changed);if(changed||session.timelinePending)refresh();render();}
+  notifyCandidateDate(changed);
+  if(changed||session.timelinePending)refresh(true);else render(true);
+ }
  async function refresh(timeOnly=false){
   if(!hasAccess()||!session)return;
   normalizeWholeAlignment();

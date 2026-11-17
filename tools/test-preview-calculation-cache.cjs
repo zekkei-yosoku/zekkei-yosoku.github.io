@@ -184,6 +184,7 @@ async function scrubMinutes(page,at,offsets=[5,30],changeWeather=false){
 
 async function checkFastTwilight(page){
  const start=Date.parse('2026-11-25T16:55:37+09:00'),offsets=[8,52,120,216,324,500,800,4104,5500,-4200];
+ await page.evaluate(()=>{previewCacheFixture.beforeTimeJump=document.getElementById('aimLook')._lookLayers;});
  await action(page,at=>SkyMapUI.setTime(at),start,start);
  const result=await page.evaluate(async offsets=>{
   const ruler=document.getElementById('skyMapTimeline'),look=document.getElementById('aimLook'),canvas=look.querySelector('[data-look-canvas]'),rulerCanvas=ruler.querySelector('.sky-minute-ruler');
@@ -206,7 +207,8 @@ async function checkFastTwilight(page){
   const out=planSnapshot({dataset:{planSource:'aim'}}).scene;
   const sharedPixel=Array.from(out.getContext('2d').getImageData(0,0,1,1).data);
   return {rows,final:read(),stripWidth:strip.width,stripHeight:strip.height,canvasHeight:canvas.height,
-   top,sharedPixel,retained:rulerCanvas===ruler.querySelector('.sky-minute-ruler')&&!SkyMapUI.minuteScrubbing()};
+   top,sharedPixel,directTimeReused:layers===previewCacheFixture.beforeTimeJump,
+   retained:rulerCanvas===ruler.querySelector('.sky-minute-ruler')&&!SkyMapUI.minuteScrubbing()};
  },offsets);
  const shown=new Set(result.rows.map(row=>row.sky));
  for(let i=0;i<offsets.length;i++){
@@ -220,7 +222,7 @@ async function checkFastTwilight(page){
  assert(shown.size>=5,'crosses multiple real twilight shades');
  assert.equal(result.final.at,start-1050*60000);
  assert.equal(result.final.sky,result.final.exact);
- assert(result.retained);
+ assert(result.retained);assert(result.directTimeReused,'direct date selection uses the existing scene even when the next drag starts immediately');
  assert.equal(result.stripWidth,1);assert.equal(result.stripHeight,result.canvasHeight);
  assert.deepEqual(result.sharedPixel,result.top);
  assert.equal(result.sharedPixel[3],255);

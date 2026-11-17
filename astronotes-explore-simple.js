@@ -532,6 +532,7 @@ async function paint(force=false,timeOnly=false){
  }
  if(!force&&timeOnly&&retainedProjection(s)&&look._uiTime.updateDay&&Math.round(look.querySelector('[data-look-canvas]')?.clientWidth)===look._lookW){
   run=plan.begin(key,true);scene.setAttribute('aria-busy','true');
+  updateRetainedTime(s);
   const current=()=>plan.current(run)&&resultActive()&&mode==='scene'&&!SkyMapUI.minuteScrubbing?.()&&plan.matches(key);
   if(await look._uiTime.updateDay(s.at,current)){
    if(!current())return;
