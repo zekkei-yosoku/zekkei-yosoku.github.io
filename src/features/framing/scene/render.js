@@ -302,31 +302,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
   const layerStats={frames:0,sky:0,body:0,buildings:0,ms:0};
   host._lookLayers={sky:skyCanvas,body:bodyLayer.canvas,buildings:buildingLayer.canvas,stats:layerStats};
   let ctx=displayCtx,skyKey=keepSky?host._lookSkyKey:null,buildingCache=null;
-  let skyTarget=null,skyShown=null,skyStyle='',skyFrame=0,skyFrameAt=null;
-  const reducedMotion=typeof matchMedia==='function'?matchMedia('(prefers-reduced-motion: reduce)'):null;
-  const showSky=colors=>{
-    const rgb=colors.map(Math.round),style=`linear-gradient(rgb(${rgb.slice(0,3)}),rgb(${rgb.slice(3)}))`;
-    if(skyStyle!==style){skyStyle=style;cv.style.backgroundImage=style;}
-    skyShown=colors;
-  };
-  const skyDistance=()=>Math.max(...skyTarget.map((value,i)=>Math.abs(value-skyShown[i])));
-  const stepSky=now=>{
-    skyFrame=0;
-    if(host._lookSeq!==seq)return;
-    const elapsed=skyFrameAt===null?16:Math.max(0,Math.min(32,now-skyFrameAt));
-    skyFrameAt=now;
-    const gap=skyDistance(),travel=Math.min(1,elapsed*Math.max(1.1,gap/110)/(gap||1));
-    showSky(travel===1?skyTarget:skyShown.map((value,i)=>value+(skyTarget[i]-value)*travel));
-    if(travel<1)skyFrame=requestAnimationFrame(stepSky);else skyFrameAt=null;
-  };
-  function displaySky(top,bottom,smooth,now){
-    skyTarget=[...top,...bottom];
-    // Rapid flings can skip most of twilight between frames. Ease just its visible colors.
-    if(!smooth||!skyShown||reducedMotion?.matches||!skyFrame&&skyDistance()<=18){
-      if(skyFrame)cancelAnimationFrame(skyFrame);
-      skyFrame=0;skyFrameAt=null;showSky(skyTarget);
-    }else if(!skyFrame)stepSky(now);
-  }
+  let shownSkyKey=null;
   const resetLayer=(context,canvas)=>{if(typeof context.reset==='function')context.reset();else canvas.width=canvas.width;context.setTransform(dpr,0,0,dpr,0,0);};
   const clipWorld=(context,panX,panY,bottom)=>{context.save();context.translate(panX,panY);context.beginPath();context.rect(-panX,-panY,W,bottom);context.clip();};
   // 図の下の説明（形の出どころ・大気の屈折・縮尺）は出さない（2026-10-03 ユーザー「この説明文いらないわ」「いらない説明文結構ない？」）。
@@ -347,7 +323,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     const ms = path[i].at + (path[j].at - path[i].at) * f;
     return pack(ms, AstroNotesBodies.state(body, ms, eyeObs));
   };
-  const draw = (v, exactAt = null, smoothSky = false) => {
+  const draw = (v, exactAt = null) => {
     const started=typeof performance==='undefined'?Date.now():performance.now();
     const p = host._blendP || (Number.isFinite(exactAt) ? pack(exactAt, AstroNotesBodies.state(body, exactAt, eyeObs)) : at(v));
     host._lookAt = p.at;
@@ -399,7 +375,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
       gradient.addColorStop(0,`rgb(${skyTop})`);gradient.addColorStop(1,`rgb(${skyLow})`);
       skyCtx.fillStyle=gradient;skyCtx.fillRect(0,0,1,skyCanvas.height);skyKey=host._lookSkyKey=nextSkyKey;layerStats.sky++;
     }
-    displaySky(skyTop,skyLow,smoothSky,started);
+    if(shownSkyKey!==nextSkyKey){cv.style.backgroundImage=`linear-gradient(rgb(${skyTop}),rgb(${skyLow}))`;shownSkyKey=nextSkyKey;}
     if(host._compose?.apply){const c=host._compose;c.apply=false;if(c.mode==="body")host._lensOffset=[0,0];else{const bottom=frame?H/2+frame.halfH*k:H-12;host._lensOffset=[0,Math.max(-1,Math.min(1,(bottom-groundEdge)/H))];}host._lensSnap={ground:c.mode!=="body",center:c.mode!=="body"};}
     const pan = host._lensOffset || [0, 0], panX = pan[0] * W, panY = pan[1] * H;
     const times = host.querySelector("[data-look-frame-times]");
@@ -621,7 +597,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
       this.set(ms);this.window();
       return true;
     },
-    set(ms, smoothSky = false) { if (host._lookSeq !== seq || !Number.isFinite(ms)) return; host._blendP = null; draw(timeIndex(ms), ms, smoothSky); },
+    set(ms) { if (host._lookSeq !== seq || !Number.isFinite(ms)) return; host._blendP = null; draw(timeIndex(ms), ms); },
     blend(b) {
       if (host._lookSeq !== seq) return;
       if (!b) { if (!host._blendP) return; host._blendP = null; draw(timeIndex(this.current), this.current); return; }

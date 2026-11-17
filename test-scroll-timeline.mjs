@@ -2,11 +2,17 @@ import {createRequire as __req} from 'node:module';const __L=__req(process.cwd()
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';
 const src=readFileSync(new URL('./astronotes-scroll-timeline.js',import.meta.url),'utf8'),DAY=86400000;
 function setup(width=240,options={}){let next=0,simTime=0;const frames=new Map(),timers=new Map(),changes=[],state={at:Date.parse('2028-11-05T16:04:37.250+09:00'),mode:'date',enabled:true};
- const make=()=>({style:{setProperty(){}},dataset:{},children:[],listeners:{},scrollLeft:0,clientWidth:width,attrs:{},setAttribute(k,v){this.attrs[k]=v},getAttribute(k){return this.attrs[k]},replaceChildren(...c){this.children=c},addEventListener(k,f){this.listeners[k]=f}}),root=make();
- const c={performance:{now:()=>simTime},document:{createElement:make},requestAnimationFrame:f=>{frames.set(++next,f);return next},cancelAnimationFrame:i=>frames.delete(i),setTimeout:f=>{timers.set(++next,f);return next},clearTimeout:i=>timers.delete(i)};vm.createContext(c);c.AstroNotesLibrary=__L;vm.runInContext(src,c);
+ const paints=[];
+ const make=()=>({style:{setProperty(){}},dataset:{},children:[],listeners:{},scrollLeft:0,clientWidth:width,clientHeight:52,attrs:{},
+  setAttribute(k,v){this.attrs[k]=v},getAttribute(k){return this.attrs[k]},replaceChildren(...c){this.children=c},append(c){this.children.push(c)},
+  addEventListener(k,f){const old=this.listeners[k];this.listeners[k]=e=>{old?.(e);f(e);};},
+  setPointerCapture(id){this.captured=id},hasPointerCapture(id){return this.captured===id},releasePointerCapture(){this.captured=null},
+  getContext(){return {setTransform(){},fillRect(){},createLinearGradient(){return {addColorStop(){}}},fillText(t,x){paints.push([t,x])}}}
+ }),root=make();
+ const c={performance:{now:()=>simTime},document:{createElement:make,addEventListener(){}},getComputedStyle:()=>({fontFamily:'system-ui',getPropertyValue:()=>''}),matchMedia:()=>({get matches(){return !!state.reduced}}),requestAnimationFrame:f=>{frames.set(++next,f);return next},cancelAnimationFrame:i=>frames.delete(i),setTimeout:f=>{timers.set(++next,f);return next},clearTimeout:i=>timers.delete(i)};vm.createContext(c);c.AstroNotesLibrary=__L;vm.runInContext(src,c);
  const controller=c.AstroNotesScrollTimeline.mount({root,getAt:()=>state.at,getMode:()=>state.mode,enabled:()=>state.enabled,onChange:at=>{state.at=at;changes.push(at);controller.sync(at,state.mode)},format:at=>new Date(at).toISOString(),...options});controller.sync(state.at,state.mode);
- const flush=()=>{simTime+=16;for(const [id,f] of [...frames]){frames.delete(id);f();}};const settle=()=>{flush();for(const [id,f] of [...timers]){timers.delete(id);f();}};
- return {c,root,state,controller,changes,flush,settle,scroll(dx){root.listeners.wheel({deltaX:dx,deltaY:0});root.scrollLeft+=dx;root.listeners.scroll();flush();}};
+ const flush=(dt=16)=>{simTime+=dt;for(const [id,f] of [...frames]){frames.delete(id);f(simTime);}};const settle=()=>{flush();for(const [id,f] of [...timers]){timers.delete(id);f();}};
+ return {c,root,state,controller,changes,flush,settle,paints,scroll(dx){root.listeners.wheel({deltaX:dx,deltaY:0});root.scrollLeft+=dx;root.listeners.scroll();flush();}};
 }
 test('固定目盛りは画面幅によらず24px=1日、4px=1分で左右対称、日付は秒まで保持する',()=>{
  for(const width of [160,240,340,780]){const f=setup(width),before=f.state.at;f.scroll(24);assert.equal(f.state.at,before+DAY);f.scroll(-48);assert.equal(f.state.at,before-DAY);assert.equal((f.state.at+32400000)%DAY,(before+32400000)%DAY);f.settle();assert.equal(f.root.scrollLeft,4096);
@@ -208,29 +214,53 @@ test('未描画の境界越えを指離しで確定しても、rebaseの停止ti
  assert.equal(f.state.at,at+513*60000);assert.equal(f.root.scrollLeft,4096);assert.equal(settled,1);
 });
 
-test('見え方の分目盛りは通知の間も追従し、通常停止で表示を作り直さずに次のフリックを続ける',()=>{
- const f=setup(240,{stableMinutes:()=>true});
- f.state.mode='time';const start=Math.floor(f.state.at/60000)*60000;
- f.state.at=start;f.controller.sync(start,'time');
- const tape=f.root.children[0],labels=tape.children;
- const overflow=[];
- Object.defineProperty(f.root.style,'overflowX',{set:value=>overflow.push(value)});
- f.root.listeners.touchstart({timeStamp:1});
- f.root.scrollLeft+=4;f.root.listeners.touchmove({timeStamp:2});f.flush();
- assert.equal(f.state.at,start+60000,'position is sampled before a scroll event');
- f.root.scrollLeft+=40;f.flush();
- assert.equal(f.state.at,start+11*60000,'inertial position remains sampled without a new notice');
- f.root.listeners.touchend({timeStamp:12});f.settle();
- assert.equal(f.root.scrollLeft,4140);
- assert.equal(tape.children,labels);
- assert.deepEqual(overflow,[]);
- f.root.listeners.touchstart({timeStamp:300});
- f.root.scrollLeft=8192;f.root.listeners.scroll();f.flush();
- assert.equal(f.root.scrollLeft,8192,'the native scroller keeps its extent under the pointer');
- const edge=f.state.at;
- f.root.listeners.touchend({timeStamp:310});f.settle();
- f.root.listeners.touchstart({timeStamp:700});
- assert.equal(f.root.scrollLeft,4096,'next gesture safely continues from the prior edge');
- assert.equal(f.state.at,edge);
- assert.deepEqual(overflow,[]);
+
+function pointer(r,type,x,t,y=0,id=1){r.listeners[type]({type,clientX:x,clientY:y,timeStamp:t,pointerId:id,pointerType:'touch',button:0,isPrimary:id===1});}
+test('見え方の分目盛りは範囲の端なしで連続し、同じCanvasを使って秒を残して確定する',()=>{
+ let finals=0;const f=setup(240,{renderMinutes:()=>true,onSettle:()=>finals++});
+ f.state.mode='time';f.state.reduced=true;f.controller.sync(f.state.at,'time');
+ const start=f.state.at,canvas=f.root.children[1];
+ pointer(f.root,'pointerdown',300,0);
+ pointer(f.root,'pointermove',294,16);f.flush();
+ assert.equal(f.state.at,start+90000);
+ pointer(f.root,'pointermove',296,32);f.flush();
+ assert.equal(f.state.at,start+60000,'4px maintains one minute');
+ pointer(f.root,'pointermove',298,48);f.flush();
+ assert.equal(f.state.at,start+30000,'2px after lock maintains half a minute');
+ for(let dx=180;dx<=9180;dx+=180){
+  pointer(f.root,'pointermove',300-dx,50+dx/4);f.flush();
+  assert.equal(f.state.at,start+dx*15000);
+ }
+ pointer(f.root,'pointerup',-8880,2500);f.flush();
+ assert.equal(f.state.at,start+2295*60000);
+ assert.equal(f.root.children[1],canvas);assert.equal(canvas.width,240);assert.equal(f.root.scrollLeft,0);
+ assert.equal(finals,1);assert.equal(f.root.captured,null);
+ const paints=f.paints.splice(0);
+ for(let x=0;x<=240;x+=60)assert(paints.some(([,px])=>Math.abs(px-x)<60),'the viewport remains labeled');
+ f.state.mode='date';f.controller.sync(f.state.at,'date');
+ assert.equal(canvas.hidden,true);assert.equal(f.root.children[0].hidden,false);
+});
+test('分目盛りの慣性は割り込み可能で、縦スワイプや外部の時刻選択を上書きしない',()=>{
+ let finals=0;const f=setup(300,{renderMinutes:()=>true,onSettle:()=>finals++});
+ f.state.mode='time';f.controller.sync(f.state.at,'time');
+ const start=f.state.at;
+ pointer(f.root,'pointerdown',250,0);pointer(f.root,'pointermove',246,16,40);f.flush();
+ pointer(f.root,'pointerup',246,32,40);f.flush();
+ assert.equal(f.state.at,start);
+ pointer(f.root,'pointerdown',250,40);pointer(f.root,'pointermove',190,56);f.flush();
+ pointer(f.root,'pointermove',130,72);f.flush();pointer(f.root,'pointerup',130,80);
+ f.flush();f.flush();assert(f.state.at>start+120*15000);
+ const coastTime=f.state.at;
+ f.root.clientWidth=360;f.controller.sync(coastTime,'time');
+ pointer(f.root,'pointerdown',200,100,0,2);f.flush();assert(f.state.at>coastTime);
+ const interrupted=f.state.at;pointer(f.root,'pointerdown',200,120);f.flush(700);assert.equal(f.state.at,interrupted);
+ pointer(f.root,'pointercancel',200,125);f.flush();assert(Math.abs(f.state.at-interrupted)<=30000);
+ assert.equal(finals,1);assert.equal(f.root.captured,null);
+ pointer(f.root,'pointerdown',200,150);pointer(f.root,'pointermove',100,180);f.flush();pointer(f.root,'pointerup',100,190);f.flush();
+ f.state.at=start+DAY;f.controller.sync(f.state.at,'time');f.flush(600);
+ assert.equal(f.state.at,start+DAY);
+ f.root.listeners.keydown({key:'PageUp',preventDefault(){}});assert.equal(f.state.at,start+DAY-15*60000);
+ let canceled=false;
+ f.root.listeners.wheel({deltaX:0,deltaY:4,deltaMode:0,preventDefault(){canceled=true}});f.settle();f.flush();
+ assert(canceled);assert.equal(f.state.at,start+DAY-14*60000);
 });

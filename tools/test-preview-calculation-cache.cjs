@@ -107,14 +107,17 @@ async function scrubMinutes(page,at,offsets=[5,30],changeWeather=false){
   const ruler=document.getElementById('skyMapTimeline'),look=document.getElementById('aimLook');
   const original=MyPlacesUI.skyRender,prepare=AstroNotesAlign.prepareDailyView,checks=[];
   const frameTimes=look.querySelector('[data-look-frame-times]'),initialDay=look._uiTime.day;
-  let lastAt=startAt,position=ruler.scrollLeft;
-  const move=offset=>{ruler.scrollLeft=position+offset;ruler.dispatchEvent(new Event('scroll'));};
+  let lastAt=startAt;
+  // The fixture sends exact positions. Trusted drags are tested separately on the iPhone and in the viewport suite.
+  const capture=ruler.setPointerCapture;ruler.setPointerCapture=()=>{};
+  const send=(type,offset)=>ruler.dispatchEvent(new PointerEvent(type,{pointerType:'touch',pointerId:7,isPrimary:true,button:0,clientX:400-offset,clientY:40}));
+  const move=offset=>send('pointermove',offset);
   let renders=0,preparations=0;
   MyPlacesUI.skyRender=function(...args){renders++;return original.apply(this,args);};
   AstroNotesAlign.prepareDailyView=function(...args){preparations++;return prepare.apply(this,args);};
   const finish=()=>{
    watcher.disconnect();clearTimeout(timeout);
-   MyPlacesUI.skyRender=original;AstroNotesAlign.prepareDailyView=prepare;
+   MyPlacesUI.skyRender=original;AstroNotesAlign.prepareDailyView=prepare;ruler.setPointerCapture=capture;
    resolve({frames:checks,renders,preparations,initialSky,initialDay,drawDay:look._uiTime.day,buildings:look._lookLayers.stats.buildings-initialBuildings});
   };
   const initialSky=look._lookSkyKey,initialBuildings=look._lookLayers.stats.buildings;
@@ -136,9 +139,9 @@ async function scrubMinutes(page,at,offsets=[5,30],changeWeather=false){
   });
   const timeout=setTimeout(finish,5000);
   watcher.observe(ruler,{attributes:true,attributeFilter:['aria-valuenow']});
-  ruler.dispatchEvent(new Event('touchstart'));move(offsets[0]);
+  send('pointerdown',0);move(offsets[0]);
  }),{startAt:at,offsets,changeWeather});
- await page.locator('#skyMapTimeline').evaluate(ruler=>ruler.dispatchEvent(new Event('touchend')));
+ await page.locator('#skyMapTimeline').evaluate(ruler=>ruler.dispatchEvent(new PointerEvent('pointercancel',{pointerType:'touch',pointerId:7})));
  assert.deepEqual(check.frames.map(frame=>frame.at),offsets.map(px=>at+px*15000));
  for(const frame of check.frames){
   assert.equal(frame.drawnAt,frame.at,'scene follows the same update as the ruler, including seconds');
@@ -174,45 +177,48 @@ async function scrubMinutes(page,at,offsets=[5,30],changeWeather=false){
 }
 
 async function checkFastTwilight(page){
- await page.emulateMedia({reducedMotion:'no-preference'});
- const start=Date.parse('2026-11-25T16:55:00+09:00'),end=start+3*3600000;
+ const start=Date.parse('2026-11-25T16:55:37+09:00'),offsets=[8,52,120,216,324,500,800,4104,5500,-4200];
  await action(page,at=>SkyMapUI.setTime(at),start,start);
- const result=await page.evaluate(async()=>{
-  const ruler=document.getElementById('skyMapTimeline'),tape=ruler.firstElementChild;
-  const labels=[...tape.children],look=document.getElementById('aimLook'),canvas=look.querySelector('canvas');
+ const result=await page.evaluate(async offsets=>{
+  const ruler=document.getElementById('skyMapTimeline'),look=document.getElementById('aimLook'),canvas=look.querySelector('[data-look-canvas]'),rulerCanvas=ruler.querySelector('.sky-minute-ruler');
+  const layers=look._lookLayers,seq=look._lookSeq,buildings=layers.stats.buildings;
   const colors=()=>[...canvas.style.backgroundImage.matchAll(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/g)].map(m=>m.slice(1).join(',')).join('|');
-  const read=()=>({sky:colors(),exact:look._lookSkyKey,draw:look._lookAt,at:SkyMapUI.selectionState().at});
-  const start=read(),rows=[];
-  const awaitFrame=()=>new Promise(requestAnimationFrame);
-  let overflowEdits=0;
-  const style=new MutationObserver(changes=>overflowEdits+=changes.length);
-  style.observe(ruler,{attributes:true,attributeFilter:['style']});
-  // Simulate a large delivered delta before the next animation frame.
-  ruler.dispatchEvent(new Event('touchstart'));
-  ruler.scrollLeft+=720;
-  ruler.dispatchEvent(new Event('scroll'));
-  for(let i=0;i<12;i++){await awaitFrame();rows.push(read());}
-  ruler.dispatchEvent(new Event('touchend'));
-  for(let i=0;i<90&&(SkyMapUI.minuteScrubbing()||colors()!==look._lookSkyKey);i++)await awaitFrame();
-  style.disconnect();
+  const read=()=>({sky:colors(),exact:look._lookSkyKey,draw:look._lookAt,at:SkyMapUI.selectionState().at,rulerAt:+ruler.getAttribute('aria-valuenow'),
+   alpha:rulerCanvas.getContext('2d').getImageData(3,15,1,1).data[3],left:ruler.scrollLeft,shown:!!rulerCanvas.getBoundingClientRect().width,
+   sameBuildings:look._lookSeq===seq&&look._lookLayers===layers&&layers.stats.buildings===buildings});
+  const capture=ruler.setPointerCapture;ruler.setPointerCapture=()=>{};
+  const send=(type,offset)=>ruler.dispatchEvent(new PointerEvent(type,{pointerType:'touch',pointerId:9,isPrimary:true,button:0,clientX:400-offset,clientY:40}));
+  const twoFrames=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  const rows=[];
+  send('pointerdown',0);
+  for(const offset of offsets){send('pointermove',offset);await twoFrames();rows.push(read());}
+  send('pointercancel',offsets.at(-1));
+  await twoFrames();ruler.setPointerCapture=capture;
+  const selected=SkyMapUI.selectionState().at;
+  for(let i=0;i<120&&look._uiTime.day!==AstroNotesSkyMap.dayStart(selected);i++)await twoFrames();
   const strip=look._lookLayers.sky,top=Array.from(strip.getContext('2d').getImageData(0,0,1,1).data);
   const out=planSnapshot({dataset:{planSource:'aim'}}).scene;
-  const capture=Array.from(out.getContext('2d').getImageData(0,0,1,1).data);
-  return {start,rows,final:read(),canvasHeight:canvas.height,stripHeight:strip.height,stripWidth:strip.width,top,capture,
-   settled:!SkyMapUI.minuteScrubbing(),retained:labels.every((node,i)=>node===tape.children[i]),overflowEdits};
- });
+  const sharedPixel=Array.from(out.getContext('2d').getImageData(0,0,1,1).data);
+  return {rows,final:read(),stripWidth:strip.width,stripHeight:strip.height,canvasHeight:canvas.height,
+   top,sharedPixel,retained:rulerCanvas===ruler.querySelector('.sky-minute-ruler')&&!SkyMapUI.minuteScrubbing()};
+ },offsets);
  const shown=new Set(result.rows.map(row=>row.sky));
- assert(result.rows.some(row=>row.draw===end&&row.at===end&&row.sky!==result.start.sky&&row.sky!==row.exact),'visible twilight eases while the time and body are already exact');
- assert(shown.size>=4,'a large time delta produces intermediate visible shades');
- assert.equal(result.final.sky,result.final.exact,'visible gradient converges to the selected instant');
- assert.equal(result.final.at,end);
- assert.equal(result.final.draw,end);
- assert(result.settled&&result.retained&&result.overflowEdits===0,'the native ruler stays mounted and paintable when the fling ends');
- assert.equal(result.stripWidth,1);
- assert.equal(result.stripHeight,result.canvasHeight);
- assert.deepEqual(result.capture,result.top,'the shared image includes the exact gradient');
- assert.equal(result.capture[3],255);
- return {visibleShades:shown.size,overflowEdits:result.overflowEdits};
+ for(let i=0;i<offsets.length;i++){
+  const row=result.rows[i];
+  assert.equal(row.at,start+offsets[i]*15000,'unbounded exact 4px/min even over former ends');
+  assert.equal(row.at,row.draw);assert.equal(row.at,row.rulerAt);
+  assert.equal(row.sky,row.exact,'visible sky follows the exact selected time in the same update');
+  assert(row.shown&&row.alpha===255&&row.left===0,'the painted ruler covers the same viewport');
+  assert(row.sameBuildings,'stepping time never draws the existing building layer again');
+ }
+ assert(shown.size>=5,'crosses multiple real twilight shades');
+ assert.equal(result.final.at,start-1050*60000);
+ assert.equal(result.final.sky,result.final.exact);
+ assert(result.retained);
+ assert.equal(result.stripWidth,1);assert.equal(result.stripHeight,result.canvasHeight);
+ assert.deepEqual(result.sharedPixel,result.top);
+ assert.equal(result.sharedPixel[3],255);
+ return {visibleShades:shown.size,sameFrame:result.rows.length};
 }
 
 function reused(before,after,kinds=['dayPath','framePath','scene']){

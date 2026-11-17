@@ -262,7 +262,12 @@ ctx.lineWidth=1;
  function notifyCandidateDate(changed,settled=true){
   if(globalThis.TrialExplore?.candidateWorkspace?.()?.active())document.dispatchEvent(new CustomEvent('astronotes-candidate-date-change',{detail:{changed,settled}}));
  }
- function setTime(at,preservePlayback=false){if(!hasAccess()||!session||!Number.isFinite(at))return;if(!preservePlayback)skyPlayback?.stop(false);else skyPlayback?.rebase(at);const changed=AstroNotesSkyMap.dayStart(at)!==AstroNotesSkyMap.dayStart(session.at);session.at=at;timelineMoving=false;
+ function setTime(at,preservePlayback=false){
+  if(!hasAccess()||!session||!Number.isFinite(at))return;
+  if(!preservePlayback)skyPlayback?.stop(false);else skyPlayback?.rebase(at);
+  skyTimeline.stop();
+  const changed=AstroNotesSkyMap.dayStart(at)!==AstroNotesSkyMap.dayStart(session.at);
+  session.at=at;timelineMoving=false;
  notifyCandidateDate(changed);if(changed||session.timelinePending)refresh();render();}
  async function refresh(timeOnly=false){
   if(!hasAccess()||!session)return;
@@ -354,7 +359,8 @@ ctx.lineWidth=1;
   const timeOnly=session.scrubMode==='time';
   if(session.timelinePending)refresh(timeOnly);else render(timeOnly);
  }
- const skyTimeline=AstroNotesScrollTimeline.mount({root:el('skyMapTimeline'),stableMinutes:()=>view.dataset.exploreStage==='preview'&&view.dataset.exploreMode==='scene',getAt:()=>session?.at,getMode:()=>session?.scrubMode,enabled:()=>hasAccess()&&!!session&&active(),onChange:at=>{
+ const renderMinutes=()=>view.dataset.exploreStage==='preview'&&view.dataset.exploreMode==='scene';
+ const skyTimeline=AstroNotesScrollTimeline.mount({root:el('skyMapTimeline'),renderMinutes,getAt:()=>session?.at,getMode:()=>session?.scrubMode,enabled:()=>hasAccess()&&!!session&&active(),onChange:at=>{
   if(!hasAccess()||!session||!active())return;
   const day=AstroNotesSkyMap.dayStart(at),changed=day!==AstroNotesSkyMap.dayStart(session.at);
   timelineMoving=true;session.at=at;
@@ -391,6 +397,14 @@ ctx.lineWidth=1;
   skyTimeline.stop();timelineMoving=false;
   if(commit&&dirty)settleSkyScrub();
  }
+ document.addEventListener('astronotes-preview-leave',()=>{
+  if(minuteScrubbing())stopSkyScrub(true);
+ });
+ document.addEventListener('astronotes-search-state',()=>{
+  if(!hasAccess()||!session||!active())return;
+  const pointerMinutes=session.scrubMode==='time'&&renderMinutes();
+  if(pointerMinutes!==el('skyMapTimeline').hasAttribute('data-minute-pointer'))skyTimeline.sync(session.at,session.scrubMode);
+ });
  // 日付カレンダーはねらうと同じ重なる日●・近接○・時刻・月相の描画（aimCalRows/aimCalGridHtml）。月全体を計算し、帯の候補では埋めない。
  const calendarCache=new Map();
  function calendarMonth(args,scanRecords=false){

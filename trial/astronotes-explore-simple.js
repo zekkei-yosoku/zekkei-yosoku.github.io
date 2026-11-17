@@ -564,9 +564,9 @@ function paintScrubTime(){
  if(!resultActive()||mode!=='scene')return false;
  let s;
  // The sky's current weather is read at the selected time, independently of the camera projection.
- try{s=snapshot();if(!retainedProjection(s)||!canFrame(s))return false;}catch{return false;}
+ try{s=SkyMapUI.renderState();if(!retainedProjection(s)||!canFrame(s))return false;}catch{return false;}
  // The scroll ruler already emits at most once per animation frame.
- try{if(Math.abs(look._lookAt-s.at)>.5)look._uiTime.set(s.at,true);}
+ try{if(Math.abs(look._lookAt-s.at)>.5)look._uiTime.set(s.at);}
  catch(error){globalThis.AstroNotesErrors?.note('explore.scrubScene',error);sync(true);return false;}
  return true;
 }
@@ -594,7 +594,7 @@ function promote(){
 }
 function routeChanged(){render();}
 function sceneDraw(host,at){
- if(host!==look||!resultActive()||mode!=='scene'||!intent||plan.pendingKey||!plan.frameKey)return;
+ if(host!==look||!resultActive()||mode!=='scene'||!intent||plan.pendingKey||!plan.frameKey||SkyMapUI.minuteScrubbing?.())return;
  try{const s=snapshot();if(stamp(s)===plan.frameKey&&Math.abs(s.at-at)>.5)SkyMapUI.setTime(at);}catch(e){globalThis.AstroNotesErrors?.note('explore.restoreTime',e);}
 }
 for(const type of ['click','keydown'])aimView.addEventListener(type,()=>{intent=true;setTimeout(()=>{intent=false;},0);},true);
@@ -781,7 +781,9 @@ main:has(>#skyMapView[data-explore-stage="search"]){max-width:1280px}
 
 html:has(#skyMapView[data-explore-stage="search"]),body:has(#skyMapView[data-explore-stage="search"]){overscroll-behavior-y:none}
 html:has(#skyMapView.explore-mounted:not([hidden])){scroll-padding-bottom:calc(var(--sky-footer-h,100px) + 12px)}
-#skyMapView[data-explore-stage="preview"][data-explore-mode="scene"] #skyMapTimeline[data-mode="time"]{overscroll-behavior-x:none;background-color:var(--sunk)}
+#skyMapView #skyMapTrack:has(>#skyMapTimeline[data-minute-pointer]){touch-action:pan-y}
+#skyMapView #skyMapTimeline[data-minute-pointer]{overflow:clip;touch-action:pan-y;background-color:var(--sunk)}
+.sky-minute-ruler:not([hidden]){display:block;width:100%;height:100%;pointer-events:none}
 @media(max-width:959px){
  #skyMapView.explore-mounted:not([hidden]) .sky-map-footer{transform:translate3d(0,0,0);backface-visibility:hidden}
 }

@@ -20,7 +20,205 @@ function solarPhase(at,observer,sun){
  if(h < -6)return 'night';if(h >= 6)return 'day';
  return sun(at+60000,observer).geometricAltitude>=sun(at-60000,observer).geometricAltitude?'morning':'evening';
 }
-function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onBlend=()=>{},format,describe=format,getObserver=()=>null,sun=()=>null,numeric=null,stableMinutes=()=>false}){
+// The preview ruler paints a viewport, so its time axis has no native scroll extent.
+function mountMinuteRuler({root,tape,enabled,onChange,onSettle,format,describe,getObserver,sun}){
+ const perPixel=MINUTE/scale('time').pixels,labelEvery=scale('time').labelEvery,solarStep=5*MINUTE;
+ const min=Date.UTC(100,0,1)-OFFSET,max=Date.UTC(10000,0,1)-OFFSET-1;
+ const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
+ if(!ctx)return null;
+ canvas.className='sky-minute-ruler';canvas.hidden=true;canvas.setAttribute('aria-hidden','true');root.append(canvas);
+ const reduced=g.matchMedia?.('(prefers-reduced-motion: reduce)');
+ const clamp=at=>Math.max(min,Math.min(max,Math.round(at)));
+ const palette=new Map();
+ let active=false,width=0,height=0,dpr=0,font='',line='',text='',background='',observer,observerKey='';
+ let at=null,phase=null,held=null,coast=null,pending=null,frame=0,wheelTimer=0,dirty=false,settleNext=false;
+ function samples(t){
+  if(!palette.has(t)){
+   if(palette.size>=512)palette.delete(palette.keys().next().value);
+   palette.set(t,skyColor(t,observer,sun));
+  }
+  return palette.get(t);
+ }
+ function colorAt(t){
+  const a=Math.floor(t/solarStep)*solarStep,low=samples(a),high=samples(a+solarStep);
+  if(!low||!high)return null;
+  return low.map((v,i)=>Math.round(v+(high[i]-v)*(t-a)/solarStep));
+ }
+ function measure(){
+  const w=root.clientWidth,h=root.clientHeight,ratio=g.devicePixelRatio||1;
+  const style=g.getComputedStyle(root);
+  const nextObserver=getObserver(),key=JSON.stringify(nextObserver);
+  const nextFont=style.fontFamily,nextLine=style.getPropertyValue('--line').trim(),nextText=style.getPropertyValue('--secondary').trim(),nextBackground=style.getPropertyValue('--sunk').trim();
+  const resized=w!==width||h!==height||ratio!==dpr;
+  const changed=resized||key!==observerKey||nextFont!==font||nextLine!==line||nextText!==text||nextBackground!==background;
+  if(!changed)return false;
+  width=w;height=h;dpr=ratio;font=nextFont;line=nextLine;text=nextText;background=nextBackground;
+  if(resized){canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);}
+  if(observerKey!==key){observer=nextObserver;observerKey=key;palette.clear();}
+  return true;
+ }
+ function paint(value){
+  if(!width||!height)return;
+  const start=value-width/2*perPixel,end=start+width*perPixel;
+  const position=time=>(time-start)/perPixel;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const first=Math.floor(start/solarStep)*solarStep,last=Math.ceil(end/solarStep)*solarStep;
+  const hasSky=!!samples(first);
+  if(hasSky){
+   const gradient=ctx.createLinearGradient(position(first),0,position(last),0);
+   for(let t=first;t<=last;t+=solarStep)gradient.addColorStop((t-first)/(last-first),`rgb(${samples(t)})`);
+   ctx.fillStyle=gradient;
+  }else ctx.fillStyle=background||'#1c2024';
+  ctx.fillRect(0,0,width,height);
+  const tick=Math.floor(start/MINUTE)*MINUTE,pixel=position(tick),step=MINUTE/perPixel;
+  ctx.fillStyle=hasSky?'rgba(0,0,0,.25)':line||'#665e64';
+  for(let x=pixel;x<=width;x+=step)ctx.fillRect(x,5,1,8);
+  if(hasSky){
+   ctx.fillStyle='rgba(255,255,255,.28)';
+   for(let x=pixel+1;x<=width;x+=step)ctx.fillRect(x,5,1,8);
+  }
+  ctx.font='11px '+(font||'system-ui');ctx.textAlign='center';ctx.textBaseline='top';
+  const spacing=labelEvery*MINUTE;
+  for(let t=Math.floor(start/spacing)*spacing;t<=end+spacing;t+=spacing){
+   const x=position(t);if(x<-24||x>width+24)continue;
+   const rgb=colorAt(t);ctx.fillStyle=rgb?skyInk(rgb):text||'#ddd';
+   ctx.fillText(format(t,'time'),x,21);
+  }
+ }
+ function show(value,force=false){
+  if(!force&&at===value)return;
+  at=value;paint(at);
+  root.setAttribute('aria-valuenow',String(at));root.setAttribute('aria-valuetext',describe(at,'time'));
+ }
+ function publish(value){
+  const next=clamp(value);
+  if(next===at)return;
+  show(next);dirty=true;onChange(next);
+ }
+ function cancelMotion(){
+  cancelAnimationFrame(frame);frame=0;clearTimeout(wheelTimer);wheelTimer=0;coast=null;pending=null;settleNext=false;
+ }
+ function release(){
+  const pointer=held?.id;held=null;
+  if(pointer!==undefined&&root.hasPointerCapture?.(pointer))root.releasePointerCapture(pointer);
+ }
+ function stop(){cancelMotion();release();dirty=false;}
+ function snap(value){
+  const step=(value-phase)/MINUTE;
+  return phase+Math.sign(step)*Math.round(Math.abs(step))*MINUTE;
+ }
+ function settle(){
+  settleNext=true;queue();
+ }
+ function queue(){
+  if(!frame)frame=requestAnimationFrame(tick);
+ }
+ function tick(now){
+  frame=0;
+  if(!active||!enabled()){stop();return;}
+  let value=pending??at;pending=null;
+  if(coast){
+   if(coast.last===null){coast.last=now;coast.value=value;}
+   else{
+    // Decay by real time. A blocked frame may skip inertia, rather than jump across it.
+    const elapsed=Math.max(0,now-coast.last),dt=Math.min(elapsed,34),decay=320;
+    coast.last=now;
+    coast.value+=coast.speed*decay*(1-Math.exp(-dt/decay))*perPixel;
+    coast.speed*=Math.exp(-elapsed/decay);
+    value=coast.value;
+    if(Math.abs(coast.speed)<=.045||value<=min||value>=max){coast=null;settleNext=true;}
+   }
+  }
+  const finish=settleNext;settleNext=false;
+  publish(finish&&(dirty||value!==at)?snap(value):value);
+  if(finish&&dirty){dirty=false;onSettle(at);}
+  if(coast)queue();
+ }
+ root.addEventListener('pointerdown',e=>{
+  if(!active||!enabled()||e.isPrimary===false||e.button!==0||held)return;
+  cancelMotion();
+  held={id:e.pointerId,x:e.clientX,y:e.clientY,at,drag:false,samples:[[e.timeStamp,e.clientX]]};
+  if(e.pointerType==='mouse')root.setPointerCapture?.(e.pointerId);
+ });
+ function move(e){
+  if(!held||held.id!==e.pointerId||!enabled())return;
+  const dx=held.x-e.clientX,dy=Math.abs(held.y-e.clientY);
+  if(!held.drag){
+   if(dy>6&&dy>Math.abs(dx)){release();settle();return;}
+   if(Math.abs(dx)<5||Math.abs(dx)<dy*1.2)return;
+   held.drag=true;root.setPointerCapture?.(e.pointerId);
+  }
+  held.samples.push([e.timeStamp,e.clientX]);
+  while(held.samples.length>2&&e.timeStamp-held.samples[1][0]>=85)held.samples.shift();
+  pending=held.at+dx*perPixel;
+  queue();
+ }
+ root.addEventListener('pointermove',move);
+ function end(e){
+  if(!held||held.id!==e.pointerId)return;
+  const normal=e.type==='pointerup';
+  if(normal&&held.drag&&held.samples.at(-1)[1]!==e.clientX)move(e);
+  const action=held;release();
+  if(action.drag&&normal&&!reduced?.matches){
+   const first=action.samples[0],last=action.samples.at(-1),age=e.timeStamp-last[0],elapsed=last[0]-first[0];
+   if(age<=80&&elapsed>=12){
+    const speed=Math.max(-4,Math.min(4,(first[1]-last[1])/elapsed));
+    if(Math.abs(speed)>.12){
+     coast={speed,last:null,value:null};
+     queue();return;
+    }
+   }
+  }
+  settle();
+ }
+ for(const type of ['pointerup','pointercancel','lostpointercapture'])root.addEventListener(type,end);
+ root.addEventListener('wheel',e=>{
+  if(!active||!enabled()||held||e.ctrlKey||e.metaKey)return;
+  const delta=e.deltaX||e.deltaY;
+  if(!delta)return;
+  e.preventDefault();coast=null;settleNext=false;
+  pending=(pending??at)+delta*(e.deltaMode===1?16:e.deltaMode===2?width:1)*perPixel;queue();
+  clearTimeout(wheelTimer);
+  wheelTimer=setTimeout(()=>{
+   if(!active||!enabled()){stop();return;}
+   settle();
+  },150);
+ },{passive:false});
+ root.addEventListener('keydown',e=>{
+  if(!active||!enabled())return;
+  const direction={ArrowLeft:-1,ArrowDown:-1,ArrowRight:1,ArrowUp:1,PageUp:-1,PageDown:1}[e.key];
+  if(!direction)return;
+  e.preventDefault();stop();
+  publish(at+direction*MINUTE*(e.shiftKey||e.key.startsWith('Page')?15:1));
+  if(dirty){dirty=false;onSettle(at);}
+ });
+ const visibility=()=>{
+  if(!active||!document.hidden)return;
+  cancelMotion();release();
+  if(dirty){dirty=false;onSettle(at);}
+ };
+ document.addEventListener('visibilitychange',visibility);
+ return {
+  active:()=>active,
+  enter(){
+   active=true;tape.hidden=true;canvas.hidden=false;root.dataset.minutePointer='';root.dataset.mode='time';root.scrollLeft=0;
+   root.setAttribute('aria-label','時刻を横スクロールして調整');root.setAttribute('aria-valuemin',String(min));root.setAttribute('aria-valuemax',String(max));
+   measure();
+  },
+  leave(){if(!active)return;stop();active=false;at=phase=null;canvas.hidden=true;tape.hidden=false;delete root.dataset.minutePointer;},
+  stop,
+  destroy(){this.leave();document.removeEventListener('visibilitychange',visibility);},
+  sync(value){
+   const changed=measure();
+   if(at!==value){stop();phase=value;show(value);}
+   else if(changed)paint(at);
+  },
+  follow(value){stop();phase=value;show(value);},
+ };
+}
+function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=>{},onBlend=()=>{},format,describe=format,getObserver=()=>null,sun=()=>null,numeric=null,renderMinutes=()=>false}){
+ let minutes=null;
+ const enabled=()=>canUse()&&!minutes?.active();
  const clamp=v=>numeric?Math.max(numeric.min,Math.min(numeric.max,v)):v;
  const rounded=v=>numeric?Number((Math.round(clamp(v)/(numeric.precision||numeric.step))*(numeric.precision||numeric.step)).toFixed(6)):v;
  const ariaValue=v=>numeric?.ariaValue?numeric.ariaValue(v):v;
@@ -29,7 +227,6 @@ function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onB
  const tape=document.createElement('div');tape.className='sky-timeline-tape';root.replaceChildren(tape);
  let blend=null,snapFrame=0,snapTarget=null,anchor=null,mode=null,lastAt=null,width=0,moving=false,pressed=false,touching=false,frame=0,timer=0,generation=AstroNotesLibrary.gate(),blocked=true,mouse=null,context='',colorCache=new Map(),lastTouchMove=0,lastScroll=null,
  inputKind='';
- const stableMinute=()=>mode==='time'&&stableMinutes();
  const label=at=>format(at,mode);
  const cachedColor=key=>{if(!colorCache.has(key)){if(colorCache.size>1600)colorCache.clear();colorCache.set(key,skyColor(key*300000,getObserver(),sun));}return colorCache.get(key);};
  const color=at=>{const key=Math.floor(at/300000),a=cachedColor(key),t=(at-key*300000)/300000;if(!a||!t)return a;const b=cachedColor(key+1);return b?a.map((v,i)=>Math.round(v+(b[i]-v)*t)):a;};
@@ -44,13 +241,14 @@ function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onB
   if(mode==='date'){const k=Math.floor(units),f=Math.round((units-k)*1000)/1000;setBlend(f>0&&f<1?{from:anchor+k*s.step,to:anchor+(k+1)*s.step,f}:null);}
   return changed;};
  const flush=()=>{frame=0;if(!enabled()||!Number.isFinite(anchor))return;if(numeric){const s=rulerScale(mode),raw=anchor+(root.scrollLeft-EXTENT)/s.pixels*s.step,bounded=clamp(raw);if(raw!==bounded)root.scrollLeft=EXTENT+(bounded-anchor)/s.step*s.pixels;
- }const offset=offsetFromCenter();if(emit(offset)&&(inputKind!=='touch'||touching&&!stableMinute())&&Math.abs(offset)>=EXTENT/2)rebase(offset);};
+ }const offset=offsetFromCenter();if(emit(offset)&&(inputKind!=='touch'||touching)&&Math.abs(offset)>=EXTENT/2)rebase(offset);};
  function reset(at,nextMode){
   cancelAnimationFrame(snapFrame);snapFrame=0;snapTarget=null;generation.cancel();cancelAnimationFrame(frame);frame=0;clearTimeout(timer);timer=0;moving=false;blocked=true;anchor=lastAt=at;mode=nextMode;width=root.clientWidth;const nextContext=JSON.stringify(getObserver());
   if(context!==nextContext){colorCache.clear();context=nextContext;}
   const s=rulerScale(mode),origin=EXTENT+width/2,ordinal=Math.floor((at+(mode==='date'?OFFSET:0))/s.step),fraction=mode!=='date'?at/s.step-Math.floor(at/s.step):0,tickOrigin=origin-fraction*s.pixels,nodes=[];
   tape.style.transform='';tape.style.width=(EXTENT*2+width)+'px';tape.style.setProperty('--timeline-unit',s.pixels+'px');tape.style.backgroundPositionX=tickOrigin+'px';
-  for(let u=-Math.ceil(EXTENT/s.pixels);u<=Math.ceil(EXTENT/s.pixels);u++)if(!numeric?.ticks&&((ordinal+u)%s.labelEvery+s.labelEvery)%s.labelEvery===0&&(!numeric||(at+(u-fraction)*s.step>=numeric.min-1e-8&&at+(u-fraction)*s.step<=numeric.max+1e-8))){const tick=document.createElement('span');
+  const units=Math.ceil((EXTENT+(numeric?0:width/2))/s.pixels);
+  for(let u=-units;u<=units;u++)if(!numeric?.ticks&&((ordinal+u)%s.labelEvery+s.labelEvery)%s.labelEvery===0&&(!numeric||(at+(u-fraction)*s.step>=numeric.min-1e-8&&at+(u-fraction)*s.step<=numeric.max+1e-8))){const tick=document.createElement('span');
   tick.className='sky-timeline-label';tick.style.left=(tickOrigin+u*s.pixels)+'px';tick.textContent=label(at+(u-fraction)*s.step);nodes.push(tick);}
   if(numeric?.ticks)for(const t of numeric.ticks){const x=origin+(t.value-at)/s.step*s.pixels;if(x<0||x>EXTENT*2+width)continue;const tick=document.createElement('span');tick.className='sky-timeline-label';tick.style.left=x+'px';tick.textContent=t.label;nodes.push(tick);}
   if(mode!=='date'){
@@ -63,22 +261,12 @@ function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onB
   root.setAttribute('aria-valuemin',String(numeric?ariaValue(numeric.min):Date.UTC(100,0,1)-OFFSET));root.setAttribute('aria-valuemax',String(numeric?ariaValue(numeric.max):Date.UTC(10000,0,1)-OFFSET-1));root.scrollLeft=EXTENT;
  }
  const now=()=>typeof performance==='undefined'?Date.now():performance.now();
- const armSettle=()=>{clearTimeout(timer);const token=generation.ticket();timer=setTimeout(()=>settle(token),150);};
- // WebKit's native scroll can advance before its next scroll event.
- function sampleScroll(){
-  frame=0;if(blocked||!enabled()||!Number.isFinite(anchor))return;
-  const left=root.scrollLeft;
-  if(lastScroll!==null&&left!==lastScroll){lastScroll=left;moving=true;armSettle();}
-  flush();
-  if(!blocked&&stableMinute()&&moving)frame=requestAnimationFrame(sampleScroll);
- }
- const queueScroll=()=>{if(!frame)frame=requestAnimationFrame(stableMinute()?sampleScroll:flush);};
  function rebase(offset){
   const s=rulerScale(mode),shift=Math.trunc(offset/s.pixels)*s.pixels;
   if(!shift)return;
   const keep={moving,pressed,touching,blocked,mouse},at=anchor+shift/s.pixels*s.step,current=lastAt;
   reset(at,mode);lastAt=current;moving=keep.moving;pressed=keep.pressed;touching=keep.touching;blocked=keep.blocked;mouse=keep.mouse;if(mouse)mouse.left-=shift;
-  root.scrollLeft=EXTENT+offset-shift;lastScroll=root.scrollLeft;armSettle();
+  root.scrollLeft=EXTENT+offset-shift;lastScroll=root.scrollLeft;const token=generation.ticket();timer=setTimeout(()=>settle(token),150);
  }
  function settle(token){
   if(!generation.current(token))return;if(!enabled()){stop();return;}
@@ -86,49 +274,40 @@ function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onB
   // Native scrolling can advance while the main thread delays its scroll event.
   // Publish that position and wait again rather than stopping a live fling.
   if(lastScroll!==null&&Math.abs(root.scrollLeft-lastScroll)>.1){lastScroll=root.scrollLeft;moving=true;cancelAnimationFrame(frame);flush();clearTimeout(timer);const next=generation.ticket();
-  timer=setTimeout(()=>settle(next),150);queueScroll();return;}
+  timer=setTimeout(()=>settle(next),150);return;}
   finish();
  }
  // 止めたら目盛り（1分・1日）へ寄せる。寄せる間も途中を渡し、指を離した瞬間に跳ばせない
- function done(target){
-  setBlend(null);lastAt=target;onChange(target);
-  if(stableMinute()){
-   cancelAnimationFrame(frame);frame=0;generation.cancel();moving=false;blocked=true;
-   root.setAttribute('aria-valuetext',describe(target,mode));root.setAttribute('aria-valuenow',String(ariaValue(target)));
-  }else reset(target,mode);
-  onSettle(target);
- }
+ function done(target){setBlend(null);lastAt=target;onChange(target);reset(target,mode);onSettle(target);}
  function finish(){
-  clearTimeout(timer);timer=0;cancelAnimationFrame(frame);frame=0;
-  // Natural stops can keep the native scroll layer and the existing labels in place.
-  if(!stableMinute())stopNativeScroll();
-  flush();clearTimeout(timer);timer=0;
+  clearTimeout(timer);timer=0;root.style.overflowX='hidden';void root.offsetWidth;root.style.overflowX='';flush();clearTimeout(timer);timer=0;
   const s=rulerScale(mode),target=rulerAdvance(anchor,offsetFromCenter(),mode),startLeft=root.scrollLeft,endLeft=EXTENT+(target-anchor)/s.step*s.pixels;
   if(!Number.isFinite(lastAt)||Math.abs(startLeft-endLeft)<.01){done(target);return;}
   const begin=now();blocked=true;moving=true;snapTarget=target;
-  const step=()=>{snapFrame=0;if(!enabled()){stop();return;}const t=Math.min(1,(now()-begin)/160),e=1-(1-t)**3;if(t>=1){root.scrollLeft=endLeft;done(target);return;}root.scrollLeft=startLeft+(endLeft-startLeft)*e;emit();snapFrame=requestAnimationFrame(step);};
+  const step=()=>{snapFrame=0;if(!enabled()){stop();return;}const t=Math.min(1,(now()-begin)/160),e=1-(1-t)**3;if(t>=1){done(target);return;}root.scrollLeft=startLeft+(endLeft-startLeft)*e;emit();snapFrame=requestAnimationFrame(step);};
   snapFrame=requestAnimationFrame(step);
  }
  root.addEventListener('scroll',()=>{if(!enabled()){stop();return;}if(blocked||!Number.isFinite(anchor)||Math.abs(offsetFromCenter())<.1&&!moving)return;
- lastScroll=root.scrollLeft;moving=true;queueScroll();armSettle();},{passive:true});
+ lastScroll=root.scrollLeft;moving=true;if(!frame)frame=requestAnimationFrame(flush);clearTimeout(timer);const token=generation.ticket();
+ timer=setTimeout(()=>settle(token),150);},{passive:true});
  function activate(kind){
   if(!enabled())return false;
   if(tape.style.transform)reset(getAt(),getMode());
   if(snapFrame){cancelAnimationFrame(snapFrame);snapFrame=0;snapTarget=null;clearTimeout(timer);const token=generation.ticket();timer=setTimeout(()=>settle(token),150);}
   inputKind=kind;
   if(!Number.isFinite(anchor))reset(getAt(),getMode());
-  else if(!moving&&Math.abs(offsetFromCenter())>=.1&&!stableMinute())reset(lastAt,mode);
-  else if((kind==='touch'||stableMinute()&&!moving)&&!touching&&!pressed&&Math.abs(offsetFromCenter())>=EXTENT/2){
+  else if(!moving&&Math.abs(offsetFromCenter())>=.1)reset(lastAt,mode);
+  else if(kind==='touch'&&!touching&&!pressed&&Math.abs(offsetFromCenter())>=EXTENT/2){
    // WebKit still owns scrollLeft during its fling. Recenter between gestures, never while it is coasting.
-   const offset=offsetFromCenter();if(moving){emit(offset);if(!stableMinute())halt();}rebase(offset);
+   const offset=offsetFromCenter();emit(offset);halt();rebase(offset);
   }
   lastScroll=root.scrollLeft;blocked=false;return true;
  }
  root.addEventListener('touchstart',e=>{if(!activate('touch'))return;touching=true;pressed=true;lastTouchMove=e?.timeStamp||0;},{passive:true});
- root.addEventListener('touchmove',e=>{lastTouchMove=e.timeStamp;if(touching&&stableMinute())queueScroll();},{passive:true});
+ root.addEventListener('touchmove',e=>{lastTouchMove=e.timeStamp;},{passive:true});
  for(const event of ['touchend','touchcancel'])root.addEventListener(event,e=>{touching=false;pressed=false;if(!enabled()){stop();return;}if(event==='touchcancel'&&moving){clearTimeout(timer);const token=generation.ticket();timer=setTimeout(()=>settle(token),150);return;
  }if(moving&&enabled()&&(!e||e.timeStamp-lastTouchMove>=120)){finish();}},{passive:true});
- root.addEventListener('pointerdown',e=>{if(!activate(e?.pointerType==='mouse'?'mouse':'touch'))return;pressed=true;if(e?.pointerType==='mouse'){mouse={x:e.clientX,left:root.scrollLeft};root.setPointerCapture?.(e.pointerId);e.preventDefault();}});
+ root.addEventListener('pointerdown',e=>{if(e?.pointerType==='touch'||!activate(e?.pointerType==='mouse'?'mouse':'touch'))return;pressed=true;if(e?.pointerType==='mouse'){mouse={x:e.clientX,left:root.scrollLeft};root.setPointerCapture?.(e.pointerId);e.preventDefault();}});
  root.addEventListener('pointermove',e=>{if(mouse&&enabled())root.scrollLeft=mouse.left+mouse.x-e.clientX;});
  root.addEventListener('wheel',e=>{if(!activate('wheel'))return;if(!e.deltaX&&e.deltaY){e.preventDefault();root.scrollLeft+=e.deltaY;}},{passive:false});
  for(const event of ['pointerup','pointercancel','lostpointercapture'])root.addEventListener(event,()=>{if(!touching)pressed=false;mouse=null;},{passive:true});
@@ -136,19 +315,31 @@ function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onB
  const large=e.shiftKey||e.key.startsWith('Page'),delta=numeric?numeric.step*(large?10:1):(mode==='date'?DAY:mode==='hour'?3600000:MINUTE)*(large?(mode==='date'?7:mode==='hour'?6:15):1),at=rounded(getAt()+dir*delta);stop();reset(at,mode);onChange(at);onSettle(at);});
  function stop(){setBlend(null);cancelAnimationFrame(snapFrame);snapFrame=0;snapTarget=null;lastScroll=null;generation.cancel();cancelAnimationFrame(frame);frame=0;clearTimeout(timer);timer=0;moving=false;pressed=false;touching=false;mouse=null;blocked=true;anchor=null;}
  // 2026-10-20 ユーザー「日付をばーっと動かしてるときに今日を押しても止まらず動き続ける」：外から日時を替えるときは、指を離したあとの慣性スクロールも止める
- const stopNativeScroll=()=>{root.style.overflowX='hidden';void root.offsetWidth;root.style.overflowX='';};
- const halt=()=>{if(moving||!stableMinute()&&Math.abs(offsetFromCenter())>=.1)stopNativeScroll();};
+ const halt=()=>{if(!(moving||Math.abs(offsetFromCenter())>=.1))return;root.style.overflowX='hidden';void root.offsetWidth;root.style.overflowX='';};
  const controller={follow(at,nextMode){
   if(!enabled()||!Number.isFinite(at))return;
   const changed=mode!==nextMode||width!==root.clientWidth||context!==JSON.stringify(getObserver());
-  if(!Number.isFinite(anchor)||changed||moving||pressed||touching||stableMinute()&&Math.abs(offsetFromCenter())>=.1||Math.abs((at-anchor)/rulerScale(nextMode).step*rulerScale(nextMode).pixels)>512){halt();stop();reset(at,nextMode);}
+  if(!Number.isFinite(anchor)||changed||moving||pressed||touching||Math.abs((at-anchor)/rulerScale(nextMode).step*rulerScale(nextMode).pixels)>512){halt();stop();reset(at,nextMode);}
   const offset=(at-anchor)/rulerScale(mode).step*rulerScale(mode).pixels;
   tape.style.transform='translateX('+(-offset)+'px)';lastAt=at;
   const text=describe(at,mode);if(root.getAttribute('aria-valuetext')!==text)root.setAttribute('aria-valuetext',text);root.setAttribute('aria-valuenow',String(ariaValue(at)));
  },sync(at,nextMode){if(!enabled()){stop();return;}if(!Number.isFinite(at))return;if((moving||pressed||touching)&&mode===nextMode&&(at===lastAt||numeric&&Math.abs(at-lastAt)<(numeric.syncTolerance||0))&&width===root.clientWidth&&context===JSON.stringify(getObserver()))return;
- if(!tape.style.transform&&nextMode===mode&&width===root.clientWidth&&context===JSON.stringify(getObserver())&&(at===anchor&&Math.abs(offsetFromCenter())<.1||stableMinute()&&at===lastAt&&Math.abs(offsetFromCenter()-(at-anchor)/MINUTE*4)<.5))return;halt();stop();reset(at,nextMode);},stop};
- const observer=typeof ResizeObserver==='function'?new ResizeObserver(()=>{if(enabled())controller.sync(getAt(),getMode());else stop();}):null;observer?.observe(root);controller.destroy=()=>{stop();observer?.disconnect();};
- return controller;
+ if(!tape.style.transform&&at===anchor&&nextMode===mode&&width===root.clientWidth&&Math.abs(root.scrollLeft-EXTENT)<.1&&context===JSON.stringify(getObserver()))return;halt();stop();reset(at,nextMode);},stop};
+ const useMinutes=mode=>!numeric&&mode==='time'&&renderMinutes();
+ const minuteRuler=nextMode=>{
+  if(!canUse()||!useMinutes(nextMode)){minutes?.leave();return null;}
+  if(!minutes)minutes=mountMinuteRuler({root,tape,enabled:()=>canUse()&&useMinutes(getMode()),onChange,onSettle,format,describe,getObserver,sun});
+  if(minutes&&!minutes.active()){halt();stop();minutes.enter();}
+  return minutes;
+ };
+ const api={
+  sync(at,nextMode){if(Number.isFinite(at)){const ruler=minuteRuler(nextMode);if(ruler)ruler.sync(at);else controller.sync(at,nextMode);}else this.stop();},
+  follow(at,nextMode){if(Number.isFinite(at)){const ruler=minuteRuler(nextMode);if(ruler)ruler.follow(at);else controller.follow(at,nextMode);}},
+  stop(){minutes?.stop();stop();},
+ };
+ const observer=typeof ResizeObserver==='function'?new ResizeObserver(()=>api.sync(getAt(),getMode())):null;
+ observer?.observe(root);api.destroy=()=>{minutes?.destroy();stop();observer?.disconnect();};
+ return api;
 }
 const api={scale,advance,mount,solarPhase,skyColor,skyInk};g.AstroNotesScrollTimeline=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window==='undefined'?globalThis:window);
