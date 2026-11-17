@@ -324,19 +324,35 @@ ctx.lineWidth=1;
  if(menu)menu.hidden=true;if(button)button.setAttribute('aria-expanded','false');}map.redraw();};
  const skyFooter=el('skyMapTimeMore').closest('footer');
  ToolDateTimeBar.decorate({footer:skyFooter,row:el('skyMapPrev').parentElement,date:el('skyMapCalendarOpen'),time:el('skyMapTime'),prev:el('skyMapPrev'),next:el('skyMapNext'),more:el('skyMapTimeMore'),track:el('skyMapTrack'),now:at=>setTime(at,true)});
- const skyTimeline=AstroNotesScrollTimeline.mount({root:el('skyMapTimeline'),getAt:()=>session?.at,getMode:()=>session?.scrubMode,enabled:()=>hasAccess()&&!!session&&active(),onChange:at=>{if(!hasAccess()||!session||!active())return;timelineMoving=true;
- const changed=AstroNotesSkyMap.dayStart(at)!==AstroNotesSkyMap.dayStart(session.at);session.at=at;if(changed){seq.cancel();session.timelinePending=true;session.daily=null;session.dailies=null;el('skyMapEvents').replaceChildren();el('skyMapStatus').textContent='';el('skyMapRetry').hidden=true;
- map.redraw();}notifyCandidateDate(changed,false);
- if(!changed&&!session.timelinePending&&session.scrubMode==='time'&&globalThis.TrialExplore?.paintScrubTime()){
-  const text=textAt(at),input=el('skyMapTime');
-  if(document.activeElement!==input&&input.value!==text)input.value=text;
-  const range=el('skyMapRange');range.value=(at-AstroNotesSkyMap.dayStart(at))/1000;range.setAttribute('aria-valuetext',text);
-  globalThis.MyPlacesUI?.skyOverlap?.(session);
- }else render();
- },onBlend:b=>{if(!session)return;session.blend=b;map.redraw();},onSettle:()=>{timelineMoving=false;if(!hasAccess()||!session||!active())return;notifyCandidateDate(false);if(session.timelinePending)refresh();else render();
- },format:(at,mode)=>mode==='date'?dateAt(at).slice(5).replace('-','/'):textAt(at),getObserver:()=>session?.observer,sun:(at,o)=>AstroNotesAstro.sun(at,o),describe:(at,mode)=>ToolDateTimeBar.label(at)+(mode!=='date'?' '+textAt(at):'')});
+ function settleSkyScrub(){
+  timelineMoving=false;
+  if(!hasAccess()||!session||!active())return;
+  notifyCandidateDate(false);
+  if(session.timelinePending)refresh();else render();
+ }
+ const skyTimeline=AstroNotesScrollTimeline.mount({root:el('skyMapTimeline'),getAt:()=>session?.at,getMode:()=>session?.scrubMode,enabled:()=>hasAccess()&&!!session&&active(),onChange:at=>{
+  if(!hasAccess()||!session||!active())return;
+  const day=AstroNotesSkyMap.dayStart(at),changed=day!==AstroNotesSkyMap.dayStart(session.at);
+  timelineMoving=true;session.at=at;
+  if(changed){
+   seq.cancel();session.timelinePending=true;session.daily=null;session.dailies=null;
+   el('skyMapEvents').replaceChildren();el('skyMapStatus').textContent='';el('skyMapRetry').hidden=true;
+  }
+  notifyCandidateDate(changed,false);
+  if(session.scrubMode==='time'&&globalThis.TrialExplore?.paintScrubTime?.()){
+   const text=textAt(at),input=el('skyMapTime');
+   if(document.activeElement!==input&&input.value!==text)input.value=text;
+   const range=el('skyMapRange');range.value=(at-day)/1000;range.setAttribute('aria-valuetext',text);
+   if(changed){
+    el('skyMapDate').value=dateAt(at);
+    const button=el('skyMapCalendarOpen');ToolDateTimeBar.dateText(button,at);button.setAttribute('aria-label',ToolDateTimeBar.label(at));
+   }
+   globalThis.MyPlacesUI?.skyOverlap?.(session);
+  }else render();
+ },onBlend:b=>{if(!session)return;session.blend=b;map.redraw();},onSettle:settleSkyScrub,
+ format:(at,mode)=>mode==='date'?dateAt(at).slice(5).replace('-','/'):textAt(at),getObserver:()=>session?.observer,sun:(at,o)=>AstroNotesAstro.sun(at,o),describe:(at,mode)=>ToolDateTimeBar.label(at)+(mode!=='date'?' '+textAt(at):'')});
  let lastPlaybackDetail=0;
- const skyPlayback=ToolDateTimeBar.playback({row:el('skyMapPrev').parentElement,footer:skyFooter,getAt:()=>session?.at,enabled:()=>hasAccess()&&!!session&&active(),onStart:()=>{globalThis.AstroNotesCameraUI?.stop(el('aimLook'));stopSkyScrub();if(session)session.blend=null;
+ const skyPlayback=ToolDateTimeBar.playback({row:el('skyMapPrev').parentElement,footer:skyFooter,getAt:()=>session?.at,enabled:()=>hasAccess()&&!!session&&active(),onStart:()=>{globalThis.AstroNotesCameraUI?.stop(el('aimLook'));stopSkyScrub(true);if(session)session.blend=null;
  },onStop:()=>{if(hasAccess()&&session&&active())render();},setAt:at=>{
   if(!hasAccess()||!session||!active())return;
   if(at<Date.UTC(2020,0,1)-32400000||at>=aimCandidateSearchEnd()){skyPlayback.stop(false);return;}
@@ -347,7 +363,11 @@ ctx.lineWidth=1;
   if(globalThis.TrialExplore?.active()&&el('skyMapView').dataset.exploreMode==='scene')globalThis.TrialExplore.sync();else if(session.eye&&session.dailies)map.redraw();
   if(skyTimeDialog.open&&at-lastPlaybackDetail>=1000){lastPlaybackDetail=at;const state=currentState();if(state)el('skyMapAngles').textContent=`${bodyName(session.body)} 方位 ${state.azimuth.toFixed(1)}°・高度 ${state.altitude.toFixed(2)}°`;}
  }});
- const stopSkyScrub=()=>{skyTimeline.stop();timelineMoving=false;};
+ function stopSkyScrub(commit=false){
+  const dirty=timelineMoving||session?.timelinePending;
+  skyTimeline.stop();timelineMoving=false;
+  if(commit&&dirty)settleSkyScrub();
+ }
  // 日付カレンダーはねらうと同じ重なる日●・近接○・時刻・月相の描画（aimCalRows/aimCalGridHtml）。月全体を計算し、帯の候補では埋めない。
  const calendarCache=new Map();
  function calendarMonth(args,scanRecords=false){
@@ -392,7 +412,7 @@ ctx.lineWidth=1;
   })().catch(()=>{if(stale())return;status.textContent='計算できませんでした。月を選び直して再試行してください';grid.setAttribute('aria-busy','false');});
  }
  const skyCalendar=ToolDateTimeBar.calendar({button:el('skyMapCalendarOpen'),getAt:()=>session?.at??Date.now(),setDay:day=>{if(session)setTime(day+(session.at-AstroNotesSkyMap.dayStart(session.at)));},renderMonth:calendarMonth});
- ToolDateTimeBar.editor({button:el('skyMapCalendarOpen'),time:el('skyMapTime'),dialog:skyCalendar,beforeOpen:stopSkyScrub});
+ ToolDateTimeBar.editor({button:el('skyMapCalendarOpen'),time:el('skyMapTime'),dialog:skyCalendar,beforeOpen:()=>stopSkyScrub(true)});
  const skyTimeDialog=document.createElement('dialog');skyTimeDialog.className='sheet preview-time-dialog sky-map-time-dialog';skyTimeDialog.tabIndex=-1;skyTimeDialog.setAttribute('aria-label','天体の位置と時刻');
  skyTimeDialog.innerHTML=('<div class="sheet-head"><strong>天体の位置と時刻</strong><button type="button" data-close>閉じる</button></div><div id="skyMapAngles" class="sky-map-angles"></div><p id="skyMapDetailInfo" class="sky-map-angles tiny"></p><div class="sheet-body sky-map-time-actions">'+
  '<button type="button" id="skyMapEarlier">−1分</button><button type="button" id="skyMapNow">今</button><button type="button" id="skyMapLater">+1分</button></div>');

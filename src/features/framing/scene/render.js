@@ -196,7 +196,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
         item.failed = !ridge;
         const missing = scene.filter(x => x.failed).map(x => `${x.target.name}の稜線を読み込めませんでした`);
         note.textContent = [note.dataset.primary || "", ...missing].filter(Boolean).join(" / "); note.hidden = !note.textContent;
-        draw(cur);
+        draw(cur, host._lookAt);
       });
     }
   }
@@ -254,7 +254,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     if (seq !== host._lookSeq || !rows?.length) return;
     const merged = rows.map(([a, h], i) => [a, Math.max(seaAngle, h, near?.ridge?.[i]?.[1] ?? -90)]), side = (keep) => merged.filter(([a]) => keep(rel(a))).map(([a, h]) => toPx(proj(a, h))).filter(Boolean);
     skyline = { left: side((r) => r < from), right: side((r) => r > to) };
-    sceneVersion++; draw(cur);
+    sceneVersion++; draw(cur, host._lookAt);
   };
   // 時刻の目盛り。道のりの長さに合わせて1〜60分ごとに、多くても10個
   const span = (path[path.length - 1].at - path[0].at) / 60000;
@@ -369,7 +369,9 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     if(host._compose?.apply){const c=host._compose;c.apply=false;if(c.mode==="body")host._lensOffset=[0,0];else{const bottom=frame?H/2+frame.halfH*k:H-12;host._lensOffset=[0,Math.max(-1,Math.min(1,(bottom-groundEdge)/H))];}host._lensSnap={ground:c.mode!=="body",center:c.mode!=="body"};}
     const pan = host._lensOffset || [0, 0], panX = pan[0] * W, panY = pan[1] * H;
     const times = host.querySelector("[data-look-frame-times]");
+    const frameDayCurrent=S.JstCal.startOfDay(p.at)===frameDay;
     times.hidden = !frame;
+    times.style.visibility = frameDayCurrent ? "" : "hidden";
     if(!frame&&host._uiTime)host._uiTime.frameSpans=[];
     const timesKey = `${panX},${panY}`;
     if(frame && timesKey!==frameTimesKey){
@@ -389,10 +391,14 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     clipWorld(ctx,panX,panY,clipBottom);
     if (skyAboveFrontage) ctx.clip(skyAboveFrontage, "evenodd");
     // 道と時刻の目盛り
-    ctx.strokeStyle = ink; ctx.globalAlpha = 0.55; ctx.lineWidth = 1.5; ctx.setLineDash([]);
-    const guide = guideAt(runAt(p.at));
-    ctx.stroke(guide.line); ctx.fillStyle = ink; ctx.fill(guide.marks);
-    ctx.globalAlpha = 1;
+    const run=frameDayCurrent?runAt(p.at):nearestPathRun(fullPath,pathRuns,p.at);
+    // While switching days, draw the existing guide only when it covers the displayed time.
+    if(frameDayCurrent||run&&p.at>=fullPath[run[0]].at&&p.at<=fullPath[run[1]].at){
+      ctx.strokeStyle = ink; ctx.globalAlpha = 0.55; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+      const guide = guideAt(run);
+      ctx.stroke(guide.line); ctx.fillStyle = ink; ctx.fill(guide.marks);
+      ctx.globalAlpha = 1;
+    }
     const rPx = Math.max(1.5, p.radius * k);
     // 移動中は元の円盤を置き換える。操作位置は画面座標なので構図の移動分を戻す。
     const movedBody = host._pick?.ghost;
@@ -754,7 +760,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     note.dataset.primary = note.textContent;
     note.textContent = [note.dataset.primary, ...scene.filter(x => x.failed).map(x => `${x.target.name}の稜線を読み込めませんでした`)].filter(Boolean).join(" / ");
     note.hidden = !note.textContent;
-    draw(cur);
+    draw(cur, host._lookAt);
   });
   if (canReadFrontage) setTimeout(loadFrontage, 120);
   if (hiddenPending) hiddenPending.catch(() => null).then((r) => {

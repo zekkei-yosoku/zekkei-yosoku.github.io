@@ -541,7 +541,8 @@ let lastScrubSkyInfo=0;
 function paintScrubTime(){
  if(!resultActive()||mode!=='scene'||forceNext||plan.pendingKey||!plan.frameKey||look.hidden||!look._uiTime)return false;
  let s;
- try{s=snapshot();if(stamp(s)!==plan.frameKey||!canFrame(s))return false;}catch{return false;}
+ // Reuse the committed projection across midnight. Its daily guides are replaced when the ruler settles.
+ try{s=snapshot();if(stamp({...s,at:look._uiTime.day})!==plan.frameKey||!canFrame(s))return false;}catch{return false;}
  // The scroll ruler already emits at most once per animation frame.
  try{if(Math.abs(look._lookAt-s.at)>.5)look._uiTime.set(s.at);}
  catch(error){globalThis.AstroNotesErrors?.note('explore.scrubScene',error);sync(true);return false;}

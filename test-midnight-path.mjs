@@ -10,7 +10,9 @@ test('frameDayPath は前日・翌日へ広げられ、既定はその日の0〜
 });
 test('図は見ている時刻の通り道を日境界へつなげ、画角内時間を現在のpanへ追従して予定へ渡す',()=>{
  assert.match(html,/const fullPath = \[\.\.\.pathBefore, \.\.\.path, \.\.\.pathAfter\];/);
- assert.match(html,/guideAt\(runAt\(p\.at\)\)/);assert.match(html,/for \(const q of run \? fullPath\.slice\(run\[0\], run\[1\] \+ 1\) : path\)/);
+ assert.match(html,/frameDayCurrent\?runAt\(p\.at\):nearestPathRun\(fullPath,pathRuns,p\.at\)/);
+ assert.match(html,/frameDayCurrent\|\|run&&p\.at>=fullPath\[run\[0\]\]\.at&&p\.at<=fullPath\[run\[1\]\]\.at/);
+ assert.match(html,/guideAt\(run\)/);assert.match(html,/for \(const q of run \? fullPath\.slice\(run\[0\], run\[1\] \+ 1\) : path\)/);
  assert.match(html,/startMs: frameDay - 6 \* 3600000, endMs: frameDay \+ 30 \* 3600000/);
  assert.match(html,/times.hidden = !frame/);assert.match(html,/AstroNotesAlign\.framePassages\(passagePoints,frame,\{x:panX\/k,y:-panY\/k\}\)/);assert.match(html,/host._uiTime.frameSpans=spans/);
 });
