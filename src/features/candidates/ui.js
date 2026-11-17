@@ -232,7 +232,10 @@ AstroNotesCandidatePicker.registerRegisteredFromSession=(box,rows,legacyPlan,leg
  AstroNotesCandidatePicker.registerRegistered(box,kept,selected,eligible);
 };
 
-function current(token,p,node){return token===run&&node.isConnected&&contextActive()&&p.authGeneration===mainWorkspace()?.epoch()&&key(snapshot())===key(p);}
+function resultsCurrent(p,node){
+ return node===section&&node.isConnected&&contextActive()&&p.authGeneration===mainWorkspace()?.epoch()&&key(snapshot())===key(p);
+}
+function current(token,p,node){return token===run&&resultsCurrent(p,node);}
 function mapAnchor(point){
  const apps=AstroNotesPlan.externalApps;if(!apps||!point||!Number.isFinite(point.latitude)||!Number.isFinite(point.longitude))return null;
  const link=document.createElement('a');link.className='fav-btn tiny';link.textContent='地図アプリで開く';link.href=apps.mapApps.google.url(point.latitude.toFixed(7)+', '+point.longitude.toFixed(7));link.target='_blank';link.rel='noopener';
@@ -397,10 +400,14 @@ function mount(){
  button.disabled=!valid;
  status.textContent=missingField?(missingField.endsWith('Start')?'探索の開始時刻を入力してください。':'探索の終了時刻を入力してください。')
   :!p?'天体・対象・日付を選んでください。':!valid?'指定した日時と構図を確認してください。':'';
- let continuation=false,hasRun=false,searching=false,failed=false,hasResults=false,items=new Map(),shown=null;
+ let continuation=false,hasRun=false,searching=false,failed=false,hasResults=false,items=new Map(),shown=null,publishedRows=0;
  const presentation=AstroNotesLibrary.gate();
  // A place saved to the records leaves this list at once, and one removed from them comes back.
- againForRecords=()=>{if(shown&&!searching&&section.isConnected)present(...shown);};
+ againForRecords=()=>{
+  if(!shown||searching||!section?.isConnected)return;
+  const {result,selected,node,options}=shown;
+  present(result,selected,node,run,options);
+ };
  function renderAction(){
   button.dataset.state=searching?'searching':'idle';
   button.textContent=searching?'キャンセル':failed?'再試行':continuation?'続きを探す':hasRun?(main?'候補を探し直す':'もう一度確認'):main?'候補を探す':'ほかの候補地点を探す';
@@ -418,21 +425,26 @@ function mount(){
    // Rows already shown keep their buttons and new ones wait hidden until the list places them: emptying and
    // refilling the list for every place found made the page jump while searching (2026-11-13, seen on the iPhone).
    // Places already among the user's saved shooting places are shown on the records side only (candidate-picker.js inRecords).
-   const rows=[],nodes=[],kept=new Map(),recorded=globalThis.MyPlacesUI?.savedPlaces?.()||[];if(!partial)shown=[result,selected,node,token,{cancelled,interrupted}];
+   const rows=[],nodes=[],kept=new Map(),recorded=globalThis.MyPlacesUI?.savedPlaces?.()||[];
+   if(!partial)shown={result,selected,node,options:{cancelled,interrupted}};
    for(const raw of result.rows){if(AstroNotesCandidatePicker.inRecords(raw,recorded))continue;const row=AstroNotesCandidateLabels.enrich(raw,labels),town=knownTownAddresses.get(townKey(row.place));
    if(town&&row.labels.address.status!=='matched')setTownAddress(row,town);rows.push(row);
    let item=items.get(row.id);if(!item){item=document.createElement('button');item.type='button';item.className='list-item';item.hidden=true;item.textContent=row.place.name;resultList.append(item);}
    kept.set(row.id,item);nodes.push(item);item.dataset.modelBasis=row.modelEvidence?.kind||'unknown';item.dataset.candidateName=row.place.name;item.dataset.candidateId=row.id;
-    item.onclick=()=>{if(mainWorkspace()&&!mainWorkspace().selectable()||!current(token,selected,node)||row.requestKey!==key(snapshot()))return;const event={...row.event};delete event.matchMode;const candidate={...row,event};const host=document.getElementById('aimLook'),previous=host?._compose;
+    item.onclick=()=>{
+    if(!item.isConnected||items.get(row.id)!==item||mainWorkspace()&&!mainWorkspace().selectable()||!resultsCurrent(selected,node)||row.requestKey!==key(selected))return;
+    const event={...row.event};delete event.matchMode;const candidate={...row,event};const host=document.getElementById('aimLook'),previous=host?._compose;
     if(host)host._compose={mode:'whole',apply:true};
     if(SkyMapUI.selectCandidate(candidate,context(SkyMapUI.selectionState()))){returnSearch=selected.timeSpec?.kind==='window'&&AstroNotesCandidateDiscovery.day(row.event.at)!==AstroNotesCandidateDiscovery.day(selected.at)?{plan:selected,key:key(selected),rowId:row.id,viewAt:row.event.at}:null;
     sheet.close();}else if(host)host._compose=previous;};
    }
    for(const [id,old] of items)if(!kept.has(id))old.remove();items=kept;
-   AstroNotesCandidatePicker.registerAdditional(resultList,rows,selected,()=>current(token,selected,node),nodes);
+   // Published rows belong to the current selection. Starting another batch
+   // for that selection only invalidates the previous search's async work.
+   AstroNotesCandidatePicker.registerAdditional(resultList,rows,selected,()=>resultsCurrent(selected,node),nodes);
    fillTownAddresses(rows,isPresented).then(changed=>{if(changed&&isPresented())AstroNotesCandidatePicker.apply();})
     .catch(error=>globalThis.AstroNotesErrors?.note('candidates.town-address',error));
-   hasResults=!!rows.length;
+   hasResults=!!rows.length;publishedRows=result.rows.length;
    if(partial){visibleCredits.hidden=!hasResults;main?.reveal();return;}
    const incomplete=!!result.stalled||interrupted||result.coverage.loaded?.some(c=>c.failedRegions?.length||c.missing?.includes('time-budget'));
    continuation=cancelled||interrupted||!!result.canContinue;failed=!cancelled&&incomplete;
@@ -458,20 +470,29 @@ function mount(){
    const completed=engine.cached(selected);if(completed)present(completed,selected,section,token,{cancelled:true}).catch(()=>{});
    return;
   }
-  if(hasRun&&!continuation&&!engine.restart(selected))return;
+  const resuming=continuation;
+  if(hasRun&&!resuming&&!engine.restart(selected))return;
   // Once the inputs are accepted, keep progress and results next to the search action.
   if(main&&evidence.open)evidence.open=false;
-  AstroNotesCandidatePicker.unregister?.(resultList);resultList.replaceChildren();items=new Map();hasRun=true;hasSearched=true;const node=section,token=++run;stop();controller=new AbortController();const signal=controller.signal;live.resetBudget();
+  if(!resuming){
+   AstroNotesCandidatePicker.unregister?.(resultList);resultList.replaceChildren();items=new Map();
+   hasResults=false;publishedRows=0;shown=null;
+  }
+  hasRun=true;hasSearched=true;const node=section,token=++run;
+  stop();controller=new AbortController();const signal=controller.signal;live.resetBudget();
   footprintGround.resetBudget();treeGround.resetBudget();evaluationBudgetStarted=false;watch=setInterval(()=>{if(!current(token,selected,node)){stop();mount();}},250);
-  searching=true;failed=false;hasResults=false;renderAction();
-  visibleCredits.hidden=true;
+  searching=true;failed=false;renderAction();
+  visibleCredits.hidden=!hasResults;
   const label='撮影できる地域を計算しています…',updateProgress=showCandidateProgress(status,label,!!main);
   try{
    // The search asks this between every few calculations; rebuilding the page snapshot each time took about a quarter of
    // a phone's search time (2026-11-11). The run and the section are checked every time, the page conditions at most
    // every 250 ms (a change of conditions also restarts the search through mount()).
-   let checkedAt=-Infinity,stillCurrent=true,shown=0;const searchCurrent=()=>{if(token!==run||!node.isConnected)return false;const now=performance.now();if(now-checkedAt>=250){checkedAt=now;stillCurrent=current(token,selected,node);}return stillCurrent;};
-   const result=await engine.searchAll(selected,{more:continuation,signal,isCurrent:searchCurrent,onPage:page=>{if(page.rows?.length>shown&&searchCurrent()){shown=page.rows.length;present(page,selected,node,token,{partial:true}).catch(()=>{});}},onBatchStart:()=>{live.resetBudget();
+   let checkedAt=-Infinity,stillCurrent=true,offeredRows=publishedRows;
+   const searchCurrent=()=>{if(token!==run||!node.isConnected)return false;const now=performance.now();if(now-checkedAt>=250){checkedAt=now;stillCurrent=current(token,selected,node);}return stillCurrent;};
+   const result=await engine.searchAll(selected,{more:resuming,signal,isCurrent:searchCurrent,onPage:page=>{
+    if(page.rows?.length>offeredRows&&searchCurrent()){offeredRows=page.rows.length;present(page,selected,node,token,{partial:true}).catch(()=>{});}
+   },onBatchStart:()=>{live.resetBudget();
    footprintGround.resetBudget();treeGround.resetBudget();evaluationBudgetStarted=false;},
    onProgress:counts=>{if(!searchCurrent())return;const checked=counts.checked||0;
     const message=counts.stage==='inverse'?label:counts.stage==='evaluate'?'構図と見通しを確認中'+(checked?' ・ '+checked+'地点':''):'撮影場所の情報を取得中'+(checked?' ・ '+checked+'地点確認済み':'');

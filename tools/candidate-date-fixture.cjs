@@ -15,10 +15,13 @@ function fixture(tools){
     if(dateFixture.failNext||dateFixture.failAlways){dateFixture.failNext=false;throw Error('synthetic provider failure');}
     // Intentionally non-abortable IO proves that a late result cannot revive an old day.
     if(dateFixture.holdNext||dateFixture.holdCursor!==null&&dateFixture.holdCursor===options.cursor){dateFixture.holdNext=false;dateFixture.holdCursor=null;await new Promise(release=>dateFixture.holds.push({day,release}));}
-    return {points,coverage:{nextCursor}};
+    const rows=dateFixture.extraOnCursor===options.cursor?
+     [...points,{...points[0],id:'extra',surfaceId:'extra',latitude:35.7062,longitude:139.7463}]:points;
+    return {points:rows,coverage:{nextCursor}};
    }},evaluate:async(plan,point)=>{
     const range=AstroNotesCandidateComposition.timeRange(plan),at=range.start===range.end?range.start:Math.min(range.end,range.start+(plan.timeSpec?.kind==='window'?dateFixture.windowOffsetHours:12)*3600000),day=new Date(at+32400000).toISOString().slice(0,10);
-    return {id:day+'-'+point.id,requestKey:plan.requestKey,recommend:true,placeKind:point.placeKind,rank:point.id==='park'?1:0,quality:{photographyClass:'normal',visibility:'model-clear'},place:{name:day+(point.id==='park'?' 公園':' 河川敷'),latitude:point.latitude,longitude:point.longitude,elevation:25,groundManualM:25,standAglM:4,decks:[]},assumedObserver:{latitude:point.latitude,longitude:point.longitude,elevation:25,eyeM:4},event:{at,partId:plan.partId,side:'rise',relation:point.id==='park'?'near':'exact'}};
+    const targetAngleDeg=dateFixture.demoAngles?({park:5.8,river:-2.1,extra:-.2})[point.id]:undefined;
+    return {id:day+'-'+point.id,requestKey:plan.requestKey,recommend:true,placeKind:point.placeKind,rank:point.id==='park'?1:0,quality:{photographyClass:'normal',visibility:'model-clear',...(targetAngleDeg===undefined?{}:{targetAngleDeg})},place:{name:day+(point.placeKind==='park'?' 公園':' 河川敷'),latitude:point.latitude,longitude:point.longitude,elevation:25,groundManualM:25,standAglM:4,decks:[]},assumedObserver:{latitude:point.latitude,longitude:point.longitude,elevation:25,eyeM:4},event:{at,partId:plan.partId,side:'rise',relation:point.id==='park'?'near':'exact'}};
    }});
    const cached=engine.cached.bind(engine);engine.cached=plan=>{const result=cached(plan);if(result&&dateFixture.startDuringRestore){dateFixture.startDuringRestore=false;queueMicrotask(()=>document.getElementById('candidateSearchAction')?.click());}return result;};
    return engine;

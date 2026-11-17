@@ -17,6 +17,7 @@ const grants=['records','tower','diamond','pearl','skymap','multiscene'];
    const p=await context.newPage();p.on('pageerror',e=>errors.push(e.message));p.setDefaultTimeout(20000);
    await p.goto(base+'#/explore');await p.waitForFunction(()=>typeof AstroNotesCandidatePicker==='object');
    await p.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>25;aimBuildingDays=async()=>[];SkyMapUI.setTarget('skytree');const body=document.getElementById('skyMapBody');body.value='moon';body.onchange();SkyMapUI.setTime(Date.parse('2026-11-07T09:00:00+09:00'));dateFixture.autoPages=true;dateFixture.nextCursor=7;dateFixture.holdCursor=7;});
+   await p.evaluate(()=>{dateFixture.demoAngles=true;});
    await p.locator('#exploreDiscovery-new').click();
    const button=p.locator('#candidateSearchAction'),feedback=p.locator('#candidateSearchFeedback [role=status]');
    const primary=p.locator('.candidate-search-primary'),working=p.locator('.candidate-search-primary[data-candidate-searching]');
@@ -47,15 +48,46 @@ const grants=['records','tower','diamond','pearl','skymap','multiscene'];
    await working.getByRole('button',{name:'キャンセル',exact:true}).click();await state('続きを探す');
    assert.equal(await working.count(),0);assert.equal(await progress.count(),0);
    assert.match(await feedback.innerText(),/キャンセルしました/);assert.deepEqual(await shown(),first);
+   await release();
+   await p.evaluate(()=>{
+    dateFixture.holdCursor=7;dateFixture.extraOnCursor=7;
+    dateFixture.resumeButtons=[...document.querySelectorAll('#candidateUnifiedResults > button')];
+   });
    const beforeResume=(await loads()).length;
-   await button.click();await state('候補を探し直す');assert.equal((await loads()).length,beforeResume+1);assert.equal((await loads()).at(-1),7);
-   await release();assert.deepEqual(await shown(),first);
+   await button.click();await waitHold();await activeProgress();
+   assert.deepEqual(await shown(),first,'found places stay usable while waiting for the next page');
+   await p.evaluate(()=>AstroNotesCandidatePicker.apply());
+   assert(await p.evaluate(()=>dateFixture.resumeButtons.every(n=>n.parentElement?.id==='candidateUnifiedResults')));
+   await p.locator('#candidateMapToggle').click();assert(await p.locator('#candidateMapPanel').isVisible());
+   await release();await state('候補を探し直す');assert.equal((await loads()).length,beforeResume+1);assert.equal((await loads()).at(-1),7);
+   assert(await p.locator('#candidateMapPanel').isVisible(),'publishing the next page preserves the map');
+   await p.locator('#candidateMapToggle').click();
+   await p.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===3);
+   const appended=await shown();assert(first.every(id=>appended.includes(id)));assert.equal(new Set(appended).size,3);
+   assert(await p.evaluate(()=>dateFixture.resumeButtons.every(n=>n.parentElement?.id==='candidateUnifiedResults')));
+   const angleCells=p.locator('#candidateUnifiedResults [data-candidate-angle]');
+   assert.deepEqual((await angleCells.allTextContents()).sort(),['仰角 6°','俯角 2°','水平 0°'].sort());
+   assert.deepEqual((await angleCells.evaluateAll(cells=>cells.map(cell=>cell.getAttribute('aria-label')))).sort(),
+    ['対象の仰角 6度','対象の俯角 2度','対象は水平、0度'].sort());
+   await p.evaluate(()=>{dateFixture.extraOnCursor=null;});
    await p.evaluate(()=>dateFixture.holdCursor=7);await button.click();await waitHold();await p.locator('#skyMapNext').click();await state('候補を探す');
    await release();assert.equal(await progress.count(),0);assert.deepEqual(await shown(),[]);
    await button.click();await state('候補を探し直す');const next=await shown();assert(next.every(id=>id.startsWith('2026-11-08')));assert.equal(next.length,2);
+   // The already visible buttons must also be selectable before the resumed batch can publish.
+   await p.evaluate(()=>dateFixture.holdCursor=7);await button.click();await waitHold();
+   await p.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2);
+   await button.click();await state('続きを探す');await release();
+   await p.evaluate(()=>dateFixture.holdCursor=7);await button.click();await waitHold();
+   const chosen=await p.evaluate(()=>{const r=AstroNotesCandidatePicker.visibleRows()[0];return {at:r.event.at,lat:r.place.latitude,lon:r.place.longitude};});
+   await p.locator('#candidateUnifiedResults > button:visible').first().click();
+   await p.waitForFunction(x=>{
+    const s=SkyMapUI.selectionState();
+    return document.getElementById('skyMapView').dataset.exploreStage==='preview'&&s.at===x.at&&s.observer.latitude===x.lat&&s.observer.longitude===x.lon;
+   },chosen);
+   await release();
    assert.equal(writes,0);assert.deepEqual(errors,[]);
    const version=await p.evaluate(()=>new URL([...document.scripts].find(s=>s.src.includes('astronotes-candidate-search.js')).src).searchParams.get('v'));
-   results.push({engine,width,theme,version,passed:true,compactProgressAndCancel:true,autoPages:[0,7],stalledCursorReportsRetry:true,manualCancelAndResume:true,lateOldDateIgnored:true,writes,errors});fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log('PASS',engine,width,'automatic candidate search');
+   results.push({engine,width,theme,version,passed:true,compactProgressAndCancel:true,autoPages:[0,7],stalledCursorReportsRetry:true,manualCancelAndResume:true,retainedRowsSelectable:true,angleLabels:true,lateOldDateIgnored:true,writes,errors});fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log('PASS',engine,width,'automatic candidate search');
   }finally{await browser.close();}
  }
 })().catch(e=>{console.error(e);process.exitCode=1;});

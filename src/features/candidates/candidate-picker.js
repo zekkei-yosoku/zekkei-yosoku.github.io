@@ -164,8 +164,14 @@ function formatRow(node,row,types){
  const title=node.querySelector('[data-candidate-place]');if(title.textContent!==row.place.name)title.textContent=row.place.name;
  node.querySelector('[data-place-kind]').textContent=types.map(t=>names[t]).join('・');
  node.querySelector('[data-candidate-time]').textContent=clockText(row.event?.at);
- const angleCell=node.querySelector('[data-candidate-angle]');if(angleCell){const a=angleOf(row),known=Number.isFinite(a);angleCell.hidden=compactMode&&!known;
-  angleCell.textContent=known?(compactMode?'見上げ ':'')+Math.round(a)+'°':'—';angleCell.setAttribute('aria-label',known?'見上げる角度 '+Math.round(a)+'度':'見上げる角度 不明');}
+ const angleCell=node.querySelector('[data-candidate-angle]');
+ if(angleCell){
+  const angle=angleOf(row),known=Number.isFinite(angle),rounded=Math.round(angle),degrees=Math.abs(rounded);
+  const label=!degrees?'水平':angle<0?'俯角':'仰角';
+  angleCell.hidden=compactMode&&!known;
+  angleCell.textContent=known?(compactMode?label+' '+degrees:rounded)+'°':'—';
+  angleCell.setAttribute('aria-label',known?(degrees?'対象の'+label+' '+degrees+'度':'対象は水平、0度'):'対象の角度 不明');
+ }
  const location=locationText(row);let address=node.querySelector('[data-candidate-address]');
  if(location){
   if(!address){address=document.createElement('span');address.dataset.candidateAddress='';address.className='tiny sub-line';Object.assign(address.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});
