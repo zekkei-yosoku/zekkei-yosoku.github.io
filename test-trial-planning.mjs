@@ -23,7 +23,8 @@ test('条件要約は建物全体と山頂指定を区別し、高さを維持�
  s.partId=null;assert.match(c.conditionText(s).detail,/先端・下の縁/);s.matchMode='overlap';assert.match(c.conditionText(s).detail,/全体に重なる/);
 });
 test('trialの山単体は山頂固定、建物の指定と複数対象の全体は維持する',()=>{
- const start=html.indexOf(' function normalizeWholeAlignment('),code=html.slice(start,html.indexOf(' function render(){',start));
+ const start=html.indexOf(' function normalizeWholeAlignment('),end=html.indexOf(' function render(',start);assert(start>=0&&end>start);
+ const code=html.slice(start,end);
  for(const [id,part,mode,all,expected] of [
   ['tower','tip','limb',false,['tip','behind','limb']],
   ['tower',null,'overlap',false,['__whole','center','overlap']],
@@ -34,8 +35,9 @@ test('trialの山単体は山頂固定、建物の指定と複数対象の全体
   const c=vm.createContext({session:{target:{id,parts:[{id:id==='fuji'?'summit':'tip'}]},partId:part,limb:'behind',matchMode:mode,at:123},aimIsMountain:t=>t.id==='fuji',AstroNotesTrialOverlap:{isAll:()=>all},AstroNotesBodies:{definition:()=>({limbs:true})},AstroNotesAlign:{limbById:id=>({id})}});vm.runInContext(code,c);c.normalizeWholeAlignment();
   assert.deepEqual([c.session.partId,c.session.limb,c.session.matchMode],expected);assert.equal(c.session.at,123);
  }
- assert.match(html.slice(start,html.indexOf(' function setTime(',start)),/function render\(\)\{\s*normalizeWholeAlignment\(\)/);
- assert.match(html.slice(html.indexOf(' async function refresh(){',start)),/normalizeWholeAlignment\(\)/);
+ assert.match(html.slice(start,html.indexOf(' function setTime(',start)),/function render\([^)]*\)\{\s*normalizeWholeAlignment\(\)/);
+ const refresh=html.indexOf(' async function refresh(',start);assert(refresh>start);
+ assert.match(html.slice(refresh,html.indexOf(' function enter(',refresh)),/normalizeWholeAlignment\(\)/);
  const js=readFileSync(new URL('./trial/astronotes-myplaces.js',import.meta.url),'utf8');
  assert.doesNotMatch(js,/function mountainAlignment|alignment-dropdown|天体のどこを合わせるか/);
 });
