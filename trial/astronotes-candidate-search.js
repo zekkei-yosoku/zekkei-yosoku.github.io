@@ -1499,16 +1499,48 @@ async function surfaceInverse(plan,seed,range,timeSeeds,deps){
 // Nearby part guides vary time on the actual selected surface; they never
 // substitute a distant fixed-time inverse point. Ground is an explicit estimate.
 async function localGuides(plan,domain,{groundM,eyeM=1.5,align,bodies,isCurrent=()=>true,yieldTask}={}){
- if(!domain||!Number.isFinite(groundM))return {guides:[],partial:false};
+ if(!domain||!Number.isFinite(groundM)||!plan.target?.parts?.length)return {guides:[],partial:false};
  const seed={...domain.origin,groundM,elevation:groundM,groundKnown:true,surfaceAglM:0,eyeM,surfaceGeometry:domain.geometry};
  const range={kind:'window',start:plan.at-2*3600000,end:plan.at+2*3600000},out=[];let partial=false;
+ const tracks=new Map(),pause=yieldTask||(()=>Promise.resolve()),cross=(a,b)=>a[0]*b[1]-a[1]*b[0];
+ if(align.observerGuides)for(let i=0;i<=16;i++){
+  if(!isCurrent())return {guides:[],partial:true,cancelled:true};if(i%4===0)await pause();if(!isCurrent())return {guides:[],partial:true,cancelled:true};const at=range.start+i*900000;
+  for(const p of align.observerGuides(plan.target,plan.body,{at,groundM,eyeM})){if(!tracks.has(p.partId))tracks.set(p.partId,[]);tracks.get(p.partId).push(p);}
+ }
+ const localPoint=p=>Geo().distanceKm(domain.origin.latitude,domain.origin.longitude,p.latitude,p.longitude)*1000<=domain.radiusM+.01;
+
  for(const part of (plan.target?.parts||[]).slice(0,12)){
-  if(!isCurrent())break;if(!part.id||!Number.isFinite(part.m)||typeof part.name!=='string'||!part.name.trim())continue;
+  if(!isCurrent())return {guides:[],partial:true,cancelled:true};if(!part.id||!Number.isFinite(part.m)||typeof part.name!=='string'||!part.name.trim())continue;
   const anchor=align.partTarget?.(plan.target,part.id)||plan.target,local={...plan,target:{...anchor,rim:null,parts:[part]},partId:part.id,matchMode:'limb',composition:null,limb:'center'};
-  const result=await surfaceInverse(local,seed,range,[plan.at],{align,bodies,groundAt:()=>groundM,isCurrent,yieldTask:yieldTask||(()=>Promise.resolve()),budget:480,maxSolutions:1,nearbyFirst:true,
-   standingAt:p=>Geo().distanceKm(domain.origin.latitude,domain.origin.longitude,p.latitude,p.longitude)*1000<=domain.radiusM+.01});
-  partial||=result.exhausted;const q=result.solutions.sort((a,b)=>Math.abs(a.at-plan.at)-Math.abs(b.at-plan.at))[0];
-  if(q)out.push({latitude:q.observer.latitude,longitude:q.observer.longitude,at:q.at,partId:part.id,label:part.name.replace(/（[^）]*）/g,''),groundM,eyeM,approximate:true});
+  const track=tracks.get(part.id)||[],insideArea=p=>(domain.geometry.polygons||[]).some(r=>inside(r[0],p)&&!r.slice(1).some(h=>inside(h,p)));
+  const direct=track.filter(p=>localPoint(p)&&insideArea(p)).sort((a,b)=>Math.abs(a.at-plan.at)-Math.abs(b.at-plan.at))[0];
+  if(direct){
+   const g=align.geometryFrom({...direct,elevation:groundM,eyeM},local.target,{partId:part.id,eyeM}),st=bodies.state(plan.body,direct.at,{...direct,elevation:groundM+eyeM});
+   const residual=g&&align.viewProjector(g.azimuth,g.angle)(st.azimuth,st.apparentAltitude);
+   if(residual?.every(Number.isFinite)&&Math.hypot(...residual)<.002){out.push({...direct,groundM,eyeM,label:part.name.replace(/（[^）]*）/g,''),approximate:true});continue;}
+  }
+  const hints=[];
+  for(const line of domain.geometry.lines||[])for(let j=1;j<line.length;j++){
+   const a=line[j-1],d=[line[j][0]-a[0],line[j][1]-a[1]];
+   for(let k=1;k<track.length;k++){
+    const p=track[k-1],q=track[k];if(q.at<=p.at||q.at-p.at>900001)continue;
+    const b=[p.longitude,p.latitude],v=[q.longitude-b[0],q.latitude-b[1]],den=cross(d,v);if(Math.abs(den)<1e-20)continue;
+    const w=[b[0]-a[0],b[1]-a[1]],u=cross(w,v)/den,t=cross(w,d)/den;if(u<0||u>1||t<0||t>1)continue;
+    hints.push({line,latitude:a[1]+u*d[1],longitude:a[0]+u*d[0],at:p.at+t*(q.at-p.at)});
+   }
+  }
+  hints.sort((a,b)=>Math.abs(a.at-plan.at)-Math.abs(b.at-plan.at));
+  const starts=hints.filter((h,i)=>hints.findIndex(p=>p.line===h.line&&Math.abs(p.at-h.at)<60000)===i).slice(0,3);if(!starts.length)starts.push(null);
+  let found=null;
+  for(const hint of starts){
+   const start=hint?{...seed,latitude:hint.latitude,longitude:hint.longitude,surfaceGeometry:{lines:[hint.line],polygons:[]}}:seed;
+   const result=await surfaceInverse(local,start,range,hint?[hint.at]:[plan.at],{align,bodies,groundAt:()=>groundM,isCurrent,yieldTask:pause,budget:Math.floor(480/starts.length),maxSolutions:1,nearbyFirst:true,standingAt:localPoint});
+   if(result.cancelled||!isCurrent())return {guides:[],partial:true,cancelled:true};
+   found=result.solutions[0];if(found)break;
+  }
+  if(found)out.push({latitude:found.observer.latitude,longitude:found.observer.longitude,at:found.at,partId:part.id,label:part.name.replace(/（[^）]*）/g,''),groundM,eyeM,approximate:true});
+  else partial=true;
+
  }
  return {guides:out,partial};
 }

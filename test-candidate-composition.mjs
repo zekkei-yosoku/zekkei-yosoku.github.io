@@ -180,3 +180,17 @@ test('部位の目安は現在地近くの線上で時刻も解き、標高通�
  const obs={...guide,elevation:4},g=A.geometryFrom(obs,one,{partId:'tip',eyeM:1.5}),body=B.state('moon',guide.at,{...obs,elevation:5.5});assert(Math.hypot(...A.viewProjector(g.azimuth,g.angle)(body.azimuth,body.apparentAltitude))<.002);
  const cancelled=await C.localGuides({target:one,body:'moon',at},domain,{groundM:4,align:A,bodies:B,isCurrent:()=>false});assert.equal(cancelled.guides.length,0);
 });
+
+test('近くの短い園路で予算を使う前に、逆算軌跡が交わる園路へ絞る',async()=>{
+ const at=Date.parse('2026-11-19T14:27:00+09:00'),one={...target,parts:target.parts.filter(p=>p.id==='tip')},[p]=A.observerGuides(one,'moon',{at,groundM:4}),G=require('./astronotes-terrain.js'),origin=G.destination(p.latitude,p.longitude,180,.3);
+ const lines=Array.from({length:60},(_,i)=>{const a=G.destination(origin.latitude,origin.longitude,90,i*.0001),b=G.destination(a.latitude,a.longitude,0,.002);return [[a.longitude,a.latitude],[b.longitude,b.latitude]];});
+ const a=G.destination(p.latitude,p.longitude,0,.05),b=G.destination(p.latitude,p.longitude,180,.05);lines.push([[a.longitude,a.latitude],[b.longitude,b.latitude]]);
+ let heavy=0;const align={...A,geometryFrom:(...args)=>{heavy++;return A.geometryFrom(...args);}},r=await C.localGuides({target:one,body:'moon',at},{origin,radiusM:600,geometry:{lines,polygons:[]}},{groundM:4,align,bodies:B,yieldTask:async()=>{}});
+ assert.equal(r.guides.length,1);assert.equal(r.partial,false);assert(heavy<100,'constrained Newton starts at the coarse trajectory crossing');assert(Math.abs(r.guides[0].at-at)<1000);
+});
+
+test('面の粗い逆算点も通常の天体と部位で検算し、途中の取消を成功にしない',async()=>{
+ const at=Date.parse('2026-11-19T14:27:00+09:00'),one={...target,parts:target.parts.filter(p=>p.id==='tip')},[p]=A.observerGuides(one,'moon',{at,groundM:4}),x=p.longitude,y=p.latitude,domain={origin:p,radiusM:600,geometry:{lines:[],polygons:[[[[x-.001,y-.001],[x+.001,y-.001],[x+.001,y+.001],[x-.001,y+.001],[x-.001,y-.001]]]]}};
+ let checks=0;const align={...A,geometryFrom:(...args)=>{checks++;return A.geometryFrom(...args);}},r=await C.localGuides({target:one,body:'moon',at},domain,{groundM:4,align,bodies:B,yieldTask:async()=>{}});assert.equal(r.guides.length,1);assert(checks>0);assert.equal(r.guides[0].eyeM,1.5);assert.equal(r.guides[0].groundM,4);
+ let current=true;const cancelled=await C.localGuides({target:one,body:'moon',at},domain,{groundM:4,align,bodies:B,isCurrent:()=>current,yieldTask:async()=>{current=false;}});assert(cancelled.cancelled);assert(cancelled.partial);assert.equal(cancelled.guides.length,0);
+});

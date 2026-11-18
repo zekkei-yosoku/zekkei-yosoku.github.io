@@ -184,6 +184,10 @@ function loadObserverSurface(s){
   if(!current())return;observerSurfaceLoading=false;observerSurface=domain;observerGuideKey='';syncObserverMovement(SkyMapUI.selectionState());
  }).catch(e=>{if(!current())return;observerSurfaceLoading=false;observerSurface=null;globalThis.AstroNotesErrors?.note('explore.movement-surface',e);syncObserverMovement(SkyMapUI.selectionState());});
 }
+function observerGuideTime(guide){
+ const day=AstroNotesShooting.day,delta=day(guide.at)-day(guide.requestAt??SkyMapUI.selectionState().at),clock=new Date(guide.at+32400000).toISOString().slice(11,16);
+ return (delta>0?'翌日 ':delta<0?'前日 ':'')+clock;
+}
 function updateObserverGuides(s){
  if(!observerSurface){clearObserverGuides(observerSurfaceLoading?'この場所の園路・歩道を確認中…':'この場所は園路・歩道の情報がなく、移動できる範囲を確認できませんでした');return;}
  const ground=Number.isFinite(s.observer.groundManualM)?s.observer.groundManualM:SkyMapUI.workspaceHost()?.session.ground,eye=aimObserverAt(s.observer,ground).eyeM;
@@ -205,7 +209,7 @@ function updateObserverGuides(s){
   }
   if(!current())return;observerGuides=result.guides.map(g=>({...g,requestAt:s.at,atmosphere:AstroNotesAtmosphere.dataKey()}));observerMoveSection.dataset.guideCount=String(observerGuides.length);
   observerGuideNote.textContent=observerSurface.label+'の近く'+(observerGuides.length?' ・ 部位と時刻から選択（目安は地面を同じ高さと仮定）'+(result.partial?' ・ 一部の目安':''):result.partial?' ・ この付近の目安を一部確認しました':' ・ この付近では部位の目安を見つけられませんでした');
-  for(const guide of observerGuides){const clock=new Date(guide.at+32400000).toISOString().slice(11,16),b=node('button',{type:'button',className:'chip'},guide.label+' '+clock);b.dataset.partId=guide.partId;b.dataset.latitude=String(guide.latitude);b.dataset.longitude=String(guide.longitude);
+  for(const guide of observerGuides){const clock=observerGuideTime(guide),b=node('button',{type:'button',className:'chip'},guide.label+' '+clock);b.dataset.partId=guide.partId;b.dataset.latitude=String(guide.latitude);b.dataset.longitude=String(guide.longitude);
    b.setAttribute('aria-label',guide.label+' '+clock+(guide.approximate?'の目安':'の候補')+'へ地図を移動');b.onclick=()=>{if(!current())return;observerDraftGuide=guide;observerMoveMap.setCenter(guide.latitude,guide.longitude);};observerGuideButtons.append(b);}
   observerMoveMap?.redraw();
  };
@@ -233,7 +237,7 @@ function drawObserverMoveMap(ctx,{project,width,height}){
  const boxes=[];ctx.font='600 12px system-ui';
  for(const guide of observerGuides){const q=project(guide.latitude,guide.longitude);if(q[0]<-10||q[0]>width+10||q[1]<-10||q[1]>height+10)continue;
   ctx.beginPath();ctx.arc(...q,6,0,2*Math.PI);ctx.fillStyle='#a4c4dd';ctx.fill();ctx.strokeStyle='#152232';ctx.lineWidth=2;ctx.stroke();
-  const label=guide.label+' '+new Date(guide.at+32400000).toISOString().slice(11,16),w=ctx.measureText(label).width+12,x=Math.max(4,Math.min(width-w-4,q[0]+10));let y=Math.max(4,Math.min(height-24,q[1]-24));
+  const label=guide.label+' '+observerGuideTime(guide),w=ctx.measureText(label).width+12,x=Math.max(4,Math.min(width-w-4,q[0]+10));let y=Math.max(4,Math.min(height-24,q[1]-24));
   for(let i=0;i<12&&boxes.some(b=>x<b.x+b.w&&x+w>b.x&&y<b.y+22&&y+22>b.y);i++)y=y+24>height-24?Math.max(4,y-48):y+24;
   boxes.push({x,y,w});ctx.beginPath();ctx.moveTo(...q);ctx.lineTo(x+w/2,y+11);ctx.strokeStyle='#152232';ctx.lineWidth=1;ctx.stroke();ctx.fillStyle='#152232';ctx.fillRect(x,y,w,22);ctx.fillStyle='#e6f1fa';ctx.fillText(label,x+6,y+15);
  }
@@ -244,7 +248,7 @@ function updateObserverMoveDraft(point){
  observerMoveDraft={latitude:point.latitude,longitude:point.longitude};if(observerDraftGuide&&AstroNotesShooting.meters(observerDraftGuide,point)>.5)observerDraftGuide=null;
  const snapped=observerSurface&&AstroNotesCandidatePicker.movementPoint(observerSurface,point,20);
  observerMoveSection.dataset.onSurface=String(!!snapped);
- observerMoveApply.textContent=observerDraftGuide?'この位置・時刻に移動':'この位置に移動';
+ const applyLabel=observerDraftGuide?'この位置・時刻に移動':'この位置に移動';if(observerMoveApply.textContent!==applyLabel)observerMoveApply.textContent=applyLabel;
  const picked=snapped||point,text=picked.latitude.toFixed(6)+', '+picked.longitude.toFixed(6);if(observerMoveCoordinate.textContent!==text)observerMoveCoordinate.textContent=text;
  const o=SkyMapUI.selectionState()?.observer;
  observerMoveApply.disabled=!snapped||!o||!observerMovePending&&AstroNotesShooting.meters(o,picked)<.01&&(!observerDraftGuide||observerDraftGuide.at===SkyMapUI.selectionState().at)||!!observerMovePending&&AstroNotesShooting.meters(observerMovePending.point,point)<.01;
