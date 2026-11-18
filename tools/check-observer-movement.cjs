@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict');
 module.exports=async function checkObserverMovement(page,{screenshot}={}){
- const ready=()=>page.waitForFunction(()=>{const s=SkyMapUI.selectionState(),h=document.getElementById('aimLook');return !h.hidden&&Math.abs(h._lookAt-s.at)<1000&&Math.abs(h._lookSpec?.obs.latitude-s.observer.latitude)<1e-10;});
+ const ready=()=>page.waitForFunction(()=>{const s=SkyMapUI.selectionState(),h=document.getElementById('aimLook');return !!s?.observer&&!h.hidden&&Math.abs(h._lookAt-s.at)<1000&&Math.abs(h._lookSpec?.obs.latitude-s.observer.latitude)<1e-10;});
  const move=page.locator('#exploreObserverMove'),controls=page.locator('#exploreObserverMoveControls'),canvas=page.locator('#exploreObserverMoveCanvas'),apply=page.locator('#exploreObserverMoveApply');
  const open=async()=>{if(await move.getAttribute('open')===null)await move.locator('summary').click();await controls.waitFor({state:'visible'});await page.waitForFunction(()=>document.getElementById('exploreObserverMoveCanvas').width>0&&document.getElementById('exploreObserverMoveCoordinate').textContent.includes(','));};
  const drag=async(dx=45,dy=10)=>{await canvas.scrollIntoViewIfNeeded();const b=await canvas.boundingBox(),x=b.x+b.width*.5,y=b.y+b.height*.5;await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+dx,y+dy,{steps:8});await page.mouse.up();await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));await page.waitForFunction(()=>!document.getElementById('exploreObserverMoveApply').disabled);};
@@ -9,6 +9,8 @@ module.exports=async function checkObserverMovement(page,{screenshot}={}){
  try{
   await page.evaluate(()=>SkyMapUI.setTime(Date.parse('2026-11-19T14:27:00+09:00')));await ready();
   await open();assert((await move.locator('summary').innerText()).includes('地図'));
+  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));});await page.waitForTimeout(80);
+  await page.evaluate(()=>{delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));});await ready();await open();
   const guides=page.locator('#exploreObserverGuides button');assert.equal(await guides.count(),3);assert((await page.locator('#exploreObserverGuideNote').innerText()).includes('14:27'));
   const hiddenWhileScrubbing=await page.evaluate(()=>{SkyMapUI.setTime(SkyMapUI.selectionState().at+60000);TrialExplore.paintScrubTime();return document.getElementById('exploreObserverGuides').children.length;});assert.equal(hiddenWhileScrubbing,0,'scrubbing cannot show old-time guides');
   await page.evaluate(()=>TrialExplore.sync());await page.waitForFunction(()=>document.getElementById('exploreObserverGuideNote').textContent.includes('14:28'));assert.equal(await guides.count(),3);

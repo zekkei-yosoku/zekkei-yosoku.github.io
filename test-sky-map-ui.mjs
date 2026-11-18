@@ -244,3 +244,10 @@ test('微調整は確定した移動先標高と元の地上高を使い、日�
  assert.equal(f.c.SkyMapUI.moveObserver({latitude:35.72,longitude:139.82},50,expected),false);
  assert.equal(f.c.SkyMapUI.moveObserver({latitude:35.72,longitude:139.82},NaN,f.c.AstroNotesShooting.observerMoveKey(after)),false);
 });
+
+test('観測点の従来復元は未設定の候補機会を変えず、明示したUndoだけ候補機会を戻す',async()=>{
+ const f=fixture({ground:20,saved:{at:day,targetId:'skytree'}});await f.open();const h=f.c.SkyMapUI.workspaceHost(),observer=f.c.SkyMapUI.selectionState().observer;
+ assert.equal(f.c.SkyMapUI.selectionState().candidateOpportunity,undefined);h.restoreObserver({...observer},20);await flush();assert.equal(f.c.SkyMapUI.selectionState().candidateOpportunity,undefined);
+ const opportunity={id:'known',at:day};h.session.candidateOpportunity=opportunity;h.restoreObserver({...observer},20);await flush();assert.equal(f.c.SkyMapUI.selectionState().candidateOpportunity,opportunity);
+ h.restoreObserver({...observer},20,undefined);await flush();assert.equal(f.c.SkyMapUI.selectionState().candidateOpportunity,undefined);
+});

@@ -55,13 +55,14 @@ let resetAimCalSwipe = () => {};
  const footerRange=document.createElement('input');footerRange.type='range';footerRange.step='any';footerRange.setAttribute('aria-label','撮影時刻を滑らかに調整');footerTrack.append(footerRange);
  footerRange.hidden=true;
  const footerTimeline=document.createElement('div');footerTimeline.className='sky-map-timeline';footerTimeline.tabIndex=0;footerTimeline.setAttribute('role','slider');footerTrack.append(footerTimeline);
+ const legacyTimelineVisible=()=>!document.hidden&&!globalThis.TrialExplore?.ownsScene?.()&&!root.hidden&&footerTimeline.clientWidth>0;
  const center=document.createElement('span');center.className='sky-map-timeline-center';center.setAttribute('aria-hidden','true');footerTrack.append(center);
  function commitPreviewTime(at){const state=look._uiTime;if(!state)return;const day=S.JstCal.startOfDay(at);if(day!==aim.dayMs){look._uiRequestedTime={day,at,context:timeContext()};el('aimDate').value=new Date(day+32400000).toISOString().slice(0,10);aimApply({recenter:false});}}
- const previewTimeline=AstroNotesScrollTimeline.mount({root:footerTimeline,getAt:()=>look._uiTime?.current,getMode:()=>scrubMode,enabled:()=>!footerRange.disabled&&!root.hidden,getObserver:()=>look._lookSpec?.obs,sun:(at,o)=>AstroNotesAstro.sun(at,o),onChange:at=>{look._uiTime?.set(at);
+ const previewTimeline=AstroNotesScrollTimeline.mount({root:footerTimeline,getAt:()=>look._uiTime?.current,getMode:()=>scrubMode,enabled:()=>legacyTimelineVisible()&&!footerRange.disabled,getObserver:()=>look._lookSpec?.obs,sun:(at,o)=>AstroNotesAstro.sun(at,o),onChange:at=>{look._uiTime?.set(at);
  },onBlend:b=>look._uiTime?.blend(b),onSettle:at=>{commitPreviewTime(at);update();},format:(at,m)=>m==='date'?new Date(at+32400000).toISOString().slice(5,10).replace('-','/'):S.JstCal.hhmm(at).padStart(5,'0'),describe:at=>ToolDateTimeBar.label(at)+' '+S.JstCal.hhmm(at).padStart(5,'0')});
  ToolDateTimeBar.decorate({footer,row:dateRow,date:el('aimCalendarOpen'),time:el('previewTime'),prev:el('aimPrev'),next:el('aimNext'),more:timeMore,track:footerTrack,now:at=>{const state=look._uiTime;if(!state)return;if(S.JstCal.startOfDay(at)===state.day){look._uiAllDay=true;state.window();
  state.set(at);}else commitPreviewTime(at);update();}});
- const previewPlayback=ToolDateTimeBar.playback({row:dateRow,footer,getAt:()=>look._uiTime?.current,enabled:()=>!!look._uiTime&&!look.hidden&&footer.getClientRects().length>0&&!globalThis.TrialExplore?.active(),onStart:()=>{globalThis.AstroNotesCameraUI?.stop(look);previewTimeline.stop();
+ const previewPlayback=ToolDateTimeBar.playback({row:dateRow,footer,getAt:()=>look._uiTime?.current,enabled:()=>legacyTimelineVisible()&&!!look._uiTime&&!look.hidden,onStart:()=>{globalThis.AstroNotesCameraUI?.stop(look);previewTimeline.stop();
  },onStop:()=>{if(look._uiTime)update();},setAt:at=>{
   const state=look._uiTime;if(!state)return;
   if(S.JstCal.startOfDay(at)!==state.day){commitPreviewTime(at);return;}
@@ -122,7 +123,8 @@ let resetAimCalSwipe = () => {};
   // 地図の範囲を決めた後に写す。見え方は図の時間幅、撮影地は出入線の時間幅。
   const source=mode==='places'?mapRange:look.querySelector('[data-look-range]');
   if(state&&source&&!look._footerFrame&&document.activeElement!==footerRange){ToolDateTimeBar.syncTimeRange(footerRange,{day:state.day,current:state.current,min:mode==='places'?Number(source.min):state.minSeconds,max:mode==='places'?Number(source.max):state.maxSeconds});}
-  if(!globalThis.TrialExplore?.active()){if(state){footerRange.setAttribute('aria-valuetext',aimLookHMS(state.current));if(previewPlayback.running())previewTimeline.follow(state.current,scrubMode);else previewTimeline.sync(state.current,scrubMode);}else previewTimeline.stop();}
+  // The legacy ruler updates only while it owns a visible surface.
+  if(legacyTimelineVisible()){if(state){footerRange.setAttribute('aria-valuetext',aimLookHMS(state.current));if(previewPlayback.running())previewTimeline.follow(state.current,scrubMode);else previewTimeline.sync(state.current,scrubMode);}else previewTimeline.stop();}else previewTimeline.stop();
   const out=look.querySelector('[data-look-at]'),day=/^(前日|翌日) /.exec(out?.firstChild?.textContent||'')?.[1],rel=state&&!look.hidden?[day,out?.querySelector('.sub-line')?.textContent].filter(Boolean).join(' '):'';if(footerRel.textContent!==rel){footerRel.textContent=rel;footerRel.title=rel;
   }footerRel.hidden=!rel;
   if((!state||look.hidden)&&clock.value)clock.value='';
@@ -204,6 +206,8 @@ let resetAimCalSwipe = () => {};
   for(const row of el('aimCandList').querySelectorAll('.cand-row.on'))if(!row.querySelector('.preview-show-scene')){const b=document.createElement('button');b.type='button';b.className='chip preview-show-scene';b.textContent='この場所の見え方';b.onclick=()=>{show('scene',true);
   if(!wide.matches)el('previewSceneTab').scrollIntoView({block:'start',behavior:'smooth'});};row.append(b);}
  };
+ function resumeLegacyPreview(){if(!legacyTimelineVisible())return;const at=look._uiTime?.current;if(Number.isFinite(at))commitPreviewTime(at);update();}
+ document.addEventListener('visibilitychange',resumeLegacyPreview);
  new MutationObserver(update).observe(root,{childList:true,subtree:true});update();
  // 既存の地図移動処理より先に表示する。計算や地点選択の処理は既存のまま。
  root.addEventListener('click',e=>{const b=e.target.closest('button');if(b&&(b.matches('[data-cand-map],[data-day],[data-found-map]')))show('places');},true);

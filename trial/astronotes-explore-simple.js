@@ -212,7 +212,7 @@ function positionNavigationCurrent(){
 }
 function syncPositionNavigation(){
  if(!previewPositions){positionPanel.hidden=true;return;}
- if(!active()){positionPanel.hidden=true;return;}
+ if(!active()||SkyMapUI.resuming?.()){positionPanel.hidden=true;return;}
  if(!positionNavigationCurrent()){clearPositionNavigation();return;}
  const p=previewPositions,current=p.choices.find(c=>c.key===p.key),place=AstroNotesCandidatePicker.positionPlace(current.row);
  positionPanel.hidden=p.choices.length<2;
@@ -322,6 +322,7 @@ function updateObserverMoveDraft(point){
  const o=SkyMapUI.selectionState()?.observer;observerMoveApply.disabled=!o||!observerMovePending&&AstroNotesShooting.meters(o,point)<.01||!!observerMovePending&&AstroNotesShooting.meters(observerMovePending.point,point)<.01;
 }
 function syncObserverMovement(s){
+ if(SkyMapUI.resuming?.()&&!s?.observer){observerMoveSection.hidden=true;return;}
  const usable=resultRequested&&!!s?.observer&&!!s?.target;observerMoveSection.hidden=!usable;
  if(!usable){resetObserverMovement();return;}
  if(observerMovement&&!applyingObserverMove&&(observerMovement.context!==observerMoveContext()||observerMovement.anchor!==AstroNotesShooting.observerMoveKey(s)))resetObserverMovement(false);
@@ -378,7 +379,10 @@ observerMoveUndo.onclick=()=>{
 observerMoveSection.addEventListener('toggle',()=>{if(!observerMoveSection.open){cancelObserverMoveLookup();observerMoveMapSource='';observerMoveWrap._mapShell?.setWide(false);
  if(observerGuideTimer!==null)clearTimeout(observerGuideTimer);observerGuideTimer=null;observerGuideKey='';}syncObserverMovement(SkyMapUI.selectionState());});
 observerMoveControls.addEventListener('pointerdown',e=>e.stopPropagation());
-document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelObserverMoveLookup();if(observerMoveSection.open)clearObserverGuides('目安を更新中…');}syncObserverMovement(SkyMapUI.selectionState());});
+document.addEventListener('visibilitychange',()=>{
+ if(document.hidden){cancelObserverMoveLookup();if(observerGuideTimer!==null)clearTimeout(observerGuideTimer);observerGuideTimer=null;observerGuideKey='';observerGuides=[];return;}
+ const s=SkyMapUI.selectionState();if(active()&&s?.observer&&s?.target)syncObserverMovement(s);
+});
 const mainSearchActive=()=>active()&&!resultRequested&&!selectionPending&&flowOwner===auth?.loginId&&flowGeneration===accessState.generation;
 function ensureSearchRoot(){
  if(!layout.mounted)return;

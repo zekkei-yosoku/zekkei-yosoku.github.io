@@ -582,7 +582,7 @@ ctx.lineWidth=1;
  }
  setSkyMapUI({minuteScrubbing,resuming:()=>!!suspended,
  workspaceHost:()=>hasAccess()&&session&&active()?{session,map,pickMode,targetOn,extraCount:()=>session.target?aimSceneExtraTargets(session.target.id).length:0,setTime,setScrubMode,shownBodies,skyState,placePoint,
- restoreObserver:(o,ground=null,opportunity=null)=>{session.observer=o;session.candidateOpportunity=opportunity;session.ground=Number.isFinite(ground)?ground:null;
+ restoreObserver:(o,ground=null,...opportunity)=>{session.observer=o;if(opportunity.length)session.candidateOpportunity=opportunity[0];session.ground=Number.isFinite(ground)?ground:null;
  if(validPoint(o)){map.setCenter(o.latitude,o.longitude);const eye=aimObserverAt(o,session.ground);session.eye={latitude:o.latitude,longitude:o.longitude,elevation:eye.elevation+eye.eyeM};}refresh();},
  restoreTarget:b=>{Object.assign(session,b);targetOn=validPoint(b.target);const sel=el('skyMapTarget'),custom=[...sel.options].find(o=>o.value==='custom');if(custom){if(b.custom)custom.textContent=b.custom.name;
  else custom.remove();}sel.value=b.target?.id||'';syncBodies();refresh();},setTargetHeight:height=>{const c=session.custom;if(session.target?.id!=='custom'||!c||!Number.isFinite(c.groundM)||!AstroNotesLibrary.height(height))return false;
