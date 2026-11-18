@@ -602,12 +602,20 @@ ctx.lineWidth=1;
   session.observer=aimSavedFrom(AstroNotesShooting.savedObserver(place));session.ground=Number.isFinite(place.elevation)?place.elevation:null;if(candidate.event.matchMode){session.matchMode=candidate.event.matchMode;session.partId=candidate.event.partId;
   session.limb='center';}session.at=candidate.event.at;session.dayAnchor=AstroNotesShooting.day(session.at);map.setCenter(place.latitude,place.longitude);refresh();
   document.dispatchEvent(new CustomEvent('astronotes-candidate-selected',{detail:{candidate,previewGroup}}));return true;
- },moveObserver:(point,ground,expected)=>{
-  if(!hasAccess()||!session||!active()||expected!==AstroNotesShooting.observerMoveKey(session))return false;
+ },moveObserver:(point,ground,expected,options={})=>{
+  if(!hasAccess()||!session||!active()||expected!==AstroNotesShooting.observerMoveKey(session)||Object.hasOwn(options,'at')&&(!Number.isFinite(options.at)||options.at<Date.UTC(2020,0,1)-32400000||options.at>=aimCandidateSearchEnd()))return false;
   const eyeM=aimObserverAt(session.observer,session.ground).eyeM,place=AstroNotesShooting.movedPlace(session.observer,point,ground,eyeM);if(!place)return false;
+  const changed=Number.isFinite(options.at)&&AstroNotesShooting.day(options.at)!==AstroNotesShooting.day(session.at);
   aimElevCache.set(place.latitude.toFixed(6)+','+place.longitude.toFixed(6),ground);
-  skyPlayback.stop(false);session.observer=aimSavedFrom(place);session.ground=ground;session.eye={latitude:place.latitude,longitude:place.longitude,elevation:ground+eyeM};session.candidateOpportunity=null;
-  map.setCenter(place.latitude,place.longitude);refresh();return true;
+  skyPlayback.stop(false);
+  session.observer=aimSavedFrom(place);
+  session.ground=ground;
+  session.eye={latitude:place.latitude,longitude:place.longitude,elevation:ground+eyeM};
+  session.candidateOpportunity=options.opportunity??null;
+  if(Object.hasOwn(options,'at')){session.at=options.at;
+  session.dayAnchor=AstroNotesShooting.day(options.at);
+  }
+  map.setCenter(place.latitude,place.longitude);notifyCandidateDate(changed);refresh();return true;
  },setAlignment:(partId,limb,matchMode='limb')=>{if(!hasAccess()||!session||!active())return;if(partId&&partId!=='__whole'&&!(session.target?.parts||[]).some(p=>p.id===partId))return;if(!AstroNotesAlign.LIMBS.some(x=>x.id===limb))return;session.matchMode=matchMode==='overlap'?'overlap':'limb';
  session.partId=partId??(session.matchMode==='overlap'?(aimIsMountain(session.target)?null:'__whole'):null);session.limb=session.matchMode==='overlap'||partId==='__whole'?'center':limb;refresh();
  },open,leave,suspend,authChanged,prepareFraming,enter,refreshTargets,render,redraw:()=>map.redraw(),fitPoints:pts=>{const cv=el('skyMapCanvas'),la=pts.map(q=>q.latitude),lo=pts.map(q=>q.longitude),lat0=Math.min(...la),lat1=Math.max(...la),lon0=Math.min(...lo),lon1=Math.max(...lo),lat=(lat0+lat1)/2,

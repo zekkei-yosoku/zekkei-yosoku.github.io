@@ -171,3 +171,12 @@ test('named overlap accepts disc edges but excludes mere proximity before heavy 
   if(result.solutions.length){const e=result.solutions[0].event;assert.equal(e.matchMode,'overlap');assert.equal(e.targetAzimuth,g.azimuth);assert.equal(e.targetAltitude,g.angle);}
  }
 });
+
+test('部位の目安は現在地近くの線上で時刻も解き、標高通信をしない',async()=>{
+ const at=Date.parse('2026-11-19T14:27:00+09:00'),one={...target,parts:target.parts.filter(p=>p.id==='tip')},[reference]=A.observerGuides(one,'moon',{at,groundM:4}),G=require('./astronotes-terrain.js');assert(reference);
+ const a=G.destination(reference.latitude,reference.longitude,0,.2),b=G.destination(reference.latitude,reference.longitude,180,.2),domain={origin:reference,radiusM:600,geometry:{lines:[[[a.longitude,a.latitude],[b.longitude,b.latitude]]],polygons:[]}};
+ const {guides}=await C.localGuides({target:one,body:'moon',at:at+60000},domain,{groundM:4,align:A,bodies:B,yieldTask:async()=>{}});assert.equal(guides.length,1);
+ const guide=guides[0];assert(Math.abs(guide.longitude-reference.longitude)<1e-7);assert(Math.abs(guide.at-at)<2*3600000);assert(G.distanceKm(reference.latitude,reference.longitude,guide.latitude,guide.longitude)<.601);
+ const obs={...guide,elevation:4},g=A.geometryFrom(obs,one,{partId:'tip',eyeM:1.5}),body=B.state('moon',guide.at,{...obs,elevation:5.5});assert(Math.hypot(...A.viewProjector(g.azimuth,g.angle)(body.azimuth,body.apparentAltitude))<.002);
+ const cancelled=await C.localGuides({target:one,body:'moon',at},domain,{groundM:4,align:A,bodies:B,isCurrent:()=>false});assert.equal(cancelled.guides.length,0);
+});

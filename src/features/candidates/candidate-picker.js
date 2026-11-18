@@ -89,7 +89,12 @@ function mergeEntries(entries,sort){
   const source=e=>e.row.place.sourcePlaceId??e.row.place.id,eye=e=>e.row.assumedObserver?.eyeM??e.row.place.standAglM??e.row.place.eyeHeightAGL;
   return !!x&&!!y&&x.id===y.id&&source(a)===source(b)&&eye(a)===eye(b);
  };
- const near=(k,e)=>sameRun(k.e,e)&&(surveyed(k.e)||surveyed(e)||k.e.types.some(t=>e.types.includes(t)))&&metres(positionPlace(k.e.row),positionPlace(e.row))<=AREA_M
+ const sameBank=(a,b)=>{
+  const x=a.row.sourceEvidence?.riverBank,y=b.row.sourceEvidence?.riverBank;if(!x||!y||x.river!==y.river)return true;
+  const p=positionPlace(a.row),q=positionPlace(b.row),side=(p,axis)=>(axis[1][0]-axis[0][0])*(p.latitude-axis[0][1])-(axis[1][1]-axis[0][1])*(p.longitude-axis[0][0]);
+  return x.axis&&y.axis?[x.axis,y.axis].every(axis=>side(p,axis)*side(q,axis)>=0):x.side===y.side;
+ };
+ const near=(k,e)=>sameRun(k.e,e)&&sameBank(k.e,e)&&(surveyed(k.e)||surveyed(e)||k.e.types.some(t=>e.types.includes(t)))&&metres(positionPlace(k.e.row),positionPlace(e.row))<=AREA_M
   &&!(Math.abs(standM(k.e)-standM(e))>AREA_RISE_M);
  const touches=(k,from,to)=>k.fromAt===null?from===null:from!==null&&from<=k.toAt+AREA_MS&&to>=k.fromAt-AREA_MS;
  for(const e of [...unique.values()].sort((a,b)=>(a.show===false)-(b.show===false)||compare(a,b,'recommended'))){

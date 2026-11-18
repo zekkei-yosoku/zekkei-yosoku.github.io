@@ -150,3 +150,15 @@ test('areas and exact deduplication use solved coordinates and height instead of
  const out=F.mergeEntries([a,far,floor,near],'time');assert.equal(out.length,3);assert(out.includes(far)&&out.includes(floor));
  const home=out.find(e=>e!==far&&e!==floor);assert.equal(F.areaOf(home).count,2);assert.equal(F.membersOf(home).length,2);
 });
+
+test('同じ名前でも対岸の河川敷は集約しない。同じ岸の近隣は集約する',()=>{
+ const row=(longitude,side,id)=>({id,index:id,types:['riverbank'],row:{place:{latitude:35.71,longitude,elevation:5,standAglM:1.5},event:{at:100000},sourceEvidence:{riverBank:{river:'甲川',side}},quality:{photographyClass:'normal'}}});
+ const west=row(139.84,1,1),near=row(139.8401,1,2),east=row(139.842,-1,3);
+ const merged=F.mergeEntries([west,near,east],'time');assert.equal(merged.length,2);assert(merged.includes(east));assert.equal(F.areaOf(merged.find(e=>e!==east)).count,2);
+});
+
+test('東西の川が曲がり線の向きが逆でも同じ岸はまとまり、対岸は分かれる',()=>{
+ const entry=(longitude,latitude,axis,i)=>({id:i,index:i,types:['riverbank'],row:{place:{latitude,longitude,elevation:5,standAglM:1.5},event:{at:1},sourceEvidence:{riverBank:{river:'曲がる川',axis,side:i%2?1:-1}}}});
+ const a=entry(139,35.001,[[138.999,35],[139.001,35.0001]],1),b=entry(139.0002,35.001,[[139.002,35.00005],[139,35.0001]],2),c=entry(139.0002,34.9995,[[139,35],[139.002,35]],3);
+ assert.equal(F.mergeEntries([a,b],'time').length,1);assert.equal(F.mergeEntries([a,c],'time').length,2);
+});

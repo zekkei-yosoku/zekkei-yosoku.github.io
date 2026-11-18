@@ -1455,26 +1455,27 @@ async function surfaceInverse(plan,seed,range,timeSeeds,deps){
    for(let back=0;back<7;back++){
     const next=x.map((v,j)=>bounded(v+delta[j]*scale/2**back,...bounds[j])),candidate=await at(...map(next));
     if(candidate&&candidate.loss<q.loss-1e-10){x=next;q=candidate;improved=true;break;}
-    if(exhausted||cancelled)break;
+    if(exhausted||cancelled||solutions.length>=(deps.maxSolutions??Infinity))break;
    }
    if(!improved)break;
   }
   await accept(q,inDomain);
  }
  for(const line of domain.lines){
-  if(exhausted||cancelled)break;
+  if(exhausted||cancelled||solutions.length>=(deps.maxSolutions??Infinity))break;
   const parts=[],vertices=[0];let total=0;
   for(let i=1;i<line.length;i++){const [lon,lat]=line[i-1],[endLon,endLat]=line[i],g=Geo().inverse(lat,lon,endLat,endLon),length=g.km*1000;if(!(length>0))continue;parts.push({start:total,end:total+length,lat,lon,azimuth:g.azimuth});total+=length;vertices.push(total);}
   if(!(total>0))continue;
   const position=s=>{const p=parts.find(p=>s<=p.end)||parts.at(-1);return Geo().destination(p.lat,p.lon,p.azimuth,(bounded(s,0,total)-p.start)/1000);};
   let nearest={s:0,d:Infinity};for(const p of parts){const v=Geo().inverse(p.lat,p.lon,seed.latitude,seed.longitude),s=bounded(v.km*1000*Math.cos((v.azimuth-p.azimuth)*rad),0,p.end-p.start)+p.start,pos=position(s),d=Geo().distanceKm(pos.latitude,pos.longitude,seed.latitude,seed.longitude);
   if(d<nearest.d)nearest={s,d};}
-  const stations=[nearest.s,...vertices,...parts.map(p=>(p.start+p.end)/2)].filter((s,i,a)=>a.indexOf(s)===i).slice(0,16);
+  const starts=[nearest.s,...vertices,...parts.map(p=>(p.start+p.end)/2)].filter((s,i,a)=>a.indexOf(s)===i);
+  if(deps.nearbyFirst)starts.sort((a,b)=>Math.abs(a-nearest.s)-Math.abs(b-nearest.s));const stations=starts.slice(0,16);
   for(const t of timeStarts){for(const s of stations){
-   if(exhausted||cancelled)break;
+   if(exhausted||cancelled||solutions.length>=(deps.maxSolutions??Infinity))break;
    if(range.kind==='instant')await optimize([s],x=>[position(x[0]),range.start],[[0,total]],[Math.min(1,total/100)],()=>true);
    else await optimize([s,(t-range.start)/1000],x=>[position(x[0]),range.start+x[1]*1000],[[0,total],[0,(range.end-range.start)/1000]],[Math.min(1,total/100),5],()=>true);
-  }if(exhausted||cancelled)break;}
+  }if(exhausted||cancelled||solutions.length>=(deps.maxSolutions??Infinity))break;}
  }
  if(domain.polygons.length&&!exhausted&&!cancelled){
   const inverse=Geo().inverse(target.latitude,target.longitude,seed.latitude,seed.longitude),distanceM=inverse.km*1000;
@@ -1483,15 +1484,33 @@ async function surfaceInverse(plan,seed,range,timeSeeds,deps){
   if(range.kind==='instant'){
    const position=xy=>Geo().destination(seed.latitude,seed.longitude,Math.atan2(xy[0],xy[1])/rad,Math.hypot(...xy)/1000);
    const starts=[[0,0],bounds.map(([a,b])=>(a+b)/2),...offsets].slice(0,10);
-   for(const start of starts){if(exhausted||cancelled)break;await optimize(start,x=>[position(x),range.start],bounds,[1,1],domain.contains);}
+   for(const start of starts){if(exhausted||cancelled||solutions.length>=(deps.maxSolutions??Infinity))break;await optimize(start,x=>[position(x),range.start],bounds,[1,1],domain.contains);}
   }else if(distanceM>0){
    // Preserve the old explicit-composition distance constraint while replacing
    // its geographic/time caps with the supplied surface and time range.
    const angles=domain.polygons.flatMap(r=>r[0]).map(([lon,lat])=>{const g=Geo().inverse(target.latitude,target.longitude,lat,lon);return (((g.azimuth-inverse.azimuth+540)%360)-180)*rad*distanceM;}),bound=[Math.min(0,...angles),Math.max(0,...angles)];
-   for(const t of timeStarts){if(exhausted||cancelled)break;await optimize([0,(t-range.start)/1000],x=>[Geo().destination(target.latitude,target.longitude,inverse.azimuth+x[0]/distanceM/rad,distanceM/1000),range.start+x[1]*1000],[bound,[0,(range.end-range.start)/1000]],[1,5],domain.contains);}
+   for(const t of timeStarts){if(exhausted||cancelled||solutions.length>=(deps.maxSolutions??Infinity))break;
+   await optimize([0,(t-range.start)/1000],x=>[Geo().destination(target.latitude,target.longitude,inverse.azimuth+x[0]/distanceM/rad,distanceM/1000),range.start+x[1]*1000],[bound,[0,(range.end-range.start)/1000]],[1,5],domain.contains);
+   }
   }
  }
  return {solutions,attempted:true,calls,exhausted,unknown,cancelled};
+}
+// Nearby part guides vary time on the actual selected surface; they never
+// substitute a distant fixed-time inverse point. Ground is an explicit estimate.
+async function localGuides(plan,domain,{groundM,eyeM=1.5,align,bodies,isCurrent=()=>true,yieldTask}={}){
+ if(!domain||!Number.isFinite(groundM))return {guides:[],partial:false};
+ const seed={...domain.origin,groundM,elevation:groundM,groundKnown:true,surfaceAglM:0,eyeM,surfaceGeometry:domain.geometry};
+ const range={kind:'window',start:plan.at-2*3600000,end:plan.at+2*3600000},out=[];let partial=false;
+ for(const part of (plan.target?.parts||[]).slice(0,12)){
+  if(!isCurrent())break;if(!part.id||!Number.isFinite(part.m)||typeof part.name!=='string'||!part.name.trim())continue;
+  const anchor=align.partTarget?.(plan.target,part.id)||plan.target,local={...plan,target:{...anchor,rim:null,parts:[part]},partId:part.id,matchMode:'limb',composition:null,limb:'center'};
+  const result=await surfaceInverse(local,seed,range,[plan.at],{align,bodies,groundAt:()=>groundM,isCurrent,yieldTask:yieldTask||(()=>Promise.resolve()),budget:480,maxSolutions:1,nearbyFirst:true,
+   standingAt:p=>Geo().distanceKm(domain.origin.latitude,domain.origin.longitude,p.latitude,p.longitude)*1000<=domain.radiusM+.01});
+  partial||=result.exhausted;const q=result.solutions.sort((a,b)=>Math.abs(a.at-plan.at)-Math.abs(b.at-plan.at))[0];
+  if(q)out.push({latitude:q.observer.latitude,longitude:q.observer.longitude,at:q.at,partId:part.id,label:part.name.replace(/（[^）]*）/g,''),groundM,eyeM,approximate:true});
+ }
+ return {guides:out,partial};
 }
 async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks,standingAt,isCurrent=()=>true,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0))),budget=12000,_surfaceSolved=false}={}){
  const empty=(reason,partial=false)=>({solutions:[],partial,reason}),range=timeRange(plan),target=targetInput(plan.target);
@@ -1662,7 +1681,7 @@ async function inverseSeeds(plan,{bodies,isCurrent=()=>true,yieldTask=typeof Ast
  seeds.sort((a,b)=>a.priority-b.priority||a.at-b.at||a.distanceM-b.distanceM);
  return {seeds,partial:true,reason:exhausted?'seed-budget-exhausted':unknown?'some-ephemeris-unknown':'approximate-terrain-hypotheses'};
 }
-return {valid,windowValid,limb,anchorAt,geometry,roadAt,riseSet,inWindow,windowEvents,screenAnchor,make,timeRange,opportunities,inverseSeeds,closestPoint,definiteAngularMiss};
+return {valid,windowValid,limb,anchorAt,geometry,roadAt,riseSet,inWindow,windowEvents,screenAnchor,make,timeRange,opportunities,localGuides,inverseSeeds,closestPoint,definiteAngularMiss};
 });
 
 /* Terrain/building MODEL LOS. Missing model range or standing height never becomes model-visible. */
@@ -1930,7 +1949,7 @@ function inside(r,p){let yes=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if(
 const contains=(f,p)=>(!f.bbox||bboxPoint(p,f.bbox))&&f.polygons.some(poly=>inside(poly[0],p)&&!poly.slice(1).some(r=>inside(r,p)));
 function edgeDistance(line,p,c,closest=null){let d=Infinity;for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],x=(b[0]-a[0])*c,y=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*c*x+(p.latitude-a[1])*y)/(x*x+y*y||1)));
  const m=Math.hypot((p.longitude-a[0])*c-u*x,p.latitude-a[1]-u*y)*M;
- if(m<d){d=m;if(closest){closest.longitude=a[0]+(b[0]-a[0])*u;closest.latitude=a[1]+y*u;}}
+ if(m<d){d=m;if(closest){closest.longitude=a[0]+(b[0]-a[0])*u;closest.latitude=a[1]+y*u;closest.axis=[a,b];}}
  }return d;}
 function edgeBoxInReach(feature,p,metres,c){
  const b=feature.bbox,limit=metres/M+1e-10;
@@ -1984,6 +2003,18 @@ function riverNameAt(point,waters,rivers){
   name=found;
  }
  return name;
+}
+// Retain the local river axis for grouping. Consumers compare both points
+// against one axis, so reversing or bending the digitised line cannot flip a bank.
+function riverBankAt(point,waters,rivers,name){
+ const c=Math.cos(point.latitude*RAD);let best=null;
+ for(const river of rivers){if(river.name.trim()!==name||!edgeBoxInReach(river,point,500,c))continue;
+  for(const line of river.lines){const q={},d=edgeDistance(line,point,c,q);if(d>500||best&&d>=best.d||!q.axis||!waters.some(w=>contains(w,q)))continue;
+   const [a,b]=q.axis,cross=(b[0]-a[0])*c*(point.latitude-a[1])-(b[1]-a[1])*(point.longitude-a[0])*c;
+   best={d,side:Math.sign(cross),axis:q.axis};
+  }
+ }
+ return best?.side?{river:name,side:best.side,axis:best.axis}:null;
 }
 const xy=g=>(g||[]).filter(p=>p&&finite(p.lon)&&finite(p.lat)&&Math.abs(p.lon)<=180&&Math.abs(p.lat)<=90).map(p=>[p.lon,p.lat]);
 const closed=r=>r.length>=4&&distance(r[0],r[r.length-1])<.01;
@@ -2115,9 +2146,79 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
  // Enrich only the rows returned by this page. Classification, ordering and
  // height/visibility checks stay driven by the same original walking points.
  for(const p of rows)if(p.placeKind==='riverbank'&&(!pointKinds||pointKinds.has('riverbank'))){
-  const name=riverNameAt(p,waters,rivers);if(name)p.sourceEvidence.riverName=name;
+  const name=riverNameAt(p,waters,rivers);if(name){p.sourceEvidence.riverName=name;const bank=riverBankAt(p,waters,rivers,name);if(bank)p.sourceEvidence.riverBank=bank;}
  }
  return {rows,limited:remaining>0||generationLimited,omittedPoints:remaining,remainingWanted,generationLimited,unknownGeometry};
+}
+// Keep movement on the selected walking place. A bridge or a nearby opposite
+// bank is not a continuation merely because its coordinates are close.
+function movementDomain(seed,features,{radiusM=600}={}){
+ const origin={latitude:seed.latitude,longitude:seed.longitude},c=Math.cos(origin.latitude*RAD);
+ const usable=f=>f.walking&&!f.geometryIncomplete&&!forbidden(f.tags)&&!nonGround(f.tags);
+ const area=features.find(f=>f.sourceId===seed.placeId&&f.polygons.length&&(f.kind||f.tags.area==='yes'||f.tags['area:highway']))||features.find(f=>f.kind==='park'&&contains(f,origin));
+ const excluded=features.filter(f=>(f.water||f.building||forbidden(f.tags)||nonGround(f.tags))&&f.polygons.length);
+ const riverbank=seed.placeKind==='riverbank'&&!area,waters=features.filter(f=>f.water),rivers=features.filter(f=>['river','canal'].includes(f.tags.waterway));
+ const nearbySegments=rows=>rows.flatMap(f=>f.lines.flatMap(l=>l.slice(1).map((b,i)=>[l[i],b]))).filter(l=>edgeBoxInReach({bbox:[Math.min(l[0][0],l[1][0]),Math.min(l[0][1],l[1][1]),Math.max(l[0][0],l[1][0]),Math.max(l[0][1],l[1][1])]},origin,radiusM+300,c));
+ const shores=riverbank?nearbySegments(waters):[],axes=riverbank?nearbySegments(rivers):[];
+ const alongRiver=p=>!riverbank||shores.some(l=>edgeDistance(l,p,c)<=150)&&axes.some(l=>edgeDistance(l,p,c)<=300);
+ const valid=p=>distance([origin.longitude,origin.latitude],[p.longitude,p.latitude])<=radiusM+.01&&(!area||contains(area,p))&&alongRiver(p)&&!excluded.some(f=>contains(f,p));
+ const walks=features.filter(usable),nearest={};let best=Infinity,source=null;
+ for(const f of walks){let d=Infinity;for(const line of f.lines)d=Math.min(d,edgeDistance(line,origin,c,nearest));
+  if(f.sourceId===seed.surfaceId||f.sourceId===seed.sourceId){source=f;break;}if(d<best){best=d;source=f;}}
+ if(!source||!area&&best>12&&source.sourceId!==seed.surfaceId&&source.sourceId!==seed.sourceId)return null;
+ if(source.tags.area==='yes'||source.tags['area:highway']){
+  const polygons=source.polygons.map(poly=>[...poly,...excluded.filter(f=>!source.bbox||!f.bbox||f.bbox[0]<=source.bbox[2]&&f.bbox[2]>=source.bbox[0]&&f.bbox[1]<=source.bbox[3]&&f.bbox[3]>=source.bbox[1]).flatMap(f=>f.polygons.map(p=>p[0]))]);
+  return {origin,radiusM,label:area?.name||seed.name||'この付近の広場',kind:'plaza',sourceIds:[source.sourceId],boundary:source.polygons,geometry:{polygons,lines:[]}};
+ }
+ const vertices=f=>f.lines.flat().filter(([lon,lat])=>distance([origin.longitude,origin.latitude],[lon,lat])<=radiusM+10);
+ const key=([lon,lat])=>lon.toFixed(7)+','+lat.toFixed(7),byVertex=new Map();
+ for(const f of walks)for(const p of vertices(f)){const k=key(p);if(!byVertex.has(k))byVertex.set(k,[]);byVertex.get(k).push(f);}
+ const connected=new Set([source]),queue=[source];
+ while(queue.length){const f=queue.shift();for(const p of vertices(f))for(const next of byVertex.get(key(p))||[]){
+  if(connected.has(next))continue;connected.add(next);queue.push(next);
+ }}
+ // Split at every real boundary (including holes), then test the open interval.
+ // This preserves concave parks and never draws a shortcut across water.
+ const rings=[...(area?.polygons||[]).flat(),...excluded.flatMap(f=>f.polygons.flat())].map(r=>({r,b:r.reduce((b,p)=>[Math.min(b[0],p[0]),Math.min(b[1],p[1]),Math.max(b[2],p[0]),Math.max(b[3],p[1])],[Infinity,Infinity,-Infinity,-Infinity])})),lines=[];
+ const cross=(a,b)=>a[0]*b[1]-a[1]*b[0];
+ for(const f of connected)for(const line of f.lines)for(let i=1;i<line.length;i++){
+  const a=line[i-1],b=line[i],v=[b[0]-a[0],b[1]-a[1]],ts=[0,1];
+  for(const {r:ring,b:box} of rings){
+   if(box[0]>Math.max(a[0],b[0])||box[2]<Math.min(a[0],b[0])||box[1]>Math.max(a[1],b[1])||box[3]<Math.min(a[1],b[1]))continue;
+   for(let j=1;j<ring.length;j++){
+   const u=ring[j-1],w=[ring[j][0]-u[0],ring[j][1]-u[1]],den=cross(v,w);if(Math.abs(den)<1e-20)continue;
+   const d=[u[0]-a[0],u[1]-a[1]],t=cross(d,w)/den,r=cross(d,v)/den;if(t>0&&t<1&&r>=0&&r<=1)ts.push(t);
+  }}
+  const x=(a[0]-origin.longitude)*c*M,y=(a[1]-origin.latitude)*M,dx=v[0]*c*M,dy=v[1]*M,A=dx*dx+dy*dy,B=2*(x*dx+y*dy),C=x*x+y*y-radiusM*radiusM,disc=B*B-4*A*C;
+  if(A>0&&disc>=0)for(const t of [(-B-Math.sqrt(disc))/(2*A),(-B+Math.sqrt(disc))/(2*A)])if(t>0&&t<1)ts.push(t);
+  if(riverbank){const n=Math.ceil(distance(a,b)/20);for(let j=1;j<n;j++)ts.push(j/n);}
+  const at=t=>[a[0]+v[0]*t,a[1]+v[1]*t];ts.sort((a,b)=>a-b);
+  for(let j=1;j<ts.length;j++){const m=at((ts[j-1]+ts[j])/2);if(ts[j]-ts[j-1]>1e-10&&valid({longitude:m[0],latitude:m[1]}))lines.push([at(ts[j-1]),at(ts[j])]);}
+ }
+ if(!lines.length)return null;
+ const vertex=p=>p[0].toFixed(7)+','+p[1].toFixed(7),touching=new Map();let first=0,nearestDistance=Infinity;
+ lines.forEach((line,i)=>{const d=edgeDistance(line,origin,c);if(d<nearestDistance){first=i;nearestDistance=d;}for(const p of line){const k=vertex(p);if(!touching.has(k))touching.set(k,[]);touching.get(k).push(i);}});
+ const reached=new Set([first]),pending=[first];while(pending.length){const i=pending.shift();for(const p of lines[i])for(const j of touching.get(vertex(p))||[])if(!reached.has(j)){reached.add(j);pending.push(j);}}
+ const retained=lines.filter((_,i)=>reached.has(i));lines.splice(0,lines.length,...retained);
+ const ends=new Map(),used=new Set(),joined=[];
+ lines.forEach((line,i)=>{for(const p of line){const k=vertex(p);if(!ends.has(k))ends.set(k,[]);ends.get(k).push(i);}});
+ function chain(i,start){const path=[start];let at=start;
+  while(!used.has(i)){used.add(i);const edge=lines[i],next=vertex(at)===vertex(edge[0])?edge[1]:edge[0];path.push(next);at=next;
+   const following=ends.get(vertex(at));if(following.length!==2)break;const j=following.find(j=>!used.has(j));if(j===undefined)break;i=j;
+  }joined.push(path);}
+ lines.forEach((line,i)=>{if(used.has(i))return;const end=line.find(p=>ends.get(vertex(p)).length!==2);if(end)chain(i,end);});
+ lines.forEach((line,i)=>{if(!used.has(i))chain(i,line[0]);});lines.splice(0,lines.length,...joined);
+ lines.sort((a,b)=>edgeDistance(a,origin,c)-edgeDistance(b,origin,c));
+ return {origin,radiusM,label:area?.name||seed.name||'この付近の歩道',kind:area?.kind||seed.placeKind||'sidewalk',
+  sourceIds:[...connected].map(f=>f.sourceId),boundary:area?.polygons||[],geometry:{lines,polygons:[]}};
+}
+function movementPoint(domain,p,maxDistanceM=20){
+ if(!domain||!p||![p.latitude,p.longitude].every(finite))return null;
+ if(distance([domain.origin.longitude,domain.origin.latitude],[p.longitude,p.latitude])>domain.radiusM+maxDistanceM)return null;
+ if(distance([domain.origin.longitude,domain.origin.latitude],[p.longitude,p.latitude])<=domain.radiusM&&(domain.geometry.polygons||[]).some(poly=>inside(poly[0],p)&&!poly.slice(1).some(r=>inside(r,p))))return {...p,distanceM:0};
+ const nearest={},c=Math.cos(p.latitude*RAD);let best=Infinity,point=null;
+ for(const line of domain.geometry.lines){const d=edgeDistance(line,p,c,nearest);if(d<best){best=d;point={...nearest};}}
+ return best<=maxDistanceM?{...point,distanceM:best}:null;
 }
 function publishedViewpoints(data,regions){
  const points=[];
@@ -2155,7 +2256,7 @@ function surveyedViewpoints(data,targetId){
   });
  }return points;
 }
-return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,loadSurveyed,isCurrent:providerCurrent=()=>true,maxTiles=12,maxPoints=480,timeoutMs=25000,maxDurationMs=55000,spacingM=30,endpoints,places=null}={}){
+function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,loadSurveyed,isCurrent:providerCurrent=()=>true,maxTiles=12,maxPoints=480,timeoutMs=25000,maxDurationMs=55000,spacingM=30,endpoints,places=null}={}){
  if(!terrain)throw Error('terrain provider is required');
  const servers=endpoints||terrain.OVERPASS||[],cache=new Map(),heightCache=new Map();
  let endpointCursor=0,overpassRetryAfter=0,overpassNextRequest=0;
@@ -2272,8 +2373,16 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
  }
  // The surveyed places of the plan's target; none when the data cannot be read (the search goes on without them).
  async function surveyed(plan){if(typeof loadSurveyed!=='function'||!plan?.target?.id)return [];try{return surveyedViewpoints(await loadSurveyed(plan),plan.target.id);}catch{return [];}}
- return {load,surveyed,clear(){cache.clear();heightCache.clear();}};
-};
+ async function nearby(seed,{isCurrent=()=>true,radiusM=600}={}){
+  if(!places||![seed?.latitude,seed?.longitude].every(finite))return null;
+  const dy=(radiusM+30)/M,dx=dy/Math.max(.1,Math.cos(seed.latitude*RAD));
+  const elements=await places.elementsIn([seed.longitude-dx,seed.latitude-dy,seed.longitude+dx,seed.latitude+dy]);
+  return isCurrent()?movementDomain(seed,parseElements(elements),{radiusM}):null;
+ }
+ return {load,surveyed,nearby,clear(){cache.clear();heightCache.clear();}};
+}
+createPlaceProvider.movementDomain=movementDomain;createPlaceProvider.movementPoint=movementPoint;
+return createPlaceProvider;
 });
 
 /* Generic candidate evaluation. Domain geometry and IO ports remain separate. */
@@ -3055,7 +3164,12 @@ function mergeEntries(entries,sort){
   const source=e=>e.row.place.sourcePlaceId??e.row.place.id,eye=e=>e.row.assumedObserver?.eyeM??e.row.place.standAglM??e.row.place.eyeHeightAGL;
   return !!x&&!!y&&x.id===y.id&&source(a)===source(b)&&eye(a)===eye(b);
  };
- const near=(k,e)=>sameRun(k.e,e)&&(surveyed(k.e)||surveyed(e)||k.e.types.some(t=>e.types.includes(t)))&&metres(positionPlace(k.e.row),positionPlace(e.row))<=AREA_M
+ const sameBank=(a,b)=>{
+  const x=a.row.sourceEvidence?.riverBank,y=b.row.sourceEvidence?.riverBank;if(!x||!y||x.river!==y.river)return true;
+  const p=positionPlace(a.row),q=positionPlace(b.row),side=(p,axis)=>(axis[1][0]-axis[0][0])*(p.latitude-axis[0][1])-(axis[1][1]-axis[0][1])*(p.longitude-axis[0][0]);
+  return x.axis&&y.axis?[x.axis,y.axis].every(axis=>side(p,axis)*side(q,axis)>=0):x.side===y.side;
+ };
+ const near=(k,e)=>sameRun(k.e,e)&&sameBank(k.e,e)&&(surveyed(k.e)||surveyed(e)||k.e.types.some(t=>e.types.includes(t)))&&metres(positionPlace(k.e.row),positionPlace(e.row))<=AREA_M
   &&!(Math.abs(standM(k.e)-standM(e))>AREA_RISE_M);
  const touches=(k,from,to)=>k.fromAt===null?from===null:from!==null&&from<=k.toAt+AREA_MS&&to>=k.fromAt-AREA_MS;
  for(const e of [...unique.values()].sort((a,b)=>(a.show===false)-(b.show===false)||compare(a,b,'recommended'))){
@@ -3614,6 +3728,17 @@ function cachedPreview(key,current,read,complete){
  return entry.promise;
 }
 const stillHere=()=>true;
+AstroNotesCandidatePicker.movementSurface=async(seed,current=stillHere)=>{
+ const shape=AstroNotesShooting.cleanShape(seed.shape);
+ if(shape){const vertices=shape.vertices.map(p=>[p.longitude,p.latitude]),ring=[...vertices,vertices[0]];
+  return {origin:{latitude:seed.latitude,longitude:seed.longitude},radiusM:600,label:seed.name||'記録の撮影範囲',kind:'recorded',sourceIds:[],boundary:shape.type==='area'?[[ring]]:[],
+   geometry:shape.type==='area'?{polygons:[[ring]],lines:[]}:{polygons:[],lines:[vertices]}};
+ }
+ if(seed.nonTerrainStructure)return null;
+ return provider.nearby(seed,{isCurrent:current});
+};
+AstroNotesCandidatePicker.movementPoint=AstroNotesCandidateDiscovery.createPlaceProvider.movementPoint;
+AstroNotesCandidatePicker.movementGuides=(plan,domain,options)=>AstroNotesCandidateComposition.localGuides(plan,domain,{...options,align:AstroNotesAlign,bodies:AstroNotesBodies,yieldTask:AstroNotesLibrary.pause});
 AstroNotesCandidatePicker.hiddenView=(observer,target,partId,current=stillHere)=>{
  const refractionK=AstroNotesAtmosphere.targetK();
  return cachedPreview(JSON.stringify(['center',...previewKey(observer,target,refractionK),target.groundM,target.parts,partId]),current,async isCurrent=>{

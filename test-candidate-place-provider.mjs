@@ -191,3 +191,37 @@ test('調査済みの地点は調べた対象にだけ出し、足元の高さ�
  const bridge=sky.find(x=>x.name==='晴海大橋 中央部東側歩道');assert.equal(bridge.groundM,24.2);assert.equal(bridge.nonTerrainStructure,true,'a stated floor is not the terrain');
  assert.deepEqual(await provider([],{loadSurveyed:async()=>{throw Error('data');}}).surveyed({target:{id:'skytree'}}),[],'unreadable data leaves the search going');
 });
+
+test('近隣移動は同じ岸の接続した歩道だけ。橋と水面を横切って対岸へつながない',async()=>{
+ const river=way(801,{waterway:'river',name:'甲川'},[[139.0022,35],[139.0022,35.005]]),water=way(802,{natural:'water',water:'river'},ring(139.0021,35,139.0023,35.005));
+ const west=line(803,{},35.001,35.004,139.0018),east=line(804,{},35.001,35.004,139.0026);
+ const bridge=way(805,{highway:'footway',bridge:'yes'},[[139.0018,35.004],[139.0026,35.004]]);
+ for(const link of [bridge,{...bridge,tags:{highway:'footway'}}]){
+  const data=await provider([river,water,west,east,link]).load({}, {regions:[region]});
+  const domain=D.createPlaceProvider.movementDomain({latitude:35.002,longitude:139.0018,surfaceId:'osm/way/803',placeKind:'riverbank'},data.features);
+  assert(domain);assert(domain.geometry.lines.every(l=>l.every(([lon])=>lon<=139.0021+1e-10)));
+  assert.equal(D.createPlaceProvider.movementPoint(domain,{latitude:35.002,longitude:139.0026},10),null);
+  assert.equal(D.createPlaceProvider.movementPoint(domain,{latitude:35.002,longitude:139.0022},10),null);
+ }
+ const data=await provider([river,water,west,east]).load({}, {regions:[region]});
+ const a=data.points.find(p=>p.sourceId==='osm/way/803'),b=data.points.find(p=>p.sourceId==='osm/way/804');
+ assert.equal(a.sourceEvidence.riverBank.river,'甲川');assert.notEqual(a.sourceEvidence.riverBank.side,b.sourceEvidence.riverBank.side);
+});
+test('公園移動は境界・穴・立入禁止を守り、移動できる点を園路へ寄せる',async()=>{
+ const park=way(901,{leisure:'park',name:'同じ公園'},ring(139.001,35.001,139.004,35.004)),path=line(902,{},35,35.005,139.002);
+ const closedArea=way(903,{leisure:'garden',access:'no'},ring(139.0018,35.003,139.0022,35.0035));
+ const data=await provider([park,path,closedArea]).load({}, {regions:[region]});
+ const domain=D.createPlaceProvider.movementDomain({latitude:35.002,longitude:139.002,placeId:'osm/way/901'},data.features);
+ assert(domain);assert(domain.geometry.lines.every(l=>l.every(([,lat])=>lat>=35.001-1e-10&&lat<=35.003+1e-10)));
+ assert.equal(D.createPlaceProvider.movementPoint(domain,{latitude:35.0005,longitude:139.002}),null);
+ assert.equal(D.createPlaceProvider.movementPoint(domain,{latitude:35.00325,longitude:139.002},10),null);
+ const p=D.createPlaceProvider.movementPoint(domain,{latitude:35.002,longitude:139.00205},10);assert(p);assert.equal(p.longitude,139.002);
+ assert.equal(domain.label,'同じ公園');
+});
+
+test('広場の内部は実歩行面として移動でき、輪の道を面として創作しない',async()=>{
+ const square=way(950,{highway:'pedestrian',area:'yes',place:'square',name:'同じ広場'},ring(139.001,35.001,139.004,35.004));
+ const result=await provider([square]).load({}, {regions:[region]}),seed={latitude:35.002,longitude:139.002,placeId:'osm/way/950',surfaceId:'osm/way/950'};
+ const domain=D.createPlaceProvider.movementDomain(seed,result.features);assert(domain.geometry.polygons.length);assert(D.createPlaceProvider.movementPoint(domain,{latitude:35.0025,longitude:139.0025}));
+ const loop={...square,tags:{highway:'footway'}},other=await provider([loop]).load({}, {regions:[region]});const lineDomain=D.createPlaceProvider.movementDomain({...seed,latitude:35.001},other.features);assert(lineDomain);assert.equal(lineDomain.geometry.polygons.length,0);assert.equal(D.createPlaceProvider.movementPoint(lineDomain,{latitude:35.0025,longitude:139.0025},10),null);
+});

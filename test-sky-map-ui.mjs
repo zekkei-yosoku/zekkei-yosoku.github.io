@@ -251,3 +251,9 @@ test('観測点の従来復元は未設定の候補機会を変えず、明示�
  const opportunity={id:'known',at:day};h.session.candidateOpportunity=opportunity;h.restoreObserver({...observer},20);await flush();assert.equal(f.c.SkyMapUI.selectionState().candidateOpportunity,opportunity);
  h.restoreObserver({...observer},20,undefined);await flush();assert.equal(f.c.SkyMapUI.selectionState().candidateOpportunity,undefined);
 });
+
+test('近隣の部位候補への移動は位置と時刻をまとめて反映し、省略時は従来どおり',async()=>{
+ const f=fixture({ground:20,saved:{at:day+3600000,targetId:'skytree',body:'moon',partId:'__whole'}});await f.open();const s=f.c.SkyMapUI.selectionState(),key=f.c.AstroNotesShooting.observerMoveKey(s),p={latitude:35.7101,longitude:139.8101},opportunity={id:'nearby',at:day+7200000};
+ assert.equal(f.c.SkyMapUI.moveObserver(p,25,key,{at:NaN}),false);assert.equal(f.c.SkyMapUI.selectionState().at,s.at);
+ assert.equal(f.c.SkyMapUI.moveObserver(p,25,key,{at:opportunity.at,opportunity}),true);await flush();assert.equal(f.c.SkyMapUI.selectionState().at,opportunity.at);assert.equal(f.c.SkyMapUI.selectionState().candidateOpportunity,opportunity);
+});

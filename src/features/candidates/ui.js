@@ -146,6 +146,17 @@ function cachedPreview(key,current,read,complete){
  return entry.promise;
 }
 const stillHere=()=>true;
+AstroNotesCandidatePicker.movementSurface=async(seed,current=stillHere)=>{
+ const shape=AstroNotesShooting.cleanShape(seed.shape);
+ if(shape){const vertices=shape.vertices.map(p=>[p.longitude,p.latitude]),ring=[...vertices,vertices[0]];
+  return {origin:{latitude:seed.latitude,longitude:seed.longitude},radiusM:600,label:seed.name||'記録の撮影範囲',kind:'recorded',sourceIds:[],boundary:shape.type==='area'?[[ring]]:[],
+   geometry:shape.type==='area'?{polygons:[[ring]],lines:[]}:{polygons:[],lines:[vertices]}};
+ }
+ if(seed.nonTerrainStructure)return null;
+ return provider.nearby(seed,{isCurrent:current});
+};
+AstroNotesCandidatePicker.movementPoint=AstroNotesCandidateDiscovery.createPlaceProvider.movementPoint;
+AstroNotesCandidatePicker.movementGuides=(plan,domain,options)=>AstroNotesCandidateComposition.localGuides(plan,domain,{...options,align:AstroNotesAlign,bodies:AstroNotesBodies,yieldTask:AstroNotesLibrary.pause});
 AstroNotesCandidatePicker.hiddenView=(observer,target,partId,current=stillHere)=>{
  const refractionK=AstroNotesAtmosphere.targetK();
  return cachedPreview(JSON.stringify(['center',...previewKey(observer,target,refractionK),target.groundM,target.parts,partId]),current,async isCurrent=>{
