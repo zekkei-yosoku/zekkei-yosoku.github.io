@@ -6,6 +6,13 @@ const day=at=>Math.floor((at+32400000)/DAY)*DAY-32400000;
 const point=p=>p&&Number.isFinite(p.latitude)&&Math.abs(p.latitude)<=90&&Number.isFinite(p.longitude)&&Math.abs(p.longitude)<=180;
 // A registered point uses its recorded ground height until the user resets it.
 const savedObserver=p=>point(p)?{...p,groundManualM:Number.isFinite(p.groundManualM)?p.groundManualM:Number.isFinite(p.elevation)?p.elevation:null}:null;
+// A solved candidate's actual observer wins over its original place anchor.
+function candidatePlace(row){
+ const p=row?.place,o=row?.assumedObserver;if(!point(o))return p;
+ return {...p,latitude:o.latitude,longitude:o.longitude,
+  ...(Number.isFinite(o.elevation)?{elevation:o.elevation,groundManualM:o.elevation}:{}),
+  ...(Number.isFinite(o.eyeM)&&o.eyeM>=0&&o.eyeM<=700?{standAglM:o.eyeM,eyeHeightAGL:o.eyeM}:{})};
+}
 function conditions(p){
  if(!p||!point(p.target)||!Number.isFinite(p.at)||typeof p.body!=='string')return null;
  return {observer:point(p.observer)?{...p.observer}:null,target:{...p.target},body:p.body,partId:p.partId??null,limb:p.partId==='__whole'?'center':p.limb||'center',at:p.at,...(p.matchMode?{matchMode:p.matchMode==='overlap'?'overlap':'limb'}:{})};
@@ -250,7 +257,7 @@ function hapticGate({vibrate=()=>{},clock=Date.now}={}){
  let previous=false,last=-Infinity,identity='';
  return (matched,key)=>{if(key!==identity){identity=key;previous=false;}const entered=matched&&!previous;previous=!!matched;if(entered&&clock()-last>800){last=clock();try{vibrate(12);}catch{/* 振動は無くてもよい */}}return entered;};
 }
-global.AstroNotesShooting={day,point,savedObserver,conditions,queryKey,searchOptions,eventsFor,matches,passageText,candidates,hapticGate,cleanShape,shapeContains,shapePaths,shapeCandidates,annotateShapeRuns,meters,interpolate};
+global.AstroNotesShooting={day,point,savedObserver,candidatePlace,conditions,queryKey,searchOptions,eventsFor,matches,passageText,candidates,hapticGate,cleanShape,shapeContains,shapePaths,shapeCandidates,annotateShapeRuns,meters,interpolate};
 if(typeof module!=='undefined'&&module.exports)module.exports=global.AstroNotesShooting;
 })(globalThis);
 

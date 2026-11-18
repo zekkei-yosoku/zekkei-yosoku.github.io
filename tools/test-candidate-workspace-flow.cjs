@@ -94,6 +94,9 @@ async function assertIdleSearch(page){
     await rows.first().click();await page.locator('#exploreBackToCandidates').waitFor({state:'visible'});
     const previewAt=await page.evaluate(()=>SkyMapUI.selectionState().at);
     await page.locator('#exploreConditions > summary .explore-condition-edit').click();
+    await page.waitForFunction(()=>document.getElementById('exploreConditions').open);
+    assert.equal(await page.locator('#skyMapView').getAttribute('data-explore-stage'),'preview');
+    await page.locator('#exploreFindPlaces').click();
     await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2);
     assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().at),previewAt,'opening the editor keeps the time shown in the preview');
     assert.deepEqual(await keyAndLoads(),{key:namedPart.key,loads:namedPart.loads});

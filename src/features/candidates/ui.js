@@ -68,7 +68,7 @@ async function fillTownAddresses(rows,isCurrent){
  return changed;
 }
 const filterKey=p=>JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode]);
-AstroNotesCandidatePicker.configure({loadLabels,createMapView,filterKey,mapIcon:UI_ICONS.map,
+AstroNotesCandidatePicker.configure({loadLabels,createMapView,filterKey,mapIcon:UI_ICONS.map,geometryFrom:(...args)=>AstroNotesAlign.geometryFrom(...args),
  getScroller:()=>mainWorkspace()?.scroller(),getReturnScroll:()=>mainWorkspace()?.returnScroll?.(),
  onRendered:count=>mainWorkspace()?.restoreScroll(count),requestKey:p=>AstroNotesCandidateDiscovery.requestKey(p)});
 const live=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxDurationMs:120000,lookAhead:true});
@@ -448,7 +448,8 @@ function mount(){
     if(!item.isConnected||items.get(row.id)!==item||mainWorkspace()&&!mainWorkspace().selectable()||!resultsCurrent(selected,node)||row.requestKey!==key(selected))return;
     const event={...row.event};delete event.matchMode;const candidate={...row,event};const host=document.getElementById('aimLook'),previous=host?._compose;
     if(host)host._compose={mode:'whole',apply:true};
-    if(SkyMapUI.selectCandidate(candidate,context(SkyMapUI.selectionState()))){returnSearch=selected.timeSpec?.kind==='window'&&AstroNotesCandidateDiscovery.day(row.event.at)!==AstroNotesCandidateDiscovery.day(selected.at)?{plan:selected,key:key(selected),rowId:row.id,viewAt:row.event.at}:null;
+    if(SkyMapUI.selectCandidate(candidate,context(SkyMapUI.selectionState()),AstroNotesCandidatePicker.previewFor(row))){
+     returnSearch=selected.timeSpec?.kind==='window'&&AstroNotesCandidateDiscovery.day(row.event.at)!==AstroNotesCandidateDiscovery.day(selected.at)?{plan:selected,key:key(selected),rowId:row.id,viewAt:row.event.at}:null;
     sheet.close();}else if(host)host._compose=previous;};
    }
    for(const [id,old] of items)if(!kept.has(id))old.remove();items=kept;

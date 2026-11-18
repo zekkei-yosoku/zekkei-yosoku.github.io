@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 // 2026-11-12 candidate-picker.js は読み込み時に AstroNotesLibrary.gate() を使う（配信と同じく先に読む）。
-globalThis.AstroNotesLibrary=require('../astronotes-library.js');
+globalThis.AstroNotesLibrary=require('../astronotes-library.js');globalThis.AstroNotesShooting=require('../astronotes-shooting.js');
 const labels=require('../src/features/candidates/place-labels.js');globalThis.AstroNotesCandidateLabels=labels;
 const F=require('../src/features/candidates/candidate-picker.js');
 test('inclusive hour, matching rise/set, invalid event and combined kind',()=>{
@@ -124,4 +124,29 @@ test('shared grouping never reconnects recorded spatial runs separated by a miss
  assert.equal(F.mergeEntries([entry('a',1000),entry('b',2000)],'time').length,2);
  assert.equal(F.mergeEntries([entry('a',1000),entry('a',2000,3)],'time').length,2);
  assert.equal(F.mergeEntries([entry('a',1000),entry('a',2000)],'time').length,1);
+});
+
+test('area grouping retains every eligible member without mutating or mixing a hidden member',()=>{
+ const row=(at,lat)=>({place:{latitude:lat,longitude:139,elevation:10,eyeHeightAGL:1.5},event:{at}});
+ const a={row:row(0,35),types:['park'],index:0,show:true},b={row:row(60000,35.0001),types:['park'],index:1,show:true},hidden={row:row(120000,35.0002),types:['park'],index:2,show:false};
+ const before=JSON.stringify([a,b,hidden]),out=F.mergeEntries([a,b,hidden],'time');
+ assert.equal(out.length,1);assert.deepEqual(new Set(F.membersOf(out[0])),new Set([a,b]));assert.equal(JSON.stringify([a,b,hidden]),before);
+});
+test('position choices offer actual solved tip and deck candidates using only target geometry',()=>{
+ const plan={body:'moon',partId:'__whole',target:{id:'tower',parts:[{id:'tip',name:'先端',m:600},{id:'deck',name:'展望台',m:300}]}};
+ const row=(id,at,alt)=>({id,place:{latitude:35,longitude:139,elevation:10,eyeHeightAGL:1.5},event:{at,azimuth:180,altitude:alt,radius:.25,matchMode:'overlap',partId:'__whole'},assumedObserver:{latitude:35,longitude:139,elevation:10,eyeM:1.5}});
+ const tip=row('tip',1000,6),deck=row('deck',2000,3),unknown=row('unknown',3000,12),input=[unknown,deck,tip],before=JSON.stringify(input);let calls=0;
+ const {choices,shortcuts}=F.positionChoices(input,plan,(_o,_t,{partId})=>{calls++;return {azimuth:180,angle:partId==='tip'?6:3};});
+ assert.equal(calls,6);assert.equal(choices.length,3);assert.equal(choices[0].row,tip);assert.equal(choices[1].row,deck);
+ assert(shortcuts.some(s=>s.row===tip&&s.label==='先端付近'));assert(shortcuts.some(s=>s.row===deck&&s.label==='展望台付近'));
+ assert(!shortcuts.some(s=>s.row===unknown));assert.equal(JSON.stringify(input),before);
+ assert.deepEqual(F.positionChoices(input,plan,null).shortcuts,[],'missing geometry never fabricates a part');
+});
+
+
+test('areas and exact deduplication use solved coordinates and height instead of a shared saved anchor',()=>{
+ const make=(latitude,eye)=>({row:{place:{latitude:35,longitude:139,elevation:10,eyeHeightAGL:1.5},assumedObserver:{latitude,longitude:139,elevation:10,eyeM:eye},event:{at:1000}},types:['park'],index:eye});
+ const a=make(35,1.5),far=make(35.01,1.5),floor=make(35,50),near=make(35.0001,1.5);
+ const out=F.mergeEntries([a,far,floor,near],'time');assert.equal(out.length,3);assert(out.includes(far)&&out.includes(floor));
+ const home=out.find(e=>e!==far&&e!==floor);assert.equal(F.areaOf(home).count,2);assert.equal(F.membersOf(home).length,2);
 });

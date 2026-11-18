@@ -131,6 +131,9 @@ async function complete(page,kind){
     assert.equal(await page.evaluate(()=>TrialExplore.searchCompositionPlaces()),false,'a missing composition is not accepted');
     stage('condition-editor');
     await page.locator('#exploreConditions > summary .explore-condition-edit').click();
+    await page.waitForFunction(()=>document.getElementById('exploreConditions').open);
+    assert.equal(await page.locator('#skyMapView').getAttribute('data-explore-stage'),'preview','opening conditions keeps the view');
+    await page.locator('#exploreFindPlaces').click();
     await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='search');
     assert.deepEqual(await selection(page),current,'editing keeps the current time and place, not the old return intent');
     stage('recorded-places');

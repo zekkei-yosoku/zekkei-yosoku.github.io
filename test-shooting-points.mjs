@@ -172,3 +172,9 @@ test('任意追加の山は地面と山頂の標高で判定し、kind/rimがな
  assert.equal(P.passageText(event,{...building,partId:'__whole'}),'','missing whole-object geometry must not invent an offset');
  assert.equal(P.passageText({radius:.25},plan),'','a missing direction must not imply a central summit passage');
 });
+
+test('候補は評価済みの観測位置・標高・目高を使い、元の登録アンカーへ戻さない',()=>{
+ const row={place:{name:'候補の名前',latitude:35,longitude:139,elevation:10,eyeHeightAGL:1.5},assumedObserver:{latitude:35.0001,longitude:139.0001,elevation:30,eyeM:4}},before=JSON.stringify(row);
+ assert.deepEqual(P.candidatePlace(row),{name:'候補の名前',latitude:35.0001,longitude:139.0001,elevation:30,groundManualM:30,standAglM:4,eyeHeightAGL:4});
+ assert.equal(JSON.stringify(row),before);assert.equal(P.candidatePlace({place:row.place}),row.place);
+});

@@ -41,7 +41,7 @@ function rankCompare(a,b){
  for(let i=0;i<Math.max(aa.length,bb.length);i++){const x=Number.isFinite(aa[i])?aa[i]:Infinity,y=Number.isFinite(bb[i])?bb[i]:Infinity;if(x!==y)return x<y?-1:1;}return 0;
 }
 function candidateKey(row){
- const p=row.place||{},o=row.assumedObserver||{};
+ const p=positionPlace(row)||{},o=row.assumedObserver||{};
  // Preserve height and exact time: different decks or different opportunities do not merge.
  return JSON.stringify([p.latitude,p.longitude,p.surfaceId??row.surfaceId??null,p.groundManualM??p.elevation??o.elevation??null,p.standAglM??p.eyeHeightAGL??o.eyeM??null,p.stand??null,row.event?.at,row.event?.partId??null,row.event?.matchMode??null]);
 }
@@ -79,37 +79,41 @@ function mergeEntries(entries,sort){
  // だけを持ち、エリアは立つ位置の数と時刻の幅だけを持つ。調査済みの地点（quality.surveyed）は、名前と立つ高さを調べてあるので、
  // 同じ場所の探索で見つけた行と種類が違ってもまとめ、代表にする（ユーザー「重複しないような何かを考えて」）。
  // The height one stands at: the ground and the floor above it (a deck's floor and the ground below it are two areas).
- const standM=e=>{const p=e.row.place||{},o=e.row.assumedObserver||{},g=p.groundManualM??p.elevation??o.elevation,up=p.standAglM??p.eyeHeightAGL??o.eyeM;return (Number.isFinite(g)?g:0)+(Number.isFinite(up)?up:0);};
+ const standM=e=>{const p=positionPlace(e.row)||{},g=p.groundManualM??p.elevation,up=p.standAglM??p.eyeHeightAGL??1.5;return (Number.isFinite(g)?g:0)+(Number.isFinite(up)?up:0);};
  // How high up the target is hidden from the place (m); nothing hidden is the best there is.
  const hiddenM=e=>Number.isFinite(e.row.quality?.hiddenBelow?.m)?e.row.quality.hiddenBelow.m:-Infinity,sees=(a,b)=>surveyed(a)!==surveyed(b)?(surveyed(a)?a:b):hiddenM(a)<hiddenM(b)-AREA_SEES_M?a:b;
- const kept=[],timeOf=e=>Number.isFinite(e.row.event?.at)?e.row.event.at:null,spot=e=>e.row.place?.latitude+','+e.row.place?.longitude;
+ const kept=[],timeOf=e=>Number.isFinite(e.row.event?.at)?e.row.event.at:null,spot=e=>{const p=positionPlace(e.row);return p?.latitude+','+p?.longitude;};
  const surveyed=e=>!!e.row.quality?.surveyed;
  const sameRun=(a,b)=>{
   const x=a.row.spatialWindow,y=b.row.spatialWindow;if(!x&&!y)return true;
   const source=e=>e.row.place.sourcePlaceId??e.row.place.id,eye=e=>e.row.assumedObserver?.eyeM??e.row.place.standAglM??e.row.place.eyeHeightAGL;
   return !!x&&!!y&&x.id===y.id&&source(a)===source(b)&&eye(a)===eye(b);
  };
- const near=(k,e)=>sameRun(k.e,e)&&(surveyed(k.e)||surveyed(e)||k.e.types.some(t=>e.types.includes(t)))&&metres(k.e.row.place,e.row.place)<=AREA_M
+ const near=(k,e)=>sameRun(k.e,e)&&(surveyed(k.e)||surveyed(e)||k.e.types.some(t=>e.types.includes(t)))&&metres(positionPlace(k.e.row),positionPlace(e.row))<=AREA_M
   &&!(Math.abs(standM(k.e)-standM(e))>AREA_RISE_M);
  const touches=(k,from,to)=>k.fromAt===null?from===null:from!==null&&from<=k.toAt+AREA_MS&&to>=k.fromAt-AREA_MS;
  for(const e of [...unique.values()].sort((a,b)=>(a.show===false)-(b.show===false)||compare(a,b,'recommended'))){
   const at=timeOf(e),home=kept.find(k=>near(k,e)&&touches(k,at,at));
-  if(!home){kept.push({e,best:e,spots:new Set([spot(e)]),fromAt:at,toAt:at});continue;}
+  if(!home){kept.push({e,best:e,members:[e],spots:new Set([spot(e)]),fromAt:at,toAt:at});continue;}
   // A row the filters hide does not widen what the shown representative says.
   if((home.e.show===false)!==(e.show===false))continue;
-  home.spots.add(spot(e));home.best=sees(e,home.best);if(at!==null){home.fromAt=Math.min(home.fromAt,at);home.toAt=Math.max(home.toAt,at);}
+  home.members.push(e);home.spots.add(spot(e));home.best=sees(e,home.best);if(at!==null){home.fromAt=Math.min(home.fromAt,at);home.toAt=Math.max(home.toAt,at);}
  }
  // Areas whose times have grown to meet join the better-ranked one (kept is in recommended order).
  for(let again=true;again;){again=false;
   for(let i=0;i<kept.length&&!again;i++)for(let j=i+1;j<kept.length;j++){const a=kept[i],b=kept[j];
    if((a.e.show===false)!==(b.e.show===false)||!near(a,b.e)||!touches(a,b.fromAt,b.toAt))continue;
-   for(const p of b.spots)a.spots.add(p);a.best=sees(b.best,a.best);if(b.fromAt!==null){a.fromAt=Math.min(a.fromAt,b.fromAt);a.toAt=Math.max(a.toAt,b.toAt);}kept.splice(j,1);again=true;break;}
+   a.members.push(...b.members);for(const p of b.spots)a.spots.add(p);a.best=sees(b.best,a.best);if(b.fromAt!==null){a.fromAt=Math.min(a.fromAt,b.fromAt);a.toAt=Math.max(a.toAt,b.toAt);}kept.splice(j,1);again=true;break;}
  }
- for(const k of kept)areas.set(k.best,{count:k.spots.size,fromAt:k.fromAt,toAt:k.toAt});
+ for(const k of kept){areas.set(k.best,{count:k.spots.size,fromAt:k.fromAt,toAt:k.toAt});areaMembers.set(k.best,k.members);}
  return kept.map(k=>k.best).sort((a,b)=>compare(a,b,sort));
 }
 // The area a representative stands for (mergeEntries): how many places it gathers and the span of their times.
 const AREA_M=300,AREA_RISE_M=10,AREA_MS=60*60000,AREA_SEES_M=10,areas=new WeakMap(),areaOf=entry=>areas.get(entry)||null;
+const areaMembers=new WeakMap(),previewGroups=new WeakMap(),recordedMembers=new WeakMap();
+const membersOf=entry=>areaMembers.get(entry)||[entry],previewFor=row=>previewGroups.get(row)||null;
+const positionPlace=row=>typeof AstroNotesShooting!=='undefined'&&AstroNotesShooting.candidatePlace?AstroNotesShooting.candidatePlace(row):row.place;
+const positionKey=row=>candidateKey({...row,place:positionPlace(row),event:{...row.event,partId:null,matchMode:null}});
 function areaText(area){
  if(!area)return '';const clock=at=>new Date(at+32400000).toISOString().slice(11,16);
  const from=Number.isFinite(area.fromAt)?clock(area.fromAt):'',to=Number.isFinite(area.toAt)?clock(area.toAt):'',span=from&&to&&from!==to?from+'〜'+to:'';
@@ -166,9 +170,30 @@ function recordedEntries(rows){
  for(const row of rows){
   const source=row.place.sourcePlaceId??row.place.id,eye=row.assumedObserver?.eyeM??row.place.standAglM??row.place.eyeHeightAGL??null;
   const key=row.spatialWindow?JSON.stringify([source,eye,row.spatialWindow.id]):candidateKey(row);
-  const previous=groups.get(key);if(!previous||row.event.at<previous.event.at)groups.set(key,row);
+  let group=groups.get(key);if(!group){group={first:row,rows:[]};groups.set(key,group);}group.rows.push(row);if(row.event.at<group.first.event.at)group.first=row;
  }
- return [...groups.values()].sort((a,b)=>(a.spatialWindow?.fromAt??a.event.at)-(b.spatialWindow?.fromAt??b.event.at));
+ for(const g of groups.values())recordedMembers.set(g.first,g.rows);
+ return [...groups.values()].map(g=>g.first).sort((a,b)=>(a.spatialWindow?.fromAt??a.event.at)-(b.spatialWindow?.fromAt??b.event.at));
+}
+// Labels reuse the solved celestial direction. Target-point geometry is local,
+// with no ephemeris, terrain requests or new search for a position switch.
+function positionChoices(rows,plan,geometryFrom=ports.geometryFrom){
+ const unique=[...new Map(rows.map(row=>[positionKey(row),row])).values()].sort((a,b)=>a.event.at-b.event.at),shortcuts=new Map();
+ const parts=!plan.composition&&['sun','moon'].includes(plan.body)&&(!plan.partId||plan.partId==='__whole')&&!plan.target?.rim&&plan.target?.kind!=='mountain'?plan.target?.parts||[]:[];
+ const choices=unique.map(row=>{
+  const e=row.event,p=positionPlace(row),o={...p,elevation:p.groundManualM??p.elevation,eyeM:p.standAglM??p.eyeHeightAGL??1.5};let nearest=null;
+  if(geometryFrom&&[e.altitude,e.azimuth,e.radius,o.latitude,o.longitude,o.elevation].every(Number.isFinite)&&e.radius>0)for(const part of parts.filter(p=>typeof p.name==='string'&&p.name.trim())){
+   const g=geometryFrom(o,plan.target,{partId:part.id,eyeM:o.eyeM??1.5});if(!g||![g.angle,g.azimuth].every(Number.isFinite))continue;
+   const rad=Math.PI/180,a=e.altitude*rad,b=g.angle*rad,d=(e.azimuth-g.azimuth)*rad;
+   const gap=Math.acos(Math.max(-1,Math.min(1,Math.sin(a)*Math.sin(b)+Math.cos(a)*Math.cos(b)*Math.cos(d))))/rad;
+   if(gap>e.radius)continue;const score=gap/e.radius;
+   if(!nearest||score<nearest.score)nearest={part,score};
+   const prev=shortcuts.get(part.id);if(!prev||score<prev.score)shortcuts.set(part.id,{row,score,label:part.name+'付近'});
+  }
+  const passage=nearest?nearest.part.name+'付近':passageOf(row,plan)||'重なる位置';
+  return {row,key:positionKey(row),passage,label:clockText(e.at)+' ・ '+passage};
+ });
+ return {choices,shortcuts:[...shortcuts.values()].map(s=>({...s,key:positionKey(s.row)}))};
 }
 async function renderRecorded(box,rows,plan,{select,current=()=>true}={}){
  let labels={};try{if(rows.length)labels=await loadLabels()||{};}catch(e){globalThis.AstroNotesErrors?.note('candidates.record-labels',e);}
@@ -177,6 +202,7 @@ async function renderRecorded(box,rows,plan,{select,current=()=>true}={}){
  let processed=0;
  for(const raw of selected){
   if(++processed%12===0){await new Promise(r=>setTimeout(r,0));if(!current()||!box.isConnected)return null;}
+  previewGroups.set(raw,{plan,rows:recordedMembers.get(raw)||[raw]});
   const labelled=globalThis.AstroNotesCandidateLabels?.enrich(raw,labels)||raw;
   const row={...labelled,place:{...labelled.place,name:raw.place.name,subtitle:labelled.place.subtitle||raw.place.subtitle||''},record:raw.record||{},quality:{...raw.quality}};
   if(!Number.isFinite(row.quality.targetAngleDeg)&&Number.isFinite(row.event.targetAltitude))row.quality.targetAngleDeg=row.event.targetAltitude;
@@ -353,6 +379,7 @@ async function apply(){
  }
  if(!revision.current(token))return;
  const merged=mergeEntries(entries,selection.sort),chosen=new Set(merged.map(e=>e.node));
+ for(const e of merged)previewGroups.set(e.row,{plan:e.group.plan,rows:membersOf(e).filter(m=>m.show!==false).map(m=>m.row)});
  const focused=list.contains(document.activeElement)?document.activeElement:null;
  for(const e of entries)if(!chosen.has(e.node))e.node.remove();
  // Remove orphaned nodes left by a source re-render or cancelled job.
@@ -467,7 +494,8 @@ function reset(){
  revision.cancel();groups.clear();windows.clear();visibleEntries=[];selectedId=null;mapHits=[];mapMode=false;
  control?.remove();control=null;list=null;scope='';filterScope='';refinementOpen=false;mapScroll=null;suspendedView=null;
 }
-const api={mount,configure,renderRecorded,registerRegistered:register,registerAdditional:register,unregister,apply,kinds,accepts,compare,inRecords,showMap,suspend,reset,visibleRows:()=>visibleEntries.filter(currentEntry).map(e=>e.row)};
+const api={mount,configure,renderRecorded,previewFor,positionChoices,positionKey,positionPlace,candidateKey,registerRegistered:register,registerAdditional:register,unregister,apply,kinds,accepts,compare,inRecords,showMap,suspend,reset,
+ visibleRows:()=>visibleEntries.filter(currentEntry).map(e=>e.row)};
 globalThis.AstroNotesCandidatePicker=api;
-if(typeof module!=='undefined')module.exports={recordedEntries,candidateTimeText,kinds,accepts,compare,candidateKey,mergeEntries,placePriority,areaOf,areaText,inRecords};
+if(typeof module!=='undefined')module.exports={recordedEntries,candidateTimeText,positionChoices,membersOf,kinds,accepts,compare,candidateKey,mergeEntries,placePriority,areaOf,areaText,inRecords};
 })();

@@ -589,15 +589,17 @@ ctx.lineWidth=1;
  }}:null,selectionState:()=>session&&({...AstroNotesShooting.conditions(session),body:session.body,target:session.target,observer:session.observer,candidateOpportunity:session.candidateOpportunity}),renderState:()=>{
  if(!hasAccess()||!active()||!session?.observer||!session?.target?.parts?.length||!session?.eye||pickMode)throw Error('見え方の条件を準備中');return {...AstroNotesShooting.conditions(session),ground:session.ground,eyeM:aimObserverAt(session.observer,session.ground).eyeM};
  },shareState:()=>{if(!hasAccess()||!active()||!session?.observer||!session?.target||!session?.target?.parts?.length||!session?.daily||!session?.eye||timelineMoving||session.timelinePending||pickMode)throw Error("撮影地点・対象・日時を選び、計算が終わってから開いてください。");
- return {...AstroNotesShooting.conditions(session),ground:session.ground,eyeM:aimObserverAt(session.observer,session.ground).eyeM};},snapshot:()=>session&&AstroNotesShooting.conditions(session),selectCandidate:(candidate,expected)=>{
+ return {...AstroNotesShooting.conditions(session),ground:session.ground,eyeM:aimObserverAt(session.observer,session.ground).eyeM};},snapshot:()=>session&&AstroNotesShooting.conditions(session),selectCandidate:(candidate,expected,previewGroup=null)=>{
   if(!hasAccess()||!session||!active()||!candidate?.event||!AstroNotesShooting.point(candidate.place))return false;
   const current=JSON.stringify([session.body,session.target,session.partId,session.limb,AstroNotesShooting.day(session.at),session.matchMode||'limb']);
   if(current!==expected)return false;
   document.dispatchEvent(new Event('astronotes-candidate-selecting'));
   skyPlayback.stop(false);
   session.candidateOpportunity={id:candidate.id,relation:candidate.event.relation,at:candidate.event.at,targetId:session.target?.id};
-  session.observer=aimSavedFrom(AstroNotesShooting.savedObserver(candidate.place));session.ground=Number.isFinite(candidate.place.elevation)?candidate.place.elevation:null;if(candidate.event.matchMode){session.matchMode=candidate.event.matchMode;session.partId=candidate.event.partId;
-  session.limb='center';}session.at=candidate.event.at;session.dayAnchor=AstroNotesShooting.day(session.at);map.setCenter(candidate.place.latitude,candidate.place.longitude);refresh();document.dispatchEvent(new Event('astronotes-candidate-selected'));return true;
+  const place=AstroNotesShooting.candidatePlace(candidate);
+  session.observer=aimSavedFrom(AstroNotesShooting.savedObserver(place));session.ground=Number.isFinite(place.elevation)?place.elevation:null;if(candidate.event.matchMode){session.matchMode=candidate.event.matchMode;session.partId=candidate.event.partId;
+  session.limb='center';}session.at=candidate.event.at;session.dayAnchor=AstroNotesShooting.day(session.at);map.setCenter(place.latitude,place.longitude);refresh();
+  document.dispatchEvent(new CustomEvent('astronotes-candidate-selected',{detail:{candidate,previewGroup}}));return true;
  },setAlignment:(partId,limb,matchMode='limb')=>{if(!hasAccess()||!session||!active())return;if(partId&&partId!=='__whole'&&!(session.target?.parts||[]).some(p=>p.id===partId))return;if(!AstroNotesAlign.LIMBS.some(x=>x.id===limb))return;session.matchMode=matchMode==='overlap'?'overlap':'limb';
  session.partId=partId??(session.matchMode==='overlap'?(aimIsMountain(session.target)?null:'__whole'):null);session.limb=session.matchMode==='overlap'||partId==='__whole'?'center':limb;refresh();
  },open,leave,suspend,authChanged,prepareFraming,enter,refreshTargets,render,redraw:()=>map.redraw(),fitPoints:pts=>{const cv=el('skyMapCanvas'),la=pts.map(q=>q.latitude),lo=pts.map(q=>q.longitude),lat0=Math.min(...la),lat1=Math.max(...la),lon0=Math.min(...lo),lon1=Math.max(...lo),lat=(lat0+lat1)/2,

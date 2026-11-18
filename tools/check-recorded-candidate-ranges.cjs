@@ -7,7 +7,7 @@ module.exports=async function checkRecordedRanges(page,path){
    return {place,record:{result:'seen'},assumedObserver:{...place,eyeM:1.5},placeKind:'park',event:{at,radius:.25,targetAltitude:6,altitude:6.2,azimuth:180,targetAzimuth:180,targetPosition:{x:.5,y:.8},side:'set'},
     ...(kind?{shapeType:kind,spatialWindow:{id,kind,fromAt:AstroNotesShooting.day(at)+from*60000,toAt:AstroNotesShooting.day(at)+to*60000,count:4,basis:'sampled-positions'}}:{})};
   };
-  window.rangeRows=[make('line','line',13*60+17,'one',13*60+13,14*60+21),make('line','line',13*60+13,'one',13*60+13,14*60+21),make('line','line',14*60+21,'one',13*60+13,14*60+21),
+  window.rangeRows=[make('line','line',13*60+17,'one',13*60+13,14*60+21,.00004),make('line','line',13*60+13,'one',13*60+13,14*60+21),make('line','line',14*60+21,'one',13*60+13,14*60+21,.0001),
    make('line','line',16*60,'two',16*60,16*60+4),make('line','line',16*60+4,'two',16*60,16*60+4),make('area','area',13*60,'area',13*60,13*60+15),make('area','area',13*60+15,'area',13*60,13*60+15),make('different',null,14*60,null,null,null,.02)];
   MyPlacesUI.discoveryPoints=()=>['line','area','different'].map(id=>({place:{id,name:id,latitude:35.692,longitude:139.732,elevation:25,eyeHeightAGL:1.5},record:{result:'seen'}}));
   AstroNotesShooting.candidates=async(plan,points)=>{rangeFixture.calls++;return {failed:0,rows:rangeRows.filter(row=>row.place.sourcePlaceId===points[0].place.id)};};
@@ -32,8 +32,14 @@ module.exports=async function checkRecordedRanges(page,path){
   await rows.nth(1).click();await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='preview');
   const selected=await page.evaluate(()=>{const s=SkyMapUI.selectionState();return {at:s.at,latitude:s.observer.latitude,eye:aimObserverAt(s.observer,SkyMapUI.workspaceHost().session.ground).eyeM};});
   assert.deepEqual(selected,{at:expected.event.at,latitude:expected.place.latitude,eye:1.5});
+  await page.locator('#exploreCandidatePositions').waitFor({state:'visible'});
+  assert.equal(await page.locator('#exploreCandidatePosition optgroup[label="すべての撮影位置"] option').count(),3,'only this recorded line run is navigable');
+  await page.getByRole('button',{name:'次の撮影位置',exact:true}).click();
+  const next=await page.evaluate(()=>({s:SkyMapUI.selectionState(),expected:rangeRows[0]}));
+  assert.equal(next.s.at,next.expected.event.at);assert.equal(next.s.observer.latitude,next.expected.place.latitude);
+  assert.equal(await page.evaluate(()=>rangeFixture.calls),calls,'switching a recorded line reuses solved positions');
   await page.locator('#exploreBackToCandidates').click();await page.waitForFunction(()=>document.querySelectorAll('#exploreRecordedResults>.list-item').length===4);
   assert.equal(await page.evaluate(()=>rangeFixture.calls),calls,'returning reuses the result and does not solve the shape again');
-  return {rows:4,lineRange:true,areaRange:true,disjointTimeKept:true,sameNameDistinctSourceKept:true,sharedFormat:true,realStartSelected:true,returnReused:true};
+  return {rows:4,lineRange:true,areaRange:true,disjointTimeKept:true,sameNameDistinctSourceKept:true,sharedFormat:true,realStartSelected:true,positionSwitchReused:true,returnReused:true};
  }finally{await page.evaluate(()=>{MyPlacesUI.discoveryPoints=rangeFixture.points;AstroNotesShooting.candidates=rangeFixture.solver;MyPlacesUI.imported();});}
 };
