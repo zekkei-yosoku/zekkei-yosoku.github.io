@@ -3898,7 +3898,7 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
           // 地平線の下の天体は建物に重なって見えない（高い所では建物の足元が地平線より下に来る）
           if (within && st.apparentAltitude > Math.max(-1, A.seaHorizonAngle(obs.elevation ?? 0) - st.angularRadius)) {
             const later = bodyAt(body, at + 60000, obs).apparentAltitude;
-            const row = { at, gap, radius: st.angularRadius,
+            const row = { at, azimuth:st.azimuth, targetAzimuth:g.azimuth, targetAltitude:g.angle, gap, radius: st.angularRadius,
               rank: j.rank || rankOf(gap, st.angularRadius),
               side: later < st.apparentAltitude ? "set" : "rise",
               altitude: st.apparentAltitude,
@@ -3963,7 +3963,8 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
     const hasMountainRidge=!!mountainRidge;
     let centerAlt,project,polygons,hasOutline,approximate;
     {
-    const outline = mountainRidge ? {viewBaseAngle:ridgeBase,topAngle:g.angle,hitPolygons:[[...mountainRidge,[mountainRidge.at(-1)[0],ridgeBase],[mountainRidge[0][0],ridgeBase]]]} : opts.silhouette ? {viewBaseAngle:opts.silhouette.viewBaseAngle,topAngle:opts.silhouette.topAngle,
+    const outline = opts.pointOnly ? null : mountainRidge ? {viewBaseAngle:ridgeBase,topAngle:g.angle,hitPolygons:[[...mountainRidge,[mountainRidge.at(-1)[0],ridgeBase],[mountainRidge[0][0],ridgeBase]]]} :
+    opts.silhouette ? {viewBaseAngle:opts.silhouette.viewBaseAngle,topAngle:opts.silhouette.topAngle,
     approximate:!!opts.silhouette.approximate,hitPolygons:[opts.silhouette.polygon]} : towerOutline(observer, target, opts);
     centerAlt = outline ? (outline.viewBaseAngle + outline.topAngle) / 2 : g.angle;
     project = viewProjector(g.azimuth, centerAlt);
@@ -3986,7 +3987,7 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
   return {box,left:build(indices.slice(0,mid)),right:build(indices.slice(mid))};
  }
  const tree=polygons.length>16&&boxes.every(b=>Object.values(b).every(Number.isFinite))?build(polygons.map((_,i)=>i)):null;
- return (center,ratio)=>{
+ const measure=(center,ratio)=>{
   const point=[center[0],center[1]/ratio];let nearest=Infinity;
   const lower=(box,group=false)=>{
    const dx=Math.max(box.minX-point[0],0,point[0]-box.maxX),dy=Math.max(box.minY/ratio-point[1],0,point[1]-box.maxY/ratio);
@@ -4012,6 +4013,8 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
   else for(let i=0;i<polygons.length;i++){evaluate(i);if(nearest===0)break;}
   return nearest;
  };
+ measure.bounds=tree?.box||combine(boxes.keys());
+ return measure;
 })(polygons,polygonDistance,function exactScaledPolygonDistance(point,polygon,ratio){
  let inside=false,distance=Infinity;
  if(!polygon.length)return distance;
@@ -4033,7 +4036,7 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
       const ratio=Number.isFinite(st.upperRadius)&&radius>0&&upper&&lower?Math.max(.1,Math.abs(upper[1]-lower[1])/(2*radius)):1;
       const center=xy?[xy[0],Number.isFinite(st.upperRadius)&&upper&&lower?(upper[1]+lower[1])/2:xy[1]]:null;
       const distance = center ? (polygons ? distanceToPolygons(center,ratio) : Math.hypot(center[0],center[1]/ratio)) : Infinity;
-      return { at, gap: st.apparentAltitude - g.angle, radius: st.angularRadius, distanceToTarget: distance, approximate,
+      return { at, azimuth:st.azimuth, targetAzimuth:g.azimuth, targetAltitude:g.angle, gap: st.apparentAltitude - g.angle, radius: st.angularRadius, distanceToTarget: distance, approximate,
         intersects: distance <= radius && (st.upperAltitude??st.apparentAltitude+st.angularRadius) > 0,
         nearTarget: distance <= (extended(body) ? radius + 0.5 : 2 * radius) && st.apparentAltitude + st.angularRadius > 0,
         altitude: st.apparentAltitude, illuminated: body === "moon" ? st.illuminatedFraction : null,
@@ -4041,6 +4044,8 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
     };
     // Sun altitude and motion labels are only needed for returned events, not every scan sample.
     const complete = row => ({...row,
+      ...(distanceToPolygons?.bounds?{targetPosition:(()=>{const b=distanceToPolygons.bounds,p=project(row.azimuth,row.altitude);return p?{
+        x:(p[0]-b.minX)/(b.maxX-b.minX),y:(p[1]-b.minY)/(b.maxY-b.minY)}:null;})()}:{}),
       sunAltitude: body === "sun" ? row.altitude : body === "moon" ? bodyAt("sun",row.at,obs).apparentAltitude : A.sun(row.at, obs).geometricAltitude,
       side: bodyAt(body,row.at+60000,obs).apparentAltitude < row.altitude ? "set" : "rise"});
     const run = (dayMs, at = null) => {
@@ -4080,9 +4085,10 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
         else if(visibleBetter(nearest,crossings[i])||(nearest.intersects===crossings[i].intersects&&nearest.distanceToTarget===crossings[i].distanceToTarget&&nearest.at<crossings[i].at))crossings[i]=nearest;
       }else crossings.push(nearest);
     }
-    if (extended(body)) {
+    if (extended(body)||opts.pointOnly) {
       const refine = row => {
-        let lo=Math.max(dayMs,row.at-20000),hi=Math.min(end-1,row.at+20000);
+        const windowMs=opts.pointOnly?600000:20000;
+        let lo=Math.max(dayMs,row.at-windowMs),hi=Math.min(end-1,row.at+windowMs);
         const ratio=(Math.sqrt(5)-1)/2;
         let x=hi-ratio*(hi-lo),y=lo+ratio*(hi-lo),a=evaluate(x),b=evaluate(y);
         for(let i=0;i<32;i++) {
@@ -5293,7 +5299,7 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
 
   function prepareAlignmentAt(observer,target,body,opts={}) {
     const view=prepareDailyView(observer,target,body,opts);
-    if(opts.partId==='__whole')return at=>{
+    if(opts.partId==='__whole'||opts.pointOnly)return at=>{
       const row=view(at,at)[0];return row?{...row,matched:!!row.intersects}:null;
     };
     const g=geometryFrom(observer,target,opts),obs={...observer,elevation:(observer.elevation??0)+(opts.eyeM??1.5)},sign=limbById(opts.limb||'center').sign;
@@ -5461,16 +5467,44 @@ function conditions(p){
 function queryKey(p,records,owner,atmosphere){return JSON.stringify([owner,p?.body,p?.target,p?.partId??null,p?.limb||'center',day(p?.at),records.map(x=>[x.place,x.record]),atmosphere,p?.matchMode||'limb']);}
 function searchOptions(p,isMountain){
  const broad=p.matchMode==='overlap',disc=p.body==='sun'||p.body==='moon';
- return {partId:broad?(isMountain(p.target)?null:'__whole'):p.partId,limb:broad?'center':p.limb,broad,disc};
+ const partId=p.partId&&p.partId!=='__whole'&&p.target?.parts?.some(part=>part.id===p.partId)?p.partId:broad?(isMountain(p.target)?null:'__whole'):p.partId;
+ const named=!!partId&&partId!=='__whole',overlap=broad&&(disc||!named);
+ return {partId,limb:broad?'center':p.limb,broad:overlap,disc,...(overlap&&named&&!isMountain(p.target)?{pointOnly:true}:{})};
 }
 function eventsFor(p,obs,start,{align,isMountain,view}){
  const o=searchOptions(p,isMountain),whole=o.partId==='__whole';
- const rows=view?view(start):(o.broad&&o.disc||whole&&!isMountain(p.target))?align.dailyView(obs,p.target,p.body,start,{partId:o.partId,eyeM:obs.eyeM}):align.upcoming(obs,p.target,p.body,{from:start,days:1,limit:Infinity,groupDays:false,partId:o.partId,limb:o.limb,eyeM:obs.eyeM,stepMs:3600000});
+ const rows=view?view(start):(o.broad&&o.disc||whole&&!isMountain(p.target))?align.dailyView(obs,p.target,p.body,start,{partId:o.partId,eyeM:obs.eyeM,...(o.pointOnly?{pointOnly:true}:{})}):
+ align.upcoming(obs,p.target,p.body,{from:start,days:1,limit:Infinity,groupDays:false,partId:o.partId,limb:o.limb,eyeM:obs.eyeM,stepMs:3600000});
  return o.broad?rows.map(e=>({...e,matchMode:'overlap',partId:o.partId})):rows;
 }
 function matches(e,p,isMountain){
  const o=searchOptions(p,isMountain);
  return o.broad||o.partId==='__whole'?!!e.intersects:Number.isFinite(e.gap)&&Math.abs(e.gap)<=Math.max(1/60,.2*(e.radius||0));
+}
+// Describe the representative event using positions already computed by the solver.
+// Direction is the celestial centre relative to the selected target, as seen from the observer.
+function passageText(event,plan){
+ if(!event||!plan?.target||!['sun','moon'].includes(plan.body)||!(event.radius>0))return '';
+ const mountain=!event.composition&&(!!plan.target.rim||plan.target.kind==='mountain');
+ const whole=!event.composition&&!mountain&&(!plan.partId||plan.partId==='__whole');
+ if(whole){
+  const p=event.targetPosition;if(!p||![p.x,p.y].every(Number.isFinite))return '';
+  const horizontal=p.x<1/3?'左':p.x>2/3?'右':'',vertical=p.y<1/3?'下':p.y>2/3?'上':'';
+  const position=horizontal+vertical;
+  return position?`全体の${position}寄りを通過`:'全体の中央付近を通過';
+ }
+ const part=plan.target.parts?.find(p=>p.id===plan.partId)||plan.target.parts?.[0];
+ const name=event.composition?'指定位置':mountain?'山頂':part?.name;
+ if(!name)return '';
+ let offset;
+ if(mountain){
+  if(![event.azimuth,event.targetAzimuth,event.targetAltitude].every(Number.isFinite))return '';
+  offset=(((event.azimuth-event.targetAzimuth+540)%360)-180)*Math.cos(event.targetAltitude*Math.PI/180);
+ }else offset=Number.isFinite(event.targetAltitude)&&Number.isFinite(event.altitude)?event.altitude-event.targetAltitude:plan.matchMode==='overlap'?event.gap:NaN;
+ if(!Number.isFinite(offset))return '';
+ if(Math.abs(offset)<=.2*event.radius)return mountain?'山頂の中心を通過':`${name}付近を通過`;
+ const direction=mountain?(offset<0?'左':'右'):(offset<0?'下':'上');
+ return `${name}の${direction}寄りを通過`;
 }
 // Registered paths/areas use ordered vertices, never the favorite's anchor.
 const SHAPE_STEP_M=25,SHAPE_LIMIT=12000;
@@ -5535,7 +5569,8 @@ async function shapeCandidates(p,entry,deps){
   if(!Number.isFinite(ground)){missing++;memo.set(key,null);return null;}
   const f={...entry.place,...position,elevation:ground,groundManualM:ground,sourcePlaceId:entry.place.id};delete f.shape;
   const obs=observerAt(f,ground),o=searchOptions(p,isMountain),view=viewFor?await viewFor(obs,p):null;check();
-  const probes=view?view(start):align.dailyView?align.dailyView(obs,p.target,p.body,start,{partId:o.partId,eyeM:obs.eyeM}).map(e=>{const exact=align.alignmentAt?.(obs,p.target,p.body,e.at,{partId:o.partId,limb:o.limb,eyeM:obs.eyeM});
+  const probes=view?view(start):align.dailyView?align.dailyView(obs,p.target,p.body,start,{partId:o.partId,eyeM:obs.eyeM,...(o.pointOnly?{pointOnly:true}:{})}).map(e=>{
+  const exact=align.alignmentAt?.(obs,p.target,p.body,e.at,{partId:o.partId,limb:o.limb,eyeM:obs.eyeM,...(o.pointOnly?{pointOnly:true}:{})});
   return {...e,gap:exact?.gap??e.gap,...(!o.disc&&exact?{spatialMatched:exact.matched}:{})};}):eventsFor(p,obs,start,{align,isMountain});
   const events=view?probes:(!o.disc||o.broad)&&align.dailyView?probes:eventsFor(p,obs,start,{align,isMountain});
   if(o.broad)for(const e of events){e.matchMode='overlap';e.partId=o.partId;}
@@ -5592,7 +5627,7 @@ function hapticGate({vibrate=()=>{},clock=Date.now}={}){
  let previous=false,last=-Infinity,identity='';
  return (matched,key)=>{if(key!==identity){identity=key;previous=false;}const entered=matched&&!previous;previous=!!matched;if(entered&&clock()-last>800){last=clock();try{vibrate(12);}catch{/* 振動は無くてもよい */}}return entered;};
 }
-global.AstroNotesShooting={day,point,savedObserver,conditions,queryKey,searchOptions,eventsFor,matches,candidates,hapticGate,cleanShape,shapeContains,shapePaths,shapeCandidates,meters,interpolate};
+global.AstroNotesShooting={day,point,savedObserver,conditions,queryKey,searchOptions,eventsFor,matches,passageText,candidates,hapticGate,cleanShape,shapeContains,shapePaths,shapeCandidates,meters,interpolate};
 if(typeof module!=='undefined'&&module.exports)module.exports=global.AstroNotesShooting;
 })(globalThis);
 
@@ -6337,6 +6372,7 @@ function aimIndexedCap(obs,eye,target){
   return pending.then(note);
 }
 async function aimShootingView(obs, target, body, partId, matchMode, indexed=false) {
+  if(matchMode==='overlap'&&partId&&partId!=='__whole'&&!aimIsMountain(target))return body==='sun'||body==='moon'?AstroNotesAlign.prepareDailyView(obs,target,body,{partId,eyeM:obs.eyeM,pointOnly:true}):null;
   if(matchMode!=='overlap'||!aimIsMountain(target))return null;
   const eye=obs.elevation+obs.eyeM;
   let cap=null,ridge;
@@ -6464,7 +6500,7 @@ const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
  const viewOf=(obs,p)=>{
   const k=JSON.stringify([obs,p.target,p.body,p.partId,p.limb,p.matchMode??null,atmosphere.dataKey?.()??null]);let v=views.get(k);
   if(!v){v=Promise.resolve().then(async()=>{const prepared=viewFor?await viewFor(obs,p):null;if(prepared)return prepared;const o=shooting.searchOptions(p,isMountain);
-  return o.broad&&o.disc||o.partId==='__whole'&&!isMountain(p.target)?align.prepareDailyView(obs,p.target,p.body,{partId:o.partId,eyeM:obs.eyeM}):null;}).catch(e=>{views.delete(k);throw e;});views.set(k,v);}
+  return o.broad&&o.disc||o.partId==='__whole'&&!isMountain(p.target)?align.prepareDailyView(obs,p.target,p.body,{partId:o.partId,eyeM:obs.eyeM,...(o.pointOnly?{pointOnly:true}:{})}):null;}).catch(e=>{views.delete(k);throw e;});views.set(k,v);}
   return v;
  };
  const closeness=(ctx,e)=>ctx.family==='overlap'?(Number.isFinite(e.distanceToTarget)?e.distanceToTarget-(e.radius||0):Infinity):(Number.isFinite(e.gap)?Math.abs(e.gap)-Math.max(1/60,.2*(e.radius||0)):Infinity);
@@ -6884,11 +6920,13 @@ const preferRecordHeight=async function preferRecordHeight({min,max,seed,evaluat
 const RecordAlignment=(function createRecordAlignmentPolicy({isMountain,limbs}){
  const parts=t=>(t?.parts||[]).filter(p=>typeof p.id==='string'&&p.id!=='__whole'&&Number.isFinite(p.m));
  const whole=t=>({partId:isMountain(t)?null:'__whole',limb:'center',matchMode:'overlap'});
- function clean(t,v){if(!v)return whole(t);if(v.matchMode==='overlap'||v.partId==='__whole')return whole(t);const part=v.partId==null?parts(t)[0]:parts(t).find(p=>p.id===v.partId);if(v.matchMode!=='limb'||!part||!limbs.some(l=>l.id===v.limb))return null;
+ function clean(t,v){if(!v)return whole(t);if(v.partId==='__whole'||v.matchMode==='overlap'&&!v.partId)return whole(t);
+ if(v.matchMode==='overlap'){const part=parts(t).find(p=>p.id===v.partId);return part?{partId:part.id,limb:'center',matchMode:'overlap'}:null;}
+ const part=v.partId==null?parts(t)[0]:parts(t).find(p=>p.id===v.partId);if(v.matchMode!=='limb'||!part||!limbs.some(l=>l.id===v.limb))return null;
  return {partId:part.id,limb:v.limb,matchMode:'limb'};}
  const map=p=>p?.recordAlignments==null?{}:typeof p.recordAlignments==='object'&&!Array.isArray(p.recordAlignments)?p.recordAlignments:null;
  const key=p=>map(p)===null?'invalid:'+JSON.stringify(p.recordAlignments):JSON.stringify(Object.entries(map(p)).sort(([a],[b])=>a.localeCompare(b)).map(([id,v])=>[id,v?.partId??null,v?.limb,v?.matchMode]));
- const text=(t,v)=>v?.matchMode==='overlap'?'全体':(parts(t).find(p=>p.id===v?.partId)?.name||'部位')+'・'+(limbs.find(l=>l.id===v?.limb)?.name||'真ん中');
+ const text=(t,v)=>v?.matchMode==='overlap'?(v.partId&&v.partId!=='__whole'?(parts(t).find(p=>p.id===v.partId)?.name||'部位')+'を通過':'全体'):(parts(t).find(p=>p.id===v?.partId)?.name||'部位')+'・'+(limbs.find(l=>l.id===v?.limb)?.name||'真ん中');
  return {parts,whole,clean,map,key,text};
 })({isMountain:aimIsMountain,limbs:AstroNotesAlign.LIMBS});
 function recordMatchOpts(target,place,body){
@@ -7268,7 +7306,7 @@ function recordSolverFor(session,variant,shaped,override){
   if(shaped&&variant==='discovery')return null;
   const o=AstroNotesShooting.searchOptions(p,aimIsMountain);
   if(!(o.broad&&o.disc||o.partId==='__whole'&&!aimIsMountain(p.target)))return null;
-  return prepare(obs,p.target,p.body,{partId:o.partId,eyeM:obs.eyeM});
+  return prepare(obs,p.target,p.body,{partId:o.partId,eyeM:obs.eyeM,...(o.pointOnly?{pointOnly:true}:{})});
  };
  const elevationAt=(lat,lon)=>{
   const key=lat+','+lon;

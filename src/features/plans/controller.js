@@ -45,7 +45,9 @@ function planSnapshot(button) {
     const source=$('skyMapCanvas'),scene=document.createElement('canvas');scene.width=source.width;scene.height=source.height;scene.getContext('2d').drawImage(source,0,0);
     const st=AstroNotesBodies.state(p.body,at,{...observer,elevation:observer.elevation+eyeM});
     s={title:`${AstroNotesBodies.definition(p.body).name} × ${t.name}`,at,observer,target:t,start:at-900000,end:at+900000,created,scene,rows:[['撮影日時',AstroNotesPlan.dateTime(at)+'（日本時間）'],['撮影地点',`${observer.name} / 緯度 ${observer.latitude.toFixed(6)}・経度 ${observer.longitude.toFixed(6)}`],['高さ',
-    `標高 ${aimM(observer.elevation)}m / 地上から ${aimM(eyeM)}m`],['重ね方',p.matchMode==='overlap'?'全体に重なる':AstroNotesAlign.limbById(p.limb).name],['見る方向',`方位 ${st.azimuth.toFixed(1)}° / 高度 ${st.apparentAltitude.toFixed(2)}°`]],note:'地図：国土地理院。位置と時刻の計算です。共有リンクでは同じ条件の構図を確認できます。'};
+    `標高 ${aimM(observer.elevation)}m / 地上から ${aimM(eyeM)}m`],
+    ['重ね方',p.matchMode==='overlap'?(p.partId&&p.partId!=='__whole'?(t.parts.find(x=>x.id===p.partId)?.name||'指定位置')+'を通過':'全体に重なる'):AstroNotesAlign.limbById(p.limb).name],
+    ['見る方向',`方位 ${st.azimuth.toFixed(1)}° / 高度 ${st.apparentAltitude.toFixed(2)}°`]],note:'地図：国土地理院。位置と時刻の計算です。共有リンクでは同じ条件の構図を確認できます。'};
   } else {
     const host=$('aimLook'),spec=host._lookSpec,cv=host.querySelector('[data-look-canvas]');
     if(globalThis.TrialExplore?.active())globalThis.TrialExplore.assertScene();
@@ -70,7 +72,7 @@ function planSnapshot(button) {
     s={title:`${name} × ${t.name}`,at,observer,target:t,start,end,created,scene,fullFrameMm:focal*Math.hypot(36,24)/Math.hypot(...AIM_SENSOR[aimLens.sensor]),
       rows:[['撮影地点',`${observer.name} / 緯度 ${observer.latitude.toFixed(6)}・経度 ${observer.longitude.toFixed(6)}`],
         ['高さ',`地面の標高 ${aimM(observer.elevation)}m / 地上から ${aimM(spec.eyeM)}m`],
-        ['対象・重ね方',`${t.name} / ${part?.name || '全体'} / ${aim.matchMode==='overlap'?'全体に重なる':AstroNotesAlign.LIMBS.find(l=>l.id===aim.limb)?.name || '真ん中'}`],
+        ['対象・重ね方',`${t.name} / ${part?.name || '全体'} / ${aim.matchMode==='overlap'?(aim.partId&&aim.partId!=='__whole'?'円盤が通過':'全体に重なる'):AstroNotesAlign.LIMBS.find(l=>l.id===aim.limb)?.name || '真ん中'}`],
         ['見る方向',`天体の方位 ${st.azimuth.toFixed(1)}° / 高度 ${st.apparentAltitude.toFixed(2)}°（真北0°・東90°）`],
         ['重なる・最接近の基準時刻',`${AstroNotesPlan.dateTime(spec.at)}（日本時間）`],
         ...(payload.timelapse?[['タイムラプス',`${payload.timelapse.interval}秒間隔 / ${payload.timelapse.count}枚 / ${payload.timelapse.fps}fps / 動画 ${(payload.timelapse.count/payload.timelapse.fps).toFixed(2)}秒`]]:[]),

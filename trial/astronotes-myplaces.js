@@ -556,7 +556,7 @@ function checkOverlap(s){
   const model=AstroNotesAlign.outlineModel(s.target);
   // The observer's projection of the model is independent of the selected instant.
   if(overlapCheck?.key!==key||overlapCheck.model!==model){
-   const opts={partId:o.partId,limb:o.limb,eyeM:0};
+   const opts={partId:o.partId,limb:o.limb,eyeM:0,...(o.pointOnly?{pointOnly:true}:{})};
    const judge=broad?AstroNotesAlign.prepareDailyView(s.eye,s.target,s.body,opts):AstroNotesAlign.prepareAlignmentAt(s.eye,s.target,s.body,opts);
    overlapCheck={key,model,judge};
   }
@@ -1283,7 +1283,7 @@ const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
  const viewOf=(obs,p)=>{
   const k=JSON.stringify([obs,p.target,p.body,p.partId,p.limb,p.matchMode??null,atmosphere.dataKey?.()??null]);let v=views.get(k);
   if(!v){v=Promise.resolve().then(async()=>{const prepared=viewFor?await viewFor(obs,p):null;if(prepared)return prepared;const o=shooting.searchOptions(p,isMountain);
-  return o.broad&&o.disc||o.partId==='__whole'&&!isMountain(p.target)?align.prepareDailyView(obs,p.target,p.body,{partId:o.partId,eyeM:obs.eyeM}):null;}).catch(e=>{views.delete(k);throw e;});views.set(k,v);}
+  return o.broad&&o.disc||o.partId==='__whole'&&!isMountain(p.target)?align.prepareDailyView(obs,p.target,p.body,{partId:o.partId,eyeM:obs.eyeM,...(o.pointOnly?{pointOnly:true}:{})}):null;}).catch(e=>{views.delete(k);throw e;});views.set(k,v);}
   return v;
  };
  const closeness=(ctx,e)=>ctx.family==='overlap'?(Number.isFinite(e.distanceToTarget)?e.distanceToTarget-(e.radius||0):Infinity):(Number.isFinite(e.gap)?Math.abs(e.gap)-Math.max(1/60,.2*(e.radius||0)):Infinity);
@@ -1703,45 +1703,56 @@ const preferRecordHeight=async function preferRecordHeight({min,max,seed,evaluat
 const RecordAlignment=(function createRecordAlignmentPolicy({isMountain,limbs}){
  const parts=t=>(t?.parts||[]).filter(p=>typeof p.id==='string'&&p.id!=='__whole'&&Number.isFinite(p.m));
  const whole=t=>({partId:isMountain(t)?null:'__whole',limb:'center',matchMode:'overlap'});
- function clean(t,v){if(!v)return whole(t);if(v.matchMode==='overlap'||v.partId==='__whole')return whole(t);const part=v.partId==null?parts(t)[0]:parts(t).find(p=>p.id===v.partId);if(v.matchMode!=='limb'||!part||!limbs.some(l=>l.id===v.limb))return null;
+ function clean(t,v){if(!v)return whole(t);if(v.partId==='__whole'||v.matchMode==='overlap'&&!v.partId)return whole(t);
+ if(v.matchMode==='overlap'){const part=parts(t).find(p=>p.id===v.partId);return part?{partId:part.id,limb:'center',matchMode:'overlap'}:null;}
+ const part=v.partId==null?parts(t)[0]:parts(t).find(p=>p.id===v.partId);if(v.matchMode!=='limb'||!part||!limbs.some(l=>l.id===v.limb))return null;
  return {partId:part.id,limb:v.limb,matchMode:'limb'};}
  const map=p=>p?.recordAlignments==null?{}:typeof p.recordAlignments==='object'&&!Array.isArray(p.recordAlignments)?p.recordAlignments:null;
  const key=p=>map(p)===null?'invalid:'+JSON.stringify(p.recordAlignments):JSON.stringify(Object.entries(map(p)).sort(([a],[b])=>a.localeCompare(b)).map(([id,v])=>[id,v?.partId??null,v?.limb,v?.matchMode]));
- const text=(t,v)=>v?.matchMode==='overlap'?'全体':(parts(t).find(p=>p.id===v?.partId)?.name||'部位')+'・'+(limbs.find(l=>l.id===v?.limb)?.name||'真ん中');
+ const text=(t,v)=>v?.matchMode==='overlap'?(v.partId&&v.partId!=='__whole'?(parts(t).find(p=>p.id===v.partId)?.name||'部位')+'を通過':'全体'):(parts(t).find(p=>p.id===v?.partId)?.name||'部位')+'・'+(limbs.find(l=>l.id===v?.limb)?.name||'真ん中');
  return {parts,whole,clean,map,key,text};
 })({isMountain:aimIsMountain,limbs:AstroNotesAlign.LIMBS});
 function recordAlignmentInit(){const s=sheetState;if(!s||s.ctx!=='records'||s.alignmentDraft)return;s.alignmentDraft=structuredClone(RecordAlignment.map(s.place)||{});s.alignmentBaseline=RecordAlignment.key(placeOf(s.place.id)||s.place);}
 function recordAlignmentDirty(){return sheetState?.ctx==='records'&&!!sheetState.alignmentDraft&&RecordAlignment.key({recordAlignments:sheetState.alignmentDraft})!==sheetState.alignmentBaseline;}
 function applyRecordAlignments(){
  const s=sheetState;if(s?.ctx!=='records')return true;recordAlignmentInit();const selected=[];
- for(const t of s.draftTargets){const target=resolveTarget(t.key),value=RecordAlignment.clean(target,s.alignmentDraft[t.key]);if(!value)return false;if(value.matchMode!=='overlap')selected.push([t.key,value]);}
+ for(const t of s.draftTargets){const target=resolveTarget(t.key),value=RecordAlignment.clean(target,s.alignmentDraft[t.key]);if(!value)return false;if(value.matchMode!=='overlap'||value.partId&&value.partId!=='__whole')selected.push([t.key,value]);}
  if(selected.length)s.place.recordAlignments=Object.fromEntries(selected);else delete s.place.recordAlignments;return true;
 }
-function alignmentControls(host,target,value,{body=null,key='',summitOnly=false,change}){
- const options=[['__whole','全体'],...RecordAlignment.parts(target).map(p=>[p.id,p.name||p.id])],canonical=RecordAlignment.clean(target,value),signature=JSON.stringify([target?.id,options,!!AstroNotesBodies.definition(body)?.limbs,summitOnly]);
+function alignmentControls(host,target,value,{body=null,key='',summitOnly=false,showLimb=true,change}){
+ const options=[['__whole','全体'],...RecordAlignment.parts(target).map(p=>[p.id,p.name||p.id])],canonical=RecordAlignment.clean(target,value),signature=JSON.stringify([target?.id,options,!!AstroNotesBodies.definition(body)?.limbs,summitOnly,showLimb]);
  if(host.dataset.alignmentSignature!==signature||!host.firstElementChild){
   host.dataset.alignmentSignature=signature;host.replaceChildren();const label=document.createElement('label');label.className='record-alignment-position';const title=document.createElement('span');title.className='tiny';title.textContent='重ねる位置';const select=document.createElement('select');
-  select.className='fav-in';select.setAttribute('aria-label',target.name+'に重ねる位置');select.dataset.recordAlignment=key;select.replaceChildren(...options.map(([id,name])=>new Option(name,id)));label.append(title,select);const limbs=document.createElement('label');
-  limbs.className='record-alignment-limbs';const limbSelect=document.createElement('select');limbSelect.className='fav-in';limbSelect.setAttribute('aria-label',target.name+'に合わせる天体の部分');for(const limb of AstroNotesAlign.LIMBS)limbSelect.add(new Option(limb.name,limb.id));limbs.append(limbSelect);
-  if(summitOnly)label.style.display="none";host.append(label,limbs);
+  select.className='fav-in';select.setAttribute('aria-label',target.name+'に重ねる位置');select.dataset.recordAlignment=key;select.replaceChildren(...options.map(([id,name])=>new Option(name,id)));label.append(title,select);
+  if(summitOnly)label.style.display="none";host.append(label);
+  if(showLimb){
+   const limbs=document.createElement('label'),limbSelect=document.createElement('select');
+   limbs.className='record-alignment-limbs';limbSelect.className='fav-in';limbSelect.setAttribute('aria-label',target.name+'に合わせる天体の部分');
+   for(const limb of AstroNotesAlign.LIMBS)limbSelect.add(new Option(limb.name,limb.id));
+   limbs.append(limbSelect);host.append(limbs);
+  }
  }
  const select=host.querySelector('select'),limbHost=host.querySelector('.record-alignment-limbs');
- const invalid=select.querySelector('option[value="invalid"]');if(invalid)invalid.remove();if(!canonical){const o=new Option('部位を選び直してください','invalid');o.disabled=true;select.prepend(o);}select.value=canonical?.matchMode==='overlap'?'__whole':canonical?.partId||'invalid';
- select.onchange=()=>{const next=select.value==='__whole'?RecordAlignment.whole(target):RecordAlignment.clean(target,{partId:select.value,limb:canonical?.limb||'center',matchMode:'limb'});if(next)change(next,'part');};
+ const invalid=select.querySelector('option[value="invalid"]');if(invalid)invalid.remove();if(!canonical){const o=new Option('部位を選び直してください','invalid');o.disabled=true;select.prepend(o);}select.value=canonical?.partId??(canonical?.matchMode==='overlap'?'__whole':'invalid');
+ select.onchange=()=>{
+  const next=select.value==='__whole'?RecordAlignment.whole(target):RecordAlignment.clean(target,{partId:select.value,limb:showLimb?(canonical?.limb||'center'):'center',
+  matchMode:showLimb||body!==null&&!AstroNotesBodies.definition(body)?.limbs?'limb':'overlap'});if(next)change(next,'part');};
+ if(!limbHost)return;
  limbHost.hidden=!canonical||canonical.matchMode==='overlap'||(body!==null&&!AstroNotesBodies.definition(body)?.limbs);const limbSelect=limbHost.querySelector('select');limbSelect.value=canonical?.limb||'center';
  limbSelect.onchange=()=>{if(canonical)change({...canonical,limb:limbSelect.value},'limb');};
 }
 function appendRecordAlignment(row,t){
  if(sheetState?.ctx!=='records')return;recordAlignmentInit();const target=resolveTarget(t.key);if(!target)return;const box=document.createElement('div');box.className='record-alignment-editor';row.append(box);
- alignmentControls(box,target,sheetState.alignmentDraft[t.key],{key:t.key,change:(next,field)=>{if(!sheetOwnerMatches())return;if(next.matchMode==='overlap')delete sheetState.alignmentDraft[t.key];else sheetState.alignmentDraft[t.key]=next;applyRecordAlignments();renderSheet();
+ alignmentControls(box,target,sheetState.alignmentDraft[t.key],{key:t.key,change:(next,field)=>{if(!sheetOwnerMatches())return;
+ if(next.matchMode==='overlap'&&(!next.partId||next.partId==='__whole'))delete sheetState.alignmentDraft[t.key];else sheetState.alignmentDraft[t.key]=next;applyRecordAlignments();renderSheet();
  requestAnimationFrame(()=>{const nextBox=[...sheet.querySelectorAll('[data-record-alignment]')].find(n=>n.dataset.recordAlignment===t.key)?.closest('.record-alignment-editor');
  (field==='part'?nextBox?.querySelector('select'):nextBox?.querySelector('.record-alignment-limbs select'))?.focus({preventScroll:true});});}});
 }
 function renderSkyAlignment(s){
- const detail=el('skyMapAlignmentDetails'),host=el('skyMapAlignmentControls');const summitOnly=aimIsMountain(s?.target);detail.hidden=!s?.target||globalThis.AstroNotesTrialOverlap?.isAll(s)===true||summitOnly&&!AstroNotesBodies.definition(s.body)?.limbs;
+ const detail=el('skyMapAlignmentDetails'),host=el('skyMapAlignmentControls');const summitOnly=aimIsMountain(s?.target);detail.hidden=!s?.target||globalThis.AstroNotesTrialOverlap?.isAll(s)===true||summitOnly;
  if(!el('skyMapAlignmentSummary').firstElementChild)el('skyMapAlignmentSummary').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="8.5" cy="8.5" r="6.5"/><circle cx="15.5" cy="15.5" r="6.5"/></svg><span>重ね方</span>';
  if(detail.hidden){host.replaceChildren();delete host.dataset.alignmentSignature;return;}
- alignmentControls(host,s.target,s,{body:s.body,summitOnly,change:next=>{if(skySession!==s||!auth?.token||!toolAllowed('skymap'))return;SkyMapUI.setAlignment(next.partId,next.limb,next.matchMode);}});
+ alignmentControls(host,s.target,s,{body:s.body,summitOnly,showLimb:false,change:next=>{if(skySession!==s||!auth?.token||!toolAllowed('skymap'))return;SkyMapUI.setAlignment(next.partId,next.limb,next.matchMode);}});
 }
 function recordMatchOpts(target,place,body){
  const map=RecordAlignment.map(place);if(map===null)return null;const value=RecordAlignment.clean(target,map[target.key||target.id]);if(!value)return null;return body&&!AstroNotesBodies.definition(body)?.limbs?{...value,limb:'center'}:value;
@@ -1758,7 +1769,9 @@ function prepareAlignedQuickRecord(args){
  const knownKey=args.target.key||args.target.id,records=plan.observations.filter(r=>r.placeId===plan.place.id&&!r.removed),added=plan.observations.slice(args.observations.length).filter(r=>r.placeId===plan.place.id&&!r.removed),
  matching=records.filter(r=>r.target.latitude===args.target.latitude&&r.target.longitude===args.target.longitude&&r.target.name===args.target.name),keys=[...new Set(matching.map(r=>r.target.key))];
  const targetKey=records.some(r=>r.target.key===knownKey)?knownKey:added.length===1?added[0].target.key:keys.length===1?keys[0]:null;if(!targetKey){if(value.matchMode==='overlap')return plan;throw Error('重ね方を保存できません。記録の編集から対象を追加してください');}
- const next=plan.favorites.find(f=>f.id===plan.place.id),old=RecordAlignment.key(next),map={...(next.recordAlignments||{})};if(value.matchMode==='overlap')delete map[targetKey];else map[targetKey]=value;if(Object.keys(map).length)next.recordAlignments=map;else delete next.recordAlignments;
+ const next=plan.favorites.find(f=>f.id===plan.place.id),old=RecordAlignment.key(next),map={...(next.recordAlignments||{})};
+
+ if(value.matchMode==='overlap'&&(!value.partId||value.partId==='__whole'))delete map[targetKey];else map[targetKey]=value;if(Object.keys(map).length)next.recordAlignments=map;else delete next.recordAlignments;
  if(old!==RecordAlignment.key(next)){plan.already=false;if(!plan.changedFavorites.includes(next.id))plan.changedFavorites.push(next.id);}if(JSON.stringify(next).length>20000)throw Error('撮影地点の設定が多すぎて保存できません。重ね方の指定を減らしてください');return plan;
 }
 
@@ -2593,7 +2606,7 @@ function recordSolverFor(session,variant,shaped,override){
   if(shaped&&variant==='discovery')return null;
   const o=AstroNotesShooting.searchOptions(p,aimIsMountain);
   if(!(o.broad&&o.disc||o.partId==='__whole'&&!aimIsMountain(p.target)))return null;
-  return prepare(obs,p.target,p.body,{partId:o.partId,eyeM:obs.eyeM});
+  return prepare(obs,p.target,p.body,{partId:o.partId,eyeM:obs.eyeM,...(o.pointOnly?{pointOnly:true}:{})});
  };
  const elevationAt=(lat,lon)=>{
   const key=lat+','+lon;

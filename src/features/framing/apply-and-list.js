@@ -71,7 +71,7 @@ function aimApply({ redraw = true, recenter = false, reuseProjection = false } =
   // **選び直した高さは、選択肢を作り直す前に読む。** aimFillParts は aim.partId で選び直すので、
   // 後で読むと元の値（先端）に戻る（2026-09-25 から 10-01 まで高さを替えられなかった。
   // ユーザー「スカイツリーで場所は曽谷を選んで、どこに重ねるかが先端から動かせない」）
-  if(aim.matchMode === "overlap") {aim.partId=aimIsMountain(aim.target)?null:"__whole";$("aimPart").value=aim.partId||"";}
+  if(aim.matchMode === "overlap"&&!aim.target?.parts?.some(p=>p.id===aim.partId)) {aim.partId=aimIsMountain(aim.target)?null:"__whole";$("aimPart").value=aim.partId||"";}
   else aim.partId = $("aimPart").value || aim.partId;
   aimFillParts();
   $("aimAlignmentDetails").hidden = !(aim.target?.parts||[]).length;

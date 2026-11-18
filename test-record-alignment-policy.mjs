@@ -3,3 +3,10 @@ const A=createRecordAlignmentPolicy({isMountain:t=>t?.kind==='mountain',limbs:[{
 test('full overlap and every existing named part/limb remain allowed',()=>{assert.deepEqual(A.clean(tower,null),{partId:'__whole',limb:'center',matchMode:'overlap'});for(const part of tower.parts)for(const limb of ['onTop','center','behind'])assert.deepEqual(A.clean(tower,{partId:part.id,limb,matchMode:'limb'}),{partId:part.id,limb,matchMode:'limb'});assert.equal(A.clean({...tower,kind:'mountain'},null).partId,null);});
 test('old whole and null-part links are represented without inventing unavailable parts',()=>{assert.equal(A.clean(tower,{partId:'__whole',limb:'center',matchMode:'limb'}).matchMode,'overlap');assert.equal(A.clean(tower,{partId:null,limb:'center',matchMode:'limb'}).partId,'tip');assert.equal(A.clean(tower,{partId:'removed',limb:'center',matchMode:'limb'}),null);assert.equal(A.clean(tower,{partId:'tip',limb:'bad',matchMode:'limb'}),null);assert.equal(A.clean(tower,{partId:'tip',limb:'center',matchMode:'bad'}),null);});
 test('per-target policies have a stable order-independent concurrency key',()=>{const one={partId:'tip',limb:'onTop',matchMode:'limb'},two={partId:'deck',limb:'behind',matchMode:'limb'};assert.equal(A.key({recordAlignments:{a:one,b:two}}),A.key({recordAlignments:{b:two,a:one}}));assert.notEqual(A.key({recordAlignments:{a:one}}),A.key({recordAlignments:{a:two}}));assert.equal(A.text(tower,one),'先端・下の縁');});
+
+test('a named passage retains its part and describes disc passage separately from legacy limb alignment',()=>{
+ const crossing={partId:'tip',limb:'center',matchMode:'overlap'};
+ assert.deepEqual(A.clean(tower,crossing),crossing);
+ assert.equal(A.text(tower,crossing),'先端を通過');
+ assert.equal(A.clean(tower,{...crossing,partId:'missing'}),null);
+});

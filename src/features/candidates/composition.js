@@ -182,7 +182,7 @@ function groupTree(groups){
  const mid=Math.floor(groups.length/2);
  return {...box,left:groupTree(groups.slice(0,mid)),right:groupTree(groups.slice(mid))};
 }
-function clusters(polygons,rings){
+function outlineClusters(polygons,rings){
  if(clusterCache.has(polygons))return clusterCache.get(polygons);
  const order=rings.map((r,i)=>i).sort((a,b)=>(rings[a].minX+rings[a].maxX)-(rings[b].minX+rings[b].maxX)||a-b),groups=[];
  for(let k=0;k<order.length;k+=32){
@@ -208,7 +208,7 @@ function insideTree(x,y,node,rings){
  return false;
 }
 function closestPoint(p,polygons){
- const px=p[0],py=p[1],rings=flat(polygons),tree=clusters(polygons,rings);
+ const px=p[0],py=p[1],rings=flat(polygons),tree=outlineClusters(polygons,rings);
  if(!tree)return {point:[0,0],distance:Infinity};
  if(insideTree(px,py,tree,rings))return {point:p,distance:0};
  let distance=Infinity,nx=0,ny=0,bestRing=Infinity,bestEdge=Infinity;
@@ -366,12 +366,14 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
  const g=c?geometry(observer,target,c,align):align.geometryFrom(observer,target,{partId:plan.partId==='__whole'?null:plan.partId,eyeM});
  if(!g||![g.azimuth,g.angle,g.topM,g.distanceKm].every(Number.isFinite))return empty('target-geometry-unknown',true);
  const partTarget=align.partTarget?.(target,plan.partId==='__whole'?null:plan.partId)||target;
- const strict=!!(c||plan.strict||plan.profile==='summit-contact'||target.rim),project=align.viewProjector(g.azimuth,g.angle),anchor=g.anchor||{latitude:partTarget.latitude,longitude:partTarget.longitude,heightM:g.topM};
+ const strict=!!(c||plan.strict||plan.profile==='summit-contact'||target.rim&&plan.matchMode!=='overlap'),project=align.viewProjector(g.azimuth,g.angle),anchor=g.anchor||{latitude:partTarget.latitude,longitude:partTarget.longitude,heightM:g.topM};
  const pointBody=!(bodies.definition?.(plan.body)?.limbs??['sun','moon'].includes(plan.body)),whole=!plan.partId||plan.partId==='__whole';
  const outline=pointBody||!strict&&whole?align.towerOutline?.(observer,target,{eyeM}):null;
  const selfPolygons=outline?.known&&!outline.schematic?(outline.hitPolygons||outline.polygons||[outline.hitPoints||outline.points]).filter(Boolean).map(r=>r.map(p=>project(p[0],p[1])).filter(Boolean)).filter(r=>r.length>=3):[];
  const polygons=!strict&&whole?selfPolygons:[];
  const ridge=!c&&target.rim?ridgeGeometry(observer,target,align):null;if(!c&&target.rim&&!ridge)return empty('ridge-data-unavailable',true);
+ const targetBounds=polygons.length?outlineClusters(polygons,flat(polygons)):null;
+ const passage=!strict&&!pointBody&&plan.matchMode==='overlap'&&(!whole||!!ridge);
  const geometryKind=ridge?'ridge':polygons.length?'silhouette':'anchor',samples=new Map();let calls=0,exhausted=false,unknown=false,cancelled=false;
  const limit=Math.max(1,Math.floor(Number.isFinite(budget)?budget:12000));
  async function evaluate(at){
@@ -384,14 +386,14 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
   const chosen=limbKind(c?.limb||(policy.disc?plan.limb:'center')),height=limb(st,chosen),xy=activeProject(st.azimuth,strict?height:st.apparentAltitude);
   if(!xy)return {at,score:Infinity,eligible:false,state:st};
   const near=polygons.length?closestPoint(xy,polygons):{point:[0,0],distance:Math.hypot(...xy)},angle=Math.atan(near.distance*rad)/rad;
-  const gap=strict?Math.atan(Math.hypot(...xy)*rad)/rad:Math.max(0,angle-policy.radius),tolerance=c ? .002 : strict ? 1/60 : policy.tolerance;
+  const gap=strict?Math.atan(Math.hypot(...xy)*rad)/rad:Math.max(0,angle-policy.radius),tolerance=c ? .002 : strict ? 1/60 : passage ? 0 : policy.tolerance;
   const overlaps=!strict&&angle<=policy.radius,dx=xy[0]-near.point[0],dy=xy[1]-near.point[1],below=!strict&&!overlaps&&dy<0&&Math.abs(dy)>Math.abs(dx);
   const center=pointBody&&project(st.azimuth,st.apparentAltitude),selfOccluded=!!(center&&selfPolygons.length&&closestPoint(center,selfPolygons).distance<=1e-8);
   // An elevated observer can see below their local horizontal plane. This is
   // only the ellipsoid horizon; terrain/buildings are the evaluator's job.
   const horizon=horizonAt(elevation+eyeM);
   const above=(st.upperAltitude??st.apparentAltitude+policy.radius)>=horizon;
-  const row={at,score:gap-tolerance,eligible:above&&!below&&!selfOccluded&&gap<=tolerance+1e-10,state:st,gap,tolerance,overlaps,below,above,selfOccluded,geometryKind,geometry:activeGeometry,anchor:activeAnchor};samples.set(at,row);return row;
+  const row={at,score:passage?angle-policy.radius:gap-tolerance,centerDistance:angle,centerXY:xy,eligible:above&&!below&&!selfOccluded&&gap<=tolerance+1e-10,state:st,gap,tolerance,overlaps,below,above,selfOccluded,geometryKind,geometry:activeGeometry,anchor:activeAnchor};samples.set(at,row);return row;
  }
  let windows=[],riseLimited=false;
  if(plan.timeWindow?.kind&&plan.timeWindow.kind!=='none'){
@@ -448,11 +450,13 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
  }
  const solutions=[];
  for(const cluster of clusters){
-  const best=cluster.reduce((a,b)=>b.gap<a.gap?b:a),interval=[cluster[0].at,cluster.at(-1).at];let sunAltitude=null,side=null;
+  const best=cluster.reduce((a,b)=>b.gap<a.gap||passage&&b.gap===a.gap&&b.centerDistance<a.centerDistance?b:a),interval=[cluster[0].at,cluster.at(-1).at];let sunAltitude=null,side=null;
   try{sunAltitude=bodies.state('sun',best.at,eye).apparentAltitude;side=bodies.state(plan.body,best.at+1000,eye).apparentAltitude<best.state.apparentAltitude?'set':'rise';}catch{unknown=true;}
   const contactLimb=limbKind(c?.limb||plan.limb),event={at:range.kind==='instant'?range.start:best.at,intersects:strict||best.overlaps,nearTarget:!strict,
-  relation:strict?(contactLimb!=='center'?'edge-contact':'anchor-hit'):best.overlaps?(geometryKind==='silhouette'?'silhouette-overlap':'anchor-hit'):'near',matchMode:strict?'limb':'near',partId:plan.partId||'tip',contactLimb,gapAngleDeg:best.gap,gapAngleRad:best.gap*rad,
-  toleranceAngleDeg:best.tolerance,toleranceAngleRad:best.tolerance*rad,radius:best.state.angularRadius,altitude:best.state.apparentAltitude,azimuth:best.state.azimuth,sunAltitude,side,targetGeometryKind:geometryKind,timeInterval:interval,timeIntervalSampled:true,visibility:'unknown',...(c?{
+  relation:strict?(contactLimb!=='center'?'edge-contact':'anchor-hit'):best.overlaps?(geometryKind==='silhouette'?'silhouette-overlap':'anchor-hit'):'near',matchMode:strict?'limb':passage?'overlap':'near',partId:plan.partId||'tip',contactLimb,gapAngleDeg:best.gap,gapAngleRad:best.gap*rad,
+  toleranceAngleDeg:best.tolerance,toleranceAngleRad:best.tolerance*rad,radius:best.state.angularRadius,altitude:best.state.apparentAltitude,azimuth:best.state.azimuth,
+  targetAzimuth:g.azimuth,targetAltitude:g.angle,...(targetBounds?{targetPosition:{
+    x:(best.centerXY[0]-targetBounds.minX)/(targetBounds.maxX-targetBounds.minX),y:(best.centerXY[1]-targetBounds.minY)/(targetBounds.maxY-targetBounds.minY)}}:{}),sunAltitude,side,targetGeometryKind:geometryKind,timeInterval:interval,timeIntervalSampled:true,visibility:'unknown',...(c?{
   composition:{...c},compositionResidualDeg:best.gap}:{})};
   solutions.push({observer:{...observer},event,geometry:{...best.geometry},anchor:{...best.anchor}});
  }

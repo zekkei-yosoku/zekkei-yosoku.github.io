@@ -350,7 +350,7 @@ function recordSolverFor(session,variant,shaped,override){
   if(shaped&&variant==='discovery')return null;
   const o=AstroNotesShooting.searchOptions(p,aimIsMountain);
   if(!(o.broad&&o.disc||o.partId==='__whole'&&!aimIsMountain(p.target)))return null;
-  return prepare(obs,p.target,p.body,{partId:o.partId,eyeM:obs.eyeM});
+  return prepare(obs,p.target,p.body,{partId:o.partId,eyeM:obs.eyeM,...(o.pointOnly?{pointOnly:true}:{})});
  };
  const elevationAt=(lat,lon)=>{
   const key=lat+','+lon;

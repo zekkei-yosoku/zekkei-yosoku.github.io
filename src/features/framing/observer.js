@@ -831,6 +831,7 @@ function aimIndexedCap(obs,eye,target){
   return pending.then(note);
 }
 async function aimShootingView(obs, target, body, partId, matchMode, indexed=false) {
+  if(matchMode==='overlap'&&partId&&partId!=='__whole'&&!aimIsMountain(target))return body==='sun'||body==='moon'?AstroNotesAlign.prepareDailyView(obs,target,body,{partId,eyeM:obs.eyeM,pointOnly:true}):null;
   if(matchMode!=='overlap'||!aimIsMountain(target))return null;
   const eye=obs.elevation+obs.eyeM;
   let cap=null,ridge;
@@ -855,9 +856,9 @@ async function aimBuildingDays(obs, target, body, partId, seq, { from = Date.now
    while(cache.size>8)cache.delete(cache.keys().next().value);onScanned(scannedTo);}return viaEngine;}}
   let scanned=start;
   const whole = partId === "__whole", mountain = typeof aimIsMountain === "function" && aimIsMountain(target);
-  // Match eventsFor/searchOptions: overlap uses the whole building, or the mountain rim.
-  const options = {partId:matchMode==='overlap'?(mountain?null:'__whole'):partId,eyeM:obs.eyeM};
-  const useView = matchMode === 'overlap' || whole&&!mountain;
+  // Match eventsFor/searchOptions: a named part uses point contact; whole targets keep their outline or mountain rim.
+  const options = {...AstroNotesShooting.searchOptions({target,body,partId,limb,matchMode},()=>mountain),eyeM:obs.eyeM};
+  const useView = options.broad || whole&&!mountain;
   const mountainView=useView&&mountain&&matchMode==='overlap'?await aimShootingView(obs,target,body,partId,matchMode):null;
   if(!isCurrent())return [];
   const view = mountainView || (useView && typeof AstroNotesAlign.prepareDailyView==='function' ? AstroNotesAlign.prepareDailyView(obs,target,body,options) : null);

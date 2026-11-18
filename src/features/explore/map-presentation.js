@@ -57,7 +57,7 @@ import {UI_ICONS} from '../../ui/visual-primitives.js';
  function skyState(body,at,o){const s=body==='sun'?AstroNotesAstro.sun(at,o):body==='moon'?AstroNotesAstro.moon(at,o):AstroNotesBodies.state(body,at,o,{refraction:false});return {...s,altitude:s.geometricAltitude??s.altitude};}
  const currentState=()=>session.dailies?.[session.body]?skyState(session.body,session.at,session.eye):null;
  function save(){if(!hasAccess()||timelineMoving)return;
- store.set(skyStoreKey(),{body:session.body,at:session.at,observer:session.observer,sharedTarget:session.sharedTarget||null,targetId:session.target?.id||'',partId:session.partId,limb:session.limb,matchMode:session.matchMode,showSun:session.showSun,showMoon:session.showMoon,
+ store.set(skyStoreKey(),{body:session.body,at:session.at,observer:session.observer,sharedTarget:session.sharedTarget||null,targetId:session.target?.id||'',partId:session.partId,limb:session.limb,matchMode:session.matchMode,alignmentPolicy:1,showSun:session.showSun,showMoon:session.showMoon,
  extraBody:session.extraBody,primaryBody:session.primaryBody,scrubMode:session.scrubMode,custom:session.custom||null,mapCenter:map.center(),zoom:map.zoom()});}
  const COLOURS={sun:'#ff981f',moon:'#aad8ff',extra:'#8ce5b0'};
  const extraIds=['sirius','mercury','venus','mars','jupiter','saturn'].filter(id=>AstroNotesBodies.definitions.some(d=>d.id===id));
@@ -195,12 +195,15 @@ ctx.lineWidth=1;
  }
  function normalizeWholeAlignment(){
   if(!session)return;
-  if(aimIsMountain(session.target)&&!globalThis.AstroNotesTrialOverlap?.isAll(session)){
+  if(aimIsMountain(session.target)&&session.matchMode!=='overlap'&&!globalThis.AstroNotesTrialOverlap?.isAll(session)){
    session.partId=session.target.parts[0].id;
    session.limb=session.matchMode==='limb'&&AstroNotesBodies.definition(session.body)?.limbs
     ?AstroNotesAlign.limbById(session.limb).id:'center';
    session.matchMode='limb';
    return;
+  }
+  if(session.matchMode==='overlap'&&session.partId&&session.partId!=='__whole'&&session.target?.parts?.some(p=>p.id===session.partId)){
+   session.limb='center';return;
   }
   // Explicit shared/history/manual alignment must survive map refresh and scene projection.
   if(session.matchMode==='limb'&&(session.partId==='__whole'||session.target?.parts?.some(p=>p.id===session.partId))){if(session.partId==='__whole')session.limb='center';return;}
@@ -328,7 +331,9 @@ ctx.lineWidth=1;
   showMoon:typeof draft?.showMoon==='boolean'?draft.showMoon:saved?.showMoon!==false,observer:validPoint(draft?.observer)?{...draft.observer}:null,body:draft?.body||'sun',at:Number.isFinite(draft?.at)?draft.at:Date.now(),ground:Number.isFinite(draft?.ground)?draft.ground:null,target,
   partId:draft?.partId??null,limb:draft?.limb||'center',matchMode:draft?.matchMode==='limb'||(!draft?.matchMode&&(['onTop','behind'].includes(draft?.limb)||(draft?.partId&&draft.partId!=='__whole')))?'limb':'overlap',custom,customTarget,daily:null};
   if(resume){session.at=resume.at+(resume.playing?Math.max(0,Date.now()-resume.wall):0);session.at=Math.max(Date.UTC(2020,0,1)-32400000,Math.min(aimCandidateSearchEnd()-1,session.at));session.dayAnchor=AstroNotesSkyMap.dayStart(session.at);}
-  if(session.matchMode==='overlap'){session.partId=aimIsMountain(session.target)?null:'__whole';session.limb='center';}
+  // Migrate ordinary pre-selector-removal preferences. Explicit link/record transfers retain their original alignment.
+  if(saved&&draft===saved&&saved.alignmentPolicy!==1&&(!saved.limb||saved.limb==='center')&&['sun','moon'].includes(session.body))session.matchMode='overlap';
+  if(session.matchMode==='overlap'){session.partId=session.target?.parts?.some(p=>p.id===session.partId)?session.partId:aimIsMountain(session.target)?null:'__whole';session.limb='center';}
   syncBodies();session.primaryBody=['sun','moon'].includes(draft?.primaryBody)?draft.primaryBody:['sun','moon'].includes(session.body)?session.body:session.showMoon&&!session.showSun?'moon':'sun';
   session.extraBody=extraIds.includes(draft?.extraBody)?draft.extraBody:draft?.extraBody===null?null:extraIds.includes(session.body)?session.body:null;if(extraIds.includes(session.body)&&!session.extraBody)session.body=session.primaryBody;el('skyMapBody').value=session.body;setPickMode(null);
   const targetSelect=el('skyMapTarget');targetSelect.replaceChildren(new Option('対象を選ぶ',''));
@@ -594,7 +599,7 @@ ctx.lineWidth=1;
   session.observer=aimSavedFrom(AstroNotesShooting.savedObserver(candidate.place));session.ground=Number.isFinite(candidate.place.elevation)?candidate.place.elevation:null;if(candidate.event.matchMode){session.matchMode=candidate.event.matchMode;session.partId=candidate.event.partId;
   session.limb='center';}session.at=candidate.event.at;session.dayAnchor=AstroNotesShooting.day(session.at);map.setCenter(candidate.place.latitude,candidate.place.longitude);refresh();document.dispatchEvent(new Event('astronotes-candidate-selected'));return true;
  },setAlignment:(partId,limb,matchMode='limb')=>{if(!hasAccess()||!session||!active())return;if(partId&&partId!=='__whole'&&!(session.target?.parts||[]).some(p=>p.id===partId))return;if(!AstroNotesAlign.LIMBS.some(x=>x.id===limb))return;session.matchMode=matchMode==='overlap'?'overlap':'limb';
- session.partId=session.matchMode==='overlap'?(aimIsMountain(session.target)?null:'__whole'):partId;session.limb=session.matchMode==='overlap'||partId==='__whole'?'center':limb;refresh();
+ session.partId=partId??(session.matchMode==='overlap'?(aimIsMountain(session.target)?null:'__whole'):null);session.limb=session.matchMode==='overlap'||partId==='__whole'?'center':limb;refresh();
  },open,leave,suspend,authChanged,prepareFraming,enter,refreshTargets,render,redraw:()=>map.redraw(),fitPoints:pts=>{const cv=el('skyMapCanvas'),la=pts.map(q=>q.latitude),lo=pts.map(q=>q.longitude),lat0=Math.min(...la),lat1=Math.max(...la),lon0=Math.min(...lo),lon1=Math.max(...lo),lat=(lat0+lat1)/2,
  lon=(lon0+lon1)/2,dx=Math.max(.00001,(lon1-lon0)/360),dy=Math.max(.00001,(lat1-lat0)/(360*Math.cos(lat*Math.PI/180)));map.setView(lat,lon,Math.min(Math.log2(Math.max(160,cv.clientWidth)*.8/(256*dx)),Math.log2(Math.max(200,cv.clientHeight)*.8/(256*dy))));
  },setTime:at=>setTime(at),setObserver:p=>PLACE_PICKERS.skymap.set(p),setEyeHeight:value=>{if(!hasAccess()||!active()||!session?.observer||!Number.isFinite(value)||value<0||value>700)return false;changeObserverHeight({standAglM:value});return true;},setTarget:id=>{if(!session||!hasAccess())return;

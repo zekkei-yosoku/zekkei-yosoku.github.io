@@ -1,3 +1,4 @@
+import {createRequire as passageRequire} from 'node:module';const passageShooting=passageRequire(import.meta.url)('./astronotes-shooting.js');
 import {sourceUnit} from './tools/test-source.mjs';
 // 候補日はJST日単位（同じ日の0/17/18:30/23:59で同じ日集合）、cacheは日跨ぎで失効、ねらうの既定呼出は不変。
 import assert from 'node:assert/strict';
@@ -25,7 +26,7 @@ const EV = D + 18 * H + 16 * 60000;
 const ats = rows => Array.from(rows, e => e.at);
 
 function context(extra = {}) {
-  const ctx = vm.createContext({
+  const ctx = vm.createContext({AstroNotesShooting:passageShooting,
     setTimeout, Date, JSON, Math, Map, Number, Array, String, Object, Infinity,
     S: { Cal: { startOfDay }, JstCal: { sameDay: (a, b) => startOfDay(a) === startOfDay(b), hhmm: t => new Date(t + OFF).toISOString().slice(11, 16) } },
     aim: { limb: 'center', matchMode: 'limb', partId: 'tip', body: 'sun', from: null },

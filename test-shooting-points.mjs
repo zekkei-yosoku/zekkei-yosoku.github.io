@@ -61,25 +61,100 @@ test('登録地点の標高はDEMと違っても候補選択後へ保持し、�
 test('指定なしは円盤の接触を一度だけ探し、真ん中指定の不一致を候補から落とさない',async()=>{
  const events=[{at,gap:.15,radius:.25,intersects:true},{at:at+1000,gap:0,radius:.25,intersects:false}];
  const d=deps(events);let calls=0;d.align.dailyView=(o,t,b,day,opts)=>{calls++;assert.equal(opts.partId,'__whole');return events;};d.align.upcoming=()=>{throw Error('指定なしで縁ごとの探索をしない');};
- const result=await P.candidates({...plan,matchMode:'overlap'},[point('a')],d);
+ const result=await P.candidates({...plan,partId:'__whole',matchMode:'overlap'},[point('a')],d);
  assert.equal(calls,1);assert.deepEqual(result.rows.map(r=>r.event.at),[at]);assert.equal(result.rows[0].event.matchMode,'overlap');
  assert.equal(P.matches(events[0],plan,()=>false),false);
  assert.notEqual(P.queryKey(plan,[],'u','a'),P.queryKey({...plan,matchMode:'overlap'},[],'u','a'));
 });
 test('指定なしの山は稜線viewの交差を採用し、月は昼間も含める',async()=>{
  const d=deps([{at,gap:.01,radius:0,intersects:false,sunAltitude:-1}]);d.isMountain=()=>true;d.viewFor=async()=>()=>[{at,gap:10,intersects:true,sunAltitude:-1}];
- assert.equal((await P.candidates({...plan,body:'sirius',matchMode:'overlap'},[point('a')],d)).rows.length,1);
+ assert.equal((await P.candidates({...plan,partId:null,body:'sirius',matchMode:'overlap'},[point('a')],d)).rows.length,1);
  d.viewFor=async()=>()=>[{at,gap:.1,intersects:true,sunAltitude:-1},{at:at+1000,intersects:true,sunAltitude:1}];
  assert.equal((await P.candidates({...plan,body:'moon',matchMode:'overlap'},[point('a')],d)).rows.length,2);
 });
 
 test('実際のスカイツリーで先端の真ん中が外れる日も、建物への接触は候補帯まで残る',async()=>{
  const target=A.targetById('skytree'),place={latitude:35.72453,longitude:139.86260,elevation:0,eyeHeightAGL:4,name:'検証地点'},date=Date.parse('2026-10-24T12:00:00+09:00');
- const p={target,body:'sun',partId:'tip',limb:'center',matchMode:'overlap',at:date};
+ const p={target,body:'sun',partId:'__whole',limb:'center',matchMode:'overlap',at:date};
  const d={align:A,isMountain:()=>false,observerAt:(f,g)=>({...f,elevation:g,eyeM:4}),ensure:async()=>{}};
  const result=await P.candidates(p,[{place,record:{result:'seen'}}],d);assert.ok(result.rows.length);
- assert.equal((await P.candidates({...p,matchMode:'limb'},[{place,record:{result:'seen'}}],d)).rows.length,0);
+ assert.equal((await P.candidates({...p,partId:'tip',matchMode:'limb'},[{place,record:{result:'seen'}}],d)).rows.length,0);
  const html=sourceHtml(),fn=sourceDeclaration("aimCandidateMatch");
  const match=new Function('aim','AstroNotesShooting','aimIsMountain',fn+';return aimCandidateMatch;')({...p},P,()=>false);
  assert.ok(result.rows.every(r=>match(r.event)));
+});
+
+test('指定した先端への通過は円盤との接触を判定し、中心の一致を要求しない',async()=>{
+ const event={at,gap:.24,radius:.25,intersects:true};
+ const d=deps([event]);d.align.dailyView=(obs,target,body,day,opts)=>{assert.equal(opts.partId,'tip');assert.equal(opts.pointOnly,true);return [event];};
+ d.align.upcoming=()=>{throw Error('point passage must use disc distance');};
+ const p={...plan,matchMode:'overlap'};
+ const result=await P.candidates(p,[point('edge')],d);
+ assert.equal(result.rows.length,1);
+ assert.equal(result.rows[0].event.partId,'tip');
+ assert(!P.matches(event,{...plan,matchMode:'limb'},()=>false));
+ assert(P.matches(event,p,()=>false));
+});
+
+test('円盤の上下の縁や横が先端を通る場合と、先端を外れて胴体だけに掛かる場合を分ける',()=>{
+ const observer={latitude:35.75,longitude:139.85,elevation:20},target=A.targetById('skytree');
+ const opts={partId:'tip',eyeM:4,pointOnly:true},g=A.geometryFrom(observer,target,opts);
+ const bodies=require('./astronotes-bodies.js'),original=bodies.state;
+ const mockBodies={...bodies};
+ let dx=0,dy=0;
+ mockBodies.state=(body,ms,obs)=>({...original(body,ms,obs),azimuth:g.azimuth+dx,apparentAltitude:g.angle+dy,angularRadius:.25,upperRadius:.25,lowerRadius:.25,upperAltitude:g.angle+dy+.25,lowerAltitude:g.angle+dy-.25});
+ const ctx={AstroNotesBodies:mockBodies,module:{exports:{}},require};
+ vm.runInNewContext(fs.readFileSync(new URL('./astronotes-align.js',import.meta.url),'utf8'),ctx);
+ {
+  const judge=ctx.module.exports.prepareDailyView(observer,target,'sun',opts);
+  for(const [x,y,hit] of [[0,.24,true],[0,-.24,true],[.24,0,true],[0,.27,false],[0,-.6,false]]){
+   dx=x;dy=y;
+   assert.equal(judge(start,at)[0].intersects,hit,JSON.stringify([x,y]));
+  }
+ }
+});
+
+
+test('候補一覧は既存の計算結果から中心の上下と山頂の左右を表示し、欠測は断定しない',()=>{
+ const p={target:{parts:[{id:'tip',name:'先端'}]},partId:'tip',body:'moon'},base={radius:.25,altitude:5,targetAltitude:5};
+ assert.equal(P.passageText(base,p),'先端付近を通過');
+ assert.equal(P.passageText({...base,altitude:5.2},p),'先端の上寄りを通過');
+ assert.equal(P.passageText({...base,altitude:4.8},p),'先端の下寄りを通過');
+ const mountain={...p,target:{rim:{},parts:[{id:'summit',name:'山頂'}]}};
+ assert.equal(P.passageText({...base,azimuth:359.8,targetAzimuth:0},mountain),'山頂の左寄りを通過');
+ assert.equal(P.passageText({...base,azimuth:.2,targetAzimuth:359.99},mountain),'山頂の右寄りを通過');
+ assert.equal(P.passageText({...base,azimuth:180,targetAzimuth:180},mountain),'山頂の中心を通過');
+ assert.equal(P.passageText({radius:.25},p),'');
+ assert.equal(P.passageText({...base,azimuth:180},mountain),'');
+ assert.equal(P.passageText(base,{...p,body:'sirius'}),'');
+});
+
+
+test('部位通過を惑星・恒星へ引き継いでも従来の点の整列判定を保ち、山頂は稜線を使う',async()=>{
+ const p={...plan,body:'sirius',matchMode:'overlap'},d=deps([{at,gap:0}]);
+ d.align.dailyView=()=>{throw Error('stars use the existing point solver');};
+ assert.equal((await P.candidates(p,[point('star')],d)).rows.length,1);
+ assert.equal(P.searchOptions({...plan,target:{...plan.target,rim:{}} ,matchMode:'overlap'},()=>true).pointOnly,undefined);
+});
+
+
+test('方位が揃う瞬間に先端を外れても、斜めの軌道が円盤の縁で触れる候補を残す',()=>{
+ const observer={latitude:35.75,longitude:139.85,elevation:20},target=A.targetById('skytree'),opts={partId:'tip',eyeM:4,pointOnly:true},g=A.geometryFrom(observer,target,opts),middle=start+43200000;
+ const bodies={state:(_body,ms)=>{const minute=(ms-middle)/60000;return {azimuth:g.azimuth+.15*minute,apparentAltitude:g.angle+.31+.12*minute,angularRadius:.25};}},ctx={AstroNotesBodies:bodies,module:{exports:{}},require};
+ vm.runInNewContext(fs.readFileSync(new URL('./astronotes-align.js',import.meta.url),'utf8'),ctx);
+ const rows=ctx.module.exports.dailyView(observer,target,'sun',start,opts),hit=rows.find(e=>e.intersects);
+ assert.ok(hit,'the diagonal passage must survive the centre-azimuth miss');
+ assert.ok(Math.abs(hit.at-(middle-60000))<3000);
+});
+
+
+test('建物全体では先端基準を流用せず、円盤の中心の建物内の位置を示す',()=>{
+ const p={target:{parts:[{id:'tip',name:'先端'}]},partId:'__whole',body:'sun'},base={radius:.25};
+ for(const [x,y,label] of [[.5,.5,'中央付近'],[.5,.9,'上寄り'],[.5,.1,'下寄り'],[.1,.9,'左上寄り'],[.9,.1,'右下寄り']]){
+  assert.equal(P.passageText({...base,targetPosition:{x,y}},p),`全体の${label}を通過`);
+ }
+ assert.equal(P.passageText({...base,gap:0},p),'','a legacy whole event cannot be described relative to its tip');
+ assert.equal(P.passageText({...base,targetAltitude:5,altitude:5,composition:{}},{...p,partId:'tip'}),'指定位置付近を通過');
+ const observer={latitude:35.75,longitude:139.85,elevation:20},t=A.targetById('skytree'),events=A.dailyView(observer,t,'sun',start,{partId:'__whole'});
+ assert(events.every(e=>Number.isFinite(e.targetPosition?.x)&&Number.isFinite(e.targetPosition?.y)));
 });

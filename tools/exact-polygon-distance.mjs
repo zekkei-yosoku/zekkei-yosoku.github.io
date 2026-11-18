@@ -17,7 +17,7 @@ export function prepareExactPolygonDistance(polygons,polygonDistance,scaledDista
   return {box,left:build(indices.slice(0,mid)),right:build(indices.slice(mid))};
  }
  const tree=polygons.length>16&&boxes.every(b=>Object.values(b).every(Number.isFinite))?build(polygons.map((_,i)=>i)):null;
- return (center,ratio)=>{
+ const measure=(center,ratio)=>{
   const point=[center[0],center[1]/ratio];let nearest=Infinity;
   const lower=(box,group=false)=>{
    const dx=Math.max(box.minX-point[0],0,point[0]-box.maxX),dy=Math.max(box.minY/ratio-point[1],0,point[1]-box.maxY/ratio);
@@ -43,6 +43,8 @@ export function prepareExactPolygonDistance(polygons,polygonDistance,scaledDista
   else for(let i=0;i<polygons.length;i++){evaluate(i);if(nearest===0)break;}
   return nearest;
  };
+ measure.bounds=tree?.box||combine(boxes.keys());
+ return measure;
 }
 
 // Same operations as polygonDistance(point, polygon.map(([x,y])=>[x,y/ratio])).

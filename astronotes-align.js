@@ -501,7 +501,7 @@
           // 地平線の下の天体は建物に重なって見えない（高い所では建物の足元が地平線より下に来る）
           if (within && st.apparentAltitude > Math.max(-1, A.seaHorizonAngle(obs.elevation ?? 0) - st.angularRadius)) {
             const later = bodyAt(body, at + 60000, obs).apparentAltitude;
-            const row = { at, gap, radius: st.angularRadius,
+            const row = { at, azimuth:st.azimuth, targetAzimuth:g.azimuth, targetAltitude:g.angle, gap, radius: st.angularRadius,
               rank: j.rank || rankOf(gap, st.angularRadius),
               side: later < st.apparentAltitude ? "set" : "rise",
               altitude: st.apparentAltitude,
@@ -566,7 +566,8 @@
     const hasMountainRidge=!!mountainRidge;
     let centerAlt,project,polygons,hasOutline,approximate;
     {
-    const outline = mountainRidge ? {viewBaseAngle:ridgeBase,topAngle:g.angle,hitPolygons:[[...mountainRidge,[mountainRidge.at(-1)[0],ridgeBase],[mountainRidge[0][0],ridgeBase]]]} : opts.silhouette ? {viewBaseAngle:opts.silhouette.viewBaseAngle,topAngle:opts.silhouette.topAngle,
+    const outline = opts.pointOnly ? null : mountainRidge ? {viewBaseAngle:ridgeBase,topAngle:g.angle,hitPolygons:[[...mountainRidge,[mountainRidge.at(-1)[0],ridgeBase],[mountainRidge[0][0],ridgeBase]]]} :
+    opts.silhouette ? {viewBaseAngle:opts.silhouette.viewBaseAngle,topAngle:opts.silhouette.topAngle,
     approximate:!!opts.silhouette.approximate,hitPolygons:[opts.silhouette.polygon]} : towerOutline(observer, target, opts);
     centerAlt = outline ? (outline.viewBaseAngle + outline.topAngle) / 2 : g.angle;
     project = viewProjector(g.azimuth, centerAlt);
@@ -589,7 +590,7 @@
   return {box,left:build(indices.slice(0,mid)),right:build(indices.slice(mid))};
  }
  const tree=polygons.length>16&&boxes.every(b=>Object.values(b).every(Number.isFinite))?build(polygons.map((_,i)=>i)):null;
- return (center,ratio)=>{
+ const measure=(center,ratio)=>{
   const point=[center[0],center[1]/ratio];let nearest=Infinity;
   const lower=(box,group=false)=>{
    const dx=Math.max(box.minX-point[0],0,point[0]-box.maxX),dy=Math.max(box.minY/ratio-point[1],0,point[1]-box.maxY/ratio);
@@ -615,6 +616,8 @@
   else for(let i=0;i<polygons.length;i++){evaluate(i);if(nearest===0)break;}
   return nearest;
  };
+ measure.bounds=tree?.box||combine(boxes.keys());
+ return measure;
 })(polygons,polygonDistance,function exactScaledPolygonDistance(point,polygon,ratio){
  let inside=false,distance=Infinity;
  if(!polygon.length)return distance;
@@ -636,7 +639,7 @@
       const ratio=Number.isFinite(st.upperRadius)&&radius>0&&upper&&lower?Math.max(.1,Math.abs(upper[1]-lower[1])/(2*radius)):1;
       const center=xy?[xy[0],Number.isFinite(st.upperRadius)&&upper&&lower?(upper[1]+lower[1])/2:xy[1]]:null;
       const distance = center ? (polygons ? distanceToPolygons(center,ratio) : Math.hypot(center[0],center[1]/ratio)) : Infinity;
-      return { at, gap: st.apparentAltitude - g.angle, radius: st.angularRadius, distanceToTarget: distance, approximate,
+      return { at, azimuth:st.azimuth, targetAzimuth:g.azimuth, targetAltitude:g.angle, gap: st.apparentAltitude - g.angle, radius: st.angularRadius, distanceToTarget: distance, approximate,
         intersects: distance <= radius && (st.upperAltitude??st.apparentAltitude+st.angularRadius) > 0,
         nearTarget: distance <= (extended(body) ? radius + 0.5 : 2 * radius) && st.apparentAltitude + st.angularRadius > 0,
         altitude: st.apparentAltitude, illuminated: body === "moon" ? st.illuminatedFraction : null,
@@ -644,6 +647,8 @@
     };
     // Sun altitude and motion labels are only needed for returned events, not every scan sample.
     const complete = row => ({...row,
+      ...(distanceToPolygons?.bounds?{targetPosition:(()=>{const b=distanceToPolygons.bounds,p=project(row.azimuth,row.altitude);return p?{
+        x:(p[0]-b.minX)/(b.maxX-b.minX),y:(p[1]-b.minY)/(b.maxY-b.minY)}:null;})()}:{}),
       sunAltitude: body === "sun" ? row.altitude : body === "moon" ? bodyAt("sun",row.at,obs).apparentAltitude : A.sun(row.at, obs).geometricAltitude,
       side: bodyAt(body,row.at+60000,obs).apparentAltitude < row.altitude ? "set" : "rise"});
     const run = (dayMs, at = null) => {
@@ -683,9 +688,10 @@
         else if(visibleBetter(nearest,crossings[i])||(nearest.intersects===crossings[i].intersects&&nearest.distanceToTarget===crossings[i].distanceToTarget&&nearest.at<crossings[i].at))crossings[i]=nearest;
       }else crossings.push(nearest);
     }
-    if (extended(body)) {
+    if (extended(body)||opts.pointOnly) {
       const refine = row => {
-        let lo=Math.max(dayMs,row.at-20000),hi=Math.min(end-1,row.at+20000);
+        const windowMs=opts.pointOnly?600000:20000;
+        let lo=Math.max(dayMs,row.at-windowMs),hi=Math.min(end-1,row.at+windowMs);
         const ratio=(Math.sqrt(5)-1)/2;
         let x=hi-ratio*(hi-lo),y=lo+ratio*(hi-lo),a=evaluate(x),b=evaluate(y);
         for(let i=0;i<32;i++) {
@@ -1896,7 +1902,7 @@
 
   function prepareAlignmentAt(observer,target,body,opts={}) {
     const view=prepareDailyView(observer,target,body,opts);
-    if(opts.partId==='__whole')return at=>{
+    if(opts.partId==='__whole'||opts.pointOnly)return at=>{
       const row=view(at,at)[0];return row?{...row,matched:!!row.intersects}:null;
     };
     const g=geometryFrom(observer,target,opts),obs={...observer,elevation:(observer.elevation??0)+(opts.eyeM??1.5)},sign=limbById(opts.limb||'center').sign;

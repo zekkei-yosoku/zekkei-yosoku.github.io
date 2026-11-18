@@ -148,7 +148,8 @@ function locationText(row){
  const river=riverName&&!name?.includes(riverName)?riverName:null;
  return [river,address].filter(Boolean).join(' ・ ');
 }
-function formatRow(node,row,types){
+const passageOf=(row,plan)=>typeof AstroNotesShooting==='undefined'?'':AstroNotesShooting.passageText(row.event,plan);
+function formatRow(node,row,types,plan){
  if(!node.hasAttribute('data-candidate-columns')){
   const notes=[...node.querySelectorAll('.sub-line')].filter(n=>!n.hasAttribute('data-place-kind')).map(n=>n.textContent.replace(/^\d{2}:\d{2}・/,'').replace(/ · \d{2}:\d{2}/,''));
   node.replaceChildren();node.dataset.candidateColumns='';
@@ -178,6 +179,9 @@ function formatRow(node,row,types){
    const before=node.querySelector('[data-candidate-meta],[data-candidate-area],[data-candidate-composition],[data-candidate-uncertainty]');if(before)node.insertBefore(address,before);else node.append(address);}
   if(address.textContent!==location)address.textContent=location;
  }else address?.remove();
+ const passage=passageOf(row,plan);let position=node.querySelector('[data-candidate-passage]');
+ if(passage){if(!position){position=document.createElement('span');position.dataset.candidatePassage='';position.className='tiny sub-line';Object.assign(position.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});
+  const before=node.querySelector('[data-candidate-composition],[data-candidate-uncertainty]');if(before)node.insertBefore(position,before);else node.append(position);}if(position.textContent!==passage)position.textContent=passage;}else position?.remove();
  const framed=compositionText(row);let line=node.querySelector('[data-candidate-composition]');
  if(framed){if(!line){line=document.createElement('span');line.dataset.candidateComposition='';line.className='tiny sub-line';Object.assign(line.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});
   const before=node.querySelector('[data-candidate-uncertainty]');if(before)node.insertBefore(line,before);else node.append(line);}line.textContent=framed;}else line?.remove();
@@ -298,7 +302,7 @@ async function apply(){
     }
     if(!events)unknownTime++;
    }
-   const id=candidateKey(row);formatRow(node,row,types);node.dataset.candidateKinds=types.join(',');node.dataset.candidateId=id;
+   const id=candidateKey(row);formatRow(node,row,types,g.plan);node.dataset.candidateKinds=types.join(',');node.dataset.candidateId=id;
    if(!boundNodes.has(node)){boundNodes.add(node);node.addEventListener('click',()=>{selectedId=node.dataset.candidateId;},true);}
    entries.push({row,node,types,index:index++,id,box,group:g,show:accepts(row,selection.time,selection.kind,types,events)});
    if(i%12===11){await new Promise(r=>setTimeout(r,0));if(!revision.current(token)||!g.current())return;}
@@ -382,7 +386,7 @@ function refreshMap(){
  if(select.dataset.signature!==signature){select.replaceChildren();visibleEntries.forEach((e,i)=>select.add(new Option(`${i+1}. ${e.row.place.name} ・ ${clockText(e.row.event?.at)}`,e.id)));select.dataset.signature=signature;}
  select.value=selectedId||'';const e=mapSelection();
  const detail=mapPanel.querySelector('#candidateMapDetail');if(e){const obs=e.row.assumedObserver,p=e.row.place,base=Number.isFinite(obs?.elevation)?obs.elevation:p.groundManualM??p.elevation,eye=Number.isFinite(obs?.eyeM)?obs.eyeM:p.standAglM??p.eyeHeightAGL;
- detail.textContent=[locationText(e.row),e.types.map(t=>names[t]).join('・'),clockText(e.row.event?.at),
+ detail.textContent=[locationText(e.row),e.types.map(t=>names[t]).join('・'),clockText(e.row.event?.at),passageOf(e.row,e.group.plan),
   Number.isFinite(base)&&Number.isFinite(eye)?'撮影位置の標高 '+(base+eye).toFixed(1)+'m':'高さ未確認',...uncertainty(e.row)].filter(Boolean).join(' ・ ');}
  mapPanel.querySelector('#candidateMapUse').disabled=!currentEntry(e);
  if(mapFitPending){mapFitPending=false;const ps=visibleEntries.map(e=>e.row.place).filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude));

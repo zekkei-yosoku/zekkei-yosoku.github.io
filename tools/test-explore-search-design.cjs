@@ -62,8 +62,8 @@ async function assertCompactPicker(page){
  assert.equal(await page.locator('#exploreResultsHeading').count(),1,'one result heading, owned by the picker');
  assert.equal(await panel.locator('.candidate-list-heading,[data-candidate-headers]').count(),0,'compact rows have no old table header');
  const rows=page.locator('#candidateUnifiedResults>.list-item:visible');assert(await rows.count()>0);
- const content=await rows.evaluateAll(nodes=>nodes.map(n=>({place:!!n.querySelector('[data-candidate-place]')?.textContent.trim(),time:!!n.querySelector('[data-candidate-time]')?.textContent.trim(),address:!!n.querySelector('[data-candidate-address]')})));
- assert(content.every(r=>r.place&&r.time&&r.address),JSON.stringify(content));
+ const content=await rows.evaluateAll(nodes=>nodes.map(n=>({place:!!n.querySelector('[data-candidate-place]')?.textContent.trim(),time:!!n.querySelector('[data-candidate-time]')?.textContent.trim(),address:!!n.querySelector('[data-candidate-address]'),passage:n.querySelector('[data-candidate-passage]')?.textContent})));
+ assert(content.every(r=>r.place&&r.time&&r.address&&/(?:先端|全体)の[上下]寄りを通過/.test(r.passage)),JSON.stringify(content));
  assert.equal(await detail.locator('summary').innerText(),'絞り込み');
  assert((await detail.locator('summary').getAttribute('aria-label')).includes('並べ替え'));
  await assertTargets(page,['#candidateMapToggle','#candidateRefinement>summary','#candidateUnifiedResults>.list-item:visible']);
@@ -116,7 +116,7 @@ async function assertFooterClearance(page,selector='#candidateUnifiedResults>.li
   const browser=await type.launch(engine==='chrome'?{channel:'chrome',headless:true}:{headless:true});
   try{for(const width of widths)for(const theme of themes){
    const context=await browser.newContext({viewport:{width,height:900},colorScheme:theme,locale:'ja-JP',timezoneId:'Asia/Tokyo',reducedMotion:'reduce'});
-   await context.addInitScript(fixture,tools);await context.addInitScript(emptyProviderFixture);let writes=0;
+   await context.addInitScript(fixture,tools);await context.addInitScript(()=>localStorage.setItem('sorami.skyMap:date-test',JSON.stringify({body:'moon',targetId:'skytree',partId:'tip',limb:'center',matchMode:'limb',at:Date.parse('2026-11-05T03:58:31+09:00')})));await context.addInitScript(emptyProviderFixture);let writes=0;
    await context.route('**/*',route=>{
     const request=route.request(),url=new URL(request.url());
     if(url.origin===new URL(base).origin)return route.continue();
@@ -126,6 +126,7 @@ async function assertFooterClearance(page,selector='#candidateUnifiedResults>.li
    const page=await context.newPage(),errors=[],tag=engine+'-'+width+'-'+theme;page.setDefaultTimeout(20000);page.on('pageerror',error=>errors.push(error.message));
    try{
     await page.goto(base+'#/explore');await page.waitForFunction(()=>typeof SkyMapUI==='object'&&typeof AstroNotesCandidatePicker==='object');
+    assert.deepEqual(await page.evaluate(()=>({partId:SkyMapUI.selectionState().partId,matchMode:SkyMapUI.selectionState().matchMode})),{partId:'tip',matchMode:'overlap'},'ordinary old preferences migrate from centre-only to disc passage');
     await page.evaluate(async theme=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>25;aimBuildingDays=async()=>[];document.documentElement.dataset.theme=theme;navigationHistory.pushRoute('#/explore');SkyMapUI.setTarget('skytree');const body=document.getElementById('skyMapBody');body.value='moon';body.onchange();SkyMapUI.setTime(Date.parse('2026-11-05T03:58:31+09:00'));},theme);
     await page.locator('#exploreDiscovery-new').click();await page.locator('#candidateSearchAction').waitFor();const layout=await assertFieldLayout(page);
     await assertNoPicker(page);assert.equal(await page.locator('.explore-search-intro').count(),0);
@@ -196,6 +197,13 @@ async function assertFooterClearance(page,selector='#candidateUnifiedResults>.li
     await page.evaluate(()=>{MyPlacesUI.discoverySearch=async()=>{registeredFailureCalls++;throw Error('synthetic registered failure');};MyPlacesUI.imported();});
     await page.waitForFunction(()=>registeredFailureCalls===2&&document.getElementById('exploreRecordedPlaces').getAttribute('aria-busy')==='false');
     assert((await registered.innerText()).includes('記録の撮影地点を確認できませんでした'));assert(await registered.getByRole('button',{name:'再試行',exact:true}).isVisible());
+    // The summit keeps its ridge contact policy and describes the centre to its left/right.
+    await page.evaluate(()=>SkyMapUI.setTarget('fuji'));await page.locator('#exploreDiscovery-new').click();
+    await page.locator('#candidateSearchAction').click();await settled(page,2);
+    assert(await page.locator('#skyMapAlignmentDetails').isHidden());
+    const mountainPassages=await page.locator('#candidateUnifiedResults>.list-item:visible [data-candidate-passage]').allTextContents();
+    assert.deepEqual(mountainPassages.slice().sort(),['山頂の右寄りを通過','山頂の左寄りを通過'].sort());
+    await page.screenshot({path:out+'/'+tag+'-mountain-passages.png',fullPage:true});
     assert.equal(writes,0);assert.deepEqual(errors,[]);
     results.push({engine,width,theme,visibleLabels:layout.labels.map(l=>l.text),sharedDateTimeBar:true,noSeparateDateField:true,footerDoesNotCoverLastResult:true,labelsDoNotOverlap:true,primarySearchInConditions:true,fullWidthAccessibleButton:true,separateAlternativeLocationSection:true,directActionBeforeCandidateDetails:true,actionDomAndVisualOrderMatch:true,initialExplanationsReduced:true,feedbackInActionStrip:true,actionNodeStableDuringSearch:true,accessibleSuccessAnnouncement:true,detailOpenAndFocusPreserved:true,compactPicker:true,singleRefinementDetails:true,compactSortSelectWorks:true,touchTargets44px:true,searchingZeroHidesPicker:true,partialResultsKeepProgress:true,completeZeroHidesPicker:true,emptyFilterResetWithoutSearch:true,failedRecheckKeepsCurrentRows:true,retryWorks:true,redundantRegisteredCountHidden:true,registeredFailuresRemainVisible:true,writes,errors});
     fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log(tag+' search design passed');

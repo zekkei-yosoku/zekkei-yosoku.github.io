@@ -13,16 +13,44 @@ function conditions(p){
 function queryKey(p,records,owner,atmosphere){return JSON.stringify([owner,p?.body,p?.target,p?.partId??null,p?.limb||'center',day(p?.at),records.map(x=>[x.place,x.record]),atmosphere,p?.matchMode||'limb']);}
 function searchOptions(p,isMountain){
  const broad=p.matchMode==='overlap',disc=p.body==='sun'||p.body==='moon';
- return {partId:broad?(isMountain(p.target)?null:'__whole'):p.partId,limb:broad?'center':p.limb,broad,disc};
+ const partId=p.partId&&p.partId!=='__whole'&&p.target?.parts?.some(part=>part.id===p.partId)?p.partId:broad?(isMountain(p.target)?null:'__whole'):p.partId;
+ const named=!!partId&&partId!=='__whole',overlap=broad&&(disc||!named);
+ return {partId,limb:broad?'center':p.limb,broad:overlap,disc,...(overlap&&named&&!isMountain(p.target)?{pointOnly:true}:{})};
 }
 function eventsFor(p,obs,start,{align,isMountain,view}){
  const o=searchOptions(p,isMountain),whole=o.partId==='__whole';
- const rows=view?view(start):(o.broad&&o.disc||whole&&!isMountain(p.target))?align.dailyView(obs,p.target,p.body,start,{partId:o.partId,eyeM:obs.eyeM}):align.upcoming(obs,p.target,p.body,{from:start,days:1,limit:Infinity,groupDays:false,partId:o.partId,limb:o.limb,eyeM:obs.eyeM,stepMs:3600000});
+ const rows=view?view(start):(o.broad&&o.disc||whole&&!isMountain(p.target))?align.dailyView(obs,p.target,p.body,start,{partId:o.partId,eyeM:obs.eyeM,...(o.pointOnly?{pointOnly:true}:{})}):
+ align.upcoming(obs,p.target,p.body,{from:start,days:1,limit:Infinity,groupDays:false,partId:o.partId,limb:o.limb,eyeM:obs.eyeM,stepMs:3600000});
  return o.broad?rows.map(e=>({...e,matchMode:'overlap',partId:o.partId})):rows;
 }
 function matches(e,p,isMountain){
  const o=searchOptions(p,isMountain);
  return o.broad||o.partId==='__whole'?!!e.intersects:Number.isFinite(e.gap)&&Math.abs(e.gap)<=Math.max(1/60,.2*(e.radius||0));
+}
+// Describe the representative event using positions already computed by the solver.
+// Direction is the celestial centre relative to the selected target, as seen from the observer.
+function passageText(event,plan){
+ if(!event||!plan?.target||!['sun','moon'].includes(plan.body)||!(event.radius>0))return '';
+ const mountain=!event.composition&&(!!plan.target.rim||plan.target.kind==='mountain');
+ const whole=!event.composition&&!mountain&&(!plan.partId||plan.partId==='__whole');
+ if(whole){
+  const p=event.targetPosition;if(!p||![p.x,p.y].every(Number.isFinite))return '';
+  const horizontal=p.x<1/3?'左':p.x>2/3?'右':'',vertical=p.y<1/3?'下':p.y>2/3?'上':'';
+  const position=horizontal+vertical;
+  return position?`全体の${position}寄りを通過`:'全体の中央付近を通過';
+ }
+ const part=plan.target.parts?.find(p=>p.id===plan.partId)||plan.target.parts?.[0];
+ const name=event.composition?'指定位置':mountain?'山頂':part?.name;
+ if(!name)return '';
+ let offset;
+ if(mountain){
+  if(![event.azimuth,event.targetAzimuth,event.targetAltitude].every(Number.isFinite))return '';
+  offset=(((event.azimuth-event.targetAzimuth+540)%360)-180)*Math.cos(event.targetAltitude*Math.PI/180);
+ }else offset=Number.isFinite(event.targetAltitude)&&Number.isFinite(event.altitude)?event.altitude-event.targetAltitude:plan.matchMode==='overlap'?event.gap:NaN;
+ if(!Number.isFinite(offset))return '';
+ if(Math.abs(offset)<=.2*event.radius)return mountain?'山頂の中心を通過':`${name}付近を通過`;
+ const direction=mountain?(offset<0?'左':'右'):(offset<0?'下':'上');
+ return `${name}の${direction}寄りを通過`;
 }
 // Registered paths/areas use ordered vertices, never the favorite's anchor.
 const SHAPE_STEP_M=25,SHAPE_LIMIT=12000;
@@ -87,7 +115,8 @@ async function shapeCandidates(p,entry,deps){
   if(!Number.isFinite(ground)){missing++;memo.set(key,null);return null;}
   const f={...entry.place,...position,elevation:ground,groundManualM:ground,sourcePlaceId:entry.place.id};delete f.shape;
   const obs=observerAt(f,ground),o=searchOptions(p,isMountain),view=viewFor?await viewFor(obs,p):null;check();
-  const probes=view?view(start):align.dailyView?align.dailyView(obs,p.target,p.body,start,{partId:o.partId,eyeM:obs.eyeM}).map(e=>{const exact=align.alignmentAt?.(obs,p.target,p.body,e.at,{partId:o.partId,limb:o.limb,eyeM:obs.eyeM});
+  const probes=view?view(start):align.dailyView?align.dailyView(obs,p.target,p.body,start,{partId:o.partId,eyeM:obs.eyeM,...(o.pointOnly?{pointOnly:true}:{})}).map(e=>{
+  const exact=align.alignmentAt?.(obs,p.target,p.body,e.at,{partId:o.partId,limb:o.limb,eyeM:obs.eyeM,...(o.pointOnly?{pointOnly:true}:{})});
   return {...e,gap:exact?.gap??e.gap,...(!o.disc&&exact?{spatialMatched:exact.matched}:{})};}):eventsFor(p,obs,start,{align,isMountain});
   const events=view?probes:(!o.disc||o.broad)&&align.dailyView?probes:eventsFor(p,obs,start,{align,isMountain});
   if(o.broad)for(const e of events){e.matchMode='overlap';e.partId=o.partId;}
@@ -144,7 +173,7 @@ function hapticGate({vibrate=()=>{},clock=Date.now}={}){
  let previous=false,last=-Infinity,identity='';
  return (matched,key)=>{if(key!==identity){identity=key;previous=false;}const entered=matched&&!previous;previous=!!matched;if(entered&&clock()-last>800){last=clock();try{vibrate(12);}catch{/* 振動は無くてもよい */}}return entered;};
 }
-global.AstroNotesShooting={day,point,savedObserver,conditions,queryKey,searchOptions,eventsFor,matches,candidates,hapticGate,cleanShape,shapeContains,shapePaths,shapeCandidates,meters,interpolate};
+global.AstroNotesShooting={day,point,savedObserver,conditions,queryKey,searchOptions,eventsFor,matches,passageText,candidates,hapticGate,cleanShape,shapeContains,shapePaths,shapeCandidates,meters,interpolate};
 if(typeof module!=='undefined'&&module.exports)module.exports=global.AstroNotesShooting;
 })(globalThis);
 

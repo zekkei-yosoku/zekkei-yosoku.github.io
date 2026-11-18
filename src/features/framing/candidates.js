@@ -141,7 +141,7 @@ async function aimUpdateLook() {
   // **観測地点そのものの、その日の実際の通り方を出す**（2026-10-03 ユーザー「同じ日で観測地点をずらしたらその場所からの重なり方を出して欲しいだけ」
   // 「無理やり3択の場所に見え方を合わせてない？」）。選んだ縁が合わなくても、場所を動かさず、本当の通り方（中心が先端の◯°上を通る）で描く。
   // 合わせ方（下の縁・真ん中・上の縁）は、日付の帯・地図の線・候補地を決めるもので、ここでは通り方を変えない
-  const opts = { partId: aim.partId, limb: "center", eyeM: obs.eyeM, stepMs: 3600000 };
+  const opts = { ...AstroNotesShooting.searchOptions(aim,aimIsMountain), eyeM: obs.eyeM, stepMs: 3600000 };
   let rows = [];
   try { const view=await aimShootingView(obs,t,aim.body,aim.partId,aim.matchMode);if(!aim.lookSeq.current(seq))return;rows = view?view(aim.dayMs):AstroNotesAlign.dailyView(obs, t, aim.body, aim.dayMs, opts); } catch { rows = []; }
   if(!aim.lookSeq.current(seq))return;

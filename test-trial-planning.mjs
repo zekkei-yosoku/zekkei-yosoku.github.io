@@ -22,14 +22,14 @@ test('条件要約は建物全体と山頂指定を区別し、高さを維持�
  assert.match(c.conditionText(s).detail,/建物全体に重なる/);assert.doesNotMatch(c.conditionText(s).detail,/下の縁/);assert.match(c.conditionText(s).detail,/地上から80m/);
  s.partId=null;assert.match(c.conditionText(s).detail,/先端・下の縁/);s.matchMode='overlap';assert.match(c.conditionText(s).detail,/全体に重なる/);
 });
-test('trialの山単体は山頂固定、建物の指定と複数対象の全体は維持する',()=>{
+test('trialの山は円盤の稜線通過を採用し、旧条件の山頂指定と建物の指定も維持する',()=>{
  const start=html.indexOf(' function normalizeWholeAlignment('),end=html.indexOf(' function render(',start);assert(start>=0&&end>start);
  const code=html.slice(start,end);
  for(const [id,part,mode,all,expected] of [
   ['tower','tip','limb',false,['tip','behind','limb']],
   ['tower',null,'overlap',false,['__whole','center','overlap']],
   ['fuji','summit','limb',false,['summit','behind','limb']],
-  ['fuji',null,'overlap',false,['summit','center','limb']],
+  ['fuji',null,'overlap',false,[null,'center','overlap']],
   ['fuji',null,'overlap',true,[null,'center','overlap']],
  ]){
   const c=vm.createContext({session:{target:{id,parts:[{id:id==='fuji'?'summit':'tip'}]},partId:part,limb:'behind',matchMode:mode,at:123},aimIsMountain:t=>t.id==='fuji',AstroNotesTrialOverlap:{isAll:()=>all},AstroNotesBodies:{definition:()=>({limbs:true})},AstroNotesAlign:{limbById:id=>({id})}});vm.runInContext(code,c);c.normalizeWholeAlignment();

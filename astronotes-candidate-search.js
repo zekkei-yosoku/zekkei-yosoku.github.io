@@ -1325,7 +1325,7 @@ function groupTree(groups){
  const mid=Math.floor(groups.length/2);
  return {...box,left:groupTree(groups.slice(0,mid)),right:groupTree(groups.slice(mid))};
 }
-function clusters(polygons,rings){
+function outlineClusters(polygons,rings){
  if(clusterCache.has(polygons))return clusterCache.get(polygons);
  const order=rings.map((r,i)=>i).sort((a,b)=>(rings[a].minX+rings[a].maxX)-(rings[b].minX+rings[b].maxX)||a-b),groups=[];
  for(let k=0;k<order.length;k+=32){
@@ -1351,7 +1351,7 @@ function insideTree(x,y,node,rings){
  return false;
 }
 function closestPoint(p,polygons){
- const px=p[0],py=p[1],rings=flat(polygons),tree=clusters(polygons,rings);
+ const px=p[0],py=p[1],rings=flat(polygons),tree=outlineClusters(polygons,rings);
  if(!tree)return {point:[0,0],distance:Infinity};
  if(insideTree(px,py,tree,rings))return {point:p,distance:0};
  let distance=Infinity,nx=0,ny=0,bestRing=Infinity,bestEdge=Infinity;
@@ -1509,12 +1509,14 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
  const g=c?geometry(observer,target,c,align):align.geometryFrom(observer,target,{partId:plan.partId==='__whole'?null:plan.partId,eyeM});
  if(!g||![g.azimuth,g.angle,g.topM,g.distanceKm].every(Number.isFinite))return empty('target-geometry-unknown',true);
  const partTarget=align.partTarget?.(target,plan.partId==='__whole'?null:plan.partId)||target;
- const strict=!!(c||plan.strict||plan.profile==='summit-contact'||target.rim),project=align.viewProjector(g.azimuth,g.angle),anchor=g.anchor||{latitude:partTarget.latitude,longitude:partTarget.longitude,heightM:g.topM};
+ const strict=!!(c||plan.strict||plan.profile==='summit-contact'||target.rim&&plan.matchMode!=='overlap'),project=align.viewProjector(g.azimuth,g.angle),anchor=g.anchor||{latitude:partTarget.latitude,longitude:partTarget.longitude,heightM:g.topM};
  const pointBody=!(bodies.definition?.(plan.body)?.limbs??['sun','moon'].includes(plan.body)),whole=!plan.partId||plan.partId==='__whole';
  const outline=pointBody||!strict&&whole?align.towerOutline?.(observer,target,{eyeM}):null;
  const selfPolygons=outline?.known&&!outline.schematic?(outline.hitPolygons||outline.polygons||[outline.hitPoints||outline.points]).filter(Boolean).map(r=>r.map(p=>project(p[0],p[1])).filter(Boolean)).filter(r=>r.length>=3):[];
  const polygons=!strict&&whole?selfPolygons:[];
  const ridge=!c&&target.rim?ridgeGeometry(observer,target,align):null;if(!c&&target.rim&&!ridge)return empty('ridge-data-unavailable',true);
+ const targetBounds=polygons.length?outlineClusters(polygons,flat(polygons)):null;
+ const passage=!strict&&!pointBody&&plan.matchMode==='overlap'&&(!whole||!!ridge);
  const geometryKind=ridge?'ridge':polygons.length?'silhouette':'anchor',samples=new Map();let calls=0,exhausted=false,unknown=false,cancelled=false;
  const limit=Math.max(1,Math.floor(Number.isFinite(budget)?budget:12000));
  async function evaluate(at){
@@ -1527,14 +1529,14 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
   const chosen=limbKind(c?.limb||(policy.disc?plan.limb:'center')),height=limb(st,chosen),xy=activeProject(st.azimuth,strict?height:st.apparentAltitude);
   if(!xy)return {at,score:Infinity,eligible:false,state:st};
   const near=polygons.length?closestPoint(xy,polygons):{point:[0,0],distance:Math.hypot(...xy)},angle=Math.atan(near.distance*rad)/rad;
-  const gap=strict?Math.atan(Math.hypot(...xy)*rad)/rad:Math.max(0,angle-policy.radius),tolerance=c ? .002 : strict ? 1/60 : policy.tolerance;
+  const gap=strict?Math.atan(Math.hypot(...xy)*rad)/rad:Math.max(0,angle-policy.radius),tolerance=c ? .002 : strict ? 1/60 : passage ? 0 : policy.tolerance;
   const overlaps=!strict&&angle<=policy.radius,dx=xy[0]-near.point[0],dy=xy[1]-near.point[1],below=!strict&&!overlaps&&dy<0&&Math.abs(dy)>Math.abs(dx);
   const center=pointBody&&project(st.azimuth,st.apparentAltitude),selfOccluded=!!(center&&selfPolygons.length&&closestPoint(center,selfPolygons).distance<=1e-8);
   // An elevated observer can see below their local horizontal plane. This is
   // only the ellipsoid horizon; terrain/buildings are the evaluator's job.
   const horizon=horizonAt(elevation+eyeM);
   const above=(st.upperAltitude??st.apparentAltitude+policy.radius)>=horizon;
-  const row={at,score:gap-tolerance,eligible:above&&!below&&!selfOccluded&&gap<=tolerance+1e-10,state:st,gap,tolerance,overlaps,below,above,selfOccluded,geometryKind,geometry:activeGeometry,anchor:activeAnchor};samples.set(at,row);return row;
+  const row={at,score:passage?angle-policy.radius:gap-tolerance,centerDistance:angle,centerXY:xy,eligible:above&&!below&&!selfOccluded&&gap<=tolerance+1e-10,state:st,gap,tolerance,overlaps,below,above,selfOccluded,geometryKind,geometry:activeGeometry,anchor:activeAnchor};samples.set(at,row);return row;
  }
  let windows=[],riseLimited=false;
  if(plan.timeWindow?.kind&&plan.timeWindow.kind!=='none'){
@@ -1591,11 +1593,13 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
  }
  const solutions=[];
  for(const cluster of clusters){
-  const best=cluster.reduce((a,b)=>b.gap<a.gap?b:a),interval=[cluster[0].at,cluster.at(-1).at];let sunAltitude=null,side=null;
+  const best=cluster.reduce((a,b)=>b.gap<a.gap||passage&&b.gap===a.gap&&b.centerDistance<a.centerDistance?b:a),interval=[cluster[0].at,cluster.at(-1).at];let sunAltitude=null,side=null;
   try{sunAltitude=bodies.state('sun',best.at,eye).apparentAltitude;side=bodies.state(plan.body,best.at+1000,eye).apparentAltitude<best.state.apparentAltitude?'set':'rise';}catch{unknown=true;}
   const contactLimb=limbKind(c?.limb||plan.limb),event={at:range.kind==='instant'?range.start:best.at,intersects:strict||best.overlaps,nearTarget:!strict,
-  relation:strict?(contactLimb!=='center'?'edge-contact':'anchor-hit'):best.overlaps?(geometryKind==='silhouette'?'silhouette-overlap':'anchor-hit'):'near',matchMode:strict?'limb':'near',partId:plan.partId||'tip',contactLimb,gapAngleDeg:best.gap,gapAngleRad:best.gap*rad,
-  toleranceAngleDeg:best.tolerance,toleranceAngleRad:best.tolerance*rad,radius:best.state.angularRadius,altitude:best.state.apparentAltitude,azimuth:best.state.azimuth,sunAltitude,side,targetGeometryKind:geometryKind,timeInterval:interval,timeIntervalSampled:true,visibility:'unknown',...(c?{
+  relation:strict?(contactLimb!=='center'?'edge-contact':'anchor-hit'):best.overlaps?(geometryKind==='silhouette'?'silhouette-overlap':'anchor-hit'):'near',matchMode:strict?'limb':passage?'overlap':'near',partId:plan.partId||'tip',contactLimb,gapAngleDeg:best.gap,gapAngleRad:best.gap*rad,
+  toleranceAngleDeg:best.tolerance,toleranceAngleRad:best.tolerance*rad,radius:best.state.angularRadius,altitude:best.state.apparentAltitude,azimuth:best.state.azimuth,
+  targetAzimuth:g.azimuth,targetAltitude:g.angle,...(targetBounds?{targetPosition:{
+    x:(best.centerXY[0]-targetBounds.minX)/(targetBounds.maxX-targetBounds.minX),y:(best.centerXY[1]-targetBounds.minY)/(targetBounds.maxY-targetBounds.minY)}}:{}),sunAltitude,side,targetGeometryKind:geometryKind,timeInterval:interval,timeIntervalSampled:true,visibility:'unknown',...(c?{
   composition:{...c},compositionResidualDeg:best.gap}:{})};
   solutions.push({observer:{...observer},event,geometry:{...best.geometry},anchor:{...best.anchor}});
  }
@@ -1767,7 +1771,7 @@ function create({align,shooting,bodies,index,surfaceAt,terrain=null,prefilter=tr
   let events=(prepared?[prepared.event]:shooting.eventsFor(plan,obs,start,{align,isMountain:()=>false})).filter(e=>(prepared||shooting.matches(e,plan,()=>false))&&e.at>=start&&e.at<start+86400000&&(mode==='model-los'||plan.body!=='moon'||e.sunAltitude<0));
   if(!prepared&&plan.timeWindow?.kind&&plan.timeWindow.kind!=='none'){const times=Composition.windowEvents(plan,obs,bodies);events=events.filter(e=>Composition.inWindow(e.at,plan.timeWindow,times));}
   const distance=geometry?.distanceKm*1000,refractionK=mode==='model-los'?(globalThis.AstroNotesAtmosphere?.targetK?.()??7/6):1;
-  const needsTargetProbe=!!prepared||mode!=='model-los'||(plan.partId&&plan.partId!=='__whole'&&plan.matchMode!=='overlap');
+  const needsTargetProbe=!!prepared||mode!=='model-los'||(plan.partId&&plan.partId!=='__whole');
   const targetRay=needsTargetProbe&&geometry&&events.length?trace(index,obs,{azimuth:geometry.azimuth,altitude:Math.atan2(geometry.topM-obs.elevation-obs.eyeM-distance*distance/(2*R*refractionK),distance)/rad,maxM:distance,refractionK,targetKey:plan.target.id,endpoint:{
   ...(prepared?.anchor||plan.target),elevation:geometry.topM}}):null;
   const targetTerrain=needsTargetProbe&&geometry&&events.length&&terrain?terrain.trace(obs,{azimuth:geometry.azimuth,altitude:Math.atan2(geometry.topM-obs.elevation-obs.eyeM-distance*distance/(2*R*refractionK),distance)/rad,maxM:distance,refractionK,targetKey:plan.target.id,endpoint:{
@@ -1785,7 +1789,7 @@ function create({align,shooting,bodies,index,surfaceAt,terrain=null,prefilter=tr
    const shown=mode==='model-los'&&!targetOccluded&&rays.every(r=>r.model?.status==='model-visible')&&targetVisibilityProbes.every(r=>r.model.status==='model-visible')?sceneExposure(align,obs,plan.target,st):null;
    tested.push({event,rays,targetVisibilityProbes,targetOccluded,selectedSurface,sceneExposure:shown});}
   if(mode==='model-los'){
-   const selectedPartRequired=!!prepared||plan.partId&&plan.partId!=='__whole'&&plan.matchMode!=='overlap';
+   const selectedPartRequired=!!prepared||plan.partId&&plan.partId!=='__whole';
    const selectedPartModel=selectedPartRequired&&targetRay&&targetTerrain?classifyRay(index,obs,{targetKey:plan.target.id,azimuth:geometry.azimuth,maxM:distance,endpoint:{...(prepared?.anchor||plan.target),elevation:geometry.topM}},targetRay,targetTerrain):null;
    const event=(!selectedPartRequired||selectedPartModel?.status==='model-visible')?tested.find(e=>(!e.selectedSurface||e.selectedSurface.visible)&&e.sceneExposure?.visible&&!e.targetOccluded&&e.rays.every(r=>r.model.status==='model-visible')&&
    e.targetVisibilityProbes.every(r=>r.model.status==='model-visible'))?.event:null;
@@ -1796,7 +1800,7 @@ function create({align,shooting,bodies,index,surfaceAt,terrain=null,prefilter=tr
    targetTerrain,modelEvidence:evidence,assumedObserver:obs,surface,
    reason:!events.length?'no-overlap-event':tested.some(e=>e.selectedSurface&&!e.selectedSurface.visible)?'selected-drawing-surface-occluded-or-unknown':tested.some(e=>e.sceneExposure?.known&&!e.sceneExposure.visible)?'display-model-disagreement':'model-obstructed-or-range-unresolved'};
   }
-  return {status:'unknown',recommend:false,aligned:events.length>0,events:tested,targetRay,targetTerrain,targetProbe:{kind:plan.matchMode==='overlap'||plan.partId==='__whole'?'whole-object-tip-probe':'selected-height-probe',heightM:geometry?.topM??null,diagnosticOnly:true},assumedObserver:obs,
+  return {status:'unknown',recommend:false,aligned:events.length>0,events:tested,targetRay,targetTerrain,targetProbe:{kind:!plan.partId||plan.partId==='__whole'?'whole-object-tip-probe':'selected-height-probe',heightM:geometry?.topM??null,diagnosticOnly:true},assumedObserver:obs,
   surface,reason:'estimated-surface-and-incomplete-3d-coverage'};
  }
  return async function evaluate(plan,point){
@@ -3110,7 +3114,8 @@ function locationText(row){
  const river=riverName&&!name?.includes(riverName)?riverName:null;
  return [river,address].filter(Boolean).join(' ・ ');
 }
-function formatRow(node,row,types){
+const passageOf=(row,plan)=>typeof AstroNotesShooting==='undefined'?'':AstroNotesShooting.passageText(row.event,plan);
+function formatRow(node,row,types,plan){
  if(!node.hasAttribute('data-candidate-columns')){
   const notes=[...node.querySelectorAll('.sub-line')].filter(n=>!n.hasAttribute('data-place-kind')).map(n=>n.textContent.replace(/^\d{2}:\d{2}・/,'').replace(/ · \d{2}:\d{2}/,''));
   node.replaceChildren();node.dataset.candidateColumns='';
@@ -3140,6 +3145,9 @@ function formatRow(node,row,types){
    const before=node.querySelector('[data-candidate-meta],[data-candidate-area],[data-candidate-composition],[data-candidate-uncertainty]');if(before)node.insertBefore(address,before);else node.append(address);}
   if(address.textContent!==location)address.textContent=location;
  }else address?.remove();
+ const passage=passageOf(row,plan);let position=node.querySelector('[data-candidate-passage]');
+ if(passage){if(!position){position=document.createElement('span');position.dataset.candidatePassage='';position.className='tiny sub-line';Object.assign(position.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});
+  const before=node.querySelector('[data-candidate-composition],[data-candidate-uncertainty]');if(before)node.insertBefore(position,before);else node.append(position);}if(position.textContent!==passage)position.textContent=passage;}else position?.remove();
  const framed=compositionText(row);let line=node.querySelector('[data-candidate-composition]');
  if(framed){if(!line){line=document.createElement('span');line.dataset.candidateComposition='';line.className='tiny sub-line';Object.assign(line.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});
   const before=node.querySelector('[data-candidate-uncertainty]');if(before)node.insertBefore(line,before);else node.append(line);}line.textContent=framed;}else line?.remove();
@@ -3260,7 +3268,7 @@ async function apply(){
     }
     if(!events)unknownTime++;
    }
-   const id=candidateKey(row);formatRow(node,row,types);node.dataset.candidateKinds=types.join(',');node.dataset.candidateId=id;
+   const id=candidateKey(row);formatRow(node,row,types,g.plan);node.dataset.candidateKinds=types.join(',');node.dataset.candidateId=id;
    if(!boundNodes.has(node)){boundNodes.add(node);node.addEventListener('click',()=>{selectedId=node.dataset.candidateId;},true);}
    entries.push({row,node,types,index:index++,id,box,group:g,show:accepts(row,selection.time,selection.kind,types,events)});
    if(i%12===11){await new Promise(r=>setTimeout(r,0));if(!revision.current(token)||!g.current())return;}
@@ -3344,7 +3352,7 @@ function refreshMap(){
  if(select.dataset.signature!==signature){select.replaceChildren();visibleEntries.forEach((e,i)=>select.add(new Option(`${i+1}. ${e.row.place.name} ・ ${clockText(e.row.event?.at)}`,e.id)));select.dataset.signature=signature;}
  select.value=selectedId||'';const e=mapSelection();
  const detail=mapPanel.querySelector('#candidateMapDetail');if(e){const obs=e.row.assumedObserver,p=e.row.place,base=Number.isFinite(obs?.elevation)?obs.elevation:p.groundManualM??p.elevation,eye=Number.isFinite(obs?.eyeM)?obs.eyeM:p.standAglM??p.eyeHeightAGL;
- detail.textContent=[locationText(e.row),e.types.map(t=>names[t]).join('・'),clockText(e.row.event?.at),
+ detail.textContent=[locationText(e.row),e.types.map(t=>names[t]).join('・'),clockText(e.row.event?.at),passageOf(e.row,e.group.plan),
   Number.isFinite(base)&&Number.isFinite(eye)?'撮影位置の標高 '+(base+eye).toFixed(1)+'m':'高さ未確認',...uncertainty(e.row)].filter(Boolean).join(' ・ ');}
  mapPanel.querySelector('#candidateMapUse').disabled=!currentEntry(e);
  if(mapFitPending){mapFitPending=false;const ps=visibleEntries.map(e=>e.row.place).filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude));

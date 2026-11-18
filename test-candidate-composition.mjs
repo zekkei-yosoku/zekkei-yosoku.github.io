@@ -159,3 +159,15 @@ test('whole-target angular bounds defer when the first part moves the camera axi
  const bodies={state:()=>({azimuth:moved.azimuth+5,apparentAltitude:moved.angle,angularRadius:.25})};
  assert.equal(C.definiteAngularMiss(plan,observer,{align:A,bodies}),false);
 });
+
+
+test('named overlap accepts disc edges but excludes mere proximity before heavy visibility work',async()=>{
+ const observer={latitude:35.75,longitude:139.85,elevation:20,eyeM:1.5},g=A.geometryFrom(observer,target,{partId:'tip',eyeM:1.5});
+ const plan={body:'sun',target,partId:'tip',matchMode:'overlap',timeSpec:{kind:'instant',at:0}};
+ for(const dy of [-.24,0,.24,.3,-.6]){
+  const bodies={definition:()=>({limbs:true}),state:()=>({azimuth:g.azimuth,apparentAltitude:g.angle+dy,angularRadius:.25})};
+  const result=await C.opportunities(plan,observer,{align:A,bodies,yieldTask:async()=>{}});
+  assert.equal(result.solutions.length,Math.abs(dy)<.25?1:0,String(dy));
+  if(result.solutions.length){const e=result.solutions[0].event;assert.equal(e.matchMode,'overlap');assert.equal(e.targetAzimuth,g.azimuth);assert.equal(e.targetAltitude,g.angle);}
+ }
+});
