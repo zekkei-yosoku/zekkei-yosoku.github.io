@@ -235,3 +235,12 @@ test('候補の計算に使った観測点が登録アンカーと違っても�
  assert.equal(f.c.SkyMapUI.selectCandidate(row,expected),true);await flush();const s=f.c.SkyMapUI.selectionState();
  assert.equal(s.observer.latitude,35.7201);assert.equal(s.observer.longitude,139.8601);assert.equal(s.observer.groundManualM,30);assert.equal(s.observer.standAglM,4);assert.equal(s.at,row.event.at);assert.equal(f.loads,0);
 });
+
+test('微調整は確定した移動先標高と元の地上高を使い、日時を変えず古い要求を拒否する',async()=>{
+ const f=fixture({ground:27.4,saved:{at:day+3600000,targetId:'skytree',body:'moon',partId:'__whole',limb:'center',observer:{id:'saved',name:'保存点',latitude:35.71,longitude:139.81,groundManualM:20,standAglM:4}}});await f.open();
+ const before=f.c.SkyMapUI.selectionState(),expected=f.c.AstroNotesShooting.observerMoveKey(before),loads=f.loads;
+ assert.equal(f.c.SkyMapUI.moveObserver({latitude:35.7101,longitude:139.8101},30,expected),true);await flush();
+ const after=f.c.SkyMapUI.selectionState();assert.equal(after.at,before.at);assert.equal(after.observer.groundManualM,30);assert.equal(after.observer.standAglM,4);assert.equal(after.observer.latitude,35.7101);assert.equal(after.observer.id,undefined);assert.equal(f.loads,loads);
+ assert.equal(f.c.SkyMapUI.moveObserver({latitude:35.72,longitude:139.82},50,expected),false);
+ assert.equal(f.c.SkyMapUI.moveObserver({latitude:35.72,longitude:139.82},NaN,f.c.AstroNotesShooting.observerMoveKey(after)),false);
+});

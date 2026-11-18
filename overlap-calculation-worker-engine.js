@@ -5297,6 +5297,41 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
       sunAltitude: body === "sun" ? c.st.apparentAltitude : body === "moon" ? bodyAt("sun",t,eye).apparentAltitude : A.sun(t, eye).geometricAltitude };
   }
 
+  // Fixed-time map guides only: retain the observer's ground/eye height. No DEM,
+  // visibility search or time scan. Confirming a guide obtains its actual ground.
+  function observerGuides(target,body,{at,groundM,eyeM=1.5,limb='center'}={}) {
+    if(!target||![at,groundM,eyeM,target.latitude,target.longitude].every(Number.isFinite)||eyeM<0||eyeM>700)return [];
+    const guides=[],seen=new Set(),sign=B?.definition?.(body)?.limbs?limbById(limb).sign:0;
+    for(const part of (target.parts||[]).slice(0,12)){
+      if(!part.id||seen.has(part.id)||typeof part.name!=='string'||!part.name.trim()||!Number.isFinite(part.m)||part.m<=groundM+eyeM)continue;seen.add(part.id);
+      const t=partTarget(target,part.id),st=bodyAt(body,at,{latitude:t.latitude,longitude:t.longitude,elevation:part.m});
+      const altitude=limbAltitude(st,sign);if(!Number.isFinite(st.azimuth)||!(altitude>0&&altitude<89.5))continue;
+      let lo=.02,hi=300;if(targetAngle(lo,groundM+eyeM,part.m)<altitude||targetAngle(hi,groundM+eyeM,part.m)>altitude)continue;
+      for(let i=0;i<35;i++){const mid=(lo+hi)/2;if(targetAngle(mid,groundM+eyeM,part.m)>altitude)lo=mid;else hi=mid;}
+      let bearing=(st.azimuth+180)%360,distance=(lo+hi)/2;
+      const sample=(b,d)=>{
+        if(!(d>=.02&&d<=300))return null;const p=TR.destination(t.latitude,t.longitude,b,d),obs={...p,elevation:groundM};
+        const g=geometryFrom(obs,target,{partId:part.id,eyeM}),state=bodyAt(body,at,{...obs,elevation:groundM+eyeM});
+        const residual=g&&viewProjector(g.azimuth,g.angle)(state.azimuth,limbAltitude(state,sign));
+        return residual&&residual.every(Number.isFinite)?{...p,residual}:null;
+      };
+      let result=null;
+      for(let i=0;i<12;i++){
+        const q=sample(bearing,distance);if(!q)break;
+        if(Math.hypot(...q.residual)<.0005){result=q;break;}
+        const db=.001,dd=Math.min(.001,distance*.001),a=sample(bearing+db,distance),b=sample(bearing,distance+dd);if(!a||!b)break;
+        const j00=(a.residual[0]-q.residual[0])/db,j10=(a.residual[1]-q.residual[1])/db,j01=(b.residual[0]-q.residual[0])/dd,j11=(b.residual[1]-q.residual[1])/dd,det=j00*j11-j01*j10;
+        if(!Number.isFinite(det)||Math.abs(det)<1e-12)break;
+        const deltaB=(-j11*q.residual[0]+j01*q.residual[1])/det,deltaD=(j10*q.residual[0]-j00*q.residual[1])/det;
+        let next=null;
+        for(let scale=1;scale>=1/64;scale/=2){const c=sample(bearing+deltaB*scale,distance+deltaD*scale);if(c&&Math.hypot(...c.residual)<Math.hypot(...q.residual)){next={bearing:bearing+deltaB*scale,distance:distance+deltaD*scale};break;}}
+        if(!next)break;bearing=next.bearing;distance=next.distance;
+      }
+      if(result)guides.push({latitude:result.latitude,longitude:result.longitude,partId:part.id,label:part.name.replace(/（[^）]*）/g,''),at,groundM,eyeM,approximate:true});
+    }
+    return guides;
+  }
+
   function prepareAlignmentAt(observer,target,body,opts={}) {
     const view=prepareDailyView(observer,target,body,opts);
     if(opts.partId==='__whole'||opts.pointOnly)return at=>{
@@ -5441,7 +5476,7 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
   const AstroNotesAlign = { heightVertices, TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, dailyView, prepareDailyView, alignmentAt, prepareAlignmentAt, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, rimPoints, judge, buildingBlock,
-                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, get CITY_MODELS(){return global.AstroNotesCityModels || CM || {};},get TOWER_MODELS(){return global.AstroNotesTowerModels || TM || {};
+                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, observerGuides, partTarget, get CITY_MODELS(){return global.AstroNotesCityModels || CM || {};},get TOWER_MODELS(){return global.AstroNotesTowerModels || TM || {};
                         }, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, outlineModel, towerOutline, outlineBounds, outlineScreenBounds, viewWindow, viewPath, sceneTargets, hiddenBelowText };
   global.AstroNotesAlign = AstroNotesAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = AstroNotesAlign;
@@ -5466,6 +5501,12 @@ function candidatePlace(row){
  return {...p,latitude:o.latitude,longitude:o.longitude,
   ...(Number.isFinite(o.elevation)?{elevation:o.elevation,groundManualM:o.elevation}:{}),
   ...(Number.isFinite(o.eyeM)&&o.eyeM>=0&&o.eyeM<=700?{standAglM:o.eyeM,eyeHeightAGL:o.eyeM}:{})};
+}
+function observerMoveKey(s){return JSON.stringify([s?.body,s?.target,s?.partId??null,s?.limb||'center',s?.matchMode||'limb',s?.observer]);}
+function movedPlace(from,to,ground,eyeM){
+ if(!point(from)||!point(to)||!Number.isFinite(ground)||ground< -500||ground>9000||!Number.isFinite(eyeM)||eyeM<0||eyeM>700)return null;
+ const p={...from,...to,name:'微調整した撮影位置',subtitle:to.latitude.toFixed(6)+', '+to.longitude.toFixed(6),elevation:ground,groundManualM:ground,standAglM:eyeM,eyeHeightAGL:eyeM};
+ for(const key of ['id','sourcePlaceId','shape','decks','stand','observationElevationM'])delete p[key];return p;
 }
 function conditions(p){
  if(!p||!point(p.target)||!Number.isFinite(p.at)||typeof p.body!=='string')return null;
@@ -5711,7 +5752,8 @@ function hapticGate({vibrate=()=>{},clock=Date.now}={}){
  let previous=false,last=-Infinity,identity='';
  return (matched,key)=>{if(key!==identity){identity=key;previous=false;}const entered=matched&&!previous;previous=!!matched;if(entered&&clock()-last>800){last=clock();try{vibrate(12);}catch{/* 振動は無くてもよい */}}return entered;};
 }
-global.AstroNotesShooting={day,point,savedObserver,candidatePlace,conditions,queryKey,searchOptions,eventsFor,matches,passageText,candidates,hapticGate,cleanShape,shapeContains,shapePaths,shapeCandidates,annotateShapeRuns,meters,interpolate};
+global.AstroNotesShooting={day,point,savedObserver,candidatePlace,observerMoveKey,movedPlace,conditions,queryKey,searchOptions,eventsFor,matches,passageText,candidates,hapticGate,
+ cleanShape,shapeContains,shapePaths,shapeCandidates,annotateShapeRuns,meters,interpolate};
 if(typeof module!=='undefined'&&module.exports)module.exports=global.AstroNotesShooting;
 })(globalThis);
 

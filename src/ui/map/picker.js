@@ -248,7 +248,7 @@ function createMapView(ids) {
   }
   function attach() {
     cv = $(ids.canvas); ctx = cv.getContext("2d");
-    const scrollMap=()=>!cv.closest('.sky-map-wide');
+    const scrollMap=()=>!ids.panOnTouch&&!cv.closest('.sky-map-wide');
     const twoTouch=e=>{if(scrollMap()&&e.touches.length>=2&&e.cancelable)e.preventDefault();};
     cv.addEventListener('touchstart',twoTouch,{passive:false});cv.addEventListener('touchmove',twoTouch,{passive:false});
     cv.onpointerdown = (e) => {

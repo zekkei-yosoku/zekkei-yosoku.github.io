@@ -13,6 +13,12 @@ function candidatePlace(row){
   ...(Number.isFinite(o.elevation)?{elevation:o.elevation,groundManualM:o.elevation}:{}),
   ...(Number.isFinite(o.eyeM)&&o.eyeM>=0&&o.eyeM<=700?{standAglM:o.eyeM,eyeHeightAGL:o.eyeM}:{})};
 }
+function observerMoveKey(s){return JSON.stringify([s?.body,s?.target,s?.partId??null,s?.limb||'center',s?.matchMode||'limb',s?.observer]);}
+function movedPlace(from,to,ground,eyeM){
+ if(!point(from)||!point(to)||!Number.isFinite(ground)||ground< -500||ground>9000||!Number.isFinite(eyeM)||eyeM<0||eyeM>700)return null;
+ const p={...from,...to,name:'微調整した撮影位置',subtitle:to.latitude.toFixed(6)+', '+to.longitude.toFixed(6),elevation:ground,groundManualM:ground,standAglM:eyeM,eyeHeightAGL:eyeM};
+ for(const key of ['id','sourcePlaceId','shape','decks','stand','observationElevationM'])delete p[key];return p;
+}
 function conditions(p){
  if(!p||!point(p.target)||!Number.isFinite(p.at)||typeof p.body!=='string')return null;
  return {observer:point(p.observer)?{...p.observer}:null,target:{...p.target},body:p.body,partId:p.partId??null,limb:p.partId==='__whole'?'center':p.limb||'center',at:p.at,...(p.matchMode?{matchMode:p.matchMode==='overlap'?'overlap':'limb'}:{})};
@@ -257,7 +263,8 @@ function hapticGate({vibrate=()=>{},clock=Date.now}={}){
  let previous=false,last=-Infinity,identity='';
  return (matched,key)=>{if(key!==identity){identity=key;previous=false;}const entered=matched&&!previous;previous=!!matched;if(entered&&clock()-last>800){last=clock();try{vibrate(12);}catch{/* 振動は無くてもよい */}}return entered;};
 }
-global.AstroNotesShooting={day,point,savedObserver,candidatePlace,conditions,queryKey,searchOptions,eventsFor,matches,passageText,candidates,hapticGate,cleanShape,shapeContains,shapePaths,shapeCandidates,annotateShapeRuns,meters,interpolate};
+global.AstroNotesShooting={day,point,savedObserver,candidatePlace,observerMoveKey,movedPlace,conditions,queryKey,searchOptions,eventsFor,matches,passageText,candidates,hapticGate,
+ cleanShape,shapeContains,shapePaths,shapeCandidates,annotateShapeRuns,meters,interpolate};
 if(typeof module!=='undefined'&&module.exports)module.exports=global.AstroNotesShooting;
 })(globalThis);
 

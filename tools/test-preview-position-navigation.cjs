@@ -27,6 +27,7 @@ const ready=page=>page.waitForFunction(()=>{const h=document.getElementById('aim
    assert.equal(changed.latitude,35.6905);assert.equal(changed.eye,4);assert.equal(changed.at,AstroTime('2026-11-19T12:20:00+09:00'));assert.equal(changed.stage,'preview');assert(changed.bar);assert.equal(changed.loads,loads);
    await page.getByRole('button',{name:'前の撮影位置',exact:true}).click();await ready(page);assert(Math.abs(await page.evaluate(()=>SkyMapUI.selectionState().observer.latitude)-35.6904)<1e-10);
    await page.getByRole('button',{name:'次の撮影位置',exact:true}).click();await ready(page);assert.equal(await positions.inputValue(),deck.value);
+   const fineMovement=await require('./check-observer-movement.cjs')(page,{screenshot:out+'/'+engine+'-'+width+'-move-map.png'});
    await page.locator('#exploreConditions > summary .explore-condition-edit').click();await page.waitForFunction(()=>document.getElementById('exploreConditions').open);
    assert.equal(await page.locator('#skyMapView').getAttribute('data-explore-stage'),'preview');assert(await page.locator('#exploreScenePanel').isVisible());assert(await page.locator('#exploreFindPlaces').isVisible());assert((await page.locator('#exploreFindPlaces').boundingBox()).height>=44);assert.equal(await page.evaluate(()=>dateFixture.loads.length),loads);
    await page.screenshot({path:out+'/'+engine+'-'+width+'-conditions.png',fullPage:true});
@@ -40,7 +41,7 @@ const ready=page=>page.waitForFunction(()=>{const h=document.getElementById('aim
    await page.evaluate(()=>SkyMapUI.setAlignment('tip','center','overlap'));await page.waitForFunction(()=>document.getElementById('exploreCandidatePositions').hidden);
    const before=await page.evaluate(()=>SkyMapUI.selectionState());await page.evaluate(()=>document.getElementById('exploreCandidatePosition').dispatchEvent(new Event('change')));assert.deepEqual(await page.evaluate(()=>SkyMapUI.selectionState()),before,'a stale hidden position control cannot execute');
    assert.equal(await page.evaluate(()=>JSON.stringify({favorites,records:MyPlacesUI.load(),plans:schedule().list()})),stored);assert.equal(writes,0);assert.deepEqual(errors,[]);
-   results.push({engine,width,version:await page.locator('meta[name=app-version]').getAttribute('content'),memberCount:3,listCount:1,partShortcuts:3,exactPositionTimeHeight:true,previewRetained:true,barRetained:true,returnReuses:true,staleConditionRejected:true,writes});fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log(engine,width,'preview positions passed');
+   results.push({engine,width,version:await page.locator('meta[name=app-version]').getAttribute('content'),fineMovement,memberCount:3,listCount:1,partShortcuts:3,exactPositionTimeHeight:true,previewRetained:true,barRetained:true,returnReuses:true,staleConditionRejected:true,writes});fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log(engine,width,'preview positions passed');
   }catch(e){await page.screenshot({path:out+'/'+engine+'-'+width+'-failure.png',fullPage:true}).catch(()=>{});console.error(errors);throw e;}finally{await context.close();}
  }}finally{await browser.close();}
 }})().catch(e=>{console.error(e);process.exit(1);});

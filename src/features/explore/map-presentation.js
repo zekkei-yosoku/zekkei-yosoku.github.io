@@ -581,8 +581,10 @@ ctx.lineWidth=1;
   save();return true;
  }
  setSkyMapUI({minuteScrubbing,resuming:()=>!!suspended,
- workspaceHost:()=>hasAccess()&&session&&active()?{session,map,pickMode,targetOn,extraCount:()=>session.target?aimSceneExtraTargets(session.target.id).length:0,setTime,setScrubMode,shownBodies,skyState,placePoint,restoreObserver:o=>{session.observer=o;
- session.ground=null;if(validPoint(o))map.setCenter(o.latitude,o.longitude);refresh();},restoreTarget:b=>{Object.assign(session,b);targetOn=validPoint(b.target);const sel=el('skyMapTarget'),custom=[...sel.options].find(o=>o.value==='custom');if(custom){if(b.custom)custom.textContent=b.custom.name;
+ workspaceHost:()=>hasAccess()&&session&&active()?{session,map,pickMode,targetOn,extraCount:()=>session.target?aimSceneExtraTargets(session.target.id).length:0,setTime,setScrubMode,shownBodies,skyState,placePoint,
+ restoreObserver:(o,ground=null,opportunity=null)=>{session.observer=o;session.candidateOpportunity=opportunity;session.ground=Number.isFinite(ground)?ground:null;
+ if(validPoint(o)){map.setCenter(o.latitude,o.longitude);const eye=aimObserverAt(o,session.ground);session.eye={latitude:o.latitude,longitude:o.longitude,elevation:eye.elevation+eye.eyeM};}refresh();},
+ restoreTarget:b=>{Object.assign(session,b);targetOn=validPoint(b.target);const sel=el('skyMapTarget'),custom=[...sel.options].find(o=>o.value==='custom');if(custom){if(b.custom)custom.textContent=b.custom.name;
  else custom.remove();}sel.value=b.target?.id||'';syncBodies();refresh();},setTargetHeight:height=>{const c=session.custom;if(session.target?.id!=='custom'||!c||!Number.isFinite(c.groundM)||!AstroNotesLibrary.height(height))return false;
  session.custom={...c,heightM:height,topM:c.groundM+height,heightAuto:false};session.target={...session.target,...session.custom,parts:[{id:'tip',name:'てっぺん',m:c.groundM+height}]};session.customTarget=session.target;refresh();return true;
  },redraw:()=>map.redraw(),bodyState:body=>{const b=session.blend;return b?blendBodyState(skyState(body,b.from,session.eye),skyState(body,b.to,session.eye),b.f):skyState(body,session.at,session.eye);
@@ -600,6 +602,12 @@ ctx.lineWidth=1;
   session.observer=aimSavedFrom(AstroNotesShooting.savedObserver(place));session.ground=Number.isFinite(place.elevation)?place.elevation:null;if(candidate.event.matchMode){session.matchMode=candidate.event.matchMode;session.partId=candidate.event.partId;
   session.limb='center';}session.at=candidate.event.at;session.dayAnchor=AstroNotesShooting.day(session.at);map.setCenter(place.latitude,place.longitude);refresh();
   document.dispatchEvent(new CustomEvent('astronotes-candidate-selected',{detail:{candidate,previewGroup}}));return true;
+ },moveObserver:(point,ground,expected)=>{
+  if(!hasAccess()||!session||!active()||expected!==AstroNotesShooting.observerMoveKey(session))return false;
+  const eyeM=aimObserverAt(session.observer,session.ground).eyeM,place=AstroNotesShooting.movedPlace(session.observer,point,ground,eyeM);if(!place)return false;
+  aimElevCache.set(place.latitude.toFixed(6)+','+place.longitude.toFixed(6),ground);
+  skyPlayback.stop(false);session.observer=aimSavedFrom(place);session.ground=ground;session.eye={latitude:place.latitude,longitude:place.longitude,elevation:ground+eyeM};session.candidateOpportunity=null;
+  map.setCenter(place.latitude,place.longitude);refresh();return true;
  },setAlignment:(partId,limb,matchMode='limb')=>{if(!hasAccess()||!session||!active())return;if(partId&&partId!=='__whole'&&!(session.target?.parts||[]).some(p=>p.id===partId))return;if(!AstroNotesAlign.LIMBS.some(x=>x.id===limb))return;session.matchMode=matchMode==='overlap'?'overlap':'limb';
  session.partId=partId??(session.matchMode==='overlap'?(aimIsMountain(session.target)?null:'__whole'):null);session.limb=session.matchMode==='overlap'||partId==='__whole'?'center':limb;refresh();
  },open,leave,suspend,authChanged,prepareFraming,enter,refreshTargets,render,redraw:()=>map.redraw(),fitPoints:pts=>{const cv=el('skyMapCanvas'),la=pts.map(q=>q.latitude),lo=pts.map(q=>q.longitude),lat0=Math.min(...la),lat1=Math.max(...la),lon0=Math.min(...lo),lon1=Math.max(...lo),lat=(lat0+lat1)/2,

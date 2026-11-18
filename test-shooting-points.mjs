@@ -178,3 +178,13 @@ test('候補は評価済みの観測位置・標高・目高を使い、元の�
  assert.deepEqual(P.candidatePlace(row),{name:'候補の名前',latitude:35.0001,longitude:139.0001,elevation:30,groundManualM:30,standAglM:4,eyeHeightAGL:4});
  assert.equal(JSON.stringify(row),before);assert.equal(P.candidatePlace({place:row.place}),row.place);
 });
+
+test('微調整した現在点へ登録ID・形状・展望台を引き継がず、標高と地上高は確定値を使う',()=>{
+ const from={id:'saved',name:'保存した公園',latitude:35,longitude:139,shape:{type:'line'},decks:[{}],stand:'展望台',sourcePlaceId:'source',observationElevationM:100},before=JSON.stringify(from);
+ const p=P.movedPlace(from,{latitude:35.001,longitude:139.001},32.5,4);
+ assert.equal(p.groundManualM,32.5);assert.equal(p.standAglM,4);assert.equal(p.name,'微調整した撮影位置');
+ for(const key of ['id','sourcePlaceId','shape','decks','stand','observationElevationM'])assert(!Object.hasOwn(p,key));
+ assert.equal(JSON.stringify(from),before);assert.equal(P.movedPlace(from,{latitude:35,longitude:139},NaN,4),null);
+ const s={body:'moon',target:{id:'tower'},observer:from,at:0};
+ assert.equal(P.observerMoveKey(s),P.observerMoveKey({...s,at:1000}),'moving preserves the live time rather than reverting a time captured before a lookup');
+});
