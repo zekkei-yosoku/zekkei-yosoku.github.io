@@ -122,6 +122,8 @@ async function assertSelected(p,row,before,body,target='custom'){
     await p.waitForFunction(()=>{const button=document.getElementById('candidateSearchAction');return button?.dataset.state==='idle'&&!button.disabled;});await search(p);
     // 2026-11-11: with one target overlapped as a whole the lens does not decide the places (ユーザー「天体と重なる所だけ確認」),
     // so a lens change keeps the list and its rows stay current.
+    await p.evaluate(()=>SkyMapUI.setAlignment('__whole','center','overlap'));
+    await p.waitForFunction(()=>{const b=document.getElementById('candidateSearchAction');return b?.dataset.state==='idle'&&!b.disabled;});await search(p);
     const lensRows=await p.evaluate(()=>AstroNotesCandidatePicker.visibleRows().length);await p.evaluate(()=>{aimLens.on=true;aimLens.mode='manual';aimLens.focal=(aimLens.focal||200)+100;document.dispatchEvent(new Event('astronotes-composition-change'));});await p.waitForTimeout(300);assert.equal(await p.evaluate(()=>AstroNotesCandidatePicker.visibleRows().length),lensRows,'a lens change keeps single-target rows');
     await p.waitForFunction(()=>{const button=document.getElementById('candidateSearchAction');return button?.dataset.state==='idle'&&!button.disabled;});await search(p);
     const rangeBefore=await state(p);await p.evaluate(()=>{const click=document.querySelector('#candidateUnifiedResults .list-item').onclick,mode=document.getElementById('candidateSearchMode');mode.value='window';mode.onchange();click();});assert.deepEqual(await state(p),rangeBefore,'changed time range candidate refused');

@@ -5485,7 +5485,8 @@ function matches(e,p,isMountain){
 // Direction is the celestial centre relative to the selected target, as seen from the observer.
 function passageText(event,plan){
  if(!event||!plan?.target||!['sun','moon'].includes(plan.body)||!(event.radius>0))return '';
- const mountain=!event.composition&&(!!plan.target.rim||plan.target.kind==='mountain');
+ const t=plan.target,groundSummit=Number.isFinite(t.groundM)&&t.parts?.length===1&&Math.abs(t.parts[0].m-t.groundM)<.5;
+ const mountain=!event.composition&&(!!t.rim||t.kind==='mountain'||t.id==='fuji'||groundSummit);
  const whole=!event.composition&&!mountain&&(!plan.partId||plan.partId==='__whole');
  if(whole){
   const p=event.targetPosition;if(!p||![p.x,p.y].every(Number.isFinite))return '';

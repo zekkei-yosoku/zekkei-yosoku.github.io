@@ -158,3 +158,17 @@ test('建物全体では先端基準を流用せず、円盤の中心の建物�
  const observer={latitude:35.75,longitude:139.85,elevation:20},t=A.targetById('skytree'),events=A.dailyView(observer,t,'sun',start,{partId:'__whole'});
  assert(events.every(e=>Number.isFinite(e.targetPosition?.x)&&Number.isFinite(e.targetPosition?.y)));
 });
+
+
+test('任意追加の山は地面と山頂の標高で判定し、kind/rimがなくても山頂の左右を説明する',()=>{
+ const target={id:'fav:added-mountain',favId:'added-mountain',name:'追加した山',groundM:1898,parts:[{id:'tip',name:'てっぺん',m:1898}]},plan={target,body:'moon',partId:null,matchMode:'overlap'},event={radius:.25,azimuth:180,targetAzimuth:180,targetAltitude:5,altitude:5};
+ assert.equal(P.passageText(event,plan),'山頂の中心を通過');
+ assert.equal(P.passageText({...event,azimuth:179.8},plan),'山頂の左寄りを通過');
+ assert.equal(P.passageText({...event,azimuth:180.2},plan),'山頂の右寄りを通過');
+ const building={...plan,target:{...target,groundM:10,parts:[{id:'tip',name:'てっぺん',m:110}]}};
+ assert.equal(P.passageText(event,{...building,partId:'tip'}),'てっぺん付近を通過');
+ assert.equal(P.passageText({...event,altitude:5.2},{...building,partId:'tip'}),'てっぺんの上寄りを通過');
+ assert.equal(P.passageText({...event,targetPosition:{x:.8,y:.8}},{...building,partId:'__whole'}),'全体の右上寄りを通過');
+ assert.equal(P.passageText(event,{...building,partId:'__whole'}),'','missing whole-object geometry must not invent an offset');
+ assert.equal(P.passageText({radius:.25},plan),'','a missing direction must not imply a central summit passage');
+});
