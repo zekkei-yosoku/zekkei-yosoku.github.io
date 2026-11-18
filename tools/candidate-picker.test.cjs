@@ -106,3 +106,22 @@ test('a surveyed place stands for its area, whatever the kind and rank of the fo
  const room={row:row(35.7403,{place:{name:'調べた展望室',latitude:35.7403,longitude:139.74,elevation:20,eyeHeightAGL:150},quality:{photographyClass:'normal',surveyed:true}}),types:['viewpoint'],index:2};
  assert.equal(F.mergeEntries([found,room],'time').length,2,'a surveyed room high above the found ground is its own row');
 });
+
+
+test('recorded lines/areas group by source, height and connected window, preserve real start and disjoint runs',()=>{
+ const make=(id,eye,run,at)=>({place:{id,sourcePlaceId:id,name:'同じ名前',latitude:35,longitude:139,eyeHeightAGL:eye},assumedObserver:{eyeM:eye},event:{at},spatialWindow:{id:run,kind:'line',fromAt:0,toAt:600000,count:3}});
+ const a=make('a',1.5,'first',120000),b=make('a',1.5,'first',0),other=make('b',1.5,'first',0),height=make('a',10,'first',0),gap=make('a',1.5,'second',3600000);
+ const input=[a,b,other,height,gap],before=JSON.stringify(input),rows=F.recordedEntries(input);
+ assert.equal(rows.length,4);assert(rows.includes(b));assert(!rows.includes(a));assert(rows.includes(other)&&rows.includes(height)&&rows.includes(gap));assert.equal(JSON.stringify(input),before);
+ assert.equal(F.candidateTimeText(b),'09:00〜09:10');
+ assert.equal(F.candidateTimeText({...b,spatialWindow:{...b.spatialWindow,toAt:500}}),'09:00');
+ assert.equal(F.candidateTimeText({...b,spatialWindow:undefined}),'09:00');
+});
+
+
+test('shared grouping never reconnects recorded spatial runs separated by a missing segment',()=>{
+ const entry=(window,at,eye=1.5)=>({row:{place:{id:'source',sourcePlaceId:'source',latitude:35,longitude:139,elevation:10,eyeHeightAGL:eye},assumedObserver:{eyeM:eye},event:{at},spatialWindow:{id:window}},types:['park'],index:at});
+ assert.equal(F.mergeEntries([entry('a',1000),entry('b',2000)],'time').length,2);
+ assert.equal(F.mergeEntries([entry('a',1000),entry('a',2000,3)],'time').length,2);
+ assert.equal(F.mergeEntries([entry('a',1000),entry('a',2000)],'time').length,1);
+});

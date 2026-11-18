@@ -261,8 +261,9 @@ function ensureRecordDiscovery(){
  if(!recordPane){
   recordTabs=node('div',{className:'explore-discovery-tabs'});recordTabs.setAttribute('role','tablist');recordTabs.setAttribute('aria-label','撮影地点の検索範囲');
   recordPane=node('section',{id:'exploreRecordedPlaces'});recordPane.setAttribute('aria-live','polite');newPlacePane=node('section',{id:'exploreNewPlaces'});
-  for(const [name,pane,label]of [['records',recordPane,'記録の撮影地点'],['new',newPlacePane,'新しい撮影地点']]){
-   const button=node('button',{id:'exploreDiscovery-'+name,type:'button'},label);button.setAttribute('role','tab');button.setAttribute('aria-controls',pane.id);pane.setAttribute('role','tabpanel');pane.setAttribute('aria-labelledby',button.id);button.onclick=()=>chooseDiscovery(name);
+  for(const [name,pane,label]of [['records',recordPane,'記録'],['new',newPlacePane,'新規']]){
+   const button=node('button',{id:'exploreDiscovery-'+name,type:'button'},label);button.setAttribute('role','tab');button.setAttribute('aria-label',name==='records'?'記録の撮影地点':'新しい撮影地点');button.setAttribute('aria-controls',pane.id);
+   pane.setAttribute('role','tabpanel');pane.setAttribute('aria-labelledby',button.id);button.onclick=()=>chooseDiscovery(name);
    recordTabs.append(button);
   }
   recordTabs.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();chooseDiscovery(e.key==='Home'?'records':e.key==='End'?'new':discoveryTab==='records'?'new':'records',true);};
@@ -273,16 +274,20 @@ function ensureRecordDiscovery(){
  chooseDiscoveryQuiet();
 }
 function chooseDiscoveryQuiet(){for(const [name,pane]of [['records',recordPane],['new',newPlacePane]]){if(!pane)continue;const button=$('exploreDiscovery-'+name),on=discoveryTab===name;button.setAttribute('aria-selected',String(on));button.tabIndex=on?0:-1;if(pane.hidden===on)pane.hidden=!on;}}
-function renderRecordRows(request,result){
+async function renderRecordRows(request,result){
  recordPane.replaceChildren();const rows=result.rows||[];
  const list=node('div',{id:'exploreRecordedResults'});recordPane.append(list);
- for(const row of rows){
-  const b=node('button',{type:'button',className:'explore-record-row'}),name=node('strong',{},row.place.name),time=node('span',{className:'explore-record-time'},new Date(row.event.at+32400000).toISOString().slice(11,16)),sub=node('span',{className:'tiny'}),arrow=node('span',{
-  className:'explore-record-arrow'},'›');arrow.setAttribute('aria-hidden','true');
-  if(row.heightSearch||rows.some(other=>(other.place.sourcePlaceId??other.place.id)===(row.place.sourcePlaceId??row.place.id)&&(other.assumedObserver?.eyeM??other.place.standAglM)!==(row.assumedObserver?.eyeM??row.place.standAglM)))sub.textContent='地上'+
-  (row.assumedObserver?.eyeM??row.place.standAglM??row.place.eyeHeightAGL)+'m';
-  b.append(name,time,arrow);if(sub.textContent){b.classList.add('has-height');b.append(sub);}b.onclick=()=>{if(!mainSearchActive()||recordState.key!==request.key||!recordCurrent(request)||!mainCandidateWorkspace.selectable()){syncRecordDiscovery();return;
-  }const s=SkyMapUI.selectionState(),expected=JSON.stringify([s.body,s.target,s.partId,s.limb,AstroNotesShooting.day(s.at),s.matchMode||'limb']);SkyMapUI.selectCandidate(row,expected);};list.append(b);
+ const current=()=>recordState.key===request.key&&recordCurrent(request)&&list.isConnected;
+ if(rows.length){
+  recordPane.setAttribute('aria-busy','true');
+  try{
+  const count=await AstroNotesCandidatePicker.renderRecorded(list,rows,request.plan,{current,select:row=>{
+   if(!mainSearchActive()||!current()||!mainCandidateWorkspace.selectable()){syncRecordDiscovery();return;}
+   const s=SkyMapUI.selectionState(),expected=JSON.stringify([s.body,s.target,s.partId,s.limb,AstroNotesShooting.day(s.at),s.matchMode||'limb']);SkyMapUI.selectCandidate(row,expected);
+  }});
+  if(!current()){if(recordState.key===request.key&&list.parentNode===recordPane)recordState={key:'',status:'idle'};return;}
+  const heading=node('h2',{className:'candidate-record-heading'},'撮影候補'),total=node('span',{className:'tiny'},count+'件');heading.append(total);recordPane.prepend(heading);
+  }finally{if(list.parentNode===recordPane&&(recordState.key===request.key||recordState.key===''))recordPane.setAttribute('aria-busy','false');}
  }
  if(!rows.length&&!result.failed){const p=node('p',{className:'tiny'},request.points.length?'この日に重なる記録の撮影地点はありません':'記録の撮影地点がありません');recordPane.append(p);if(!request.points.length){const link=node('a',{href:'#/records',className:'chip'},'記録を開く');recordPane.append(link);}}
  if(result.failed){const p=node('p',{className:'tiny'},rows.length?'確認できなかった地点があります':'記録の撮影地点を確認できませんでした');p.setAttribute('role','status');const retry=node('button',{type:'button',className:'chip'},'再試行');retry.onclick=()=>{recordCache.delete(request.key);recordState.key='';syncRecordDiscovery();};
@@ -310,7 +315,7 @@ function syncRecordDiscovery(){
  if(progress)progress.update(0,recordWorkCount(request));else recordPane.replaceChildren(node('p',{className:'tiny'},'記録の撮影地点を確認中…'));
  recordTimer=setTimeout(async()=>{
   recordTimer=null;const current=()=>recordSeq.current(seq)&&recordDiscoveryActive()&&AstroNotesShooting.day(SkyMapUI.selectionState()?.at)===request.plan.at&&recordCurrent(request);
-  try{const result=await recordRows(request,current,(n,total)=>progress?.update(n,total));if(!current()||result.cancelled)return;recordState.status='complete';renderRecordRows(request,result);}
+  try{const result=await recordRows(request,current,(n,total)=>progress?.update(n,total));if(!current()||result.cancelled)return;recordState.status='complete';await renderRecordRows(request,result);}
   catch{if(current()){recordState.status='error';recordPane.replaceChildren(node('p',{className:'tiny'},'記録の撮影地点を確認できませんでした'));const retry=node('button',{type:'button',className:'chip'},'再試行');retry.onclick=()=>{recordState.key='';syncRecordDiscovery();};recordPane.append(retry);}}
   finally{if(recordSeq.current(seq)){recordPane.setAttribute('aria-busy','false');if(recordState.status==='loading'){recordState={key:'',status:'idle'};if(recordDiscoveryActive())queueMicrotask(syncRecordDiscovery);}}}
  },180);
@@ -513,8 +518,8 @@ const style=node('style');style.textContent=
 "#exploreBackToCandidates[hidden]{display:none}\n#skyMapView[data-explore-stage=\"search\"] #candidateWorkspaceAction{display:block}\n.explore-discovery-tabs{display:flex;gap:24px;border-bottom:1px solid var(--line);margin:12px 0 16px}\n.explore-discovery-tabs button{min-height:44px;"+
 "padding:8px 2px;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--secondary);font-size:.85rem;font-weight:600}\n.explore-discovery-tabs button[aria-selected=\"true\"]{color:var(--accent);border-bottom-color:var(--accent)}"+
 "\n#exploreNewPlaces:not([hidden]){display:grid;gap:12px}\n.record-calendar-scan{min-height:44px}\n#exploreRecordedPlaces[hidden],#exploreNewPlaces[hidden]{display:none!important}\n.explore-record-row{display:grid;grid-template-columns:minmax(0,1fr) auto 14px;gap:4px 12px;align-items:center;"+
-"text-align:left;width:100%;min-height:64px;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:12px 0;background:transparent;color:var(--text)}\n.explore-record-row strong{grid-column:1;grid-row:1/3;font-size:.9rem;overflow-wrap:anywhere}"+
-"\n.explore-record-row.has-height{min-height:76px}.explore-record-row.has-height strong{grid-row:1}\n.explore-record-row .tiny{grid-column:1;grid-row:2;color:var(--secondary)}\n.explore-record-time{grid-column:2;grid-row:1/3;color:var(--accent);font-size:1rem;font-variant-numeric:tabular-nums;"+
+"text-align:left;width:100%;min-height:64px;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:12px 0;background:transparent;color:var(--text)}\n"+
+"\n.explore-record-time{grid-column:2;grid-row:1/3;color:var(--accent);font-size:1rem;font-variant-numeric:tabular-nums;"+
 "white-space:nowrap}\n.explore-record-arrow{grid-column:3;grid-row:1/3;color:var(--secondary)}\n")+
 '.explore-tabs{scroll-margin-top:12px}.explore-save{min-height:44px}.explore-mounted .aim-figure-share{gap:8px;align-items:center}.explore-mounted .aim-figure-share .explore-save{order:-1;margin-right:0}'+
 '#skyMapView.explore-mounted .sky-map-head::before{content:"EXPLORE" / "";--kw:6.6em}'+
@@ -626,19 +631,20 @@ main:has(>#skyMapView[data-explore-stage="search"]){max-width:1280px}
 #skyMapView[data-explore-stage="search"] #candidateListControls>:is(.candidate-list-heading,#candidateUnifiedResults,#candidateMapPanel){grid-column:1/-1}
 #skyMapView[data-explore-stage="search"] .candidate-list-heading{margin:0!important;background:var(--sunk);border-radius:9px 9px 0 0;padding:0 10px;grid-template-columns:minmax(0,1fr) 52px 80px!important;gap:8px!important}
 #skyMapView[data-explore-stage="search"] .candidate-list-heading button{font-size:.75rem!important;font-weight:700!important}
-#skyMapView[data-explore-stage="search"] #candidateUnifiedResults>.list-item{grid-template-columns:minmax(0,1fr) 52px 80px!important;column-gap:8px!important;padding:12px 10px!important;border-bottom:1px solid var(--line);border-radius:0;background:transparent;box-shadow:none}
-#skyMapView[data-explore-stage="search"] #candidateUnifiedResults [data-candidate-place]{font-size:.88rem!important;line-height:1.5;font-weight:600!important}
-#skyMapView[data-explore-stage="search"] #candidateUnifiedResults :is([data-candidate-time],[data-place-kind]){font-size:.81rem!important;line-height:1.6}
-#skyMapView[data-explore-stage="search"] #candidateUnifiedResults .sub-line{font-size:.69rem;line-height:1.6;color:var(--secondary)}
+#skyMapView[data-explore-stage="search"] :is(#candidateUnifiedResults,#exploreRecordedResults)>.list-item{grid-template-columns:minmax(0,1fr) 52px 80px!important;column-gap:8px!important;
+ padding:12px 10px!important;border-bottom:1px solid var(--line);border-radius:0;background:transparent;box-shadow:none}
+#skyMapView[data-explore-stage="search"] :is(#candidateUnifiedResults,#exploreRecordedResults) [data-candidate-place]{font-size:.88rem!important;line-height:1.5;font-weight:600!important}
+#skyMapView[data-explore-stage="search"] :is(#candidateUnifiedResults,#exploreRecordedResults) :is([data-candidate-time],[data-place-kind]){font-size:.81rem!important;line-height:1.6}
+#skyMapView[data-explore-stage="search"] :is(#candidateUnifiedResults,#exploreRecordedResults) .sub-line{font-size:.69rem;line-height:1.6;color:var(--secondary)}
 #skyMapView[data-explore-stage="search"] #candidateSearchCredits p{margin:8px 0 0;font-size:.63rem;color:var(--tertiary)}
 #skyMapView[data-explore-stage="search"] :is(button,summary,select):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-@media (hover:hover){#skyMapView[data-explore-stage="search"] :is(#candidateSearchAction,.candidate-list-actions button):hover{background:var(--sunk)}#skyMapView[data-explore-stage="search"] #candidateUnifiedResults>.list-item:hover{background:var(--sunk)}}
+@media (hover:hover){#skyMapView[data-explore-stage="search"] :is(#candidateSearchAction,.candidate-list-actions button):hover{background:var(--sunk)}#skyMapView[data-explore-stage="search"] :is(#candidateUnifiedResults,#exploreRecordedResults)>.list-item:hover{background:var(--sunk)}}
 @media(min-width:760px){
  #skyMapView[data-explore-stage="search"] .explore-condition-fields{gap:14px}
  #skyMapView[data-explore-stage="search"] #exploreConditions .condition-field,#skyMapView[data-explore-stage="search"] #exploreConditions .condition-field:has(.condition-clear){grid-template-columns:104px minmax(0,1fr)!important;gap:16px}
  #skyMapView[data-explore-stage="search"] #skyMapAlignmentDetails{grid-template-columns:104px minmax(0,1fr);gap:16px}
  #skyMapView[data-explore-stage="search"] .candidate-filter-fields>label{display:grid!important;grid-template-columns:auto minmax(0,1fr)!important;align-items:center!important;gap:10px!important}
- #skyMapView[data-explore-stage="search"] .candidate-list-heading,#skyMapView[data-explore-stage="search"] #candidateUnifiedResults>.list-item{grid-template-columns:minmax(0,1fr) 96px 144px!important}
+ #skyMapView[data-explore-stage="search"] .candidate-list-heading,#skyMapView[data-explore-stage="search"] :is(#candidateUnifiedResults,#exploreRecordedResults)>.list-item{grid-template-columns:minmax(0,1fr) 96px 144px!important}
 }
 @media(max-width:359px){
  #skyMapView[data-explore-stage="search"] .candidate-filter-status{grid-column:1/-1}
@@ -664,10 +670,10 @@ main:has(>#skyMapView[data-explore-stage="search"]){max-width:1280px}
 #skyMapView[data-explore-stage="search"] #candidateRefinement .candidate-filter-fields>label{display:flex!important;gap:4px!important}
 #skyMapView[data-explore-stage="search"] #candidateRefinement .candidate-filter-fields select{padding-inline-start:8px}
 #skyMapView[data-explore-stage="search"] #candidateResetFilters{margin:8px 0;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--accent);box-shadow:none}
-#skyMapView[data-explore-stage="search"] #candidateListControls[data-compact] #candidateUnifiedResults>.list-item{grid-template-columns:minmax(0,1fr) max-content!important;row-gap:3px!important;padding:10px 0!important}
-#skyMapView[data-explore-stage="search"] #candidateListControls[data-compact] [data-candidate-time]{text-align:right;font-weight:600}
-#skyMapView[data-explore-stage="search"] #candidateListControls[data-compact] [data-candidate-meta]{grid-column:1/-1;display:flex;flex-wrap:wrap;column-gap:8px}
-#skyMapView[data-explore-stage="search"] #candidateListControls[data-compact] [data-candidate-meta]>span{font-size:inherit!important;line-height:inherit}
+#skyMapView[data-explore-stage="search"] #candidateListControls[data-compact] :is(#candidateUnifiedResults,#exploreRecordedResults)>.list-item{grid-template-columns:minmax(0,1fr) max-content!important;row-gap:3px!important;padding:10px 0!important}
+#skyMapView[data-explore-stage="search"] :is(#candidateListControls[data-compact],#exploreRecordedResults) [data-candidate-time]{text-align:right;font-weight:600}
+#skyMapView[data-explore-stage="search"] :is(#candidateListControls[data-compact],#exploreRecordedResults) [data-candidate-meta]{grid-column:1/-1;display:flex;flex-wrap:wrap;column-gap:8px}
+#skyMapView[data-explore-stage="search"] :is(#candidateListControls[data-compact],#exploreRecordedResults) [data-candidate-meta]>span{font-size:inherit!important;line-height:inherit}
 @media(max-width:479px){
  #skyMapView[data-explore-stage="search"] #candidateRefinement .candidate-filter-fields{grid-template-columns:1fr}
  #skyMapView[data-explore-stage="search"] #candidateRefinement .candidate-filter-fields>label{display:grid!important;grid-template-columns:76px minmax(0,1fr)!important;align-items:center}
@@ -686,7 +692,13 @@ html:has(#skyMapView.explore-mounted:not([hidden])){scroll-padding-bottom:calc(v
  #skyMapView.explore-mounted:not([hidden]) .sky-map-footer{transform:translate3d(0,0,0);backface-visibility:hidden}
 }
 main:has(>#skyMapView.explore-mounted:not([hidden]))>#footer>summary{min-height:44px;display:list-item;padding-block:12px}
-`;document.head.append(style);
+`;style.textContent+=`
+#skyMapView[data-explore-stage="search"] #exploreRecordedResults>.list-item{grid-template-columns:minmax(0,1fr) auto!important;padding:10px 0!important}
+#exploreRecordedResults [data-candidate-meta]{display:flex;flex-wrap:wrap;gap:4px 10px;grid-column:1/-1}
+.candidate-record-heading{display:flex;align-items:baseline;gap:8px;font-size:1rem;line-height:1.4;margin:18px 0 0}
+.candidate-record-heading span{font-weight:400}
+`;
+document.head.append(style);
 document.addEventListener('astronotes-composition-change',updateConditions);
 for(const type of ['astronotes-search-state','astronotes-composition-change','visibilitychange'])document.addEventListener(type,tryCompositionSearch);
 window.addEventListener('pagehide',cancelCompositionSearch);

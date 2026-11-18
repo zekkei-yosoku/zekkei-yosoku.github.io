@@ -104,10 +104,85 @@ function shapePaths(value){
  }
  return paths;
 }
+// Connect only adjacent successful samples of the registered geometry. These are
+// candidate times along the line/area, not a claim that one fixed point works throughout.
+async function annotateShapeRuns(shape,paths,memo,rows,eligible,record,{yieldTask=null,current=()=>true,scope=''}={}){
+ let checkpoint=Date.now(),processed=0;
+ const pause=async()=>{if(!yieldTask||Date.now()-checkpoint<12)return;await yieldTask();checkpoint=Date.now();if(!current())throw Error('shape-cancelled');};
+ const coordinate=p=>p.latitude.toFixed(9)+','+p.longitude.toFixed(9),identity=(p,e)=>coordinate(p)+'|'+e.side+'|'+e.at;
+ const nodes=[],byCoordinate=new Map(),byEvent=new Map(),parent=[];
+ for(const sample of memo.values()){
+  if(++processed%256===0)await pause();
+  if(!sample)continue;const ids=[];
+  for(const event of sample.accepted||sample.events)if(sample.accepted||eligible(event,sample.place)){
+   const id=nodes.length;nodes.push({sample,event});parent.push(id);ids.push(id);byEvent.set(identity(sample.place,event),id);
+  }
+  if(ids.length)byCoordinate.set(coordinate(sample.place),ids);
+ }
+ const root=i=>{while(parent[i]!==i){parent[i]=parent[parent[i]];i=parent[i];}return i;};
+ const compatible=(i,j)=>nodes[i].event.side===nodes[j].event.side&&Math.abs(nodes[i].event.at-nodes[j].event.at)<3*3600000;
+ const join=(i,j)=>{
+  if(!compatible(i,j))return;
+  const a=root(i),b=root(j);if(a!==b)parent[b]=a;
+ };
+ const sampled=new Set(paths.flat().map(coordinate)),extra=[...memo].filter(([key])=>!sampled.has(key)).map(([key,value])=>value?.place||(()=>{const [latitude,longitude]=key.split(',').map(Number);return {latitude,longitude};})());
+ // shapePaths keeps each leg of a polyline and each area scan row as a separate straight path.
+ for(const path of paths){
+  await pause();
+  const a=path[0],b=path.at(-1),dx=b.longitude-a.longitude,dy=b.latitude-a.latitude;
+  const ordered=extra.length?[...path,...extra.filter(p=>onSegment(p,a,b))].sort((p,q)=>(p.longitude-q.longitude)*dx+(p.latitude-q.latitude)*dy):path;
+  for(let i=1;i<ordered.length;i++){
+   const left=byCoordinate.get(coordinate(ordered[i-1]))||[],right=byCoordinate.get(coordinate(ordered[i]))||[];
+   for(const a of left)for(const b of right)join(a,b);
+  }
+ }
+ if(shape.type==='area'){
+  // The scan rows are connected across neighbouring rows, with no shortcut
+  // across a concave boundary. Reuse the already evaluated positions only.
+  const origin=shape.vertices[0],kx=111195*Math.cos(origin.latitude*Math.PI/180),cells=new Map(),step=SHAPE_STEP_M;
+  const insideSegment=(a,b)=>{
+   const x=b.longitude-a.longitude,y=b.latitude-a.latitude,ts=[0,1];
+   for(let i=0;i<shape.vertices.length;i++){
+    const c=shape.vertices[i],d=shape.vertices[(i+1)%shape.vertices.length],u=d.longitude-c.longitude,v=d.latitude-c.latitude,den=x*v-y*u;
+    if(Math.abs(den)<1e-20)continue;
+    const dx=c.longitude-a.longitude,dy=c.latitude-a.latitude,t=(dx*v-dy*u)/den,s=(dx*y-dy*x)/den;
+    if(t>0&&t<1&&s>=0&&s<=1)ts.push(t);
+   }
+   ts.sort((a,b)=>a-b);
+   return ts.slice(1).every((t,i)=>shapeContains(shape,interpolate(a,b,(t+ts[i])/2)));
+  };
+  for(let i=0;i<nodes.length;i++){
+   if(i%128===0)await pause();
+   const p=nodes[i].sample.place,x=Math.floor((p.longitude-origin.longitude)*kx/step),y=Math.floor((p.latitude-origin.latitude)*111195/step);
+   for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(const j of cells.get((x+dx)+','+(y+dy))||[]){
+    if(root(i)===root(j)||!compatible(i,j))continue;const q=nodes[j].sample.place;
+    if(meters(p,q)<=step*1.5&&insideSegment(p,q))join(i,j);
+   }
+   const key=x+','+y;if(!cells.has(key))cells.set(key,[]);cells.get(key).push(i);
+  }
+ }
+ const runs=new Map();
+ for(let i=0;i<nodes.length;i++){
+  const id=root(i),n=nodes[i];let run=runs.get(id);
+  if(!run){run={first:n,fromAt:n.event.at,toAt:n.event.at,positions:new Set()};runs.set(id,run);}
+  if(n.event.at<run.first.event.at)run.first=n;
+  run.fromAt=Math.min(run.fromAt,n.event.at);run.toAt=Math.max(run.toAt,n.event.at);run.positions.add(coordinate(n.sample.place));
+ }
+ const rowKeys=new Set(rows.map(row=>identity(row.place,row.event)));
+ for(const [id,run]of runs){
+  const {sample,event}=run.first;
+  if(!rowKeys.has(identity(sample.place,event)))rows.push({place:sample.place,record,event,assumedObserver:sample.assumedObserver,shapeType:shape.type});
+  run.window={id:scope+':shape:'+id,kind:shape.type,fromAt:run.fromAt,toAt:run.toAt,count:run.positions.size,basis:'sampled-positions'};
+ }
+ for(const row of rows){const id=byEvent.get(identity(row.place,row.event));if(id!==undefined)row.spatialWindow=runs.get(root(id)).window;}
+ return rows;
+}
+
 async function shapeCandidates(p,entry,deps){
  const {align,isMountain,observerAt,elevationAt,viewFor,yieldTask,isCurrent=()=>true,onProgress=()=>{}}=deps,s=cleanShape(entry.place.shape);
- if(!s)throw Error('shape-invalid');const paths=shapePaths(s),start=day(p.at),memo=new Map(),rows=[];let missing=0,steps=0;const began=Date.now();
+ if(!s)throw Error('shape-invalid');const o=searchOptions(p,isMountain),paths=shapePaths(s),start=day(p.at),memo=new Map(),rows=[];let missing=0,steps=0;const began=Date.now();
  const check=()=>{if(!isCurrent())throw Error('shape-cancelled');if(Date.now()-began>45000)throw Error('shape-limit');};
+ const eligible=(e,f)=>e.at>=start&&e.at<start+DAY&&e.spatialMatched!==false&&(!Number.isFinite(e.altitude)||o.disc||e.altitude>0)&&matches(e,p,isMountain)&&shapeContains(s,f);
  const evaluate=async position=>{
   check();const key=position.latitude.toFixed(9)+','+position.longitude.toFixed(9);if(memo.has(key))return memo.get(key);
   if(++steps%8===0||yieldTask){if(steps%8===0)onProgress({checked:steps});await (yieldTask?yieldTask():new Promise(r=>setTimeout(r,0)));check();}
@@ -115,14 +190,14 @@ async function shapeCandidates(p,entry,deps){
   const ground=await elevationAt(position.latitude,position.longitude);check();
   if(!Number.isFinite(ground)){missing++;memo.set(key,null);return null;}
   const f={...entry.place,...position,elevation:ground,groundManualM:ground,sourcePlaceId:entry.place.id};delete f.shape;
-  const obs=observerAt(f,ground),o=searchOptions(p,isMountain),view=viewFor?await viewFor(obs,p):null;check();
+  const obs=observerAt(f,ground),view=viewFor?await viewFor(obs,p):null;check();
   const probes=view?view(start):align.dailyView?align.dailyView(obs,p.target,p.body,start,{partId:o.partId,eyeM:obs.eyeM,...(o.pointOnly?{pointOnly:true}:{})}).map(e=>{
   const exact=align.alignmentAt?.(obs,p.target,p.body,e.at,{partId:o.partId,limb:o.limb,eyeM:obs.eyeM,...(o.pointOnly?{pointOnly:true}:{})});
   return {...e,gap:exact?.gap??e.gap,...(!o.disc&&exact?{spatialMatched:exact.matched}:{})};}):eventsFor(p,obs,start,{align,isMountain});
   const events=view?probes:(!o.disc||o.broad)&&align.dailyView?probes:eventsFor(p,obs,start,{align,isMountain});
   if(o.broad)for(const e of events){e.matchMode='overlap';e.partId=o.partId;}
-  const result={place:f,events,probes};memo.set(key,result);
-  for(const e of events)if(e.at>=start&&e.at<start+DAY&&e.spatialMatched!==false&&(!Number.isFinite(e.altitude)||o.disc||e.altitude>0)&&matches(e,p,isMountain)&&shapeContains(s,f)){
+  const accepted=events.filter(e=>eligible(e,f)),result={place:f,events,probes,accepted,assumedObserver:obs};memo.set(key,result);
+  for(const e of accepted){
    // Keep distinct positions, but avoid thousands of indistinguishable pins.
    if(!rows.some(r=>r.event.side===e.side&&meters(r.place,f)<40&&Math.abs(r.event.at-e.at)<120000))rows.push({place:f,record:entry.record,event:e,assumedObserver:obs,shapeType:s.type});
   }
@@ -144,6 +219,7 @@ async function shapeCandidates(p,entry,deps){
    previous=current;
   }
  }
+ await annotateShapeRuns(s,paths,memo,rows,eligible,entry.record,{yieldTask:yieldTask||(()=>new Promise(r=>setTimeout(r,0))),current:isCurrent,scope:JSON.stringify([p.body,p.target.id??[p.target.latitude,p.target.longitude],o.partId,p.matchMode,start])});
  check();return {rows,missing,checked:memo.size,stepM:SHAPE_STEP_M};
 }
 
@@ -174,7 +250,7 @@ function hapticGate({vibrate=()=>{},clock=Date.now}={}){
  let previous=false,last=-Infinity,identity='';
  return (matched,key)=>{if(key!==identity){identity=key;previous=false;}const entered=matched&&!previous;previous=!!matched;if(entered&&clock()-last>800){last=clock();try{vibrate(12);}catch{/* 振動は無くてもよい */}}return entered;};
 }
-global.AstroNotesShooting={day,point,savedObserver,conditions,queryKey,searchOptions,eventsFor,matches,passageText,candidates,hapticGate,cleanShape,shapeContains,shapePaths,shapeCandidates,meters,interpolate};
+global.AstroNotesShooting={day,point,savedObserver,conditions,queryKey,searchOptions,eventsFor,matches,passageText,candidates,hapticGate,cleanShape,shapeContains,shapePaths,shapeCandidates,annotateShapeRuns,meters,interpolate};
 if(typeof module!=='undefined'&&module.exports)module.exports=global.AstroNotesShooting;
 })(globalThis);
 

@@ -3050,7 +3050,12 @@ function mergeEntries(entries,sort){
  const hiddenM=e=>Number.isFinite(e.row.quality?.hiddenBelow?.m)?e.row.quality.hiddenBelow.m:-Infinity,sees=(a,b)=>surveyed(a)!==surveyed(b)?(surveyed(a)?a:b):hiddenM(a)<hiddenM(b)-AREA_SEES_M?a:b;
  const kept=[],timeOf=e=>Number.isFinite(e.row.event?.at)?e.row.event.at:null,spot=e=>e.row.place?.latitude+','+e.row.place?.longitude;
  const surveyed=e=>!!e.row.quality?.surveyed;
- const near=(k,e)=>(surveyed(k.e)||surveyed(e)||k.e.types.some(t=>e.types.includes(t)))&&metres(k.e.row.place,e.row.place)<=AREA_M
+ const sameRun=(a,b)=>{
+  const x=a.row.spatialWindow,y=b.row.spatialWindow;if(!x&&!y)return true;
+  const source=e=>e.row.place.sourcePlaceId??e.row.place.id,eye=e=>e.row.assumedObserver?.eyeM??e.row.place.standAglM??e.row.place.eyeHeightAGL;
+  return !!x&&!!y&&x.id===y.id&&source(a)===source(b)&&eye(a)===eye(b);
+ };
+ const near=(k,e)=>sameRun(k.e,e)&&(surveyed(k.e)||surveyed(e)||k.e.types.some(t=>e.types.includes(t)))&&metres(k.e.row.place,e.row.place)<=AREA_M
   &&!(Math.abs(standM(k.e)-standM(e))>AREA_RISE_M);
  const touches=(k,from,to)=>k.fromAt===null?from===null:from!==null&&from<=k.toAt+AREA_MS&&to>=k.fromAt-AREA_MS;
  for(const e of [...unique.values()].sort((a,b)=>(a.show===false)-(b.show===false)||compare(a,b,'recommended'))){
@@ -3110,33 +3115,68 @@ function planKey(plan){return typeof ports.requestKey==='function'?ports.request
 plan.cameraHeight]);}
 function locationText(row){
  const {name,riverName,subtitle}=row.place;
- const address=row.labels?.address?.status==='matched'?subtitle:row.placeKind==='riverbank'?row.labels?.coordinate:null;
+ const address=row.labels?.address?.status==='matched'||row.record&&subtitle?subtitle:row.placeKind==='riverbank'||row.record?row.labels?.coordinate:null;
  const river=riverName&&!name?.includes(riverName)?riverName:null;
  return [river,address].filter(Boolean).join(' ・ ');
 }
 const passageOf=(row,plan)=>typeof AstroNotesShooting==='undefined'?'':AstroNotesShooting.passageText(row.event,plan);
-function formatRow(node,row,types,plan){
+const candidateTimeText=row=>{
+ const w=row.spatialWindow;
+ if(!w||![w.fromAt,w.toAt].every(Number.isFinite)||w.toAt<w.fromAt)return clockText(row.event?.at);
+ const from=clockText(w.fromAt),to=clockText(w.toAt),next=day(w.toAt)>day(w.fromAt)?'翌':'';
+ return from===to&&!next?from:from+'〜'+next+to;
+};
+// A saved place is grouped by its connected sampled interval, never by name.
+function recordedEntries(rows){
+ const groups=new Map();
+ for(const row of rows){
+  const source=row.place.sourcePlaceId??row.place.id,eye=row.assumedObserver?.eyeM??row.place.standAglM??row.place.eyeHeightAGL??null;
+  const key=row.spatialWindow?JSON.stringify([source,eye,row.spatialWindow.id]):candidateKey(row);
+  const previous=groups.get(key);if(!previous||row.event.at<previous.event.at)groups.set(key,row);
+ }
+ return [...groups.values()].sort((a,b)=>(a.spatialWindow?.fromAt??a.event.at)-(b.spatialWindow?.fromAt??b.event.at));
+}
+async function renderRecorded(box,rows,plan,{select,current=()=>true}={}){
+ let labels={};try{if(rows.length)labels=await loadLabels()||{};}catch(e){globalThis.AstroNotesErrors?.note('candidates.record-labels',e);}
+ if(!current()||!box.isConnected)return null;
+ const selected=recordedEntries(rows);box.replaceChildren();
+ let processed=0;
+ for(const raw of selected){
+  if(++processed%12===0){await new Promise(r=>setTimeout(r,0));if(!current()||!box.isConnected)return null;}
+  const labelled=globalThis.AstroNotesCandidateLabels?.enrich(raw,labels)||raw;
+  const row={...labelled,place:{...labelled.place,name:raw.place.name,subtitle:labelled.place.subtitle||raw.place.subtitle||''},record:raw.record||{},quality:{...raw.quality}};
+  if(!Number.isFinite(row.quality.targetAngleDeg)&&Number.isFinite(row.event.targetAltitude))row.quality.targetAngleDeg=row.event.targetAltitude;
+  const source=raw.place.sourcePlaceId??raw.place.id,eye=raw.assumedObserver?.eyeM??raw.place.standAglM??raw.place.eyeHeightAGL;
+  if(Number.isFinite(eye)&&(raw.heightSearch||rows.some(r=>(r.place.sourcePlaceId??r.place.id)===source&&(r.assumedObserver?.eyeM??r.place.standAglM??r.place.eyeHeightAGL)!==eye)))row.heightNote='撮影高さ 地上'+eye+'m';
+  const button=document.createElement('button');button.type='button';button.className='list-item explore-record-row';
+  formatRow(button,row,kinds(row,labels.facilities),plan,true);
+  button.onclick=()=>{if(current())select(raw);};box.append(button);
+ }
+ return selected.length;
+}
+
+function formatRow(node,row,types,plan,compact=compactMode){
  if(!node.hasAttribute('data-candidate-columns')){
   const notes=[...node.querySelectorAll('.sub-line')].filter(n=>!n.hasAttribute('data-place-kind')).map(n=>n.textContent.replace(/^\d{2}:\d{2}・/,'').replace(/ · \d{2}:\d{2}/,''));
   node.replaceChildren();node.dataset.candidateColumns='';
   Object.assign(node.style,{display:'grid',gridTemplateColumns:columns,columnGap:'8px',rowGap:'4px',alignItems:'start',textAlign:'left',padding:'12px 0',minHeight:'44px'});
   const title=document.createElement('span');title.dataset.candidatePlace='';Object.assign(title.style,{minWidth:'0',overflowWrap:'anywhere',fontSize:'14px',fontWeight:'600'});
-  const clock=document.createElement('span');clock.dataset.candidateTime='';clock.textContent=clockText(row.event?.at);Object.assign(clock.style,{fontSize:'14px',fontVariantNumeric:'tabular-nums',whiteSpace:'nowrap'});
+  const clock=document.createElement('span');clock.dataset.candidateTime='';clock.textContent=candidateTimeText(row);Object.assign(clock.style,{fontSize:'14px',fontVariantNumeric:'tabular-nums',whiteSpace:'nowrap'});
   const kind=document.createElement('span');kind.dataset.placeKind='';Object.assign(kind.style,{fontSize:'14px',minWidth:'0',overflowWrap:'anywhere'});
   const angle=document.createElement('span');angle.dataset.candidateAngle='';Object.assign(angle.style,{fontSize:'14px',fontVariantNumeric:'tabular-nums',whiteSpace:'nowrap',textAlign:'right'});node.append(title,clock);
-  if(compactMode){const meta=document.createElement('span');meta.className='tiny sub-line';meta.dataset.candidateMeta='';meta.append(kind,angle);node.append(meta);}
+  if(compact){const meta=document.createElement('span');meta.className='tiny sub-line';meta.dataset.candidateMeta='';meta.append(kind,angle);node.append(meta);}
   else node.append(kind,angle);
   if(notes.length){const detail=document.createElement('span');detail.className='tiny sub-line';detail.textContent=notes.join(' · ');Object.assign(detail.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});node.append(detail);}
  }
  const title=node.querySelector('[data-candidate-place]');if(title.textContent!==row.place.name)title.textContent=row.place.name;
  node.querySelector('[data-place-kind]').textContent=types.map(t=>names[t]).join('・');
- node.querySelector('[data-candidate-time]').textContent=clockText(row.event?.at);
+ node.querySelector('[data-candidate-time]').textContent=candidateTimeText(row);
  const angleCell=node.querySelector('[data-candidate-angle]');
  if(angleCell){
   const angle=angleOf(row),known=Number.isFinite(angle),rounded=Math.round(angle),degrees=Math.abs(rounded);
   const label=!degrees?'水平':angle<0?'俯角':'仰角';
-  angleCell.hidden=compactMode&&!known;
-  angleCell.textContent=known?(compactMode?label+' '+degrees:rounded)+'°':'—';
+  angleCell.hidden=compact&&!known;
+  angleCell.textContent=known?(compact?label+' '+degrees:rounded)+'°':'—';
   angleCell.setAttribute('aria-label',known?(degrees?'対象の'+label+' '+degrees+'度':'対象は水平、0度'):'対象の角度 不明');
  }
  const location=locationText(row);let address=node.querySelector('[data-candidate-address]');
@@ -3151,6 +3191,9 @@ function formatRow(node,row,types,plan){
  const framed=compositionText(row);let line=node.querySelector('[data-candidate-composition]');
  if(framed){if(!line){line=document.createElement('span');line.dataset.candidateComposition='';line.className='tiny sub-line';Object.assign(line.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});
   const before=node.querySelector('[data-candidate-uncertainty]');if(before)node.insertBefore(line,before);else node.append(line);}line.textContent=framed;}else line?.remove();
+ const w=row.spatialWindow,movement=w&&w.count>1?(w.kind==='line'?'線上':'範囲内')+(w.toAt>w.fromAt?'で移動':'の候補'):'';
+ const detail=[movement,row.heightNote||''].filter(Boolean).join(' ・ ');let spatial=node.querySelector('[data-candidate-spatial]');
+ if(detail){if(!spatial){spatial=document.createElement('span');spatial.dataset.candidateSpatial='';spatial.className='tiny sub-line';spatial.style.gridColumn='1 / -1';node.append(spatial);}spatial.textContent=detail;}else spatial?.remove();
  const unconfirmed=uncertainty(row);let note=node.querySelector('[data-candidate-uncertainty]');
  if(unconfirmed.length){if(!note){note=document.createElement('span');note.dataset.candidateUncertainty='';note.className='tiny sub-line';Object.assign(note.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});node.append(note);}note.textContent=unconfirmed.join(' ・ ');
  }else note?.remove();
@@ -3390,9 +3433,9 @@ function reset(){
  revision.cancel();groups.clear();windows.clear();visibleEntries=[];selectedId=null;mapHits=[];mapMode=false;
  control?.remove();control=null;list=null;scope='';filterScope='';refinementOpen=false;mapScroll=null;suspendedView=null;
 }
-const api={mount,configure,registerRegistered:register,registerAdditional:register,unregister,apply,kinds,accepts,compare,inRecords,showMap,suspend,reset,visibleRows:()=>visibleEntries.filter(currentEntry).map(e=>e.row)};
+const api={mount,configure,renderRecorded,registerRegistered:register,registerAdditional:register,unregister,apply,kinds,accepts,compare,inRecords,showMap,suspend,reset,visibleRows:()=>visibleEntries.filter(currentEntry).map(e=>e.row)};
 globalThis.AstroNotesCandidatePicker=api;
-if(typeof module!=='undefined')module.exports={kinds,accepts,compare,candidateKey,mergeEntries,placePriority,areaOf,areaText,inRecords};
+if(typeof module!=='undefined')module.exports={recordedEntries,candidateTimeText,kinds,accepts,compare,candidateKey,mergeEntries,placePriority,areaOf,areaText,inRecords};
 })();
 
 // Trial adapter. Existing session owns selection; discovery owns search jobs.

@@ -155,3 +155,41 @@ test('線/範囲は地図内のどこをタップしても常に中央＋の座�
   h.map.pan(ll(150));h.nodes.get('shapeAddCenter').onclick();assert.equal(h.value().vertices.length,3);
  }
 });
+
+
+for(const type of ['line','area'])test(type+' candidate windows reuse samples and keep missing/disconnected positions separate',async()=>{
+ const s=shape(type,type==='line'?[[0,0],[100,0]]:[[0,0],[100,0],[100,100],[0,100]]),paths=[[ll(0),ll(25),ll(50),ll(75),ll(100)]];
+ const memo=new Map(),rows=[],key=p=>p.latitude.toFixed(9)+','+p.longitude.toFixed(9);
+ for(const [i,p]of paths[0].entries()){
+  if(i===2){memo.set(key(p),null);continue;}
+  const place={...p,id:'saved-shape',sourcePlaceId:'saved-shape'},event={at:at+i*60000,side:'set'},sample={place,events:[event],assumedObserver:{...p,elevation:10,eyeM:1.5}};
+  memo.set(key(p),sample);rows.push({place,event,assumedObserver:sample.assumedObserver,shapeType:type});
+ }
+ await P.annotateShapeRuns(s,paths,memo,rows,()=>true,{result:'seen'});
+ assert.equal(new Set(rows.map(r=>r.spatialWindow.id)).size,2);
+ assert.deepEqual([...new Map(rows.map(r=>[r.spatialWindow.id,r.spatialWindow])).values()].map(w=>[w.kind,w.fromAt,w.toAt]),[[type,at,at+60000],[type,at+180000,at+240000]]);
+});
+test('refined positions between original samples join their own run without bridging a rejected sample',async()=>{
+ const s=shape('line',[[0,0],[100,0]]),paths=[s.vertices],memo=new Map(),rows=[],key=p=>p.latitude.toFixed(9)+','+p.longitude.toFixed(9);
+ for(const x of [0,100,40,45,50]){const place={...ll(x),id:'line'},event={at:at+x*1000,side:'set'};memo.set(key(place),{place,events:[event],assumedObserver:{eyeM:1.5}});if(x===45)rows.push({place,event});}
+ await P.annotateShapeRuns(s,paths,memo,rows,e=>e.at>=at+40000&&e.at<=at+50000,{});
+ assert.equal(new Set(rows.map(r=>r.spatialWindow.id)).size,1);
+ assert.equal(rows[0].spatialWindow.fromAt,at+40000);assert.equal(rows[0].spatialWindow.toAt,at+50000);
+ assert(rows.some(r=>r.event.at===at+40000),'the range selects its actual earliest position, not a fabricated time');
+});
+
+test('an area does not connect neighbouring candidates across a concave cutout',async()=>{
+ const s=shape('area',[[0,0],[100,0],[100,100],[60,100],[60,30],[40,30],[40,100],[0,100]]),positions=[ll(35,80),ll(65,80)],memo=new Map(),rows=[];
+ for(const [i,p]of positions.entries()){const place={...p,id:'area'},event={at:at+i*60000,side:'set'};memo.set(p.latitude.toFixed(9)+','+p.longitude.toFixed(9),{place,events:[event]});rows.push({place,event});}
+ await P.annotateShapeRuns(s,positions.map(p=>[p]),memo,rows,()=>true,{});
+ assert.equal(new Set(rows.map(r=>r.spatialWindow.id)).size,2);
+});
+test('nearby legs of a folded registered line do not become a shortcut across a missing section',async()=>{
+ const s=shape('line',[[0,0],[0,100],[10,100],[10,0]]),paths=P.shapePaths(s),memo=new Map(),rows=[];
+ for(const p of paths.flat()){
+  const key=p.latitude.toFixed(9)+','+p.longitude.toFixed(9);if(memo.has(key))continue;
+  if(p.latitude>ll(0,40).latitude){memo.set(key,null);continue;}
+  const place={...p,id:'folded'},event={at,side:'set'};memo.set(key,{place,events:[event]});rows.push({place,event});
+ }
+ await P.annotateShapeRuns(s,paths,memo,rows,()=>true,{});assert.equal(new Set(rows.map(r=>r.spatialWindow.id)).size,2);
+});
