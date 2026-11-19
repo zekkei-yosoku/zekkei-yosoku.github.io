@@ -3333,7 +3333,7 @@ function recordedRow(raw,rows,labels,heights=null,targetId=null){
   (r.assumedObserver?.eyeM??r.place.standAglM??r.place.eyeHeightAGL)!==eye))))row.heightNote='撮影高さ 地上'+eye+'m';
  return row;
 }
-async function renderRecorded(box,rows,plan,{select,current=()=>true,context=false,heading=null,rowClass='explore-record-row',rowId=null,heightRows=rows,aggregate=true,decorate=null}={}){
+async function renderRecorded(box,rows,plan,{select,current=()=>true,context=false,heading=null,rowClass='explore-record-row',rowId=null,heightRows=rows,aggregate=true,decorate=null,compact=true}={}){
  const ticket={},live=()=>recordedRenders.get(box)===ticket&&current()&&box.isConnected;recordedRenders.set(box,ticket);
  let labels={};try{if(rows.length)labels=await loadLabels()||{};}catch(e){globalThis.AstroNotesErrors?.note('candidates.record-labels',e);}
  if(!live())return null;
@@ -3349,14 +3349,14 @@ async function renderRecorded(box,rows,plan,{select,current=()=>true,context=fal
   const row=recordedRow(raw,rows,labels,heights,selectedPlan.target?.id),key=JSON.stringify([raw.id??null,raw.sourcePlaceId??raw.place.sourcePlaceId??raw.place.id,raw.body,raw.target?.id,candidateKey(raw)]);
   const button=previous.get(key)||document.createElement('button');button.type='button';button.className='list-item candidate-record-row '+rowClass;button.dataset.recordedKey=key;
   if(heading){const text=heading(raw);if(text!==lastHeading){lastHeading=text;const h=headings.get(text)||document.createElement('h3');h.className='record-opportunity-day';h.textContent=text;nodes.push(h);}}
-  formatRow(button,row,kinds(row,labels.facilities),selectedPlan,true);
+  formatRow(button,row,kinds(row,labels.facilities),selectedPlan,compact);
   let identity=button.querySelector('[data-candidate-context]');
   if(context){if(!identity){identity=document.createElement('span');identity.dataset.candidateContext='';identity.className='tiny sub-line';identity.style.gridColumn='1 / -1';button.append(identity);}
    identity.textContent=[ports.bodyName?.(selectedPlan.body)||selectedPlan.body,selectedPlan.target?.name].filter(Boolean).join(' × ');
    button.append(identity);
   }else identity?.remove();
   if(rowId)button.dataset.opportunityId=rowId(raw);
-  if(decorate)decorate(button,raw,selectedPlan);
+  if(decorate)decorate(button,raw,selectedPlan,row);
   button.onclick=()=>{if(current())select(raw);};nodes.push(button);
  }
  if(!live())return null;

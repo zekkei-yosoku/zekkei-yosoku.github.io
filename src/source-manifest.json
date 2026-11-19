@@ -2701,12 +2701,14 @@
           "撮影地点候補sheet",
           "記録地点詳細の線/範囲の重なる日"
         ],
-        "contract": "Same solved row: same place/location, clock or known connected interval, angle, passage/legacy explicit limb, height, uncertainty and selected real position. NOTES retains day/body/target context and geometric-model notice; Explore retains selected-day refracted conditions. Missing interval or disc geometry is never inferred. Label/render work must not call a numerical solver. Purpose-equivalent independent implementations must be searched before changing this component; direct-call and wording checks are not complete feature discovery.",
+        "contract": "Same solved row: same place/location, clock or known connected interval, angle, passage/legacy explicit limb, height, uncertainty and selected real position. NOTES retains day/body/target context and geometric-model notice; Explore retains selected-day refracted conditions. Missing interval or disc geometry is never inferred. Label/render work must not call a numerical solver. Purpose-equivalent independent implementations must be searched before changing this component; direct-call and wording checks are not complete feature discovery. The legacy picker retains its four-column filter header and receives already projected labels/angle/height after eligibility filtering; raw solver rows must not overwrite that projection.",
         "checks": [
           "tools/check-candidate-row-parity.cjs",
           "tools/candidate-picker.test.cjs",
           "tools/test-record-opportunities.cjs",
-          "tools/check-recorded-candidate-ranges.cjs"
+          "tools/check-recorded-candidate-ranges.cjs",
+          "test-candidate-picker.mjs",
+          "tools/test-candidate-unified-ui.cjs"
         ],
         "vocabulary": {
           "terms": [

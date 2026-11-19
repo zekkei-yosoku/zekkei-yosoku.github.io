@@ -47,6 +47,15 @@ const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict
    await page.locator('#candidateTimeFilter').selectOption('all');await page.waitForFunction(()=>document.querySelector('[data-filter-status]').textContent.startsWith('2 / 2'));
    assert.equal(await page.evaluate(()=>JSON.stringify([registeredRows,additionalRows])===before),true);
    await page.evaluate(()=>AstroNotesCandidatePicker.unregister(document.getElementById('registered')));await page.waitForFunction(()=>document.querySelectorAll('#candidateUnifiedResults .list-item').length===0);assert.equal(await rows.count(),0);
+   const projection=await page.evaluate(async()=>{
+    AstroNotesCandidatePicker.reset();const host=document.getElementById('registered');host.replaceChildren();const displayed=[];
+    const raw={place:{id:'projected',name:'projection',subtitle:'known address',latitude:35.69,longitude:139.73,elevation:20,eyeHeightAGL:1.5},record:{result:'partial'},heightSearch:true,event:{at:testPlan.at+3600000,targetAltitude:7}};
+    await AstroNotesCandidatePicker.renderRecorded(host,[raw],testPlan,{compact:false,select:()=>{},decorate:(button,row,plan,display)=>displayed.push(display)});
+    const fields=n=>({address:n.querySelector('[data-candidate-address]')?.textContent,angle:n.querySelector('[data-candidate-angle]')?.textContent,spatial:n.querySelector('[data-candidate-spatial]')?.textContent,uncertainty:n.querySelector('[data-candidate-uncertainty]')?.textContent});
+    const before=fields(host.querySelector('button'));await AstroNotesCandidatePicker.registerRegistered(host,displayed,testPlan,()=>true);
+    return {before,after:fields(document.querySelector('#candidateUnifiedResults .list-item'))};
+   });
+   assert.deepEqual(projection.after,projection.before);assert.equal(projection.after.address,'known address');assert.equal(projection.after.angle,'7°');assert(projection.after.spatial);assert(projection.after.uncertainty);
    assert.deepEqual(errors,[]);console.log(name+': unified ranking, sort, filter, map, exact selection, stale generation, data immutability passed');
   }finally{await browser.close();}
  }

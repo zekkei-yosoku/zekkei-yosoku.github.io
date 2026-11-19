@@ -488,14 +488,14 @@ async function renderPickerPanel(panel) {
   note.textContent=`${S.Cal.monthDay(plan.at)}・${AstroNotesBodies.definition(plan.body)?.name}を${t.name}に：${result.rows.length}件（絞り込み前）${selectedShape?'（'+(placeOf(selectedShape)?.name||'選んだ場所')+'）':''}`;
   if(!result.rows.length&&!workspace){const empty=document.createElement('p');empty.className='tiny';empty.textContent=result.failed?'確認できていない撮影地点があります。再試行してください。':'登録した地点に候補がありません。日付や対象を変えてください。';box.append(empty);}
   if(result.failed){const failed=document.createElement('p');failed.className='tiny';failed.textContent=shapeIssue(result)||`${result.failed}地点を確認できませんでした。`;box.append(failed);}
-  const list=document.createElement('div');box.append(list);
-  await AstroNotesCandidatePicker.renderRecorded(list,result.rows,plan,{current,rowClass:'my-place-row',aggregate:!isSky,select:row=>{
+  const list=document.createElement('div'),presented=[];box.append(list);
+  await AstroNotesCandidatePicker.renderRecorded(list,result.rows,plan,{current,rowClass:'my-place-row',compact:!isSky,aggregate:!isSky,decorate:(button,row,selected,display)=>presented.push(display),select:row=>{
    if(!current()||workspace&&!workspace.selectable())return;
    if(isSky){if(SkyMapUI.selectCandidate(row,contextOf(skySession),AstroNotesCandidatePicker.previewFor(row)))el('placeSheet').close();}
    else{el('placeSheet').close();openInAim(row.place,row.event);}
   }});
   if(!current())return;
-  AstroNotesCandidatePicker.registerRegisteredFromSession(list,result.rows,plan,current);
+  AstroNotesCandidatePicker.registerRegisteredFromSession(list,presented,plan,current);
   if(result.failed){const retry=document.createElement('button');retry.type='button';retry.className='chip';retry.textContent='再試行';retry.onclick=()=>renderPickerPanel(panel);box.append(retry);}
  }catch{if(current()){note.textContent='候補を確認できませんでした。';const retry=document.createElement('button');retry.type='button';retry.className='chip';retry.textContent='再試行';retry.onclick=()=>renderPickerPanel(panel);box.append(retry);}}
 }
