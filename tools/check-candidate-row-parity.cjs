@@ -9,9 +9,12 @@ module.exports=async function checkParity(page,ready,path){
   window.parityFixture={frame,solver:frame.AstroNotesShooting.candidates,points:MyPlacesUI.discoveryPoints,search:MyPlacesUI.discoverySearch,calls:0};
   window.parityRows=(at,place,record)=>{
    const start=AstroNotesShooting.day(at),base={...place,name:place.name,subtitle:'東京都文京区本郷一丁目',latitude:35.70725,longitude:139.75701,eyeHeightAGL:1.5,standAglM:1.5};
-   const make=(minute,kind,id,from,to,eye=1.5)=>({place:{...base,sourcePlaceId:place.id,latitude:base.latitude+minute*.000001,eyeHeightAGL:eye,standAglM:eye},record,placeKind:'park',assumedObserver:{eyeM:eye},
-    event:{at:start+minute*60000,radius:.25,altitude:7,targetAltitude:7,azimuth:100,targetAzimuth:100,targetPosition:{x:.5,y:.5},side:'rise',partId:'__whole',limb:'center',matchMode:'overlap'},
-    ...(kind?{shapeType:kind,spatialWindow:{id,kind,fromAt:start+from*60000,toAt:start+to*60000,count:2,basis:'sampled-positions'}}:{})});
+   const target=AstroNotesAlign.TARGETS.find(t=>t.id==='skytree');
+   const make=(minute,kind,id,from,to,eye=1.5)=>{const observer={...base,elevation:base.elevation??20,sourcePlaceId:place.id,latitude:base.latitude+minute*.000001,eyeHeightAGL:eye,standAglM:eye};
+    const azimuth=AstroNotesAlign.geometryFrom(observer,target,{partId:'tip'}).azimuth;
+    return {place:observer,record,placeKind:'park',assumedObserver:{eyeM:eye},
+    event:{at:start+minute*60000,radius:.25,altitude:7,targetAltitude:7,azimuth,targetAzimuth:azimuth,targetPosition:{x:.5,y:.5},side:'rise',partId:'__whole',limb:'center',matchMode:'overlap'},
+    ...(kind?{shapeType:kind,spatialWindow:{id,kind,fromAt:start+from*60000,toAt:start+to*60000,count:2,basis:'sampled-positions'}}:{})};};
    return [make(60,'line','line-run',60,70),make(70,'line','line-run',60,70),make(120,'area','area-run',120,130),make(130,'area','area-run',120,130),make(180,null,null),make(240,'line','separate',240,245),make(245,'line','separate',240,245),make(60,'line','line-run',60,70,10)];
   };
   frame.AstroNotesShooting.candidates=async(plan,entries)=>{parityFixture.calls++;return {failed:0,rows:parityRows(plan.at,entries[0].place,entries[0].record)};};
@@ -23,7 +26,7 @@ module.exports=async function checkParity(page,ready,path){
   const read=selector=>page.locator(selector).evaluateAll(ns=>ns.map(n=>Object.fromEntries(['place','time','address','angle','passage','spatial'].map(k=>[k,n.querySelector('[data-candidate-'+k+']')?.textContent||'']))));
   const notes=(await read('#recordOpportunityList [data-opportunity-id]')).slice(0,5);
   assert.equal(notes.length,5);assert.deepEqual(notes.map(r=>r.time),['01:00〜01:10','01:00〜01:10','02:00〜02:10','03:00','04:00〜04:05']);
-  assert(notes.some(r=>r.spatial.includes('線上で移動')));assert(notes.some(r=>r.spatial.includes('範囲内で移動')));assert(notes.every(r=>r.passage==='全体の中央付近を通過'));
+  assert(notes.some(r=>r.spatial.includes('線上で移動')));assert(notes.some(r=>r.spatial.includes('範囲内で移動')));assert(notes.every(r=>r.passage==='先端付近を通過'));
   await page.screenshot({path:path+'-notes.png',fullPage:true});
   // Re-rendering a completed list retains the actual focused row and never solves again.
   const first=page.locator('#recordOpportunityList [data-opportunity-id]').first();await first.evaluate(n=>{window.parityButton=n;n.focus();});

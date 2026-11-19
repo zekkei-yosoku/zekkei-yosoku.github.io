@@ -56,6 +56,27 @@ const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict
     return {before,after:fields(document.querySelector('#candidateUnifiedResults .list-item'))};
    });
    assert.deepEqual(projection.after,projection.before);assert.equal(projection.after.address,'known address');assert.equal(projection.after.angle,'7°');assert(projection.after.spatial);assert(projection.after.uncertainty);
+   const contextResult=await page.evaluate(async()=>{
+    AstroNotesCandidatePicker.reset();const host=document.getElementById('registered'),cache=new Map(),waiting=[];let calls=0;
+    const key=p=>p.latitude+','+p.longitude;
+    AstroNotesCandidatePicker.configure({placeContext:{peek:p=>cache.get(key(p)),read:p=>{calls++;return new Promise(resolve=>waiting.push(()=>{const v={kind:'road'};cache.set(key(p),v);resolve(v);}));}}});
+    const raw=name=>({place:{id:name,name,latitude:name==='A'?35.7:35.71,longitude:139.75,elevation:20,eyeHeightAGL:1.5},event:{at:testPlan.at}});
+    const a=raw('A'),b={...raw('B'),placeKind:'park'},before=JSON.stringify(a);
+    await AstroNotesCandidatePicker.renderRecorded(host,[a],testPlan,{select:()=>{}});
+    const painted=host.querySelector('button').textContent.includes('種類未確認');
+    await new Promise(r=>setTimeout(r,20));
+    await AstroNotesCandidatePicker.renderRecorded(host,[b],testPlan,{select:()=>{}});
+    waiting.shift()();await new Promise(r=>setTimeout(r,20));
+    const staleRejected=host.querySelector('[data-candidate-place]').textContent==='B'&&host.querySelector('[data-place-kind]').textContent==='公園';
+    await AstroNotesCandidatePicker.renderRecorded(host,[a],testPlan,{select:()=>{}});
+    const reused=host.querySelector('[data-place-kind]').textContent==='道路・歩道';
+    const c={...raw('C'),place:{...raw('C').place,latitude:35.72}};
+    await AstroNotesCandidatePicker.renderRecorded(host,[c],testPlan,{select:()=>{}});
+    const button=host.querySelector('button');button.focus();await new Promise(r=>setTimeout(r,20));waiting.shift()();await new Promise(r=>setTimeout(r,20));
+    const enhanced=host.querySelector('[data-place-kind]').textContent==='道路・歩道'&&host.querySelector('button')===button&&document.activeElement===button;
+    return {painted,staleRejected,reused,enhanced,calls,unchanged:JSON.stringify(a)===before};
+   });
+   assert.deepEqual(contextResult,{painted:true,staleRejected:true,reused:true,enhanced:true,calls:2,unchanged:true});
    assert.deepEqual(errors,[]);console.log(name+': unified ranking, sort, filter, map, exact selection, stale generation, data immutability passed');
   }finally{await browser.close();}
  }

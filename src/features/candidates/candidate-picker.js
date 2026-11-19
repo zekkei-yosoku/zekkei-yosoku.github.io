@@ -32,6 +32,7 @@ function kinds(row,facilities){
  }
  // A source ID alone is not proof that a newly generated park is a road.
  if(!result.size&&row.assumedObserver?.sourceId&&row.modelEvidence?.kind==='terrain-and-building-model-los')result.add('road');
+ if(!result.size&&ports.placeContext?.peek(positionPlace(row))?.kind==='road')result.add('road');
  return result.size?[...result].sort((a,b)=>Object.keys(names).indexOf(a)-Object.keys(names).indexOf(b)):['unknown'];
 }
 function accepts(row,time,kind,types,events){return (kind==='all'||types.includes(kind))&&(time==='all'||Number.isFinite(row.event?.at)&&!!events?.some(e=>e.kind===time&&Math.abs(row.event.at-e.at)<=3600000));}
@@ -162,10 +163,49 @@ function locationText(row){
  const river=riverName&&!name?.includes(riverName)?riverName:null;
  return [river,address].filter(Boolean).join(' ・ ');
 }
+// One display policy for the list, map details and position choices. Reuse the
+// solved body direction; projecting named target points never solves an event.
+const partProjections=new WeakMap();
+const partName=part=>part.name.replace(/（[^）]*）/g,'').replace(/の上端$/,'').trim();
+const mountain=target=>!!(ports.isMountain?.(target)||target?.rim||target?.kind==='mountain'||target?.id==='fuji'||target?.parts?.length===1&&Math.abs(target.parts[0].m-target.groundM)<.5);
+function projectedParts(row,plan,geometryFrom=ports.geometryFrom){
+ const e=row.event,p=positionPlace(row),t=plan.target;
+ if(!e||!p||!t||!geometryFrom||plan.matchMode==='limb'||plan.composition||e.composition||!['sun','moon'].includes(plan.body)||mountain(t)||
+  plan.partId&&plan.partId!=='__whole'||![e.altitude,e.azimuth,e.radius,p.latitude,p.longitude,p.groundManualM??p.elevation].every(Number.isFinite)||e.radius<=0)return [];
+ const o={...p,elevation:p.groundManualM??p.elevation,eyeM:p.standAglM??p.eyeHeightAGL??1.5};
+ const key=JSON.stringify([t.id,t.latitude,t.longitude,t.groundM,t.parts,o.latitude,o.longitude,o.elevation,o.eyeM,ports.geometryKey?.(),e.altitude,e.azimuth,e.radius,e.targetAltitude]);
+ const cached=partProjections.get(e);if(cached?.key===key&&cached.geometryFrom===geometryFrom)return cached.parts;
+ const parts=(t.parts||[]).filter(p=>typeof p.name==='string'&&p.name.trim()).map(part=>({part,g:geometryFrom(o,t,{partId:part.id,eyeM:o.eyeM})})).filter(p=>[p.g?.angle,p.g?.azimuth].every(Number.isFinite));
+ // The event's reference angle belongs to its solver settings. Only transfer
+ // relative part heights, rather than silently applying today's atmosphere.
+ const reference=parts.find(p=>p.part.id===t.parts?.[0]?.id),shift=reference&&Number.isFinite(e.targetAltitude)?e.targetAltitude-reference.g.angle:0,rad=Math.PI/180;
+ for(const p of parts){p.angle=p.g.angle+shift;const a=e.altitude*rad,b=p.angle*rad,d=(e.azimuth-p.g.azimuth)*rad;
+  p.score=Math.acos(Math.max(-1,Math.min(1,Math.sin(a)*Math.sin(b)+Math.cos(a)*Math.cos(b)*Math.cos(d))))/rad/e.radius;}
+ partProjections.set(e,{key,geometryFrom,parts});return parts;
+}
+function wholePassage(row,plan,parts){
+ if(plan.matchMode!=='overlap'||plan.partId&&plan.partId!=='__whole'||mountain(plan.target)||plan.composition||row.event?.composition)return '';
+ const e=row.event;if(!['sun','moon'].includes(plan.body)||!Number.isFinite(e?.radius)||e.radius<=0)return '';
+ const near=parts.filter(p=>p.score<=1).sort((a,b)=>a.score-b.score)[0];
+ if(near)return partName(near.part)+'付近を通過';
+ const levels=[...parts].sort((a,b)=>b.angle-a.angle);
+ const vertical=levels.length>1&&levels.every(p=>metres({latitude:p.part.latitude??plan.target.latitude,longitude:p.part.longitude??plan.target.longitude},
+  {latitude:levels[0].part.latitude??plan.target.latitude,longitude:levels[0].part.longitude??plan.target.longitude})<=5)&&levels[0].angle-levels.at(-1).angle>0;
+ if(vertical&&Number.isFinite(e.altitude)){
+  const below=levels.findIndex(p=>e.altitude>=p.angle);
+  if(below>0)return partName(levels[below-1].part)+'と'+partName(levels[below].part)+'の間を通過';
+  if(below<0)return partName(levels.at(-1).part)+'より下を通過';
+ }
+ const v=e.targetPosition;if(!v||![v.x,v.y].every(Number.isFinite))return '';
+ if(v.y>=.9)return 'てっぺん付近を通過';
+ const x=v.x<1/3?'左':v.x>2/3?'右':'',y=v.y<1/3?'下部':v.y>2/3?'上部':'中央';
+ return (x?y+'の'+x+'寄り':y+'付近')+'を通過';
+}
 function passageOf(row,plan){
  if(!plan?.target)return '';
  const e=row.event||{},part=plan.target.parts?.find(p=>p.id===plan.partId)||(!plan.partId?plan.target.parts?.[0]:null);
  if(plan.matchMode==='limb')return ports.alignmentText?.(plan.target,plan)||'旧条件の候補';
+ const whole=wholePassage(row,plan,projectedParts(row,plan));if(whole)return whole;
  const passage=typeof AstroNotesShooting==='undefined'?'':AstroNotesShooting.passageText(e,plan);if(passage)return passage;
  // Sparse geometric server results do not contain a solved disc position.
  if(plan.matchMode==='overlap')return plan.partId&&plan.partId!=='__whole'?(ports.alignmentText?.(plan.target,plan)||part?.name&&part.name+'を通過'||'指定部位の候補'):'全体に重なる候補';
@@ -193,18 +233,14 @@ function recordedEntries(rows){
 // with no ephemeris, terrain requests or new search for a position switch.
 function positionChoices(rows,plan,geometryFrom=ports.geometryFrom){
  const unique=[...new Map(rows.map(row=>[positionKey(row),row])).values()].sort((a,b)=>a.event.at-b.event.at),shortcuts=new Map();
- const parts=!plan.composition&&['sun','moon'].includes(plan.body)&&(!plan.partId||plan.partId==='__whole')&&!plan.target?.rim&&plan.target?.kind!=='mountain'?plan.target?.parts||[]:[];
  const choices=unique.map(row=>{
-  const e=row.event,p=positionPlace(row),o={...p,elevation:p.groundManualM??p.elevation,eyeM:p.standAglM??p.eyeHeightAGL??1.5};let nearest=null;
-  if(geometryFrom&&[e.altitude,e.azimuth,e.radius,o.latitude,o.longitude,o.elevation].every(Number.isFinite)&&e.radius>0)for(const part of parts.filter(p=>typeof p.name==='string'&&p.name.trim())){
-   const g=geometryFrom(o,plan.target,{partId:part.id,eyeM:o.eyeM??1.5});if(!g||![g.angle,g.azimuth].every(Number.isFinite))continue;
-   const rad=Math.PI/180,a=e.altitude*rad,b=g.angle*rad,d=(e.azimuth-g.azimuth)*rad;
-   const gap=Math.acos(Math.max(-1,Math.min(1,Math.sin(a)*Math.sin(b)+Math.cos(a)*Math.cos(b)*Math.cos(d))))/rad;
-   if(gap>e.radius)continue;const score=gap/e.radius;
-   if(!nearest||score<nearest.score)nearest={part,score};
-   const prev=shortcuts.get(part.id);if(!prev||score<prev.score)shortcuts.set(part.id,{row,score,label:part.name+'付近'});
+  const e=row.event,parts=projectedParts(row,plan,geometryFrom);
+  for(const {part,score} of parts){
+   if(score>1)continue;
+   const prev=shortcuts.get(part.id);if(!prev||score<prev.score)shortcuts.set(part.id,{row,score,partId:part.id,label:partName(part)+'付近'});
   }
-  const passage=nearest?nearest.part.name+'付近':passageOf(row,plan)||'重なる位置';
+  const nearest=parts.filter(p=>p.score<=1).sort((a,b)=>a.score-b.score)[0];
+  const passage=wholePassage(row,plan,parts)||(nearest?partName(nearest.part)+'付近':passageOf(row,plan))||'重なる位置';
   return {row,key:positionKey(row),passage,label:clockText(e.at)+' ・ '+passage};
  });
  return {choices,shortcuts:[...shortcuts.values()].map(s=>({...s,key:positionKey(s.row)}))};
@@ -230,7 +266,7 @@ async function renderRecorded(box,rows,plan,{select,current=()=>true,context=fal
  const ticket={},live=()=>recordedRenders.get(box)===ticket&&current()&&box.isConnected;recordedRenders.set(box,ticket);
  let labels={};try{if(rows.length)labels=await loadLabels()||{};}catch(e){globalThis.AstroNotesErrors?.note('candidates.record-labels',e);}
  if(!live())return null;
- const selected=aggregate?recordedEntries(rows):rows,nodes=[],heights=new Map();
+ const selected=aggregate?recordedEntries(rows):rows,nodes=[],heights=new Map(),unclassified=[];
  for(const r of [...rows,...heightRows]){const id=recordedHeightScope(r,plan?.target?.id),h=r.assumedObserver?.eyeM??r.place.standAglM??r.place.eyeHeightAGL;
   if(Number.isFinite(h)){if(!heights.has(id))heights.set(id,new Set());heights.get(id).add(h);}}
  const previous=new Map([...box.querySelectorAll('[data-recorded-key]')].map(n=>[n.dataset.recordedKey,n]));
@@ -242,7 +278,9 @@ async function renderRecorded(box,rows,plan,{select,current=()=>true,context=fal
   const row=recordedRow(raw,rows,labels,heights,selectedPlan.target?.id),key=JSON.stringify([raw.id??null,raw.sourcePlaceId??raw.place.sourcePlaceId??raw.place.id,raw.body,raw.target?.id,candidateKey(raw)]);
   const button=previous.get(key)||document.createElement('button');button.type='button';button.className='list-item candidate-record-row '+rowClass;button.dataset.recordedKey=key;
   if(heading){const text=heading(raw);if(text!==lastHeading){lastHeading=text;const h=headings.get(text)||document.createElement('h3');h.className='record-opportunity-day';h.textContent=text;nodes.push(h);}}
-  formatRow(button,row,kinds(row,labels.facilities),selectedPlan,compact);
+  const types=kinds(row,labels.facilities);
+  formatRow(button,row,types,selectedPlan,compact);
+  if(types.includes('unknown'))unclassified.push({button,row,selectedPlan,key});
   let identity=button.querySelector('[data-candidate-context]');
   if(context){if(!identity){identity=document.createElement('span');identity.dataset.candidateContext='';identity.className='tiny sub-line';identity.style.gridColumn='1 / -1';button.append(identity);}
    identity.textContent=[ports.bodyName?.(selectedPlan.body)||selectedPlan.body,selectedPlan.target?.name].filter(Boolean).join(' × ');
@@ -257,6 +295,18 @@ async function renderRecorded(box,rows,plan,{select,current=()=>true,context=fal
  let cursor=box.firstChild;
  for(const n of nodes){if(n===cursor)cursor=cursor.nextSibling;else box.insertBefore(n,cursor);}
  while(cursor){const next=cursor.nextSibling;cursor.remove();cursor=next;}
+ // Commit first. Context arrives in place without restarting the list, search,
+ // ephemeris or visibility calculation. Stop queued work for a superseded host.
+ if(ports.placeContext&&unclassified.length)void (async()=>{
+  let changed=false;
+  for(const {button,row,selectedPlan,key}of unclassified){
+   await new Promise(r=>setTimeout(r,0));if(!live())return;
+   const result=await ports.placeContext.read(positionPlace(row));
+   if(!live())return;
+   if(result&&button.dataset.recordedKey===key){formatRow(button,row,kinds(row,labels.facilities),selectedPlan,compact);changed=true;}
+  }
+  if(changed&&live()&&groups.has(box))void apply();
+ })().catch(e=>globalThis.AstroNotesErrors?.note('candidates.place-context',e));
  return selected.length;
 }
 

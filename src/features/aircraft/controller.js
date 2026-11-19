@@ -289,7 +289,7 @@ function openPlane() {
       $("planePickHere").disabled = true;
       const n = await nearName(c.latitude, c.longitude);
       $("planePickHere").disabled = false;
-      planeSetFrom({ name: n.name, subtitle: n.area || "地図の中心", latitude: c.latitude, longitude: c.longitude });
+      planeSetFrom({ name: n.name, subtitle: (n.subtitle ?? n.area) || "地図の中心", latitude: c.latitude, longitude: c.longitude });
     };
   }
   requestAnimationFrame(() => {

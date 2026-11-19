@@ -1715,7 +1715,8 @@
           "src/features/candidates/height-grid.js",
           "src/features/candidates/tree-heights.js",
           "src/features/candidates/plateau-buildings.js",
-          "src/features/candidates/osm-places.js"
+          "src/features/candidates/osm-places.js",
+          "src/features/candidates/place-labels.js"
         ],
         "purpose": "既存browser APIの明示adapter",
         "retireWhen": "platformとして維持"
@@ -2701,21 +2702,26 @@
           "撮影地点候補sheet",
           "記録地点詳細の線/範囲の重なる日"
         ],
-        "contract": "Same solved row: same place/location, clock or known connected interval, angle, passage/legacy explicit limb, height, uncertainty and selected real position. NOTES retains day/body/target context and geometric-model notice; Explore retains selected-day refracted conditions. Missing interval or disc geometry is never inferred. Label/render work must not call a numerical solver. Purpose-equivalent independent implementations must be searched before changing this component; direct-call and wording checks are not complete feature discovery. The legacy picker retains its four-column filter header and receives already projected labels/angle/height after eligibility filtering; raw solver rows must not overwrite that projection.",
+        "contract": "Same solved row: same place/location, clock or known connected interval, angle, passage/legacy explicit limb, height, uncertainty and selected real position. NOTES retains day/body/target context and geometric-model notice; Explore retains selected-day refracted conditions. Missing interval or disc geometry is never inferred. Label/render work must not call a numerical solver. Purpose-equivalent independent implementations must be searched before changing this component; direct-call and wording checks are not complete feature discovery. The legacy picker retains its four-column filter header and receives already projected labels/angle/height after eligibility filtering; raw solver rows must not overwrite that projection. Whole-object tower passage uses named projected parts shared with position choices; buildings use height regions; mountains and explicit legacy limbs retain their meaning. Recorded ground-road classification uses cached GSI centreline/edge containment after first paint, rejects roofs/water/elevated points, and changes display only.",
         "checks": [
           "tools/check-candidate-row-parity.cjs",
+          "tools/test-place-context-ui.cjs",
           "tools/candidate-picker.test.cjs",
           "tools/test-record-opportunities.cjs",
           "tools/check-recorded-candidate-ranges.cjs",
           "test-candidate-picker.mjs",
-          "tools/test-candidate-unified-ui.cjs"
+          "tools/test-candidate-unified-ui.cjs",
+          "test-place-context.mjs"
         ],
         "vocabulary": {
           "terms": [
             "撮影高さ 地上",
             "全体に重なる候補",
             "全体の中央付近を通過",
-            "寄りを通過"
+            "寄りを通過",
+            "付近を通過",
+            "の間を通過",
+            "より下を通過"
           ],
           "owners": [
             {
@@ -2725,6 +2731,10 @@
             {
               "path": "src/features/candidates/candidate-picker.js",
               "scope": "passageOf"
+            },
+            {
+              "path": "src/features/candidates/candidate-picker.js",
+              "scope": "wholePassage"
             },
             {
               "path": "astronotes-shooting.js",
@@ -2756,6 +2766,68 @@
           {
             "path": "src/features/explore/controller.js",
             "scope": "renderRecordRows",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "id": "nearby-place-name",
+        "name": "地点の自動名と住所",
+        "owner": {
+          "path": "src/features/places/search.js",
+          "symbol": "nearName"
+        },
+        "calls": [
+          "nearName"
+        ],
+        "surfaces": [
+          "地図/座標/現在地の地点選択",
+          "記録追加の名前候補",
+          "構図/地図の撮影地点",
+          "対象の住所",
+          "航空の地点"
+        ],
+        "contract": "One nearby lookup policy: keep facility names; use street/kaido aliases or numbered national/prefectural roads when supplied; otherwise use available address. Do not guess fame, borrow adjacent street names, overwrite explicit saved names, or classify a line as road. Cache successful lookups; preserve caller cancellation and draft identity.",
+        "checks": [
+          "test-place-context.mjs",
+          "test-record-entry.mjs",
+          "test-ui-intuition.mjs",
+          "tools/test-place-map-return.cjs"
+        ],
+        "consumers": [
+          {
+            "path": "astronotes-myplaces.js",
+            "scope": "ensureRecordLocation",
+            "count": 1
+          },
+          {
+            "path": "src/features/aircraft/controller.js",
+            "scope": "openPlane",
+            "count": 1
+          },
+          {
+            "path": "src/features/framing/presentation.js",
+            "scope": "<top-level>",
+            "count": 1
+          },
+          {
+            "path": "src/features/framing/reverse-and-entry.js",
+            "scope": "aimLineSheetPick",
+            "count": 1
+          },
+          {
+            "path": "src/features/framing/reverse-and-entry.js",
+            "scope": "openAim",
+            "count": 2
+          },
+          {
+            "path": "src/features/places/search.js",
+            "scope": "<top-level>",
+            "count": 2
+          },
+          {
+            "path": "src/features/places/search.js",
+            "scope": "selectPointAt",
             "count": 1
           }
         ]

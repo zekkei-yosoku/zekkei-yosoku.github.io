@@ -449,7 +449,7 @@ function openAim(preset) {
       $("aimPickTarget").disabled = true;
       const n = await nearName(c.latitude, c.longitude);
       $("aimPickTarget").disabled = false;
-      await aimSetCustomTarget({ name: n.name, subtitle: n.area, latitude: c.latitude, longitude: c.longitude, fromMap: true }, { keepMap: true });
+      await aimSetCustomTarget({ name: n.name, subtitle: n.subtitle ?? n.area, latitude: c.latitude, longitude: c.longitude, fromMap: true }, { keepMap: true });
     };
     $("aimPrev").onclick = () => { aim.dayMs -= 86400000; $("aimDate").value = new Date(aim.dayMs + 9 * 3600000).toISOString().slice(0, 10); aimApply(); };
     $("aimNext").onclick = () => { aim.dayMs += 86400000; $("aimDate").value = new Date(aim.dayMs + 9 * 3600000).toISOString().slice(0, 10); aimApply(); };
@@ -459,7 +459,7 @@ function openAim(preset) {
       $("aimPick").disabled = true;
       const n = await nearName(c.latitude, c.longitude);
       $("aimPick").disabled = false;
-      aimSetFrom({ name: n.name, subtitle: n.area || "地図の中心", latitude: c.latitude, longitude: c.longitude }, { keepMap: true });
+      aimSetFrom({ name: n.name, subtitle: (n.subtitle ?? n.area) || "地図の中心", latitude: c.latitude, longitude: c.longitude }, { keepMap: true });
       // 次に重なる日は上の「どこから重ねるか」の下に出る。地図を見ている人に、どこを見ればよいかを一瞬だけ言う
       ($("aimPick").querySelector("span") || $("aimPick")).textContent = "撮影地点にしました ↑";
       setTimeout(() => { ($("aimPick").querySelector("span") || $("aimPick")).textContent = "ここから重ねる"; }, 2500);

@@ -25,7 +25,7 @@ function choosePlace(p, { keepSheet = false } = {}) {
   try { recentHistory.rememberPlace(p,{observer:placeSheetFor==='aim'||(!placeSheetFor&&!aim.from)}); } catch { /* History must not prevent choosing a place. */ }
   const picker = placeSheetFor && PLACE_PICKERS[placeSheetFor];
   if (picker) {
-    if (!keepSheet) $("placeSheet").close(); // Map confirmation returns to the existing place picker.
+    if (!keepSheet) $("placeSheet").close(); // Map confirmation passes keepSheet to return to this picker.
     // 地名の一覧の山・峠・岬・滝は、地面そのものが目標（建物を探さない）
     picker.set({ id: p.id, natural: /^(山|峠|岬|滝)( ・|$)/.test(p.subtitle || ""), wikidata: p.wikidata ?? null,
       // 階数からの見積もりは「分からない」として扱い、Wikidata・地図の建物で取り直す

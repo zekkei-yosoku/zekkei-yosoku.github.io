@@ -304,8 +304,8 @@ function updateObserverGuides(s){
    const known=(previewPositions?.shortcuts||[]).filter(c=>{
     const p=AstroNotesCandidatePicker.positionPlace(c.row),o=AstroNotesCandidatePicker.movementPoint(observerSurface,p,.5);
     return o&&Math.abs(c.row.event.at-s.at)<=2*3600000&&(p.standAglM??p.eyeHeightAGL??1.5)===eye;
-   }).map(c=>({...AstroNotesCandidatePicker.positionPlace(c.row),label:c.label,partId:c.row.event.partId||c.label,at:c.row.event.at,row:c.row,approximate:false}));
-   try{result=await AstroNotesCandidatePicker.movementGuides({...s,target:{...s.target,parts:(s.target.parts||[]).filter(p=>!known.some(g=>g.label===p.name+'付近'))}},observerSurface,{groundM:ground,eyeM:eye,isCurrent:current});}
+   }).map(c=>({...AstroNotesCandidatePicker.positionPlace(c.row),label:c.label,partId:c.partId||c.row.event.partId||c.label,at:c.row.event.at,row:c.row,approximate:false}));
+   try{result=await AstroNotesCandidatePicker.movementGuides({...s,target:{...s.target,parts:(s.target.parts||[]).filter(p=>!known.some(g=>g.partId===p.id))}},observerSurface,{groundM:ground,eyeM:eye,isCurrent:current});}
    catch(e){if(current()){globalThis.AstroNotesErrors?.note('explore.map-guides',e);observerGuideNote.textContent='目安を計算できませんでした。地図を開き直してください';}return;}
    if(!current())return;result={...result,guides:[...known,...result.guides]};observerGuideCache.set(key,result);if(observerGuideCache.size>8)observerGuideCache.delete(observerGuideCache.keys().next().value);
   }

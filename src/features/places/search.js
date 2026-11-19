@@ -15,26 +15,36 @@ let favUndo = [];      // 消したものを戻すための控え。地点シー
 const JP_PREFECTURES = ["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県",
   "新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県",
   "鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"];
-/// 地図で選んだ点の名前（近くの地名）と住所（都道府県＋市区町村）。取れなければ座標を名前にする
+/// 地図・記録・構図で共用。施設名→通称のある通り/番号付き幹線→住所。手入力名は変更しない。
+const nearbyNameCache = new Map();
 async function nearName(lat, lon, { signal } = {}) {
-  let name = `${lat.toFixed(4)}, ${lon.toFixed(4)}`, area = "";
+  const key = lat.toFixed(6) + "," + lon.toFixed(6);
+  if (!signal?.aborted && nearbyNameCache.has(key)) return { ...nearbyNameCache.get(key) };
+  let name = `${lat.toFixed(4)}, ${lon.toFixed(4)}`, area = "", road = "";
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&accept-language=ja`
       + `&lat=${lat.toFixed(6)}&lon=${lon.toFixed(6)}`;
     const r = await fetch(url, { signal, headers: { accept: "application/json" } });
     if (r.ok) {
       const a = (await r.json()).address || {};
-      // 施設・公園・山などの名前 → 町名（丁目・字）→ 道路の順。道路名（「市川柏線」）は場所の名前として分かりにくい
-      const near = a.tourism || a.leisure || a.natural || a.building
-        || a.quarter || a.neighbourhood || a.hamlet || a.suburb || a.village || a.town || a.road || a.city;
-      if (near) name = String(near).slice(0, 24);
+      // 知名度は推測しない。通り/街道の通称か、国道/都道等の番号がある時だけ
+      // 道路を見出しにする。細街路の名前や無名道路は住所を使う。
+      road = typeof a.road === "string" ? a.road.trim() : "";
+      const facility = a.tourism || a.leisure || a.natural || a.building;
+      const street = /通り|街道/.test(road) || /^(?:国道|都道|道道|府道|県道|東京都道|北海道道|京都府道|大阪府道|.{2,3}県道)\s*[0-9０-９]+号/.test(road) ? road : "";
       // 東京都の区などは都道府県が入らない返事があるので、ISO 3166-2（JP-13 など）から補う（2026-10-21、現在地で「墨田区」だけになった）
       const iso = /^JP-(\d\d)$/.exec(a["ISO3166-2-lvl4"] || "");
       const pref = a.province || a.state || (iso ? JP_PREFECTURES[Number(iso[1]) - 1] : "") || "";
-      area = [pref, a.city || a.town || a.village || ""].join("");
+      const locality = a.city || a.town || a.village || "";
+      const town = a.neighbourhood || a.quarter || a.hamlet || a.suburb || "";
+      area = [pref, locality, town && !locality.includes(town) ? town : ""].join("");
+      const near = facility || street || area || a.hamlet;
+      if (near) name = String(near).slice(0, 100);
+      nearbyNameCache.set(key, { name, area, road, subtitle: area === name ? "" : area });
+      if (nearbyNameCache.size > 256) nearbyNameCache.delete(nearbyNameCache.keys().next().value);
     }
   } catch { /* 名前が取れなくても座標で進める */ }
-  return { name, area };
+  return { name, area, road, subtitle: area === name ? "" : area };
 }
 
 /// 緯度経度の点を地点にする（地図の「この場所にする」と、検索欄に緯度経度を入れたとき）。
@@ -42,14 +52,14 @@ async function nearName(lat, lon, { signal } = {}) {
 /// 名前は近くの地名を当てる。取れなければ座標そのものを名前にする。
 async function selectPointAt(lat, lon, subtitle, options = {}) {
   const elevation = await groundAt(lat, lon);
-  const { name } = await nearName(lat, lon);
+  const { name, area } = await nearName(lat, lon);
   if (options.isCurrent && !options.isCurrent()) return;
   if (options.closeMap) $("mapSheet").close();
   choosePlace({ id: `map:${lat.toFixed(5)},${lon.toFixed(5)}`,
-    name, subtitle, latitude: lat, longitude: lon,
+    name, subtitle: area && area !== name ? area : subtitle, latitude: lat, longitude: lon,
     elevation: elevation === null || elevation === undefined ? null : Math.round(elevation * 10) / 10,
     // **点は代表点ではない。** ダイヤモンド富士や建物の地平線が出せる
-    locationScope: "point" }, options);
+    locationScope: "point" }, { ...options, keepSheet: !!options.closeMap || !!options.keepSheet });
 }
 
 let mapPickRequest = 0;
@@ -65,7 +75,7 @@ $("mapPick").onclick = async () => {
     if (request !== mapPickRequest || !$("mapSheet").open || owner !== auth?.token || !favMapReturn || favDraft !== draft || draft.ownerToken !== owner) return;
     favDraft.latitude = c.latitude;
     favDraft.longitude = c.longitude;
-    favDraft.subtitle = nearby.area || "地図で選んだ地点";
+    favDraft.subtitle = nearby.area === favDraft.name ? "" : nearby.area || "地図で選んだ地点";
     favDraft.elevation = elevation == null ? null : Math.round(elevation * 10) / 10;
     favDraft.locationScope = "point";
     $("mapSheet").close();

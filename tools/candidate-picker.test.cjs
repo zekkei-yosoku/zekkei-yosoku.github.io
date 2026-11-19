@@ -138,7 +138,7 @@ test('position choices offer actual solved tip and deck candidates using only ta
  const tip=row('tip',1000,6),deck=row('deck',2000,3),unknown=row('unknown',3000,12),input=[unknown,deck,tip],before=JSON.stringify(input);let calls=0;
  const {choices,shortcuts}=F.positionChoices(input,plan,(_o,_t,{partId})=>{calls++;return {azimuth:180,angle:partId==='tip'?6:3};});
  assert.equal(calls,6);assert.equal(choices.length,3);assert.equal(choices[0].row,tip);assert.equal(choices[1].row,deck);
- assert(shortcuts.some(s=>s.row===tip&&s.label==='先端付近'));assert(shortcuts.some(s=>s.row===deck&&s.label==='展望台付近'));
+ assert(shortcuts.some(s=>s.row===tip&&s.partId==='tip'&&s.label==='先端付近'));assert(shortcuts.some(s=>s.row===deck&&s.partId==='deck'&&s.label==='展望台付近'));
  assert(!shortcuts.some(s=>s.row===unknown));assert.equal(JSON.stringify(input),before);
  assert.deepEqual(F.positionChoices(input,plan,null).shortcuts,[],'missing geometry never fabricates a part');
 });
@@ -193,4 +193,31 @@ test('legacy explicit limb descriptions reuse the record alignment policy includ
  const target={parts:[{id:'tip',name:'先端',m:634}]};
  for(const value of [{partId:'tip',matchMode:'limb',limb:'upper'},{partId:'missing',matchMode:'limb',limb:'unknown'},{partId:null,matchMode:'limb',limb:'lower'}])assert.equal(F.passageOf({event:{}},{target,body:'moon',...value}),policy.text(target,value));
  assert.equal(F.passageOf({event:{}},{target,body:'moon',partId:'missing',matchMode:'overlap'}),policy.text(target,{partId:'missing',matchMode:'overlap'}));
+});
+test('whole tower passage and position choices share named regions, solved reference and reusable part geometry',()=>{
+ const target={id:'skytree',latitude:35.7,longitude:139.8,groundM:2,parts:[{id:'tip',name:'先端',m:636},{id:'gallery',name:'天望回廊（第二展望台）',m:452},{id:'deck',name:'天望デッキ',m:352}]};
+ let calls=0,k=1;const geometryFrom=(_o,_t,{partId})=>{calls++;return{azimuth:90,angle:{tip:6,gallery:4,deck:3}[partId]+k};};
+ globalThis.AstroNotesCandidatePicker.configure({geometryFrom,geometryKey:()=>k});
+ const plan={target,body:'moon',partId:'__whole',matchMode:'overlap'};
+ const row=altitude=>({place:{latitude:35.6,longitude:139.7,elevation:20,eyeHeightAGL:1.5},event:{at:0,altitude,azimuth:90,radius:.25,targetAltitude:6,targetPosition:{x:.5,y:.5}}});
+ for(const [altitude,text]of [[6,'先端付近を通過'],[4,'天望回廊付近を通過'],[3,'天望デッキ付近を通過'],[5,'先端と天望回廊の間を通過'],[3.5,'天望回廊と天望デッキの間を通過'],[2,'天望デッキより下を通過']]){
+  const r=row(altitude),before=JSON.stringify(r),n=calls;
+  assert.equal(F.passageOf(r,plan),text);assert.equal(calls,n+3);
+  assert.equal(F.positionChoices([r],plan).choices[0].passage,text);F.passageOf({...r},plan);assert.equal(calls,n+3,'projection is reused across rows and surfaces');
+  assert.equal(JSON.stringify(r),before);
+ }
+ const r=row(4);F.passageOf(r,plan);const n=calls;k=2;assert.equal(F.passageOf(r,plan),'天望回廊付近を通過');assert.equal(calls,n+3,'changed atmosphere invalidates only the cheap projection');
+ F.passageOf({...r,place:{...r.place,elevation:30}},plan);assert.equal(calls,n+6,'height is part of the key');
+ assert.equal(F.positionChoices([row(5)],plan).shortcuts.length,0,'between-parts labels cannot become part IDs');
+ globalThis.AstroNotesCandidatePicker.configure({geometryFrom:null,geometryKey:null});
+});
+test('ordinary buildings, custom targets, mountains, old modes and missing geometry do not invent tower floors',()=>{
+ const row=y=>({place:{},event:{at:0,radius:.25,altitude:3,azimuth:90,targetPosition:{x:.5,y}}}),plan={target:{id:'custom',groundM:0,parts:[{id:'roof',name:'屋上',m:100}]},body:'moon',partId:'__whole',matchMode:'overlap'};
+ for(const [y,text]of [[.95,'てっぺん付近を通過'],[.8,'上部付近を通過'],[.5,'中央付近を通過'],[.1,'下部付近を通過']])assert.equal(F.passageOf(row(y),plan),text);
+ const twin={...plan,target:{id:'tocho-building',latitude:35,longitude:139,groundM:30,parts:[{id:'north',name:'北塔の頂部',m:277,latitude:35.001},{id:'south',name:'南塔の頂部',m:277,latitude:34.999}]}};
+ assert.equal(F.passageOf(row(.5),twin),'中央付近を通過');
+ const mountain={...plan,target:{id:'user-mountain',groundM:100,parts:[{id:'summit',name:'山頂',m:100}]}};
+ assert.equal(F.positionChoices([row(.9)],mountain).shortcuts.length,0);
+ assert.equal(F.passageOf(row(.5),{...plan,matchMode:undefined}),AstroNotesShooting.passageText(row(.5).event,{...plan,matchMode:undefined}));
+ assert.equal(F.passageOf({place:{},event:{}},plan),'全体に重なる候補');
 });

@@ -30,6 +30,7 @@ run composition-layout COMPOSITION_STABILITY_BASE=${B}index.html COMPOSITION_STA
 run workspace CANDIDATE_FLOW_BASE=$B node tools/test-candidate-workspace-flow.cjs
 run preview-positions POSITION_NAV_BASE=$B POSITION_NAV_OUT="$OUT/positions" node tools/test-preview-position-navigation.cjs
 run unified node tools/test-candidate-unified-ui.cjs
+run place-context PLACE_CONTEXT_BASE="$B" PLACE_CONTEXT_OUT="$OUT/place-context" node tools/test-place-context-ui.cjs
 run search-design SEARCH_DESIGN_BASE=$B node tools/test-explore-search-design.cjs
 run preview-swipe PREVIEW_SWIPE_BASE=${B}index.html node tools/test-explore-preview-swipe.cjs
 run bar-layout BAR_LAYOUT_BASE=${B}index.html BAR_LAYOUT_OUT="$OUT/bar" node tools/test-explore-bar-layout.cjs
