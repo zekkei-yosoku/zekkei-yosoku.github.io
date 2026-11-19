@@ -57,7 +57,11 @@ PLACE_PICKERS.records = { title: '撮影地点', custom: () => null, point: () =
 const shapesKey=()=>AstroNotesLibrary.keys(auth?.loginId).shapes;
 function shapeData(){const raw=store.get(shapesKey(),{});return raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};}
 function shapeFor(f){const r=shapeData()[f?.id];return r&&r.latitude===f.latitude&&r.longitude===f.longitude?AstroNotesShooting.cleanShape(r.shape):null;}
-const withShape=f=>({...f,...(shapeFor(f)?{shape:shapeFor(f)}:{})});
+const withShape=f=>{
+ const own=shapeFor(f),source=f?.sourcePlaceId&&favorites.find(p=>p.id===f.sourcePlaceId),inherited=source&&shapeFor(source);
+ const shape=own||(inherited&&AstroNotesShooting.shapeContains(inherited,f)?inherited:null);
+ return {...f,...(shape?{shape}:{})};
+};
 const shapeName=s=>s?.type==='line'?'線':s?.type==='area'?'範囲':'点';
 const shapeKey=s=>JSON.stringify(s||null);
 async function candidateElevation(lat,lon){try{const g=await AstroNotesTerrain.groundElevation(lat,lon);return Number.isFinite(g)?g:null;}catch{return null;}}

@@ -148,6 +148,7 @@ for(const [b,direction]of [[positionPrevious,-1],[positionNext,1]])b.onclick=()=
 const observerMoveSection=node('details',{id:'exploreObserverMove',hidden:true}),observerMoveSummary=node('summary',{},'地図で撮影位置を移動');
 const observerMoveControls=node('div',{id:'exploreObserverMoveControls',hidden:true}),observerMoveNote=node('p',{className:'tiny',id:'exploreObserverMoveNote'});
 const observerMoveUndo=node('button',{type:'button',id:'exploreObserverMoveUndo'},'移動前の位置に戻す'),observerMoveApply=node('button',{type:'button',id:'exploreObserverMoveApply'},'この位置に移動');
+const observerMoveRetry=node('button',{type:'button',id:'exploreObserverMoveRetry',hidden:true},'園路・歩道を再取得');
 const observerMoveDone=node('button',{type:'button',id:'exploreObserverMoveDone'},'閉じる');observerMoveDone.onclick=()=>{observerMoveWrap._mapShell?.setWide(false);observerMoveSection.open=false;};
 const observerMoveWrap=node('div',{className:'mapwrap',id:'exploreObserverMoveMap'}),observerMoveCanvas=node('canvas',{id:'exploreObserverMoveCanvas'}),observerMoveCoordinate=node('p',{className:'tiny',id:'exploreObserverMoveCoordinate'});
 observerMoveCanvas.setAttribute('aria-label','撮影位置を動かす地図。地図をドラッグするか地点をタップしてください');
@@ -155,7 +156,7 @@ const observerMoveZoom=node('div',{className:'mapzoom'});for(const [id,label,tex
  const b=node('button',{id,type:'button'},text);b.setAttribute('aria-label',label);observerMoveZoom.append(b);
 }
 observerMoveWrap.append(observerMoveCanvas,observerMoveZoom);observerMoveNote.setAttribute('role','status');
-const observerMoveCard=node('div',{id:'exploreObserverMoveCard'});observerMoveCard.append(observerMoveCoordinate,observerMoveApply,observerMoveUndo,observerMoveDone,observerMoveNote);
+const observerMoveCard=node('div',{id:'exploreObserverMoveCard'});observerMoveCard.append(observerMoveCoordinate,observerMoveRetry,observerMoveApply,observerMoveUndo,observerMoveDone,observerMoveNote);
 const observerGuideButtons=node('div',{id:'exploreObserverGuides'}),observerGuideNote=node('p',{id:'exploreObserverGuideNote',className:'tiny'});
 observerGuideButtons.setAttribute('role','group');observerGuideButtons.setAttribute('aria-label','各部位に重なる撮影位置の目安');observerMoveCard.prepend(observerGuideNote,observerGuideButtons);
 observerMoveControls.append(observerMoveWrap,observerMoveCard);
@@ -166,21 +167,23 @@ new MutationObserver(()=>{const wide=observerMoveWrap.classList.contains('sky-ma
 }).observe(observerMoveWrap,{attributes:true,attributeFilter:['class']});
 const observerMoveGate=AstroNotesLibrary.gate();let observerMovement=null,observerMoveTimer=null,observerMovePending=null,applyingObserverMove=false,observerMoveMap=null,observerMoveMapSource='',observerMoveDraft=null,observerMoveMapHasOpened=false;
 let observerGuideKey='',observerGuides=[],observerGuideTimer=null;const observerGuideCache=new Map();
-let observerSurface=null,observerSurfaceKey='',observerSurfaceLoading=false,observerDraftGuide=null;
+let observerSurface=null,observerSurfaceKey='',observerSurfaceLoading=false,observerDraftGuide=null;const observerSurfaceGate=AstroNotesLibrary.gate();
 function clearObserverGuides(text){
  observerGuideKey='';observerGuides=[];observerDraftGuide=null;observerGuideButtons.replaceChildren();observerMoveSection.dataset.guideCount='0';
  if(observerGuideTimer!==null)clearTimeout(observerGuideTimer);observerGuideTimer=null;observerGuideNote.textContent=text;observerMoveMap?.redraw();
 }
 function movementSeed(s){
  const row=previewPositions?.choices.find(c=>c.key===previewPositions.key)?.row;
- return {...row?.assumedObserver,...row?.place,...(observerMovement?.origin.observer||s.observer),placeKind:row?.placeKind||row?.assumedObserver?.placeKind,shape:row?.place?.shape,placeId:row?.assumedObserver?.placeId,surfaceId:row?.surfaceId||row?.place?.surfaceId};
+ const observer=observerMovement?.origin.observer||s.observer;
+ return {...row?.assumedObserver,...row?.place,...observer,sourcePlaceId:row?.sourcePlaceId||row?.place?.sourcePlaceId||observer.sourcePlaceId,
+  placeKind:row?.placeKind||row?.assumedObserver?.placeKind,shape:row?.place?.shape||observer.shape,placeId:row?.assumedObserver?.placeId,surfaceId:row?.surfaceId||row?.place?.surfaceId};
 }
 function movementSurfaceKey(s){const p=observerMovement?.origin.observer||s.observer;return JSON.stringify([auth?.loginId,accessState.generation,positionCondition(s),p.latitude,p.longitude,previewPositions?.key]);}
-function loadObserverSurface(s){
+function loadObserverSurface(s,refresh=false){
  const key=movementSurfaceKey(s);if(key===observerSurfaceKey)return;
  observerSurfaceKey=key;observerSurface=null;observerSurfaceLoading=true;clearObserverGuides('この場所の園路・歩道を確認中…');
- const seed=movementSeed(s),current=()=>key===observerSurfaceKey&&observerMoveSection.open&&active();
- Promise.resolve().then(()=>AstroNotesCandidatePicker.movementSurface(seed,current)).then(domain=>{
+ const seed=movementSeed(s),token=observerSurfaceGate.next(),current=()=>observerSurfaceGate.current(token)&&key===observerSurfaceKey&&observerMoveSection.open&&active();
+ Promise.resolve().then(()=>AstroNotesCandidatePicker.movementSurface(seed,current,{refresh})).then(domain=>{
   if(!current())return;observerSurfaceLoading=false;observerSurface=domain;observerGuideKey='';syncObserverMovement(SkyMapUI.selectionState());
  }).catch(e=>{if(!current())return;observerSurfaceLoading=false;observerSurface=null;globalThis.AstroNotesErrors?.note('explore.movement-surface',e);syncObserverMovement(SkyMapUI.selectionState());});
 }
@@ -220,6 +223,7 @@ const observerMoveContext=()=>JSON.stringify([auth?.loginId,accessState.generati
 function cancelObserverMoveLookup(){observerMoveGate.cancel();if(observerMoveTimer!==null)clearTimeout(observerMoveTimer);observerMoveTimer=null;observerMovePending=null;}
 function resetObserverMovement(close=true){
  cancelObserverMoveLookup();observerMovement=null;observerMoveMapSource='';observerMoveDraft=null;observerSurfaceKey='';observerSurface=null;observerSurfaceLoading=false;observerDraftGuide=null;
+ observerMoveUndo.hidden=true;
  if(close){observerMoveSection.open=false;observerMoveControls.hidden=true;observerMoveWrap._mapShell?.setWide(false);}
 }
 function drawObserverMoveMap(ctx,{project,width,height}){
@@ -249,10 +253,18 @@ function updateObserverMoveDraft(point){
  const snapped=observerSurface&&AstroNotesCandidatePicker.movementPoint(observerSurface,point,20);
  observerMoveSection.dataset.onSurface=String(!!snapped);
  const applyLabel=observerDraftGuide?'この位置・時刻に移動':'この位置に移動';if(observerMoveApply.textContent!==applyLabel)observerMoveApply.textContent=applyLabel;
- const picked=snapped||point,text=picked.latitude.toFixed(6)+', '+picked.longitude.toFixed(6);if(observerMoveCoordinate.textContent!==text)observerMoveCoordinate.textContent=text;
  const o=SkyMapUI.selectionState()?.observer;
+ const picked=o&&AstroNotesShooting.meters(o,point)<.01?point:snapped||point,text=picked.latitude.toFixed(6)+', '+picked.longitude.toFixed(6);if(observerMoveCoordinate.textContent!==text)observerMoveCoordinate.textContent=text;
  observerMoveApply.disabled=!snapped||!o||!observerMovePending&&AstroNotesShooting.meters(o,picked)<.01&&(!observerDraftGuide||observerDraftGuide.at===SkyMapUI.selectionState().at)||!!observerMovePending&&AstroNotesShooting.meters(observerMovePending.point,point)<.01;
+ syncObserverUndo(o);
 
+}
+function syncObserverUndo(observer){
+ const draftChanged=observerMoveSection.open&&observer&&observerMoveDraft&&AstroNotesShooting.meters(observer,observerMoveDraft)>=.01;
+ const available=!!observerMovement?.moved||!!observerMovePending||!!draftChanged;
+ observerMoveUndo.disabled=!available;observerMoveUndo.hidden=!observerMoveSection.open&&!available;
+ if(observerMoveSection.open){if(observerMoveUndo.parentNode!==observerMoveCard)observerMoveCard.insertBefore(observerMoveUndo,observerMoveDone);}
+ else if(available&&observerMoveUndo.parentNode!==observerMoveSection.parentNode)observerMoveSection.after(observerMoveUndo);
 }
 function syncObserverMovement(s){
  if(SkyMapUI.resuming?.()&&!s?.observer){observerMoveSection.hidden=true;return;}
@@ -275,7 +287,8 @@ function syncObserverMovement(s){
   else if(observerMoveDraft)updateObserverMoveDraft(observerMoveDraft);
   loadObserverSurface(s);updateObserverGuides(s);observerMoveMapHasOpened=true;
  }
- observerMoveUndo.disabled=!observerMovement?.moved&&!observerMovePending;
+ observerMoveRetry.hidden=!!observerSurface||observerSurfaceLoading;
+ syncObserverUndo(s.observer);
  const distance=observerMovement?AstroNotesShooting.meters(observerMovement.origin.observer,s.observer):0;
  const text=observerMovePending?'移動先の標高を確認中…':scene.getAttribute('aria-busy')==='true'&&observerMovement?.moved?'見え方を更新中…':observerMovement?.error||
   (distance>=.01?'移動前の位置から約'+Math.round(distance*10)/10+'m'+(observerMovement.timeChanged?' ・ 部位に重なる時刻へ移動':' ・ 日時はそのまま'):(observerMoveSection.dataset.onSurface==='true'?'青い園路・歩道に沿って撮影位置を選べます':'青い園路・歩道の近くを選んでください'));
@@ -290,7 +303,6 @@ observerMoveApply.onclick=()=>{
  if(!resultActive()||selectionPending||!observerMoveSection.open||!observerMoveDraft)return;const s=SkyMapUI.selectionState(),host=SkyMapUI.workspaceHost();if(!s?.observer||!host)return;
  const center=observerMoveMap.center(),point=observerSurface&&AstroNotesCandidatePicker.movementPoint(observerSurface,center,20);if(!point)return;
  const guide=observerDraftGuide&&AstroNotesShooting.meters(observerDraftGuide,point)<.5?observerDraftGuide:null;
- if(guide?.row){point.latitude=guide.latitude;point.longitude=guide.longitude;}
  if(guide?.row){point.latitude=guide.latitude;point.longitude=guide.longitude;}
  if(AstroNotesShooting.meters(s.observer,point)<.01&&(!guide||guide.at===s.at)){cancelObserverMoveLookup();observerMoveSection.open=false;syncObserverMovement(s);return;}
  const context=observerMoveContext(),anchor=AstroNotesShooting.observerMoveKey(s);
@@ -314,22 +326,25 @@ async function applyObserverNudge(point,token,expected,context,guide){
  if(applied){observerMovement.anchor=AstroNotesShooting.observerMoveKey(SkyMapUI.selectionState());
  observerMovement.moved=true;
  if(guide)observerMovement.timeChanged=true;}
- else if(previewPositions)previewPositions.adjustedPlace=previous;}finally{applyingObserverMove=false;}
+ else{if(previewPositions)previewPositions.adjustedPlace=previous;observerMovement.error='移動を確定できませんでした。条件を確認して、もう一度お試しください';}}finally{applyingObserverMove=false;}
  if(applied){observerMoveWrap._mapShell?.setWide(false);observerMoveSection.open=false;observerMoveControls.hidden=true;
  scene.style.scrollMarginTop=(layout.conditions.getBoundingClientRect().height+12)+'px';scene.scrollIntoView({block:'start'});}
  syncPositionNavigation();syncObserverMovement(SkyMapUI.selectionState());
 }
 observerMoveUndo.onclick=()=>{
- if(!resultActive()||!observerMovement)return;cancelObserverMoveLookup();
+ if(!resultActive())return;cancelObserverMoveLookup();
+ if(!observerMovement?.moved){const s=SkyMapUI.selectionState();if(s?.observer){if(observerMovement)observerMovement.error='';observerDraftGuide=null;observerMoveMap?.setCenter(s.observer.latitude,s.observer.longitude);updateObserverMoveDraft(s.observer);syncObserverMovement(s);}return;}
  const origin=observerMovement.origin,place=AstroNotesShooting.candidatePlace({place:origin.observer,assumedObserver:aimObserverAt(origin.observer,origin.ground)});adjustedPreviewPlace(place);applyingObserverMove=true;
  try{if(observerMovement.timeChanged)SkyMapUI.setTime(origin.at);
  SkyMapUI.workspaceHost()?.restoreObserver(structuredClone(origin.observer),origin.ground,origin.opportunity);
  observerMovement.anchor=AstroNotesShooting.observerMoveKey(SkyMapUI.selectionState());
  observerMovement.moved=false;
+ observerMovement.timeChanged=false;
  observerMovement.error='';
  }
  finally{applyingObserverMove=false;}observerMoveMapSource='';syncPositionNavigation();syncObserverMovement(SkyMapUI.selectionState());
 };
+observerMoveRetry.onclick=()=>{if(observerSurfaceLoading||!resultActive())return;observerSurfaceKey='';loadObserverSurface(SkyMapUI.selectionState(),true);syncObserverMovement(SkyMapUI.selectionState());};
 observerMoveSection.addEventListener('toggle',()=>{if(!observerMoveSection.open){cancelObserverMoveLookup();observerMoveMapSource='';observerMoveWrap._mapShell?.setWide(false);
  if(observerGuideTimer!==null)clearTimeout(observerGuideTimer);observerGuideTimer=null;observerGuideKey='';if(observerSurfaceLoading)observerSurfaceKey='';}syncObserverMovement(SkyMapUI.selectionState());});
 observerMoveControls.addEventListener('pointerdown',e=>e.stopPropagation());
@@ -970,15 +985,17 @@ main:has(>#skyMapView.explore-mounted:not([hidden]))>#footer>summary{min-height:
 #exploreObserverMoveCanvas{width:100%;height:100%;display:block;touch-action:none}
 #exploreObserverMoveMap,#exploreObserverMoveCanvas{touch-action:none!important}
 #skyMapView.explore-observer-map-wide .sky-map-footer{display:none!important}
-#exploreObserverMoveControls button,#exploreObserverMoveCard button{min-height:44px;margin:4px 0 0;min-width:44px;font-size:.8rem}
+#exploreObserverMoveControls button,#exploreObserverMoveCard button,#exploreObserverMoveUndo{min-height:44px;margin:4px 0 0;min-width:44px;font-size:.8rem}
 #exploreObserverMoveCard{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px}
 #exploreObserverGuides,#exploreObserverGuideNote{grid-column:1/-1}
 #exploreObserverGuides{display:flex;gap:6px;flex-wrap:wrap}
 #exploreObserverGuides button{min-height:44px;margin:0;padding:6px 10px;border:1px solid var(--line);border-radius:8px}
 #exploreObserverGuideNote{margin:4px 0;font-size:.7rem;line-height:1.5;color:var(--secondary)}
-#exploreObserverMoveCoordinate,#exploreObserverMoveApply,#exploreObserverMoveNote{grid-column:1/-1}
+#exploreObserverMoveCoordinate,#exploreObserverMoveApply,#exploreObserverMoveRetry,#exploreObserverMoveNote{grid-column:1/-1}
 #exploreObserverMoveApply{width:100%;background:var(--accent);color:var(--on-accent);border:1px solid var(--accent);border-radius:9px}
-#exploreObserverMoveUndo,#exploreObserverMoveDone{padding:0 12px}
+#exploreObserverMoveApply:disabled{background:var(--card);color:var(--secondary);border-color:var(--line);opacity:.6}
+#exploreObserverMoveUndo,#exploreObserverMoveDone,#exploreObserverMoveRetry{padding:0 12px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--accent)}
+#exploreObserverMoveUndo:disabled{color:var(--secondary);opacity:.5}
 #exploreObserverMoveNote,#exploreObserverMoveCoordinate{margin:6px 0 0;font-size:.7rem;line-height:1.6;color:var(--secondary)}
 #exploreRecordedResults [data-candidate-meta]{display:flex;flex-wrap:wrap;gap:4px 10px;grid-column:1/-1}
 .candidate-record-heading{display:flex;align-items:baseline;gap:8px;font-size:1rem;line-height:1.4;margin:18px 0 0}

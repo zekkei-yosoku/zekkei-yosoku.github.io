@@ -130,15 +130,23 @@ function query(b){const box=[b[1],b[0],b[3],b[2]].map(x=>x.toFixed(6)).join(',')
 // including node coordinates for way references. Parse only these data tags;
 // never interpret markup or resolve external entities.
 function mapElements(xml){
+ let rows=[];
+ if(typeof xml!=='string'){
+  if(!Array.isArray(xml?.elements)||xml.remark||xml.error)throw Error('incomplete-osm-map-response');
+  rows=xml.elements.filter(e=>['node','way','relation'].includes(e.type)).map(e=>({type:e.type,id:e.id,tags:e.tags||{},lat:e.lat,lon:e.lon,
+   ...(e.type==='way'?{refs:(e.nodes||[]).map(String)}:e.type==='relation'?{members:e.members||[]}:{})}));
+ }else{
  if(!/<osm\b/.test(xml)||!/<\/osm>/.test(xml)||/<(?:error|remark)\b/.test(xml))throw Error('incomplete-osm-map-response');
  const decode=s=>s.replace(/&(#x[\da-f]+|#\d+|amp|quot|apos|lt|gt);/gi,(_,x)=>x[0]==='#'?String.fromCodePoint(x[1].toLowerCase()==='x'?parseInt(x.slice(2),16):Number(x.slice(1))):({amp:'&',quot:'"',apos:"'",lt:'<',gt:'>'}[x]||_));
- const attrs=s=>Object.fromEntries([...s.matchAll(/([\w:]+)\s*=\s*"([^"]*)"/g)].map(m=>[m[1],decode(m[2])])),rows=[],nodes=new Map(),ways=new Map();
+ const attrs=s=>Object.fromEntries([...s.matchAll(/([\w:]+)\s*=\s*"([^"]*)"/g)].map(m=>[m[1],decode(m[2])]));
  const re=/<(node|way|relation)\b([^>]*?)(?:\/\s*>|>([\s\S]*?)<\/\1\s*>)/g;let m;
  while((m=re.exec(xml))){const a=attrs(m[2]),body=m[3]||'',tags={};for(const t of body.matchAll(/<tag\b([^>]*?)\/\s*>/g)){const p=attrs(t[1]);if(p.k!=null)tags[p.k]=p.v;}
-  const e={type:m[1],id:Number(a.id),tags};if(e.type==='node'){e.lat=Number(a.lat);e.lon=Number(a.lon);nodes.set(a.id,e);}else if(e.type==='way'){e.refs=[...body.matchAll(/<nd\b([^>]*?)\/\s*>/g)].map(t=>attrs(t[1]).ref);ways.set(a.id,e);}else e.members=[...body.matchAll(/<member\b([^>]*?)\/\s*>/g)].map(t=>attrs(t[1]));rows.push(e);
+  const e={type:m[1],id:Number(a.id),tags};if(e.type==='node'){e.lat=Number(a.lat);e.lon=Number(a.lon);}else if(e.type==='way'){e.refs=[...body.matchAll(/<nd\b([^>]*?)\/\s*>/g)].map(t=>attrs(t[1]).ref);}else e.members=[...body.matchAll(/<member\b([^>]*?)\/\s*>/g)].map(t=>attrs(t[1]));rows.push(e);
  }
+ }
+ const nodes=new Map(rows.filter(e=>e.type==='node').map(e=>[String(e.id),e])),ways=new Map(rows.filter(e=>e.type==='way').map(e=>[String(e.id),e]));
  for(const e of ways.values()){e.geometry=e.refs.map(r=>nodes.get(r)).filter(Boolean).map(n=>({lat:n.lat,lon:n.lon}));if(e.geometry.length!==e.refs.length)e.geometry=[];delete e.refs;}
- for(const e of rows)if(e.type==='relation')e.members=e.members.map(m=>({...m,ref:Number(m.ref),geometry:m.type==='way'?ways.get(m.ref)?.geometry:undefined}));
+ for(const e of rows)if(e.type==='relation')e.members=e.members.map(m=>({...m,ref:Number(m.ref),geometry:m.type==='way'?ways.get(String(m.ref))?.geometry:undefined}));
  return rows;
 }
 function regionsFor(regions){
@@ -332,7 +340,7 @@ function surveyedViewpoints(data,targetId){
 }
 function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,loadSurveyed,isCurrent:providerCurrent=()=>true,maxTiles=12,maxPoints=480,timeoutMs=25000,maxDurationMs=55000,spacingM=30,endpoints,places=null}={}){
  if(!terrain)throw Error('terrain provider is required');
- const servers=endpoints||terrain.OVERPASS||[],cache=new Map(),heightCache=new Map();
+ const servers=endpoints||terrain.OVERPASS||[],cache=new Map(),heightCache=new Map(),nearbyCache=new Map();
  let endpointCursor=0,overpassRetryAfter=0,overpassNextRequest=0;
  async function load(plan,{regions=plan?.regions||plan?.searchRegions||[],isCurrent=()=>true,onProgress=()=>{},signal,maxTiles:tileBudget=maxTiles,maxPoints:pointBudget=maxPoints,pointKinds,cursor,offset=0,retryFailed=true}={}){
   offset=Math.max(0,Number(cursor?.offset??cursor??offset)||0);const retryTiles=Array.isArray(cursor?.retryTiles)?cursor.retryTiles:[],batchTiles=Array.isArray(cursor?.batchTiles)?cursor.batchTiles:null,pointOffset=Math.max(0,Number(cursor?.pointOffset)||0);
@@ -447,13 +455,37 @@ function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,
  }
  // The surveyed places of the plan's target; none when the data cannot be read (the search goes on without them).
  async function surveyed(plan){if(typeof loadSurveyed!=='function'||!plan?.target?.id)return [];try{return surveyedViewpoints(await loadSurveyed(plan),plan.target.id);}catch{return [];}}
- async function nearby(seed,{isCurrent=()=>true,radiusM=600}={}){
-  if(!places||![seed?.latitude,seed?.longitude].every(finite))return null;
+ async function nearby(seed,{isCurrent=()=>true,radiusM=600,refresh=false}={}){
+  if(![seed?.latitude,seed?.longitude].every(finite)||!isCurrent())return null;
+  const lat=Number(seed.latitude.toFixed(3)),lon=Number(seed.longitude.toFixed(3)),reach=Math.min(radiusM,250),id=lat+','+lon+','+reach,pad=(reach+80)/M;
+  const domainKey=JSON.stringify([seed.latitude,seed.longitude,radiusM,seed.placeKind,seed.placeId,seed.surfaceId,seed.sourceId,seed.name]);
+  if(refresh)nearbyCache.delete(id);
+  const cached=nearbyCache.get(id);if(cached?.until>Date.now()&&cached.domains.has(domainKey))return cached.domains.get(domainKey);
   const dy=(radiusM+30)/M,dx=dy/Math.max(.1,Math.cos(seed.latitude*RAD));
-  const elements=await places.elementsIn([seed.longitude-dx,seed.latitude-dy,seed.longitude+dx,seed.latitude+dy]);
-  return isCurrent()?movementDomain(seed,parseElements(elements),{radiusM}):null;
+  let features=[];
+  if(places)try{features=parseElements(await places.elementsIn([seed.longitude-dx,seed.latitude-dy,seed.longitude+dx,seed.latitude+dy]));}catch{/* Try the bounded live map below. */}
+  if(!isCurrent())return null;
+  const local=movementDomain(seed,features,{radiusM});if(local)return local;
+  // The bundled extract omits sidewalks outside candidate parks. Supplement only
+  // on opening a missing movement domain, never on pan or with celestial/DEM work.
+  const box=[lon-pad/Math.max(.1,Math.cos(lat*RAD)),lat-pad,lon+pad/Math.max(.1,Math.cos(lat*RAD)),lat+pad];
+  let entry=nearbyCache.get(id);
+  if(!entry||entry.until<Date.now()){
+   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
+   entry={until:Date.now()+3600000,promise:null,domains:new Map()};
+   entry.promise=(async()=>{
+    const res=await fetchImpl('https://api.openstreetmap.org/api/0.6/map.json?bbox='+box.join(','),{signal:controller.signal,priority:'low'});
+    if(!res.ok)throw Error('movement-map-http-'+res.status);
+    const text=await res.text();if(text.length>6000000)throw Error('movement-map-size');
+    return parseElements(mapElements(JSON.parse(text)));
+   })().catch(e=>{if(nearbyCache.get(id)===entry)nearbyCache.delete(id);throw e;}).finally(()=>clearTimeout(timer));
+   nearbyCache.set(id,entry);while(nearbyCache.size>12)nearbyCache.delete(nearbyCache.keys().next().value);
+  }
+  const extra=await entry.promise;if(!isCurrent())return null;
+  const merged=[...new Map([...features,...extra].map(f=>[f.sourceId,f])).values()];
+  const domain=movementDomain(seed,merged,{radiusM:reach});if(domain){entry.domains.set(domainKey,domain);if(entry.domains.size>4)entry.domains.delete(entry.domains.keys().next().value);}return domain;
  }
- return {load,surveyed,nearby,clear(){cache.clear();heightCache.clear();}};
+ return {load,surveyed,nearby,clear(){cache.clear();heightCache.clear();nearbyCache.clear();}};
 }
 createPlaceProvider.movementDomain=movementDomain;createPlaceProvider.movementPoint=movementPoint;
 return createPlaceProvider;

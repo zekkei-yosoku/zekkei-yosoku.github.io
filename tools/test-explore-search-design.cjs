@@ -63,7 +63,7 @@ async function assertCompactPicker(page){
  assert.equal(await panel.locator('.candidate-list-heading,[data-candidate-headers]').count(),0,'compact rows have no old table header');
  const rows=page.locator('#candidateUnifiedResults>.list-item:visible');assert(await rows.count()>0);
  const content=await rows.evaluateAll(nodes=>nodes.map(n=>({place:!!n.querySelector('[data-candidate-place]')?.textContent.trim(),time:!!n.querySelector('[data-candidate-time]')?.textContent.trim(),address:!!n.querySelector('[data-candidate-address]'),passage:n.querySelector('[data-candidate-passage]')?.textContent})));
- assert(content.every(r=>r.place&&r.time&&r.address&&/(?:先端|全体)の[上下]寄りを通過/.test(r.passage)),JSON.stringify(content));
+ assert(content.every(r=>r.place&&r.time&&r.address&&['先端と天望回廊の間を通過','上部付近を通過'].includes(r.passage)),JSON.stringify(content));
  assert.equal(await detail.locator('summary').innerText(),'絞り込み');
  assert((await detail.locator('summary').getAttribute('aria-label')).includes('並べ替え'));
  await assertTargets(page,['#candidateMapToggle','#candidateRefinement>summary','#candidateUnifiedResults>.list-item:visible']);

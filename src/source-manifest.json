@@ -2604,9 +2604,11 @@
           "人工衛星",
           "旧構図"
         ],
-        "contract": "同じ地図部品の独立instanceを使用。表示・投影・panを再利用し選択値/保存を各hostへ渡す。",
+        "contract": "同じ地図部品の独立instanceを使用。表示・投影・panを再利用し選択値/保存を各hostへ渡す。見え方の移動は登録形状/確認した歩道だけ、同梱不足時の補完も取得境界内。確定とUndoの有効状態/44px/枠を揃え、草稿も戻せ、確定後は同じUndo DOMを地図の外へ保持する。失敗後の再取得と旧後着を検証する。",
         "checks": [
           "test-map-pick.mjs",
+          "test-observer-movement-domain.mjs",
+          "tools/test-hongo-observer-movement.cjs",
           "tools/test-preview-position-navigation.cjs"
         ],
         "consumers": [

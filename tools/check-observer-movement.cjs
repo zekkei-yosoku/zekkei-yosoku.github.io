@@ -12,6 +12,13 @@ module.exports=async function checkObserverMovement(page,{screenshot}={}){
   await open();await page.locator('#exploreObserverMoveUndo').click();await ready();assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().at),Date.parse('2026-11-19T12:20:00+09:00'));await page.evaluate(()=>{observerMoveFixture.calls=[];observerMoveFixture.applies=0;});await page.locator('#exploreObserverMoveDone').click();
   await page.evaluate(()=>SkyMapUI.setTime(Date.parse('2026-11-19T14:27:00+09:00')));await ready();
   await open();assert((await move.locator('summary').innerText()).includes('地図'));
+  const draftOrigin=await page.evaluate(()=>SkyMapUI.selectionState()),undo=page.locator('#exploreObserverMoveUndo');
+  assert(await undo.isDisabled());await drag();assert(await undo.isEnabled());
+  await undo.click();await page.waitForFunction(()=>document.getElementById('exploreObserverMoveUndo').disabled);
+  assert.deepEqual(await page.evaluate(()=>SkyMapUI.selectionState()),draftOrigin,'undo also recentres an unconfirmed draft without changing the view');
+  assert.equal(await page.evaluate(()=>observerMoveFixture.calls.length),0);
+  const undoStyle=await undo.evaluate(b=>({height:b.getBoundingClientRect().height,border:parseFloat(getComputedStyle(b).borderTopWidth),radius:parseFloat(getComputedStyle(b).borderRadius)}));
+  assert(undoStyle.height>=44&&undoStyle.border>=1&&undoStyle.radius>=8,'undo has a visible button surface');
   await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));});await page.waitForTimeout(80);
   await page.evaluate(()=>{delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));});await ready();await open();
   const guides=page.locator('#exploreObserverGuides button');await page.waitForFunction(()=>document.querySelectorAll('#exploreObserverGuides button').length===3);assert.equal(await guides.count(),3);assert((await page.locator('#exploreObserverGuideNote').innerText()).includes('近く'));
