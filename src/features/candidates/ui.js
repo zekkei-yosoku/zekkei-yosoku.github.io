@@ -68,7 +68,7 @@ async function fillTownAddresses(rows,isCurrent){
  return changed;
 }
 const filterKey=p=>JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode]);
-AstroNotesCandidatePicker.configure({loadLabels,createMapView,filterKey,mapIcon:UI_ICONS.map,geometryFrom:(...args)=>AstroNotesAlign.geometryFrom(...args),
+AstroNotesCandidatePicker.configure({loadLabels,createMapView,filterKey,alignmentText:(t,v)=>MyPlacesUI.alignmentText(t,v),bodyName:id=>AstroNotesBodies.definition(id)?.name||id,mapIcon:UI_ICONS.map,geometryFrom:(...args)=>AstroNotesAlign.geometryFrom(...args),
  getScroller:()=>mainWorkspace()?.scroller(),getReturnScroll:()=>mainWorkspace()?.returnScroll?.(),
  onRendered:count=>mainWorkspace()?.restoreScroll(count),requestKey:p=>AstroNotesCandidateDiscovery.requestKey(p)});
 const live=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxDurationMs:120000,lookAhead:true});

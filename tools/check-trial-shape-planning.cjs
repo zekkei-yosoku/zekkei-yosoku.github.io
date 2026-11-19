@@ -16,17 +16,20 @@ for(const theme of ['light','dark'])for(const type of ['line','area']){
   AstroNotesShooting.candidates=async(plan,entries,deps)=>{await deps.ensure(plan.body);const place={...entries[0].place,latitude:35.722,longitude:139.842,elevation:17,groundManualM:17};delete place.shape;return {rows:[{place,record:entries[0].record,event:{at:plan.at+17*3600000,side:'set',intersects:true,matchMode:'overlap',partId:'__whole'},shapeType:type}],checked:10,failed:window.__partial?1:0,issues:window.__partial?[{reason:'elevation'}]:[]};};
   MyPlacesUI.imported();navigationHistory.pushRoute('#/records');setNotebookTab('points');
  },type);
- await p.locator('[aria-label="合成の線と枠から次に重なる日を探す"]').click();const buttons=p.locator('[data-shape-candidate]');await buttons.first().waitFor();await p.waitForFunction(()=>[...document.querySelectorAll('.shape-next-group button.chip')].every(b=>!b.disabled));
+ await p.evaluate(async()=>{navigationHistory.pushRoute('#/explore');await SkyMapUI.open();MyPlacesUI.openPlace(favorites.find(f=>f.id==='shape-fixture'),'sky');});
+ await p.locator('#myPlacePlanning>summary').click();await p.locator('#myPlaceBodies input[value=sun]').check();await p.locator('#myPlaceBodies input[value=moon]').check();await p.locator('#myPlaceFind').click();const buttons=p.locator('[data-shape-candidate]');await buttons.first().waitFor();await p.waitForFunction(()=>[...document.querySelectorAll('.shape-next-group button.chip')].every(b=>!b.disabled));
  assert.equal(await buttons.count(),8);
  if(type==='line'&&theme==='light'){
   await p.evaluate(()=>window.__partial=true);await p.locator('.shape-next-group').first().getByRole('button',{name:'さらに先の候補を探す',exact:true}).click();await p.locator('.shape-next-group').first().getByRole('button',{name:'再試行',exact:true}).waitFor();
   assert.match(await p.locator('.shape-next-group').first().innerText(),/確認できていない位置/);
   await p.evaluate(()=>window.__partial=false);await p.locator('.shape-next-group').first().getByRole('button',{name:'この日を未確認のまま次の日から探す',exact:true}).click();await p.waitForFunction(()=>document.querySelector('.shape-next-group [role=status]').textContent.includes('未確認日あり'));
  }
- const first=await buttons.first().evaluate(b=>({...b.dataset}));await p.screenshot({path:out+'/'+type+'-'+theme+'-candidates.png',fullPage:true});await buttons.first().click();
- await p.waitForFunction(at=>globalThis.TrialExplore?.active()&&Math.abs(SkyMapUI.snapshot()?.at-Number(at))<1,first.at);
+ const first=await buttons.first().evaluate(b=>({...b.dataset}));await p.screenshot({path:out+'/'+type+'-'+theme+'-candidates.png',fullPage:true});await p.evaluate(()=>{window.shapeContainsBefore=AstroNotesShooting.shapeContains;window.beforeRejected=SkyMapUI.snapshot();AstroNotesShooting.shapeContains=()=>false;});
+ await buttons.first().click();assert.equal(await p.evaluate(()=>JSON.stringify(SkyMapUI.snapshot())===JSON.stringify(beforeRejected)),true,'stale candidate outside the shape is rejected');
+ await p.evaluate(()=>AstroNotesShooting.shapeContains=shapeContainsBefore);await buttons.first().click();await p.keyboard.press('Escape');
+ await p.waitForFunction(at=>globalThis.TrialExplore?.active()&&Math.abs(SkyMapUI.selectionState()?.at-Number(at))<1,first.at);
  const snapshot=await p.evaluate(()=>({sky:SkyMapUI.snapshot(),map:$('exploreMapTab').getAttribute('aria-selected'),overflow:document.documentElement.scrollWidth>innerWidth+1}));
- assert.equal(snapshot.map,'true','shape opens map');assert.equal(snapshot.sky.observer.latitude,Number(first.latitude));assert.equal(snapshot.sky.observer.longitude,Number(first.longitude));assert.equal(snapshot.sky.observer.groundManualM,17);assert.equal(snapshot.overflow,false);
+ assert.equal(snapshot.sky.target.id,'skytree','reachable sky-place chooser keeps its target');assert.equal(snapshot.sky.observer.latitude,Number(first.latitude));assert.equal(snapshot.sky.observer.longitude,Number(first.longitude));assert.equal(snapshot.sky.observer.groundManualM,17);assert.equal(snapshot.overflow,false);
  assert.equal(await p.evaluate(()=>{const keys=AstroNotesLibrary.keys(auth.loginId);return JSON.stringify({favorites,shapes:store.get(keys.shapes),obs:store.get(keys.observations)})===window.__stored;}),true);
  assert.deepEqual(errors,[]);await p.screenshot({path:out+'/'+type+'-'+theme+'-map.png',fullPage:true});results.push({type,theme,at:first.at,latitude:first.latitude,longitude:first.longitude,map:true,unchanged:true,errors});console.log('PASS',type,theme);await c.close();
 }

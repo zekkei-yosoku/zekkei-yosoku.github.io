@@ -600,7 +600,7 @@ ctx.lineWidth=1;
   session.candidateOpportunity={id:candidate.id,relation:candidate.event.relation,at:candidate.event.at,targetId:session.target?.id};
   const place=AstroNotesShooting.candidatePlace(candidate);
   session.observer=aimSavedFrom(AstroNotesShooting.savedObserver(place));session.ground=Number.isFinite(place.elevation)?place.elevation:null;if(candidate.event.matchMode){session.matchMode=candidate.event.matchMode;session.partId=candidate.event.partId;
-  session.limb='center';}session.at=candidate.event.at;session.dayAnchor=AstroNotesShooting.day(session.at);map.setCenter(place.latitude,place.longitude);refresh();
+  session.limb=candidate.event.matchMode==='overlap'?'center':candidate.event.limb||session.limb;}session.at=candidate.event.at;session.dayAnchor=AstroNotesShooting.day(session.at);map.setCenter(place.latitude,place.longitude);refresh();
   document.dispatchEvent(new CustomEvent('astronotes-candidate-selected',{detail:{candidate,previewGroup}}));return true;
  },moveObserver:(point,ground,expected,options={})=>{
   if(!hasAccess()||!session||!active()||expected!==AstroNotesShooting.observerMoveKey(session)||Object.hasOwn(options,'at')&&(!Number.isFinite(options.at)||options.at<Date.UTC(2020,0,1)-32400000||options.at>=aimCandidateSearchEnd()))return false;

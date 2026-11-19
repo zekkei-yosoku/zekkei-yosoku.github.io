@@ -151,7 +151,7 @@ const sortOptions=[['time','早い時刻順'],['time-desc','遅い時刻順'],['
  ['kind','種類順'],['kind-desc','種類の逆順'],['angle','低い角度順'],['angle-desc','高い角度順']];
 const day=at=>globalThis.AstroNotesCandidateDiscovery?.day(at)??Math.floor((at+32400000)/86400000)*86400000-32400000;
 const clockText=at=>Number.isFinite(at)?new Date(at+32400000).toISOString().slice(11,16):'時刻未確認';
-const uncertainty=row=>[row.quality?.surveyed?'調査で確認':'',row.quality?.hiddenBelow?.text||'',
+const uncertainty=row=>[row.record?.result==='partial'?'一部見える対象':'',row.quality?.surveyed?'調査で確認':'',row.quality?.hiddenBelow?.text||'',
  row.quality?.visibility==='unknown'?'見通し未確認':'',row.quality?.buildingHeights==='estimated'?'建物の高さは推定':'',row.quality?.trees==='unread'?'木の高さ未確認':'',row.frame?.status==='unknown'?'全体の画角未確認':''].filter(Boolean);
 function configure(value){if(typeof value==='function')loadLabels=value;else if(value){ports={...ports,...value};if(typeof value.loadLabels==='function')loadLabels=value.loadLabels;}}
 function planKey(plan){return typeof ports.requestKey==='function'?ports.requestKey(plan):JSON.stringify([plan.requestKey,plan.owner,plan.body,plan.target,plan.partId,plan.limb,plan.matchMode,plan.composition,plan.compositionInvalid,plan.timeSpec||null,day(plan.at),plan.atmosphere,
@@ -162,7 +162,15 @@ function locationText(row){
  const river=riverName&&!name?.includes(riverName)?riverName:null;
  return [river,address].filter(Boolean).join(' ・ ');
 }
-const passageOf=(row,plan)=>typeof AstroNotesShooting==='undefined'?'':AstroNotesShooting.passageText(row.event,plan);
+function passageOf(row,plan){
+ if(!plan?.target)return '';
+ const e=row.event||{},part=plan.target.parts?.find(p=>p.id===plan.partId)||(!plan.partId?plan.target.parts?.[0]:null);
+ if(plan.matchMode==='limb')return ports.alignmentText?.(plan.target,plan)||'旧条件の候補';
+ const passage=typeof AstroNotesShooting==='undefined'?'':AstroNotesShooting.passageText(e,plan);if(passage)return passage;
+ // Sparse geometric server results do not contain a solved disc position.
+ if(plan.matchMode==='overlap')return plan.partId&&plan.partId!=='__whole'?(ports.alignmentText?.(plan.target,plan)||part?.name&&part.name+'を通過'||'指定部位の候補'):'全体に重なる候補';
+ return '';
+}
 const candidateTimeText=row=>{
  const w=row.spatialWindow;
  if(!w||![w.fromAt,w.toAt].every(Number.isFinite)||w.toAt<w.fromAt)return clockText(row.event?.at);
@@ -173,8 +181,9 @@ const candidateTimeText=row=>{
 function recordedEntries(rows){
  const groups=new Map();
  for(const row of rows){
-  const source=row.place.sourcePlaceId??row.place.id,eye=row.assumedObserver?.eyeM??row.place.standAglM??row.place.eyeHeightAGL??null;
-  const key=row.spatialWindow?JSON.stringify([source,eye,row.spatialWindow.id]):candidateKey(row);
+  const source=row.sourcePlaceId??row.place.sourcePlaceId??row.place.id,eye=row.assumedObserver?.eyeM??row.place.standAglM??row.place.eyeHeightAGL??null;
+  const scope=[row.body??null,row.target?.id??null,row.event.partId??null,row.event.limb??null,row.event.matchMode??null,day(row.spatialWindow?.fromAt??row.event.at)];
+  const key=JSON.stringify([source,eye,scope,row.spatialWindow?.id??candidateKey(row)]);
   let group=groups.get(key);if(!group){group={first:row,rows:[]};groups.set(key,group);}group.rows.push(row);if(row.event.at<group.first.event.at)group.first=row;
  }
  for(const g of groups.values())recordedMembers.set(g.first,g.rows);
@@ -200,23 +209,54 @@ function positionChoices(rows,plan,geometryFrom=ports.geometryFrom){
  });
  return {choices,shortcuts:[...shortcuts.values()].map(s=>({...s,key:positionKey(s.row)}))};
 }
-async function renderRecorded(box,rows,plan,{select,current=()=>true}={}){
+// All recorded-candidate surfaces share this projection and renderer. Labels do not
+// trigger a solve. Each host owns a render ticket; old labels cannot replace a new list.
+const recordedRenders=new WeakMap();
+function recordedPlan(row,plan={}){
+ const e=row.event;return {...plan,target:row.target||plan.target,body:row.body||plan.body,
+  partId:Object.hasOwn(e,'partId')?e.partId:plan.partId,limb:e.limb??plan.limb,matchMode:e.matchMode??plan.matchMode};
+}
+const recordedHeightScope=(row,targetId=null)=>JSON.stringify([row.sourcePlaceId??row.place.sourcePlaceId??row.place.id,row.target?.id??targetId]);
+function recordedRow(raw,rows,labels,heights=null,targetId=null){
+ const labelled=globalThis.AstroNotesCandidateLabels?.enrich(raw,labels)||raw;
+ const row={...labelled,place:{...labelled.place,name:raw.place.name,subtitle:labelled.place.subtitle||raw.place.subtitle||''},record:raw.record||{},quality:{...raw.quality}};
+ if(!Number.isFinite(row.quality.targetAngleDeg)&&Number.isFinite(row.event.targetAltitude))row.quality.targetAngleDeg=row.event.targetAltitude;
+ const source=raw.sourcePlaceId??raw.place.sourcePlaceId??raw.place.id,eye=raw.assumedObserver?.eyeM??raw.place.standAglM??raw.place.eyeHeightAGL;
+ if(Number.isFinite(eye)&&(raw.heightSearch||raw.place.eyeHeightRangeAGL||(heights?heights.get(recordedHeightScope(raw,targetId))?.size>1:rows.some(r=>recordedHeightScope(r,targetId)===recordedHeightScope(raw,targetId)&&
+  (r.assumedObserver?.eyeM??r.place.standAglM??r.place.eyeHeightAGL)!==eye))))row.heightNote='撮影高さ 地上'+eye+'m';
+ return row;
+}
+async function renderRecorded(box,rows,plan,{select,current=()=>true,context=false,heading=null,rowClass='explore-record-row',rowId=null,heightRows=rows,aggregate=true,decorate=null}={}){
+ const ticket={},live=()=>recordedRenders.get(box)===ticket&&current()&&box.isConnected;recordedRenders.set(box,ticket);
  let labels={};try{if(rows.length)labels=await loadLabels()||{};}catch(e){globalThis.AstroNotesErrors?.note('candidates.record-labels',e);}
- if(!current()||!box.isConnected)return null;
- const selected=recordedEntries(rows);box.replaceChildren();
- let processed=0;
+ if(!live())return null;
+ const selected=aggregate?recordedEntries(rows):rows,nodes=[],heights=new Map();
+ for(const r of [...rows,...heightRows]){const id=recordedHeightScope(r,plan?.target?.id),h=r.assumedObserver?.eyeM??r.place.standAglM??r.place.eyeHeightAGL;
+  if(Number.isFinite(h)){if(!heights.has(id))heights.set(id,new Set());heights.get(id).add(h);}}
+ const previous=new Map([...box.querySelectorAll('[data-recorded-key]')].map(n=>[n.dataset.recordedKey,n]));
+ const headings=new Map([...box.querySelectorAll('h3.record-opportunity-day')].map(n=>[n.textContent,n]));
+ let processed=0,lastHeading=null;
  for(const raw of selected){
-  if(++processed%12===0){await new Promise(r=>setTimeout(r,0));if(!current()||!box.isConnected)return null;}
-  previewGroups.set(raw,{plan,rows:recordedMembers.get(raw)||[raw]});
-  const labelled=globalThis.AstroNotesCandidateLabels?.enrich(raw,labels)||raw;
-  const row={...labelled,place:{...labelled.place,name:raw.place.name,subtitle:labelled.place.subtitle||raw.place.subtitle||''},record:raw.record||{},quality:{...raw.quality}};
-  if(!Number.isFinite(row.quality.targetAngleDeg)&&Number.isFinite(row.event.targetAltitude))row.quality.targetAngleDeg=row.event.targetAltitude;
-  const source=raw.place.sourcePlaceId??raw.place.id,eye=raw.assumedObserver?.eyeM??raw.place.standAglM??raw.place.eyeHeightAGL;
-  if(Number.isFinite(eye)&&(raw.heightSearch||rows.some(r=>(r.place.sourcePlaceId??r.place.id)===source&&(r.assumedObserver?.eyeM??r.place.standAglM??r.place.eyeHeightAGL)!==eye)))row.heightNote='撮影高さ 地上'+eye+'m';
-  const button=document.createElement('button');button.type='button';button.className='list-item explore-record-row';
-  formatRow(button,row,kinds(row,labels.facilities),plan,true);
-  button.onclick=()=>{if(current())select(raw);};box.append(button);
+  if(++processed%12===0){await new Promise(r=>setTimeout(r,0));if(!live())return null;}
+  const selectedPlan=recordedPlan(raw,plan||{});previewGroups.set(raw,{plan:selectedPlan,rows:recordedMembers.get(raw)||[raw]});
+  const row=recordedRow(raw,rows,labels,heights,selectedPlan.target?.id),key=JSON.stringify([raw.id??null,raw.sourcePlaceId??raw.place.sourcePlaceId??raw.place.id,raw.body,raw.target?.id,candidateKey(raw)]);
+  const button=previous.get(key)||document.createElement('button');button.type='button';button.className='list-item candidate-record-row '+rowClass;button.dataset.recordedKey=key;
+  if(heading){const text=heading(raw);if(text!==lastHeading){lastHeading=text;const h=headings.get(text)||document.createElement('h3');h.className='record-opportunity-day';h.textContent=text;nodes.push(h);}}
+  formatRow(button,row,kinds(row,labels.facilities),selectedPlan,true);
+  let identity=button.querySelector('[data-candidate-context]');
+  if(context){if(!identity){identity=document.createElement('span');identity.dataset.candidateContext='';identity.className='tiny sub-line';identity.style.gridColumn='1 / -1';button.append(identity);}
+   identity.textContent=[ports.bodyName?.(selectedPlan.body)||selectedPlan.body,selectedPlan.target?.name].filter(Boolean).join(' × ');
+   button.append(identity);
+  }else identity?.remove();
+  if(rowId)button.dataset.opportunityId=rowId(raw);
+  if(decorate)decorate(button,raw,selectedPlan);
+  button.onclick=()=>{if(current())select(raw);};nodes.push(button);
  }
+ if(!live())return null;
+ // Reuse existing buttons, including their focus, when a page is appended.
+ let cursor=box.firstChild;
+ for(const n of nodes){if(n===cursor)cursor=cursor.nextSibling;else box.insertBefore(n,cursor);}
+ while(cursor){const next=cursor.nextSibling;cursor.remove();cursor=next;}
  return selected.length;
 }
 
@@ -224,12 +264,13 @@ function formatRow(node,row,types,plan,compact=compactMode){
  if(!node.hasAttribute('data-candidate-columns')){
   const notes=[...node.querySelectorAll('.sub-line')].filter(n=>!n.hasAttribute('data-place-kind')).map(n=>n.textContent.replace(/^\d{2}:\d{2}・/,'').replace(/ · \d{2}:\d{2}/,''));
   node.replaceChildren();node.dataset.candidateColumns='';
-  Object.assign(node.style,{display:'grid',gridTemplateColumns:columns,columnGap:'8px',rowGap:'4px',alignItems:'start',textAlign:'left',padding:'12px 0',minHeight:'44px'});
+  Object.assign(node.style,{display:'grid',gridTemplateColumns:compact?'minmax(0,1fr) max-content':columns,columnGap:'8px',rowGap:'4px',alignItems:'start',textAlign:'left',padding:'12px 0',minHeight:'44px'});
   const title=document.createElement('span');title.dataset.candidatePlace='';Object.assign(title.style,{minWidth:'0',overflowWrap:'anywhere',fontSize:'14px',fontWeight:'600'});
   const clock=document.createElement('span');clock.dataset.candidateTime='';clock.textContent=candidateTimeText(row);Object.assign(clock.style,{fontSize:'14px',fontVariantNumeric:'tabular-nums',whiteSpace:'nowrap'});
   const kind=document.createElement('span');kind.dataset.placeKind='';Object.assign(kind.style,{fontSize:'14px',minWidth:'0',overflowWrap:'anywhere'});
   const angle=document.createElement('span');angle.dataset.candidateAngle='';Object.assign(angle.style,{fontSize:'14px',fontVariantNumeric:'tabular-nums',whiteSpace:'nowrap',textAlign:'right'});node.append(title,clock);
-  if(compact){const meta=document.createElement('span');meta.className='tiny sub-line';meta.dataset.candidateMeta='';meta.append(kind,angle);node.append(meta);}
+  if(compact){const meta=document.createElement('span');meta.className='tiny sub-line';meta.dataset.candidateMeta='';
+   Object.assign(meta.style,{gridColumn:'1 / -1',display:'flex',flexWrap:'wrap',gap:'4px 10px'});meta.append(kind,angle);node.append(meta);}
   else node.append(kind,angle);
   if(notes.length){const detail=document.createElement('span');detail.className='tiny sub-line';detail.textContent=notes.join(' · ');Object.assign(detail.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});node.append(detail);}
  }
@@ -256,7 +297,7 @@ function formatRow(node,row,types,plan,compact=compactMode){
  const framed=compositionText(row);let line=node.querySelector('[data-candidate-composition]');
  if(framed){if(!line){line=document.createElement('span');line.dataset.candidateComposition='';line.className='tiny sub-line';Object.assign(line.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});
   const before=node.querySelector('[data-candidate-uncertainty]');if(before)node.insertBefore(line,before);else node.append(line);}line.textContent=framed;}else line?.remove();
- const w=row.spatialWindow,movement=w&&w.count>1?(w.kind==='line'?'線上':'範囲内')+(w.toAt>w.fromAt?'で移動':'の候補'):'';
+ const w=row.spatialWindow,movement=w?(w.kind==='line'?'線上':'範囲内')+(w.count>1&&w.toAt>w.fromAt?'で移動':'の候補'):row.shapeType?(row.shapeType==='line'?'線上':'範囲内')+'の候補':'';
  const detail=[movement,row.heightNote||''].filter(Boolean).join(' ・ ');let spatial=node.querySelector('[data-candidate-spatial]');
  if(detail){if(!spatial){spatial=document.createElement('span');spatial.dataset.candidateSpatial='';spatial.className='tiny sub-line';spatial.style.gridColumn='1 / -1';node.append(spatial);}spatial.textContent=detail;}else spatial?.remove();
  const unconfirmed=uncertainty(row);let note=node.querySelector('[data-candidate-uncertainty]');
@@ -502,5 +543,5 @@ function reset(){
 const api={mount,configure,renderRecorded,previewFor,positionChoices,positionKey,positionPlace,candidateKey,registerRegistered:register,registerAdditional:register,unregister,apply,kinds,accepts,compare,inRecords,showMap,suspend,reset,
  visibleRows:()=>visibleEntries.filter(currentEntry).map(e=>e.row)};
 globalThis.AstroNotesCandidatePicker=api;
-if(typeof module!=='undefined')module.exports={recordedEntries,candidateTimeText,positionChoices,membersOf,kinds,accepts,compare,candidateKey,mergeEntries,placePriority,areaOf,areaText,inRecords};
+if(typeof module!=='undefined')module.exports={recordedEntries,recordedPlan,recordedRow,passageOf,uncertainty,candidateTimeText,positionChoices,membersOf,kinds,accepts,compare,candidateKey,mergeEntries,placePriority,areaOf,areaText,inRecords};
 })();

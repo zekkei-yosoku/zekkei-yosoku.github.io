@@ -162,3 +162,35 @@ test('東西の川が曲がり線の向きが逆でも同じ岸はまとまり�
  const a=entry(139,35.001,[[138.999,35],[139.001,35.0001]],1),b=entry(139.0002,35.001,[[139.002,35.00005],[139,35.0001]],2),c=entry(139.0002,34.9995,[[139,35],[139.002,35]],3);
  assert.equal(F.mergeEntries([a,b],'time').length,1);assert.equal(F.mergeEntries([a,c],'time').length,2);
 });
+
+test('recorded grouping keeps body, target, selected part, old limb and day independent even with the same run id',()=>{
+ const at=Date.parse('2026-12-02T01:00:00+09:00'),base={place:{id:'a',latitude:35,longitude:139,eyeHeightAGL:1.5},event:{at,partId:'__whole',limb:'center',matchMode:'overlap'},body:'moon',target:{id:'tower'},spatialWindow:{id:'same',kind:'line',fromAt:at,toAt:at+60000,count:2}};
+ const other=(patch)=>({...base,...patch}),rows=[base,other({body:'sun'}),other({target:{id:'fuji'}}),other({event:{...base.event,partId:'deck'}}),other({event:{...base.event,matchMode:'limb',limb:'upper'}}),other({event:{...base.event,at:at+86400000},spatialWindow:{...base.spatialWindow,fromAt:at+86400000,toAt:at+86460000}})];
+ assert.equal(F.recordedEntries(rows).length,6);
+ const older=JSON.stringify(rows);F.recordedEntries(rows);assert.equal(JSON.stringify(rows),older);
+});
+test('sparse geometric candidates retain known part and never invent passage or a time range',()=>{
+ const target={id:'tower',parts:[{id:'tip',name:'先端'}]},plan={target,body:'moon',partId:'tip',matchMode:'overlap'},row={place:{name:'公園'},event:{at:0}};
+ assert.equal(F.passageOf(row,plan),'先端を通過');assert.equal(F.passageOf(row,{...plan,partId:'__whole'}),'全体に重なる候補');
+ assert.equal(F.candidateTimeText(row),'09:00');
+ const selected=F.recordedPlan({...row,body:'sun',target,event:{...row.event,partId:'tip',limb:'upper',matchMode:'limb'}},{...plan,body:'moon'});
+ assert.equal(selected.body,'sun');assert.equal(selected.limb,'upper');assert.equal(selected.matchMode,'limb');assert.equal(selected.partId,'tip');
+});
+test('recorded projection preserves saved name, source subtitle, known angle, separate heights and uncertainty',()=>{
+ const row={place:{id:'a',name:'本郷',subtitle:'東京都文京区',latitude:35,longitude:139,eyeHeightAGL:20,eyeHeightRangeAGL:{min:10,max:30}},event:{at:0,targetAltitude:7},quality:{visibility:'unknown'}};
+ const before=JSON.stringify(row),display=F.recordedRow(row,[row],{});
+ assert.equal(display.place.name,'本郷');assert.equal(display.place.subtitle,'東京都文京区');assert.equal(display.quality.targetAngleDeg,7);assert.match(display.heightNote,/20m/);assert.equal(display.quality.visibility,'unknown');assert.equal(JSON.stringify(row),before);
+});
+
+test('a single connected interval across midnight stays one row under its start day',()=>{
+ const from=Date.parse('2026-12-01T23:50:00+09:00'),to=Date.parse('2026-12-02T00:10:00+09:00'),base={place:{id:'a',latitude:35,longitude:139,eyeHeightAGL:1.5},body:'moon',target:{id:'tower'},event:{at:from},spatialWindow:{id:'cross',kind:'line',fromAt:from,toAt:to,count:2}};
+ const rows=F.recordedEntries([base,{...base,event:{at:to}}]);assert.equal(rows.length,1);assert.equal(rows[0],base);assert.equal(F.candidateTimeText(base),'23:50〜翌00:10');
+});
+test('legacy explicit limb descriptions reuse the record alignment policy including missing parts',async()=>{
+ const {createRecordAlignmentPolicy}=await import('./record-alignment-policy.mjs');
+ const policy=createRecordAlignmentPolicy({isMountain:()=>false,limbs:[{id:'center',name:'真ん中'},{id:'lower',name:'下の縁'},{id:'upper',name:'上の縁'}]});
+ globalThis.AstroNotesCandidatePicker.configure({alignmentText:policy.text});
+ const target={parts:[{id:'tip',name:'先端',m:634}]};
+ for(const value of [{partId:'tip',matchMode:'limb',limb:'upper'},{partId:'missing',matchMode:'limb',limb:'unknown'},{partId:null,matchMode:'limb',limb:'lower'}])assert.equal(F.passageOf({event:{}},{target,body:'moon',...value}),policy.text(target,value));
+ assert.equal(F.passageOf({event:{}},{target,body:'moon',partId:'missing',matchMode:'overlap'}),policy.text(target,{partId:'missing',matchMode:'overlap'}));
+});

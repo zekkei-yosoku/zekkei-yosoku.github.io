@@ -2470,7 +2470,7 @@
   },
   "uiComponents": {
     "version": 1,
-    "scope": "Declared major shared UI APIs; direct source calls only. Dynamic aliases/attribute wiring and undiscovered components require source review. Add the component being changed before proceeding; do not wait for a whole-application inventory.",
+    "scope": "Declared major shared UI APIs; direct source calls only. Dynamic aliases/attribute wiring and undiscovered components require source review. Add the component being changed before proceeding; do not wait for a whole-application inventory. Candidate-list capability also tracks semantic surfaces, shared wording ownership and a real cross-entry regression; manually search same-purpose independent implementations beyond direct references.",
     "components": [
       {
         "id": "alignment-controls",
@@ -2680,6 +2680,80 @@
           {
             "path": "src/features/framing/scene/render.js",
             "scope": "aimLookRender",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "id": "candidate-record-row",
+        "name": "記録した撮影地点の候補一覧",
+        "owner": {
+          "path": "src/features/candidates/candidate-picker.js",
+          "symbol": "renderRecorded"
+        },
+        "calls": [
+          "AstroNotesCandidatePicker.renderRecorded"
+        ],
+        "surfaces": [
+          "EXPLORE 探す→記録",
+          "NOTES 重なる日（確定/確認中）",
+          "地点picker（地図/構図）",
+          "撮影地点候補sheet",
+          "記録地点詳細の線/範囲の重なる日"
+        ],
+        "contract": "Same solved row: same place/location, clock or known connected interval, angle, passage/legacy explicit limb, height, uncertainty and selected real position. NOTES retains day/body/target context and geometric-model notice; Explore retains selected-day refracted conditions. Missing interval or disc geometry is never inferred. Label/render work must not call a numerical solver. Purpose-equivalent independent implementations must be searched before changing this component; direct-call and wording checks are not complete feature discovery.",
+        "checks": [
+          "tools/check-candidate-row-parity.cjs",
+          "tools/candidate-picker.test.cjs",
+          "tools/test-record-opportunities.cjs",
+          "tools/check-recorded-candidate-ranges.cjs"
+        ],
+        "vocabulary": {
+          "terms": [
+            "撮影高さ 地上",
+            "全体に重なる候補",
+            "全体の中央付近を通過",
+            "寄りを通過"
+          ],
+          "owners": [
+            {
+              "path": "src/features/candidates/candidate-picker.js",
+              "scope": "recordedRow"
+            },
+            {
+              "path": "src/features/candidates/candidate-picker.js",
+              "scope": "passageOf"
+            },
+            {
+              "path": "astronotes-shooting.js",
+              "scope": "passageText"
+            }
+          ]
+        },
+        "consumers": [
+          {
+            "path": "astronotes-myplaces.js",
+            "scope": "draw",
+            "count": 1
+          },
+          {
+            "path": "astronotes-myplaces.js",
+            "scope": "drawCandidateList",
+            "count": 1
+          },
+          {
+            "path": "astronotes-myplaces.js",
+            "scope": "flushOpportunityRows",
+            "count": 1
+          },
+          {
+            "path": "astronotes-myplaces.js",
+            "scope": "renderPickerPanel",
+            "count": 1
+          },
+          {
+            "path": "src/features/explore/controller.js",
+            "scope": "renderRecordRows",
             "count": 1
           }
         ]

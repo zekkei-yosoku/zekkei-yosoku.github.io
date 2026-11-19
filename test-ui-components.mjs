@@ -6,3 +6,8 @@ function fixture(){const manifest={legacyRuntimeOrder:['src/a.js'],generatedAsse
 test('既存画面への追加呼出しも、新画面の呼出しも未登録なら検出する',()=>{for(const code of ['function control(){} function editor(){control();control();}','function control(){} function editor(){control();} function other(){control();}']){const f=fixture();f.files['src/a.js']=code;assert.throws(()=>checkUiComponents(f.registry,f.manifest,f.read),/Stale UI consumers/);}});
 test('実装所有者や受入検査が消えた台帳を成功にしない',()=>{for(const missing of ['owner','check']){const f=fixture();if(missing==='owner')f.registry.components[0].owner.symbol='removed';else f.registry.components[0].checks=['test-removed.mjs'];assert.throws(()=>checkUiComponents(f.registry,f.manifest,f.read),/Missing/);}});
 test('コメントや文字列と生成した配信物のコピーを呼出元に数えない',()=>{const f=fixture();f.files['src/a.js']+=' // control();\nconst label="control()";';assert.equal(checkUiComponents(f.registry,f.manifest,f.read).bindings,1);});
+test('共通APIを呼ばずに別実装した候補の説明語彙も検出する',()=>{
+ const f=fixture();f.registry.components[0].vocabulary={terms:['共通の通過説明'],owners:[{path:'src/a.js',scope:'control'}]};
+ f.files['src/a.js']='function control(){return "共通の通過説明";} function editor(){control();}';assert.equal(checkUiComponents(f.registry,f.manifest,f.read).components,1);
+ f.files['src/a.js']+=' function otherList(){return `共通の通過説明`;}';assert.throws(()=>checkUiComponents(f.registry,f.manifest,f.read),/Unregistered UI wording.*otherList/);
+});

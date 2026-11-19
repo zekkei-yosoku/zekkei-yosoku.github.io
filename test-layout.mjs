@@ -447,12 +447,11 @@ console.log("== 使われていない見た目の決まりを残さない ==");
   const css = blocks.map((b) => b[1]).join("");
   let rest = html;
   for (const b of [...blocks].reverse()) rest = rest.slice(0, b.index) + rest.slice(b.index + b[0].length);
-  rest += fs.readFileSync(new URL("./astronotes-plan.js", import.meta.url), "utf8");
-  rest += fs.readFileSync(new URL("./astronotes-icons.js", import.meta.url), "utf8");
-  rest += fs.readFileSync(new URL("./astronotes-target-ui.js",import.meta.url),"utf8");
-  rest += fs.readFileSync(new URL("./astronotes-camera-ui.js",import.meta.url),"utf8");
-  rest += fs.readFileSync(new URL("./astronotes-explore-simple.js",import.meta.url),"utf8");
-  rest += fs.readFileSync(new URL("./astronotes-myplaces.js",import.meta.url),"utf8");
+  // Derive first-party script owners from the same manifest as the component audit.
+  // Separate candidate renderers must not be invisible to CSS liveness checks.
+  const {uiSourcePaths}=await import('./tools/check-ui-components.mjs');
+  const read=p=>fs.readFileSync(new URL(p,import.meta.url),'utf8'),manifest=JSON.parse(read('src/source-manifest.json'));
+  for(const path of uiSourcePaths(manifest,read))rest+='\n'+read(path);
   // 2026-10-19: image file extensions inside url() are not CSS class selectors.
   const classes = new Set([...css.replace(/url\([^)]*\)/g, "").matchAll(/\.([A-Za-z][A-Za-z0-9_-]+)/g)].map((m) => m[1]));
   const tokens = new Set(INTERPOLATED);

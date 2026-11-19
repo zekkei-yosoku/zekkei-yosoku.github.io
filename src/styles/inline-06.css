@@ -25,3 +25,9 @@
 :is(#aimView .aim-titlebar,#skyMapView .sky-map-head) h2{margin:0}
 #aimView :is(#aimTargetNote,#aimHeightNote):empty{display:none}
 #accountSheet:not([data-account-ready="true"]):not([data-codes-shown="true"]) .sheet-body > :not(#accountBody):not(#accountErr){display:none}
+
+/* Candidate rows: NOTES upcoming days, EXPLORE records and the saved-place sheet. */
+.candidate-record-row{box-sizing:border-box;width:100%;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;color:var(--text);line-height:1.6}
+.candidate-record-row [data-candidate-time]{text-align:right;font-weight:600}
+.candidate-record-row [data-candidate-context]{color:var(--secondary)}
+.candidate-record-row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
