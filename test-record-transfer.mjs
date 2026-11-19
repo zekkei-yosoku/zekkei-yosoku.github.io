@@ -161,3 +161,13 @@ test('5000 places use indexed comparison and import without quadratic validation
 test('quota failure rolls back every data bucket including the pending queue',()=>{
  const p=policy(),plan=p.prepareImport(p.exportPlaces(source()),empty()),entries=[...plan.entries,['sorami.queue',[{kind:'fav',id:plan.favorites[0].id}]]],map=new Map(entries.map(([k])=>[k,'original-'+k]));let writes=0;const storage={getItem:k=>map.get(k)??null,setItem(k,v){if(++writes===4)throw Error('quota');map.set(k,v);},removeItem:k=>map.delete(k)},before=new Map(map);assert.throws(()=>library.transaction(storage,entries),/取り消しました/);assert.deepEqual(map,before);
 });
+
+
+test('named disc passage survives JSON output, import and reimport without becoming whole overlap',()=>{
+ const input=source(),passage={partId:'tip',limb:'center',matchMode:'overlap'};
+ input.favorites[0].recordAlignments.skytree=passage;
+ const transfer=policy(),data=transfer.exportPlaces(input),plan=transfer.prepareImport(data,empty());assert(plan.canImport);
+ const place=plan.favorites.find(f=>f.recordRegistered);assert.deepEqual(place.recordAlignments.skytree,passage);
+ const again=transfer.exportPlaces({...plan,placeIds:[place.id]});assert.deepEqual(again.places[0].targets.find(t=>t.ref===again.targets.find(t=>t.key==='skytree').id).alignment,passage);
+ const repeated=transfer.prepareImport(data,{...plan,owner:'recipient'});assert(repeated.canImport);assert.equal(repeated.report.addedPlaces,0);assert.equal(repeated.report.addedBindings,0);assert.deepEqual(repeated.favorites.find(f=>f.id===place.id).recordAlignments.skytree,passage);
+});

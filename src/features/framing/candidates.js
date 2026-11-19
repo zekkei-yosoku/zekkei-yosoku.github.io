@@ -4,7 +4,7 @@ import {AimMap,aim,aimElevation,aimIsMountain,aimKm} from './controller.js';
 import {MAP_APPS,coordText,openMapApp,openMapAppSheet,savedMapApp} from '../places/map-apps.js';
 import {aimIsFuji} from './apply-and-list.js';
 import {aimCalSolid,aimCandidateMatch,aimFromPoint,aimObserverAt,aimSetFrom,aimShootingView} from './observer.js';
-import {aimLookRender} from './scene/render.js';
+import {aimLookRender,parkLookAir} from './scene/render.js';
 import {placeSheetFor} from '../places/search.js';
 // ---------------------------------------------------------------- その日の候補地（2026-09-30）
 //
@@ -149,6 +149,9 @@ async function aimUpdateLook() {
   const e = dayRows.find((x) => x.side === aim.candSide && dayRows.length > 1) || dayRows.sort((x, y) => Math.abs(x.gap) - Math.abs(y.gap))[0];
   if (!e) {
     host.hidden = false;
+    host._lookSeq=(host._lookSeq||0)+1;
+    host._lookSpec=host._uiTime=host._restoredPlanContext=null;
+    parkLookAir(host);
     host.innerHTML = `<div class="aim-look-h"><span>見え方</span></div><div class="aim-look-unavailable">見え方を計算できませんでした。日付を選び直してください。</div>`;
     return;
   }

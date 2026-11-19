@@ -35,6 +35,7 @@ run preview-swipe PREVIEW_SWIPE_BASE=${B}index.html node tools/test-explore-prev
 run bar-layout BAR_LAYOUT_BASE=${B}index.html BAR_LAYOUT_OUT="$OUT/bar" node tools/test-explore-bar-layout.cjs
 run real-map CANDIDATE_MAP_OUT="$OUT/map" node tools/test-candidate-real-map.cjs
 run record RECORD_DISCOVERY_BASE=${B}index.html node tools/test-record-discovery.cjs
+run record-alignment OPPORTUNITIES_BASE=${B}index.html OPPORTUNITIES_ALIGNMENT=1 OPPORTUNITIES_WIDTH=320,390 OPPORTUNITIES_THEME=dark OPPORTUNITIES_OUT="$OUT/record-alignment" node tools/test-record-opportunities.cjs
 run lifecycle PREVIEW_LIFECYCLE_BASE=${B}index.html node tools/test-explore-preview-lifecycle.cjs
 run auto CANDIDATE_AUTO_BASE=${B}index.html node tools/test-candidate-auto-search.cjs
 run date CANDIDATE_DATE_BASE=$B node tools/test-candidate-date-navigation.cjs

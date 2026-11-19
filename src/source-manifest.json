@@ -2467,5 +2467,223 @@
         }
       ]
     }
+  },
+  "uiComponents": {
+    "version": 1,
+    "scope": "Declared major shared UI APIs; direct source calls only. Dynamic aliases/attribute wiring and undiscovered components require source review. Add the component being changed before proceeding; do not wait for a whole-application inventory.",
+    "components": [
+      {
+        "id": "alignment-controls",
+        "name": "重ね方の選択",
+        "owner": {
+          "path": "astronotes-myplaces.js",
+          "symbol": "alignmentControls"
+        },
+        "calls": [
+          "alignmentControls"
+        ],
+        "surfaces": [
+          "記録を追加",
+          "記録の編集",
+          "探すの撮影条件・見え方の条件編集"
+        ],
+        "contract": "部位と全体の通過を共通に選択。縁・中心の入力なし。旧明示条件は操作まで保持し説明、部位の選び直しで現行通過へ。保存はcallerのdraft/sessionが所有。",
+        "checks": [
+          "test-record-entry.mjs",
+          "test-record-alignment-policy.mjs",
+          "tools/check-record-alignment.cjs",
+          "tools/test-record-opportunities.cjs"
+        ],
+        "consumers": [
+          {
+            "path": "astronotes-myplaces.js",
+            "scope": "appendRecordAlignment",
+            "count": 1
+          },
+          {
+            "path": "astronotes-myplaces.js",
+            "scope": "renderSkyAlignment",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "id": "date-time-bar",
+        "name": "共通日時バー",
+        "owner": {
+          "path": "astronotes-datetime-ui.js",
+          "symbol": "decorate"
+        },
+        "calls": [
+          "ToolDateTimeBar.decorate"
+        ],
+        "surfaces": [
+          "ホーム",
+          "探す・見え方",
+          "旧構図"
+        ],
+        "contract": "同じ日時バーの配置・DOM・所有権を維持。表示投影は共通、時刻状態は各host。",
+        "checks": [
+          "test-datetime-component.mjs",
+          "tools/check-datetime-direct-ui.cjs"
+        ],
+        "consumers": [
+          {
+            "path": "src/features/explore/map-presentation.js",
+            "scope": "<top-level>",
+            "count": 1
+          },
+          {
+            "path": "src/features/framing/presentation.js",
+            "scope": "<top-level>",
+            "count": 1
+          },
+          {
+            "path": "src/features/home/controller.js",
+            "scope": "renderAlmanac",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "id": "date-calendar",
+        "name": "共通カレンダー",
+        "owner": {
+          "path": "astronotes-datetime-ui.js",
+          "symbol": "calendar"
+        },
+        "calls": [
+          "ToolDateTimeBar.calendar"
+        ],
+        "surfaces": [
+          "ホーム",
+          "探す・見え方",
+          "撮影候補の日時入力"
+        ],
+        "contract": "暦日選択・親画面の寿命・権限/取消を共通管理。呼出元の時刻を確定。",
+        "checks": [
+          "test-calendar.mjs",
+          "tools/check-datetime-direct-ui.cjs"
+        ],
+        "consumers": [
+          {
+            "path": "src/features/candidates/ui.js",
+            "scope": "syncCandidateDate",
+            "count": 1
+          },
+          {
+            "path": "src/features/explore/map-presentation.js",
+            "scope": "<top-level>",
+            "count": 1
+          },
+          {
+            "path": "src/features/home/controller.js",
+            "scope": "renderAlmanac",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "id": "map-view",
+        "name": "共通地図",
+        "owner": {
+          "path": "src/ui/map/picker.js",
+          "symbol": "createMapView"
+        },
+        "calls": [
+          "createMapView",
+          "ports.createMapView"
+        ],
+        "surfaces": [
+          "地点選択",
+          "記録の点・線・範囲",
+          "探す・見え方",
+          "候補地図",
+          "航空機",
+          "人工衛星",
+          "旧構図"
+        ],
+        "contract": "同じ地図部品の独立instanceを使用。表示・投影・panを再利用し選択値/保存を各hostへ渡す。",
+        "checks": [
+          "test-map-pick.mjs",
+          "tools/test-preview-position-navigation.cjs"
+        ],
+        "consumers": [
+          {
+            "path": "astronotes-myplaces.js",
+            "scope": "buildShapeEditor",
+            "count": 1
+          },
+          {
+            "path": "src/features/aircraft/controller.js",
+            "scope": "<top-level>",
+            "count": 1
+          },
+          {
+            "path": "src/features/candidates/candidate-picker.js",
+            "scope": "ensureMap",
+            "count": 1
+          },
+          {
+            "path": "src/features/explore/controller.js",
+            "scope": "syncObserverMovement",
+            "count": 1
+          },
+          {
+            "path": "src/features/explore/map-presentation.js",
+            "scope": "<top-level>",
+            "count": 1
+          },
+          {
+            "path": "src/features/framing/reverse-and-entry.js",
+            "scope": "aimLineSheetOpen",
+            "count": 1
+          },
+          {
+            "path": "src/features/satellites/state.js",
+            "scope": "<top-level>",
+            "count": 1
+          },
+          {
+            "path": "src/ui/map/picker.js",
+            "scope": "<top-level>",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "id": "look-atmosphere-controls",
+        "name": "見え方の共有気象設定DOM",
+        "owner": {
+          "path": "src/features/framing/scene/render.js",
+          "symbol": "parkLookAir"
+        },
+        "calls": [
+          "parkLookAir"
+        ],
+        "surfaces": [
+          "旧構図の候補なし",
+          "探す・見え方の再構築と往復"
+        ],
+        "contract": "共有気象設定をcanvas/状態表示の置換前に外へ保持し、次の描画で同じDOMを戻す。値・listener・計算状態を複写しない。",
+        "checks": [
+          "test-compute-reuse.mjs",
+          "tools/check-record-alignment.cjs",
+          "tools/test-composition-search-entry.cjs"
+        ],
+        "consumers": [
+          {
+            "path": "src/features/framing/candidates.js",
+            "scope": "aimUpdateLook",
+            "count": 1
+          },
+          {
+            "path": "src/features/framing/scene/render.js",
+            "scope": "aimLookRender",
+            "count": 1
+          }
+        ]
+      }
+    ]
   }
 }

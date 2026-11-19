@@ -57,3 +57,12 @@ test('月丼の計算地点にも保存標高と地上からの高さをその�
  vm.runInContext(extract('function aimSavedFrom(','aim.from = aimSavedFrom(store.get(')+extract('async function planeApply()','  const here =')+'return {ground,agl};}',c);
  const result=await c.planeApply();assert.equal(result.ground,19);assert.equal(result.agl,25);
 });
+
+test('候補なし表示は共有気象設定を消さず、古い描画も失効させる',async()=>{
+ const air={value:'auto',parent:'host'},host={_lookSeq:7,_lookSpec:{old:true},_uiTime:{old:true},children:[air],contains:n=>host.children.includes(n),after:n=>{host.children=host.children.filter(x=>x!==n);n.parent='scene';}};
+ Object.defineProperty(host,'innerHTML',{set(value){host.children=[];host.markup=value;}});
+ const c={aim:{target:{parts:[{id:'tip'}]},lookSeq:__gate(),candPick:null,dayMs:base},$:id=>id==='aimLook'?host:id==='aimAir'?air:null,aimFromPoint:()=>({latitude:35,longitude:139}),aimElevation:async()=>0,aimObserverAt:()=>({eyeM:1.5}),AstroNotesShooting:{searchOptions:()=>({})},aimShootingView:async()=>()=>[],aimIsMountain:()=>false,S:{JstCal:{sameDay:()=>true}}};vm.createContext(c);
+ const rendering=fs.readFileSync(new URL('./src/features/framing/scene/render.js',import.meta.url),'utf8');vm.runInContext(rendering.slice(rendering.indexOf('function parkLookAir('),rendering.indexOf('async function aimLookRender(')),c);
+ vm.runInContext(extract('async function aimUpdateLook()','}const aimCandName')+'}',c);await c.aimUpdateLook();
+ assert.equal(air.parent,'scene');assert.equal(air.value,'auto');assert(!host.children.includes(air));assert(host._lookSeq>7);assert.equal(host._lookSpec,null);assert.equal(host._uiTime,null);assert.match(host.markup,/計算できません/);
+});

@@ -11,6 +11,8 @@ import {auth} from '../../account/session-and-access.js';
 const AIM_MOUNTAIN_SKY_SPAN = 45;
 // 天体に寄る is for a body on or near the target: within the height of the target plus 10 deg of its top.
 function aimComposeNear(st,az,topAngle,baseAngle){const R=Math.PI/180,d=Math.acos(Math.max(-1,Math.min(1,Math.sin(st.apparentAltitude*R)*Math.sin(topAngle*R)+Math.cos(st.apparentAltitude*R)*Math.cos(topAngle*R)*Math.cos((st.azimuth-az)*R))))/R;return d<=Math.max(15,topAngle-baseAngle+10);}
+// The shared settings are moved into the figure, but outlive its canvas/status markup.
+function parkLookAir(host){const air=$("aimAir");if(air&&host.contains(air))host.after(air);}
 async function aimLookRender(host, spec) {
   if (!host) return;
   globalThis.AstroNotesCameraUI?.invalidate(host);
@@ -32,6 +34,7 @@ async function aimLookRender(host, spec) {
   if (!t || !(t.parts || []).length || !spec || !Number.isFinite(spec.at)) { host.hidden = true; return; }
   host.hidden = false;
   if (!host.querySelector("canvas")) {
+    parkLookAir(host);
     host.innerHTML = `<div class="aim-look-h"><span>見え方</span></div>
       <p class="aim-look-cap"><strong data-look-title></strong><span class="sub-line" data-look-sub></span><span class="sub-line" data-look-light></span><span class="sub-line" data-look-extra></span></p>
       <div class="aim-look-figure"><canvas data-look-canvas role="img"></canvas><button type="button" data-look-pick class="aim-body-move" aria-pressed="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">\
@@ -800,4 +803,4 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
  */
 // 2026-10-20 ユーザー「天体を動かして撮れる場所を逆算する機能、外してしまおう。戻すって言った時に戻しやすいようにはしておいて」：
 // 旧自動逆算は停止したまま保持する。再開には旧地図アダプターを含む再接続と別途検証が必要。
-export {aimLookRender};
+export {aimLookRender,parkLookAir};
