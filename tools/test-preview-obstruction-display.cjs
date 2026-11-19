@@ -7,6 +7,7 @@ const out=process.env.OBSTRUCTION_OUT||'/tmp/astronotes-preview-obstruction';
 const grants=['records','tower','diamond','pearl','skymap','multiscene'];
 const east={id:'east-high',latitude:35.70995,longitude:139.81275,elevation:1.6,eyeM:150,at:'2026-11-25T03:09:00+09:00',target:'skytree'};
 const sag={id:'saginuma',latitude:35.58386,longitude:139.56853,elevation:87.2,eyeM:1.5,at:'2026-11-25T16:52:00+09:00',target:'skytree'};
+const shibamata={id:'shibamata-clear',latitude:35.7163211,longitude:139.9040866,elevation:2.359999895095825,eyeM:1.5,at:'2026-11-20T00:47:29.999+09:00',target:'skytree',focal:192.4};
 
 function installTrace(){
  const p=CanvasRenderingContext2D.prototype;
@@ -53,7 +54,7 @@ async function prepare(page,s,mode){
    // A center-line reader must not hold the entire angular skyline hostage.
    if(mode==='center-pending')return new Promise(()=>{});
    __obstruction.hiddenSettled=true;
-   const note=['town','skyline-reject'].includes(mode)?{m,label:'手前の街並み',text:'手前の街並みで、塔の250mから上が見えます。250mより下は隠れます。'}:null;
+   const note=mode==='ground-note'?{m:277.5311923045665,label:'手前の堤防',text:'地上約280mより下は手前の堤防に隠れます'}:['town','skyline-reject'].includes(mode)?{m,label:'手前の街並み',text:'手前の街並みで、塔の250mから上が見えます。250mより下は隠れます。'}:null;
    return {read:mode!=='missing',note};
   };
   AstroNotesCandidatePicker.skylineView=async(_o,_t,azimuths)=>{
@@ -75,10 +76,10 @@ async function prepare(page,s,mode){
  },{s,mode});
  await page.locator('#exploreShowResult').click();
  await page.waitForFunction(({s,mode})=>{const h=document.getElementById('aimLook');return h&&!h.hidden&&h._lookLayers?.stats?.frames>0&&h._trialCompositionView&&Math.abs(h._lookAt-Date.parse(s.at))<1000&&h._lookSpec.eyeM===s.eyeM&&(mode==='mountain'?__obstruction.ridgeCalls>0:__obstruction.hiddenCalls>0&&__obstruction.townCalls>0);},{s,mode});
- if(mode==='mountain'){
+ if(mode==='mountain'||s.focal){
   // The trial camera sheet owns the visible lens controls; use the renderer's existing change handler
   // to set this fixture's wide frame, keeping camera-sheet interaction outside this drawing regression.
-  await page.evaluate(()=>{const input=document.querySelector('#aimLook [data-lens-focal]');input.value='35';input.onchange();});
+  await page.evaluate(focal=>{const input=document.querySelector('#aimLook [data-lens-focal]');input.value=String(focal);input.onchange();},s.focal||35);
  }
  await page.waitForTimeout(250);
 }
@@ -117,7 +118,7 @@ function checkCommon(r,s){
  for(const [engine,type] of [['chrome',chromium],['webkit',webkit]].filter(([e])=>(process.env.OBSTRUCTION_ENGINE||'chrome,webkit').split(',').includes(e))){
   const browser=await type.launch(engine==='chrome'?{channel:'chrome',headless:true}:{headless:true});
   try{
-   const fixtures=[[east,'clear'],[{...east,id:'east-synthetic-below-sea'},'below-sea'],[sag,'clear'],[{...sag,id:'saginuma-town'},'town'],
+   const fixtures=[[east,'clear'],[{...east,id:'east-synthetic-below-sea'},'below-sea'],[sag,'clear'],[{...sag,id:'saginuma-town'},'town'],[shibamata,'clear'],[{...shibamata,id:'shibamata-embankment'},'ground-note'],
     ...['off-axis-clear','sparse','partial','skyline-reject','center-pending'].map(mode=>[{...sag,id:'saginuma-'+mode},mode]),
     [{...east,id:'missing'},'missing'],[{...sag,id:'mountain',target:'fuji'},'mountain']];
    for(const [s,mode] of fixtures){
@@ -132,6 +133,12 @@ function checkCommon(r,s){
      await page.goto(base+'#/explore');await page.waitForFunction(()=>typeof SkyMapUI==='object'&&typeof aimTargetList==='function'&&typeof AstroNotesAssets==='object'&&AstroNotesAssets.modelsReady());
      await prepare(page,s,mode);Object.assign(row,await measure(page),{writesBlocked,externalBlocked,errors});
      await page.locator('#aimLook').screenshot({path:out+'/'+engine+'-'+s.id+'.png'});
+     if(mode==='ground-note'){
+      const before=fs.readFileSync(out+'/'+engine+'-shibamata-clear-canvas.png');
+      const after=await page.locator('#aimLook [data-look-canvas]').evaluate(c=>c.toDataURL('image/png').split(',')[1]);
+      assert(before.equals(Buffer.from(after,'base64')),'a scalar embankment note must not cut off a tower without drawing an angular occluder');
+      assert.match(row.aria,/手前の堤防/,'the center-line evidence is retained for accessibility');
+     }
      const canvasPng=await page.locator('#aimLook [data-look-canvas]').evaluate(c=>c.toDataURL('image/png').split(',')[1]);fs.writeFileSync(out+'/'+engine+'-'+s.id+'-canvas.png',Buffer.from(canvasPng,'base64'));
      assert.equal(await page.locator('#exploreStreetPhoto').count(),0,'redundant street photo action is removed');
      const map=page.locator('#exploreExternalMap');await map.waitFor({state:'visible'});

@@ -23,7 +23,7 @@ module.exports=async function checkParity(page,ready,path){
   await page.locator('#recordOpportunityDate').fill('2028-03-02');await ready(page);
   const firstDay=await page.locator('#recordOpportunityDate').inputValue(),clock=await page.locator('#recordOpportunityList [data-opportunity-id]').first().getAttribute('data-opportunity-id');
   const dayAt=JSON.parse(clock)[1],before=await page.evaluate(()=>parityFixture.calls);
-  const read=selector=>page.locator(selector).evaluateAll(ns=>ns.map(n=>Object.fromEntries(['place','time','address','angle','passage','spatial'].map(k=>[k,n.querySelector('[data-candidate-'+k+']')?.textContent||'']))));
+  const read=selector=>page.locator(selector).evaluateAll(ns=>ns.map(n=>({...Object.fromEntries(['place','time','address','angle','passage','spatial'].map(k=>[k,n.querySelector('[data-candidate-'+k+']')?.textContent||''])),kind:n.querySelector('[data-place-kind]')?.textContent||''})));
   const notes=(await read('#recordOpportunityList [data-opportunity-id]')).slice(0,5);
   assert.equal(notes.length,5);assert.deepEqual(notes.map(r=>r.time),['01:00〜01:10','01:00〜01:10','02:00〜02:10','03:00','04:00〜04:05']);
   assert(notes.some(r=>r.spatial.includes('線上で移動')));assert(notes.some(r=>r.spatial.includes('範囲内で移動')));assert(notes.every(r=>r.passage==='先端付近を通過'));

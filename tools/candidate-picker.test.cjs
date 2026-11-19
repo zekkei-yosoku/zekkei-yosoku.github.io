@@ -13,6 +13,9 @@ test('classification uses matching areas, never names or nearest facilities',()=
  const data={version:1,kind:'osm-named-areas',coverageBboxes:[[0,0,2,2]],features:[{id:'p',name:'Park',bbox:[0,0,1,1],polygons:[[[[0,0],[1,0],[1,1],[0,1],[0,0]]]],tags:{leisure:'park'}}]};
  assert.deepEqual(F.kinds({place:{latitude:.5,longitude:.5}},data),['park']);
  assert.deepEqual(F.kinds({place:{name:'Park',latitude:1.5,longitude:1.5}},data),['unknown']);
+ const anchor={latitude:.5,longitude:.5},label=labels.resolve(data,anchor,'osm-named-areas');
+ assert.deepEqual(F.kinds({place:anchor,labels:{facility:label},assumedObserver:{latitude:1.5,longitude:1.5}},data),['unknown'],'a solved point outside the park does not inherit the anchor label');
+ assert.deepEqual(F.kinds({place:{latitude:1.5,longitude:1.5},assumedObserver:anchor},data),['park'],'the solved point, not its anchor, decides facility context');
  assert.deepEqual(F.kinds({place:{latitude:.5,longitude:0}},data),['unknown']);
  assert.deepEqual(F.kinds({place:{},assumedObserver:{sourceId:'walk'},modelEvidence:{kind:'terrain-and-building-model-los'}},null),['road']);
 });

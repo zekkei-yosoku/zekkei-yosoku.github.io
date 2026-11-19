@@ -114,7 +114,21 @@ function inTileArea(area,x,y){
   const a=ring[i],b=ring[j];if((a[1]>py)!==(b[1]>py)&&px<(b[0]-a[0])*(py-a[1])/(b[1]-a[1])+a[0])inside=!inside;
  }return inside;});
 }
-function createRoadContext({fetchImpl=fetch,decodeAreas,now=Date.now,base='https://cyberjapandata.gsi.go.jp/xyz/optimal_bvmap-v1/16/'}={}){
+// Facility context uses the same complete OSM geometry as candidate discovery.
+// A nearby park name or viewpoint is not proof that the observer is inside it.
+function facilityMatch(p,features){
+ if(!point(p))return null;const kinds=new Set(),sourceIds=[];
+ for(const f of features||[]){
+  if(f.geometryIncomplete)continue;
+  const t=f.tags||{},kind=t.tourism==='viewpoint'||t['tower:type']==='observation'?'viewpoint':t.place==='square'?'plaza':t.leisure==='garden'?'garden':['park','recreation_ground'].includes(t.leisure)?'park':null;
+  if(!kind)continue;
+  const area=f.polygons?.some(poly=>inside(poly[0],p)&&!poly.slice(1).some(r=>inside(r,p))&&poly.every(r=>edgeDistance(r,p)>=1));
+  const exact=f.position&&Math.hypot((p.longitude-f.position.longitude)*Math.cos(p.latitude*rad),p.latitude-f.position.latitude)*111195<=1;
+  if(area||exact){kinds.add(kind);sourceIds.push(f.id);}
+ }
+ return kinds.size?{kind:[...kinds][0],kinds:[...kinds],source:'osm-facility-geometry',sourceIds}:null;
+}
+function createRoadContext({fetchImpl=fetch,decodeAreas,loadFacilities=null,now=Date.now,base='https://cyberjapandata.gsi.go.jp/xyz/optimal_bvmap-v1/16/'}={}){
  const tiles=new Map(),points=new Map(),jobs=new Map(),failedUntil=new Map(),key=p=>p.latitude+','+p.longitude;
  const ground=p=>point(p)&&!p.nonTerrainStructure&&(p.standAglM??p.eyeHeightAGL??p.eyeM??1.5)>=0&&(p.standAglM??p.eyeHeightAGL??p.eyeM??1.5)<=3&&Math.abs(p.latitude)<85;
  async function tile(x,y){
@@ -127,12 +141,21 @@ function createRoadContext({fetchImpl=fetch,decodeAreas,now=Date.now,base='https
  function peek(p){return ground(p)?points.get(key(p))||null:null;}
  async function read(p){
   if(!ground(p))return null;const k=key(p);if(points.has(k))return points.get(k);if(jobs.has(k))return jobs.get(k);
-  const job=(async()=>{const [x,y]=tileXY(p),pad=65/(Math.cos(p.latitude*rad)*40075016.686/65536),pending=[];
+  const job=(async()=>{
+   // A failed facility read must not block existing roads or permanently cache a
+   // weaker road/null result. Reuse tile reads and retry the facility after cooldown.
+   let facilityFailed=false;const fk='facility/'+k;
+   if(loadFacilities){
+    if((failedUntil.get(fk)||0)>now())facilityFailed=true;
+    else try{const value=facilityMatch(p,await loadFacilities(p));failedUntil.delete(fk);if(value){points.set(k,value);if(points.size>512)points.delete(points.keys().next().value);return value;}}
+    catch{facilityFailed=true;failedUntil.set(fk,now()+5000);if(failedUntil.size>48)failedUntil.delete(failedUntil.keys().next().value);}
+   }
+   const [x,y]=tileXY(p),pad=65/(Math.cos(p.latitude*rad)*40075016.686/65536),pending=[];
    for(let ix=Math.floor(x-pad);ix<=Math.floor(x+pad);ix++)for(let iy=Math.floor(y-pad);iy<=Math.floor(y+pad);iy++)pending.push(tile(ix,iy));
-   const data=await Promise.all(pending),value=roadMatch(p,data);points.set(k,value);if(points.size>512)points.delete(points.keys().next().value);return value;
+   const data=await Promise.all(pending),value=roadMatch(p,data);if(!facilityFailed){points.set(k,value);if(points.size>512)points.delete(points.keys().next().value);}return value;
   })();jobs.set(k,job);try{return await job;}catch{return null;}finally{jobs.delete(k);}
  }
  return {read,peek};
 }
-return {resolve,enrich,edgeDistance,townFiles,townAddress,roadLines,roadMatch,createRoadContext};
+return {resolve,enrich,edgeDistance,townFiles,townAddress,roadLines,roadMatch,facilityMatch,createRoadContext};
 });

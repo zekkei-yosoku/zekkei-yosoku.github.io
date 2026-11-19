@@ -487,6 +487,7 @@ function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,
  }
  return {load,surveyed,nearby,clear(){cache.clear();heightCache.clear();nearbyCache.clear();}};
 }
+createPlaceProvider.parseElements=parseElements;
 createPlaceProvider.movementDomain=movementDomain;createPlaceProvider.movementPoint=movementPoint;
 return createPlaceProvider;
 });

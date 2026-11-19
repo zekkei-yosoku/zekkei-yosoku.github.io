@@ -458,12 +458,11 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
       minX+=panX;maxX+=panX;
       if (!selected && (maxX < 0 || minX > W)) continue;
       ctx.fillStyle = "#020306";
-      // A center-line hill or crown can describe the tower, without trimming the sky on either side.
+      // A center-line height is a sight-line annotation, not a projected occluder.
+      // Only the angular foreground mask may hide the target; clipping the tower
+      // alone at this height leaves it cut off above undrawn terrain or trees.
       if (selected && !mountain) {
         ctx.save();
-        if (hidden && !/^手前の(?:街並み|建物)$/.test(hidden.label) && fillY < footY) {
-          ctx.beginPath(); ctx.rect(-panX, -panY, W, Math.max(0, fillY + panY)); ctx.clip();
-        }
       }
       if(item.polygons?.length){
         // 形は時刻/天体と独立。再生・ドラッグのたびに穴埋めを再計算しない。

@@ -2445,6 +2445,7 @@ function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,
  }
  return {load,surveyed,nearby,clear(){cache.clear();heightCache.clear();nearbyCache.clear();}};
 }
+createPlaceProvider.parseElements=parseElements;
 createPlaceProvider.movementDomain=movementDomain;createPlaceProvider.movementPoint=movementPoint;
 return createPlaceProvider;
 });
@@ -3201,7 +3202,21 @@ function inTileArea(area,x,y){
   const a=ring[i],b=ring[j];if((a[1]>py)!==(b[1]>py)&&px<(b[0]-a[0])*(py-a[1])/(b[1]-a[1])+a[0])inside=!inside;
  }return inside;});
 }
-function createRoadContext({fetchImpl=fetch,decodeAreas,now=Date.now,base='https://cyberjapandata.gsi.go.jp/xyz/optimal_bvmap-v1/16/'}={}){
+// Facility context uses the same complete OSM geometry as candidate discovery.
+// A nearby park name or viewpoint is not proof that the observer is inside it.
+function facilityMatch(p,features){
+ if(!point(p))return null;const kinds=new Set(),sourceIds=[];
+ for(const f of features||[]){
+  if(f.geometryIncomplete)continue;
+  const t=f.tags||{},kind=t.tourism==='viewpoint'||t['tower:type']==='observation'?'viewpoint':t.place==='square'?'plaza':t.leisure==='garden'?'garden':['park','recreation_ground'].includes(t.leisure)?'park':null;
+  if(!kind)continue;
+  const area=f.polygons?.some(poly=>inside(poly[0],p)&&!poly.slice(1).some(r=>inside(r,p))&&poly.every(r=>edgeDistance(r,p)>=1));
+  const exact=f.position&&Math.hypot((p.longitude-f.position.longitude)*Math.cos(p.latitude*rad),p.latitude-f.position.latitude)*111195<=1;
+  if(area||exact){kinds.add(kind);sourceIds.push(f.id);}
+ }
+ return kinds.size?{kind:[...kinds][0],kinds:[...kinds],source:'osm-facility-geometry',sourceIds}:null;
+}
+function createRoadContext({fetchImpl=fetch,decodeAreas,loadFacilities=null,now=Date.now,base='https://cyberjapandata.gsi.go.jp/xyz/optimal_bvmap-v1/16/'}={}){
  const tiles=new Map(),points=new Map(),jobs=new Map(),failedUntil=new Map(),key=p=>p.latitude+','+p.longitude;
  const ground=p=>point(p)&&!p.nonTerrainStructure&&(p.standAglM??p.eyeHeightAGL??p.eyeM??1.5)>=0&&(p.standAglM??p.eyeHeightAGL??p.eyeM??1.5)<=3&&Math.abs(p.latitude)<85;
  async function tile(x,y){
@@ -3214,14 +3229,23 @@ function createRoadContext({fetchImpl=fetch,decodeAreas,now=Date.now,base='https
  function peek(p){return ground(p)?points.get(key(p))||null:null;}
  async function read(p){
   if(!ground(p))return null;const k=key(p);if(points.has(k))return points.get(k);if(jobs.has(k))return jobs.get(k);
-  const job=(async()=>{const [x,y]=tileXY(p),pad=65/(Math.cos(p.latitude*rad)*40075016.686/65536),pending=[];
+  const job=(async()=>{
+   // A failed facility read must not block existing roads or permanently cache a
+   // weaker road/null result. Reuse tile reads and retry the facility after cooldown.
+   let facilityFailed=false;const fk='facility/'+k;
+   if(loadFacilities){
+    if((failedUntil.get(fk)||0)>now())facilityFailed=true;
+    else try{const value=facilityMatch(p,await loadFacilities(p));failedUntil.delete(fk);if(value){points.set(k,value);if(points.size>512)points.delete(points.keys().next().value);return value;}}
+    catch{facilityFailed=true;failedUntil.set(fk,now()+5000);if(failedUntil.size>48)failedUntil.delete(failedUntil.keys().next().value);}
+   }
+   const [x,y]=tileXY(p),pad=65/(Math.cos(p.latitude*rad)*40075016.686/65536),pending=[];
    for(let ix=Math.floor(x-pad);ix<=Math.floor(x+pad);ix++)for(let iy=Math.floor(y-pad);iy<=Math.floor(y+pad);iy++)pending.push(tile(ix,iy));
-   const data=await Promise.all(pending),value=roadMatch(p,data);points.set(k,value);if(points.size>512)points.delete(points.keys().next().value);return value;
+   const data=await Promise.all(pending),value=roadMatch(p,data);if(!facilityFailed){points.set(k,value);if(points.size>512)points.delete(points.keys().next().value);}return value;
   })();jobs.set(k,job);try{return await job;}catch{return null;}finally{jobs.delete(k);}
  }
  return {read,peek};
 }
-return {resolve,enrich,edgeDistance,townFiles,townAddress,roadLines,roadMatch,createRoadContext};
+return {resolve,enrich,edgeDistance,townFiles,townAddress,roadLines,roadMatch,facilityMatch,createRoadContext};
 });
 
 // Trial-only candidate presentation. A row keeps its evidence and selection handler.
@@ -3252,13 +3276,14 @@ const preferred=new Set(['viewpoint','park','plaza','riverbank']);
 function kinds(row,facilities){
  const result=new Set(),declared=Array.isArray(row.placeKind)?row.placeKind:[row.placeKind];
  for(const type of declared)if(Object.hasOwn(names,type)&&type!=='unknown')result.add(type);
- const ids=row.labels?.facility?.status==='matched'?row.labels.facility.sourceIds:globalThis.AstroNotesCandidateLabels?.resolve(facilities,row.place,'osm-named-areas')?.sourceIds;
+ const p=positionPlace(row),same=p?.latitude===row.place?.latitude&&p?.longitude===row.place?.longitude;
+ const ids=same&&row.labels?.facility?.status==='matched'?row.labels.facility.sourceIds:globalThis.AstroNotesCandidateLabels?.resolve(facilities,p,'osm-named-areas')?.sourceIds;
  for(const f of facilities?.features||[]){if(!ids?.includes(f.id))continue;const t=f.tags||{};
   result.add(t.tourism==='viewpoint'?'viewpoint':t.leisure==='park'?'park':t.place==='square'?'plaza':t.leisure==='garden'?'garden':'facility');
  }
  // A source ID alone is not proof that a newly generated park is a road.
  if(!result.size&&row.assumedObserver?.sourceId&&row.modelEvidence?.kind==='terrain-and-building-model-los')result.add('road');
- if(!result.size&&ports.placeContext?.peek(positionPlace(row))?.kind==='road')result.add('road');
+ if(!result.size){const context=ports.placeContext?.peek(positionPlace(row));for(const kind of context?.kinds||[context?.kind])if(kind&&kind!=='unknown'&&Object.hasOwn(names,kind))result.add(kind);}
  return result.size?[...result].sort((a,b)=>Object.keys(names).indexOf(a)-Object.keys(names).indexOf(b)):['unknown'];
 }
 function accepts(row,time,kind,types,events){return (kind==='all'||types.includes(kind))&&(time==='all'||Number.isFinite(row.event?.at)&&!!events?.some(e=>e.kind===time&&Math.abs(row.event.at-e.at)<=3600000));}
@@ -3480,7 +3505,7 @@ function recordedPlan(row,plan={}){
 }
 const recordedHeightScope=(row,targetId=null)=>JSON.stringify([row.sourcePlaceId??row.place.sourcePlaceId??row.place.id,row.target?.id??targetId]);
 function recordedRow(raw,rows,labels,heights=null,targetId=null){
- const labelled=globalThis.AstroNotesCandidateLabels?.enrich(raw,labels)||raw;
+ const projected={...raw,place:positionPlace(raw)},labelled=globalThis.AstroNotesCandidateLabels?.enrich(projected,labels)||projected;
  const row={...labelled,place:{...labelled.place,name:raw.place.name,subtitle:labelled.place.subtitle||raw.place.subtitle||''},record:raw.record||{},quality:{...raw.quality}};
  if(!Number.isFinite(row.quality.targetAngleDeg)&&Number.isFinite(row.event.targetAltitude))row.quality.targetAngleDeg=row.event.targetAltitude;
  const source=raw.sourcePlaceId??raw.place.sourcePlaceId??raw.place.id,eye=raw.assumedObserver?.eyeM??raw.place.standAglM??raw.place.eyeHeightAGL;
@@ -3894,7 +3919,9 @@ async function fillTownAddresses(rows,isCurrent){
 const filterKey=p=>JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode]);
 // Shared, bounded tile cache for recorded rows. Road edges classify a location;
 // they never make it a new candidate or change its visibility evidence.
-const recordedPlaceContext=AstroNotesCandidateLabels.createRoadContext({fetchImpl:fetch.bind(globalThis),decodeAreas:(...args)=>AstroNotesTerrain.decodeWaterLayer(...args)});
+const recordedPlaceContext=AstroNotesCandidateLabels.createRoadContext({fetchImpl:fetch.bind(globalThis),decodeAreas:(...args)=>AstroNotesTerrain.decodeWaterLayer(...args),
+ loadFacilities:async p=>{try{if(!osmPlaces)throw Error('facility-data-unavailable');return AstroNotesCandidateDiscovery.createPlaceProvider.parseElements(await osmPlaces.elementsIn([p.longitude,p.latitude,p.longitude,p.latitude]));}
+  catch(e){globalThis.AstroNotesErrors?.note('candidates.facilities',e);throw e;}}});
 AstroNotesCandidatePicker.configure({loadLabels,createMapView,filterKey,alignmentText:(t,v)=>MyPlacesUI.alignmentText(t,v),bodyName:id=>AstroNotesBodies.definition(id)?.name||id,mapIcon:UI_ICONS.map,
  geometryFrom:(...args)=>AstroNotesAlign.geometryFrom(...args),isMountain:t=>aimIsMountain(t),geometryKey:()=>AstroNotesAtmosphere.targetK(),
  placeContext:recordedPlaceContext,

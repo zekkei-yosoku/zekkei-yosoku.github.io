@@ -70,7 +70,9 @@ async function fillTownAddresses(rows,isCurrent){
 const filterKey=p=>JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode]);
 // Shared, bounded tile cache for recorded rows. Road edges classify a location;
 // they never make it a new candidate or change its visibility evidence.
-const recordedPlaceContext=AstroNotesCandidateLabels.createRoadContext({fetchImpl:fetch.bind(globalThis),decodeAreas:(...args)=>AstroNotesTerrain.decodeWaterLayer(...args)});
+const recordedPlaceContext=AstroNotesCandidateLabels.createRoadContext({fetchImpl:fetch.bind(globalThis),decodeAreas:(...args)=>AstroNotesTerrain.decodeWaterLayer(...args),
+ loadFacilities:async p=>{try{if(!osmPlaces)throw Error('facility-data-unavailable');return AstroNotesCandidateDiscovery.createPlaceProvider.parseElements(await osmPlaces.elementsIn([p.longitude,p.latitude,p.longitude,p.latitude]));}
+  catch(e){globalThis.AstroNotesErrors?.note('candidates.facilities',e);throw e;}}});
 AstroNotesCandidatePicker.configure({loadLabels,createMapView,filterKey,alignmentText:(t,v)=>MyPlacesUI.alignmentText(t,v),bodyName:id=>AstroNotesBodies.definition(id)?.name||id,mapIcon:UI_ICONS.map,
  geometryFrom:(...args)=>AstroNotesAlign.geometryFrom(...args),isMountain:t=>aimIsMountain(t),geometryKey:()=>AstroNotesAtmosphere.targetK(),
  placeContext:recordedPlaceContext,

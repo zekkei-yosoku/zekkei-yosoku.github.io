@@ -7,6 +7,29 @@ const require=createRequire(import.meta.url),L=require('./src/features/candidate
 const p={latitude:35.70730860834253,longitude:139.75974230531398,eyeHeightAGL:1.5};
 const bytes=fs.readFileSync(new URL('./tools/fixtures/gsi-road-hongo.pbf',import.meta.url));
 const decodeAreas=T.decodeWaterLayer;
+const P=require('./src/features/candidates/place-provider.js');
+const facilities=JSON.parse(fs.readFileSync(new URL('./tools/fixtures/recorded-facilities.json',import.meta.url)));
+test('the three reported recorded places use actual bundled facility geometry, not their names',async()=>{
+ for(const {place,elements}of facilities){
+  let loads=0;const features=P.parseElements(elements),context=L.createRoadContext({decodeAreas,loadFacilities:async()=>{loads++;return features;},fetchImpl:async()=>{throw Error('a known facility must not fetch roads');}});
+  const p={...place,name:'任意の名前'},before=structuredClone(p),[a,b]=await Promise.all([context.read(p),context.read(p)]);
+  assert.equal(a.kind,'park');assert.deepEqual(a.kinds,['park']);assert.equal(a,b);assert.equal(context.peek(p),a);assert.equal(await context.read(p),a);assert.equal(loads,1);assert.deepEqual(p,before);
+  assert.equal(L.facilityMatch({...p,latitude:p.latitude+.01},features),null,'a park name cannot classify a point outside the park');
+  assert.equal(L.facilityMatch(p,features.filter(f=>f.tags.tourism==='viewpoint')),null,'a viewpoint 14m away is not this point');
+ }
+ const f={id:'park',tags:{leisure:'park'},polygons:[[[[0,0],[1,0],[1,1],[0,1],[0,0]],[[.4,.4],[.6,.4],[.6,.6],[.4,.6],[.4,.4]]]]};
+ assert.equal(L.facilityMatch({latitude:.2,longitude:.2},[f]).kind,'park');
+ for(const p of [{latitude:.5,longitude:.5},{latitude:0,longitude:.5}])assert.equal(L.facilityMatch(p,[f]),null);
+ assert.equal(L.facilityMatch({latitude:.2,longitude:.2},[{...f,geometryIncomplete:true}]),null);
+});
+test('a failed facility read preserves road fallback and can recover without poisoning the point cache',async()=>{
+ let now=10000,loads=0,reads=0,fail=true;
+ const context=L.createRoadContext({decodeAreas,now:()=>now,loadFacilities:async()=>{loads++;if(fail)throw Error('offline');return [{id:'point',tags:{tourism:'viewpoint'},position:p}];},fetchImpl:async()=>{reads++;return {ok:true,arrayBuffer:async()=>bytes};}});
+ assert.equal((await context.read(p)).kind,'road');assert.equal(context.peek(p),null);
+ assert.equal((await context.read(p)).kind,'road');assert.equal(loads,1);assert.equal(reads,1);
+ now+=6000;fail=false;assert.equal((await context.read(p)).kind,'viewpoint');assert.equal(loads,2);assert.equal(reads,1);
+ assert.equal(context.peek({...p,eyeHeightAGL:20}),null);
+});
 test('real Hongo road is bounded by road edges; tile and result are reused without astronomical work',async()=>{
  let calls=0;const context=L.createRoadContext({decodeAreas,fetchImpl:async()=>{calls++;return{ok:true,arrayBuffer:async()=>bytes};}});
  const before=structuredClone(p),[a,b]=await Promise.all([context.read(p),context.read(p)]);

@@ -26,13 +26,14 @@ const preferred=new Set(['viewpoint','park','plaza','riverbank']);
 function kinds(row,facilities){
  const result=new Set(),declared=Array.isArray(row.placeKind)?row.placeKind:[row.placeKind];
  for(const type of declared)if(Object.hasOwn(names,type)&&type!=='unknown')result.add(type);
- const ids=row.labels?.facility?.status==='matched'?row.labels.facility.sourceIds:globalThis.AstroNotesCandidateLabels?.resolve(facilities,row.place,'osm-named-areas')?.sourceIds;
+ const p=positionPlace(row),same=p?.latitude===row.place?.latitude&&p?.longitude===row.place?.longitude;
+ const ids=same&&row.labels?.facility?.status==='matched'?row.labels.facility.sourceIds:globalThis.AstroNotesCandidateLabels?.resolve(facilities,p,'osm-named-areas')?.sourceIds;
  for(const f of facilities?.features||[]){if(!ids?.includes(f.id))continue;const t=f.tags||{};
   result.add(t.tourism==='viewpoint'?'viewpoint':t.leisure==='park'?'park':t.place==='square'?'plaza':t.leisure==='garden'?'garden':'facility');
  }
  // A source ID alone is not proof that a newly generated park is a road.
  if(!result.size&&row.assumedObserver?.sourceId&&row.modelEvidence?.kind==='terrain-and-building-model-los')result.add('road');
- if(!result.size&&ports.placeContext?.peek(positionPlace(row))?.kind==='road')result.add('road');
+ if(!result.size){const context=ports.placeContext?.peek(positionPlace(row));for(const kind of context?.kinds||[context?.kind])if(kind&&kind!=='unknown'&&Object.hasOwn(names,kind))result.add(kind);}
  return result.size?[...result].sort((a,b)=>Object.keys(names).indexOf(a)-Object.keys(names).indexOf(b)):['unknown'];
 }
 function accepts(row,time,kind,types,events){return (kind==='all'||types.includes(kind))&&(time==='all'||Number.isFinite(row.event?.at)&&!!events?.some(e=>e.kind===time&&Math.abs(row.event.at-e.at)<=3600000));}
@@ -254,7 +255,7 @@ function recordedPlan(row,plan={}){
 }
 const recordedHeightScope=(row,targetId=null)=>JSON.stringify([row.sourcePlaceId??row.place.sourcePlaceId??row.place.id,row.target?.id??targetId]);
 function recordedRow(raw,rows,labels,heights=null,targetId=null){
- const labelled=globalThis.AstroNotesCandidateLabels?.enrich(raw,labels)||raw;
+ const projected={...raw,place:positionPlace(raw)},labelled=globalThis.AstroNotesCandidateLabels?.enrich(projected,labels)||projected;
  const row={...labelled,place:{...labelled.place,name:raw.place.name,subtitle:labelled.place.subtitle||raw.place.subtitle||''},record:raw.record||{},quality:{...raw.quality}};
  if(!Number.isFinite(row.quality.targetAngleDeg)&&Number.isFinite(row.event.targetAltitude))row.quality.targetAngleDeg=row.event.targetAltitude;
  const source=raw.sourcePlaceId??raw.place.sourcePlaceId??raw.place.id,eye=raw.assumedObserver?.eyeM??raw.place.standAglM??raw.place.eyeHeightAGL;
