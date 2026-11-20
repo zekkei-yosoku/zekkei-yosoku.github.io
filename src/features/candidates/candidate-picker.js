@@ -146,7 +146,7 @@ const groups=new Map(),windows=new Map(),boundNodes=new WeakSet();
 let control=null,list=null,scope='',filterScope='',revision=AstroNotesLibrary.gate(),loadLabels=async()=>({}),ports={},time='all',kind='all',sort='time';
 let visibleEntries=[],selectedId=null,mapPanel=null,mapInstance=null,mapMode=false,mapHits=[],mapScroll=null,mapFitPending=false,suspendedView=null;
 let compactMode=false,refinementOpen=false;
-const columns='minmax(0,1fr) 50px 64px 40px';
+const columns='minmax(0,1fr) 50px 64px 70px';
 const refinementIcon='<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+
  '<path d="M4 7h6m4 0h6M4 12h10m4 0h2M4 17h2m4 0h10"/><circle cx="12" cy="7" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="8" cy="17" r="2"/></svg>';
 const sortOptions=[['time','早い時刻順'],['time-desc','遅い時刻順'],['recommended','おすすめ順'],['name','地点名順'],['name-desc','地点名の逆順'],
@@ -311,7 +311,28 @@ async function renderRecorded(box,rows,plan,{select,current=()=>true,context=fal
  return selected.length;
 }
 
+const angleMarkup=new WeakMap();
+function renderCandidateAngle(cell,angle,compact){
+ const known=Number.isFinite(angle),rounded=Math.round(angle),degrees=Math.abs(rounded);
+ const direction=known?(degrees?(rounded<0?'down':'up'):'level'):'unknown';
+ const label=direction==='level'?'水平':direction==='down'?'俯角':'仰角';
+ let icon=cell.querySelector('[data-angle-icon]'),text=cell.querySelector('[data-angle-label]');
+ if(!text){
+  cell.setAttribute('role','img');
+  icon=document.createElement('span');icon.dataset.angleIcon='';icon.setAttribute('aria-hidden','true');
+  text=document.createElement('span');text.dataset.angleLabel='';cell.replaceChildren(icon,text);
+ }
+ const markup=known?ports.angleIcons?.[direction]||'':'';
+ if(angleMarkup.get(icon)!==markup){icon.innerHTML=markup;angleMarkup.set(icon,markup);}
+ icon.hidden=!markup;cell.hidden=compact&&!known;
+ const value=known?(compact?label+' '+degrees:rounded)+'°':'—';
+ if(text.textContent!==value)text.textContent=value;
+ const description=known?(degrees?'対象の'+label+' '+degrees+'度、水平より'+(direction==='down'?'下':'上')+'を見る角度':'対象は水平、0度'):'対象の角度 不明';
+ if(cell.getAttribute('aria-label')!==description)cell.setAttribute('aria-label',description);
+}
 function formatRow(node,row,types,plan,compact=compactMode){
+ // A registered row may move between hosts. Its existing DOM owns its layout.
+ if(node.hasAttribute('data-candidate-columns'))compact=!!node.querySelector('[data-candidate-meta]');
  if(!node.hasAttribute('data-candidate-columns')){
   const notes=[...node.querySelectorAll('.sub-line')].filter(n=>!n.hasAttribute('data-place-kind')).map(n=>n.textContent.replace(/^\d{2}:\d{2}・/,'').replace(/ · \d{2}:\d{2}/,''));
   node.replaceChildren();node.dataset.candidateColumns='';
@@ -329,13 +350,7 @@ function formatRow(node,row,types,plan,compact=compactMode){
  node.querySelector('[data-place-kind]').textContent=types.map(t=>names[t]).join('・');
  node.querySelector('[data-candidate-time]').textContent=candidateTimeText(row);
  const angleCell=node.querySelector('[data-candidate-angle]');
- if(angleCell){
-  const angle=angleOf(row),known=Number.isFinite(angle),rounded=Math.round(angle),degrees=Math.abs(rounded);
-  const label=!degrees?'水平':angle<0?'俯角':'仰角';
-  angleCell.hidden=compact&&!known;
-  angleCell.textContent=known?(compact?label+' '+degrees:rounded)+'°':'—';
-  angleCell.setAttribute('aria-label',known?(degrees?'対象の'+label+' '+degrees+'度':'対象は水平、0度'):'対象の角度 不明');
- }
+ if(angleCell)renderCandidateAngle(angleCell,angleOf(row),compact);
  const location=locationText(row);let address=node.querySelector('[data-candidate-address]');
  if(location){
   if(!address){address=document.createElement('span');address.dataset.candidateAddress='';address.className='tiny sub-line';Object.assign(address.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});

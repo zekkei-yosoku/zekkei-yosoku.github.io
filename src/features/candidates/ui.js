@@ -74,6 +74,7 @@ const recordedPlaceContext=AstroNotesCandidateLabels.createRoadContext({fetchImp
  loadFacilities:async p=>{try{if(!osmPlaces)throw Error('facility-data-unavailable');return AstroNotesCandidateDiscovery.createPlaceProvider.parseElements(await osmPlaces.elementsIn([p.longitude,p.latitude,p.longitude,p.latitude]));}
   catch(e){globalThis.AstroNotesErrors?.note('candidates.facilities',e);throw e;}}});
 AstroNotesCandidatePicker.configure({loadLabels,createMapView,filterKey,alignmentText:(t,v)=>MyPlacesUI.alignmentText(t,v),bodyName:id=>AstroNotesBodies.definition(id)?.name||id,mapIcon:UI_ICONS.map,
+ angleIcons:{up:UI_ICONS.angleUp,down:UI_ICONS.angleDown,level:UI_ICONS.angleLevel},
  geometryFrom:(...args)=>AstroNotesAlign.geometryFrom(...args),isMountain:t=>aimIsMountain(t),geometryKey:()=>AstroNotesAtmosphere.targetK(),
  placeContext:recordedPlaceContext,
  getScroller:()=>mainWorkspace()?.scroller(),getReturnScroll:()=>mainWorkspace()?.returnScroll?.(),

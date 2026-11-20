@@ -1,5 +1,5 @@
 // Isolated real-browser presentation checks; map port is instrumented, no app/API traffic.
-const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict'),path=require('node:path');
+const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict'),path=require('node:path'),fs=require('node:fs');
 (async()=>{
  for(const [name,type]of [['chrome',chromium],['webkit',webkit]]){
   const browser=await type.launch(name==='chrome'?{channel:'chrome',headless:true}:{headless:true});
@@ -77,6 +77,40 @@ const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict
     return {painted,staleRejected,reused,enhanced,calls,unchanged:JSON.stringify(a)===before};
    });
    assert.deepEqual(contextResult,{painted:true,staleRejected:true,reused:true,enhanced:true,calls:2,unchanged:true});
+   const primitives=fs.readFileSync(path.resolve(__dirname,'../src/ui/visual-primitives.js'),'utf8');
+   await page.addScriptTag({content:primitives.slice(0,primitives.indexOf('// E185'))});
+   const layouts=await page.evaluate(async()=>{
+    const panel=document.getElementById('recentCandidates'),wrap=document.createElement('div');panel.before(wrap);wrap.append(panel);
+    AstroNotesCandidatePicker.configure({placeContext:null,angleIcons:{up:UI_ICONS.angleUp,down:UI_ICONS.angleDown,level:UI_ICONS.angleLevel}});
+    const output=[];
+    for(const [rowCompact,panelCompact]of [[true,false],[false,true]]){
+     AstroNotesCandidatePicker.reset();wrap.id=panelCompact?'exploreNewPlaces':'';
+     const cache=new Map(),waiting=[];let readReady=null;
+     const key=p=>p.latitude+','+p.longitude;
+     AstroNotesCandidatePicker.configure({placeContext:{peek:p=>cache.get(key(p)),read:p=>new Promise(resolve=>{waiting.push({p,resolve});readReady?.();readReady=null;})}});
+     const host=document.getElementById('registered');host.replaceChildren();
+     const rows=[6,0,null].map((a,i)=>({place:{id:'layout-'+i,name:'Layout '+i,latitude:35.6+i*.01,longitude:139.8},quality:{targetAngleDeg:a},event:{at:testPlan.at+i*60000}}));
+     await AstroNotesCandidatePicker.renderRecorded(host,rows,testPlan,{compact:rowCompact,aggregate:false,select(){}});
+     const original=host.querySelector('button'),label=original.querySelector('[data-angle-label]'),svg=original.querySelector('[data-angle-icon] svg');
+     await AstroNotesCandidatePicker.registerRegistered(host,rows,testPlan,()=>true);
+     for(let i=0;i<rows.length;i++){
+      if(!waiting.length)await new Promise(resolve=>readReady=resolve);
+      const w=waiting.shift(),value={kind:'road'};cache.set(key(w.p),value);w.resolve(value);
+     }
+     await new Promise(resolve=>setTimeout(resolve,0));
+     original.focus();await AstroNotesCandidatePicker.apply();
+     const list=document.getElementById('candidateUnifiedResults');
+     output.push({rowCompact,texts:[...list.querySelectorAll('[data-candidate-angle]')].map(c=>c.textContent),
+      hidden:[...list.querySelectorAll('[data-candidate-angle]')].map(c=>c.hidden),glyphs:[...list.querySelectorAll('[data-angle-icon] svg')].map(s=>s.dataset.pictogram),
+      kinds:[...list.querySelectorAll('[data-place-kind]')].map(c=>c.textContent),
+      stable:original===list.querySelector('button')&&label===original.querySelector('[data-angle-label]')&&svg===original.querySelector('[data-angle-icon] svg')&&document.activeElement===original});
+    }
+    return output;
+   });
+   assert.deepEqual(layouts.map(r=>r.texts),[['仰角 6°','水平 0°','—'],['6°','0°','—']]);
+   assert.deepEqual(layouts.map(r=>r.hidden),[[false,false,true],[false,false,false]]);
+   assert(layouts.every(r=>r.stable&&r.glyphs.join()==='angle-up,angle-level'));
+   assert(layouts.every(r=>r.kinds.every(k=>k==='道路・歩道')));
    assert.deepEqual(errors,[]);console.log(name+': unified ranking, sort, filter, map, exact selection, stale generation, data immutability passed');
   }finally{await browser.close();}
  }

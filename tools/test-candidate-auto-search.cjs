@@ -68,7 +68,44 @@ const grants=['records','tower','diamond','pearl','skymap','multiscene'];
    const angleCells=p.locator('#candidateUnifiedResults [data-candidate-angle]');
    assert.deepEqual((await angleCells.allTextContents()).sort(),['仰角 6°','俯角 2°','水平 0°'].sort());
    assert.deepEqual((await angleCells.evaluateAll(cells=>cells.map(cell=>cell.getAttribute('aria-label')))).sort(),
-    ['対象の仰角 6度','対象の俯角 2度','対象は水平、0度'].sort());
+    ['対象の仰角 6度、水平より上を見る角度','対象の俯角 2度、水平より下を見る角度','対象は水平、0度'].sort());
+   assert.deepEqual((await angleCells.evaluateAll(cells=>cells.map(cell=>cell.querySelector('svg')?.dataset.pictogram))).sort(),
+    ['angle-up','angle-down','angle-level'].sort());
+   assert((await angleCells.first().ariaSnapshot()).includes('img "'+await angleCells.first().getAttribute('aria-label')+'"'));
+   // The displayed rounded value owns the glyph, including negative zero.
+   await p.evaluate(()=>{
+    const button=document.querySelector('#candidateUnifiedResults > button');
+    const row=AstroNotesCandidatePicker.visibleRows().find(r=>AstroNotesCandidatePicker.candidateKey(r)===button.dataset.candidateId);
+    if(!row)throw Error('No source row for the displayed angle fixture');
+    dateFixture.angleProbe={row,value:row.quality.targetAngleDeg,button,text:button.querySelector('[data-angle-label]')};button.focus();
+   });
+   for(const [value,text,direction]of [[6.1,'仰角 6°','up'],[6.2,'仰角 6°','up'],[.49,'水平 0°','level'],[-.49,'水平 0°','level'],[-.5,'水平 0°','level'],[.5,'仰角 1°','up'],[-.51,'俯角 1°','down'],[null,'—',null]]){
+    const state=await p.evaluate(async({value,direction})=>{
+     const a=dateFixture.angleProbe,old=a.button.querySelector('svg[data-pictogram^="angle-"]'),same=old?.dataset.pictogram==='angle-'+direction;
+     a.row.quality.targetAngleDeg=value;await AstroNotesCandidatePicker.apply();
+     const cell=a.button.querySelector('[data-candidate-angle]'),svg=cell.querySelector('svg');
+     return {text:cell.textContent,glyph:svg?.dataset.pictogram||null,hidden:cell.hidden,stableButton:a.button.parentElement?.id==='candidateUnifiedResults',
+      stableText:cell.querySelector('[data-angle-label]')===a.text,stableSvg:!same||svg===old,focused:a.button===document.activeElement,
+      width:svg?.getBoundingClientRect().width??null,decorative:!svg||cell.querySelector('[data-angle-icon]').getAttribute('aria-hidden')==='true'};
+    },{value,direction});
+    assert.equal(state.text,text);assert.equal(state.glyph,direction?'angle-'+direction:null);assert.equal(state.hidden,direction===null);
+    for(const k of ['stableButton','stableText','stableSvg','focused','decorative'])assert(state[k],k+' '+value);
+    if(direction)assert.equal(state.width,24);
+   }
+   await p.evaluate(async()=>{const a=dateFixture.angleProbe;a.row.quality.targetAngleDeg=a.value;await AstroNotesCandidatePicker.apply();});
+   // The existing four-column consumer keeps signed numbers and a dash for unknown.
+   const table=await p.evaluate(async()=>{
+    const host=document.createElement('div');host.style.width='280px';document.body.append(host);
+    try{
+     const base=dateFixture.angleProbe.row,rows=[6,-2,.49,null].map((angle,i)=>({...base,place:{...base.place,id:'angle-table-'+i},
+      event:{...base.event,at:base.event.at+i*60000,targetAltitude:angle},quality:{...base.quality,targetAngleDeg:angle}}));
+     await AstroNotesCandidatePicker.renderRecorded(host,rows,{}, {compact:false,aggregate:false,select(){}});
+     return [...host.querySelectorAll('[data-candidate-angle]')].map(c=>({text:c.textContent,glyph:c.querySelector('svg')?.dataset.pictogram||null,hidden:c.hidden,overflow:c.closest('button').scrollWidth>c.closest('button').clientWidth+1}));
+    }finally{host.remove();}
+   });
+   assert.deepEqual(table.map(r=>r.text),['6°','-2°','0°','—']);
+   assert.deepEqual(table.map(r=>r.glyph),['angle-up','angle-down','angle-level',null]);assert(table.every(r=>!r.hidden&&!r.overflow));
+   await angleCells.first().scrollIntoViewIfNeeded();await p.screenshot({path:out+'/'+engine+'-angle-glyphs.png'});
    await p.evaluate(()=>{dateFixture.extraOnCursor=null;});
    await p.evaluate(()=>dateFixture.holdCursor=7);await button.click();await waitHold();await p.locator('#skyMapNext').click();await state('候補を探す');
    await release();assert.equal(await progress.count(),0);assert.deepEqual(await shown(),[]);
@@ -87,7 +124,7 @@ const grants=['records','tower','diamond','pearl','skymap','multiscene'];
    await release();
    assert.equal(writes,0);assert.deepEqual(errors,[]);
    const version=await p.evaluate(()=>new URL([...document.scripts].find(s=>s.src.includes('astronotes-candidate-search.js')).src).searchParams.get('v'));
-   results.push({engine,width,theme,version,passed:true,compactProgressAndCancel:true,autoPages:[0,7],stalledCursorReportsRetry:true,manualCancelAndResume:true,retainedRowsSelectable:true,angleLabels:true,lateOldDateIgnored:true,writes,errors});fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log('PASS',engine,width,'automatic candidate search');
+   results.push({engine,width,theme,version,passed:true,compactProgressAndCancel:true,autoPages:[0,7],stalledCursorReportsRetry:true,manualCancelAndResume:true,retainedRowsSelectable:true,angleLabels:true,angleGlyphs:true,roundedZeroAndUnknown:true,stableAngleDom:true,fourColumnGlyphs:true,lateOldDateIgnored:true,writes,errors});fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log('PASS',engine,width,'automatic candidate search');
   }finally{await browser.close();}
  }
 })().catch(e=>{console.error(e);process.exitCode=1;});

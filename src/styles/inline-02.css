@@ -1130,6 +1130,9 @@
   .condition-clear svg{color:inherit}
   .record-candidate-moon{display:inline-block;margin-left:6px;white-space:nowrap;font-size:0.81rem;font-weight:400}
   .astro-icon{display:inline-block;width:1.15em;height:1.15em;vertical-align:-.18em;flex:none;color:var(--accent);overflow:visible}
+  [data-candidate-angle]{display:inline-flex;align-items:center;justify-content:flex-end;gap:4px}
+  [data-angle-icon]{display:inline-flex;flex:none;color:var(--accent)}
+  [data-angle-icon]>svg{display:block;width:24px;height:24px;flex:none}
   [data-pictogram="moon-phase"]{color:#dbe7f2}
 
   #aimView .aim-titlebar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}

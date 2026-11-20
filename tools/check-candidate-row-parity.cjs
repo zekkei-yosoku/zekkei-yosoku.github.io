@@ -23,15 +23,17 @@ module.exports=async function checkParity(page,ready,path){
   await page.locator('#recordOpportunityDate').fill('2028-03-02');await ready(page);
   const firstDay=await page.locator('#recordOpportunityDate').inputValue(),clock=await page.locator('#recordOpportunityList [data-opportunity-id]').first().getAttribute('data-opportunity-id');
   const dayAt=JSON.parse(clock)[1],before=await page.evaluate(()=>parityFixture.calls);
-  const read=selector=>page.locator(selector).evaluateAll(ns=>ns.map(n=>({...Object.fromEntries(['place','time','address','angle','passage','spatial'].map(k=>[k,n.querySelector('[data-candidate-'+k+']')?.textContent||''])),kind:n.querySelector('[data-place-kind]')?.textContent||''})));
+  const read=selector=>page.locator(selector).evaluateAll(ns=>ns.map(n=>({...Object.fromEntries(['place','time','address','angle','passage','spatial'].map(k=>[k,n.querySelector('[data-candidate-'+k+']')?.textContent||''])),kind:n.querySelector('[data-place-kind]')?.textContent||'',angleGlyph:n.querySelector('[data-angle-icon] svg')?.dataset.pictogram||'',angleHidden:n.querySelector('[data-candidate-angle]')?.hidden})));
   const notes=(await read('#recordOpportunityList [data-opportunity-id]')).slice(0,5);
   assert.equal(notes.length,5);assert.deepEqual(notes.map(r=>r.time),['01:00〜01:10','01:00〜01:10','02:00〜02:10','03:00','04:00〜04:05']);
   assert(notes.some(r=>r.spatial.includes('線上で移動')));assert(notes.some(r=>r.spatial.includes('範囲内で移動')));assert(notes.every(r=>r.passage==='先端付近を通過'));
+  assert(notes.every(r=>r.angleGlyph==='angle-up'&&!r.angleHidden));
   await page.screenshot({path:path+'-notes.png',fullPage:true});
   // Re-rendering a completed list retains the actual focused row and never solves again.
-  const first=page.locator('#recordOpportunityList [data-opportunity-id]').first();await first.evaluate(n=>{window.parityButton=n;n.focus();});
+  const first=page.locator('#recordOpportunityList [data-opportunity-id]').first();await first.evaluate(n=>{window.parityButton=n;parityFixture.angleSvg=n.querySelector('[data-angle-icon] svg');parityFixture.angleText=n.querySelector('[data-angle-label]');n.focus();});
   await page.evaluate(()=>MyPlacesUI.opportunities.render());await ready(page);
   assert(await first.evaluate(n=>n===parityButton&&n===document.activeElement));assert.equal(await page.evaluate(()=>parityFixture.calls),before);
+  assert(await first.evaluate(n=>n.querySelector('[data-angle-icon] svg')===parityFixture.angleSvg&&n.querySelector('[data-angle-label]')===parityFixture.angleText));
   await first.click();await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='preview');
   await page.locator('#exploreCandidatePositions').waitFor({state:'visible'});
   assert.equal(await page.locator('#exploreCandidatePosition optgroup[label="すべての撮影位置"] option').count(),2);
@@ -53,6 +55,6 @@ module.exports=async function checkParity(page,ready,path){
   await page.screenshot({path:path+'-explore.png',fullPage:true});
   await page.evaluate(()=>navigationHistory.pushRoute('#/records'));await ready(page);
   assert(await page.locator('#recordOpportunityList [data-opportunity-id]').count()>0);
-  return {sharedFields:true,lineAndAreaRanges:true,separateRuns:true,separateHeights:true,point:true,notesPositionChoices:true,return:true,stableButton:true,noExtraSolve:true};
+  return {sharedFields:true,angleGlyphs:true,stableAngleDom:true,lineAndAreaRanges:true,separateRuns:true,separateHeights:true,point:true,notesPositionChoices:true,return:true,stableButton:true,noExtraSolve:true};
  }finally{await page.evaluate(()=>{parityFixture.frame.AstroNotesShooting.candidates=parityFixture.solver;MyPlacesUI.discoveryPoints=parityFixture.points;MyPlacesUI.discoverySearch=parityFixture.search;});}
 };

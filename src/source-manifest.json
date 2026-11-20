@@ -2833,6 +2833,39 @@
             "count": 1
           }
         ]
+      },
+      {
+        "id": "candidate-angle",
+        "name": "候補一覧の角度と方向記号",
+        "owner": {
+          "path": "src/features/candidates/candidate-picker.js",
+          "symbol": "renderCandidateAngle"
+        },
+        "calls": [
+          "renderCandidateAngle"
+        ],
+        "surfaces": [
+          "EXPLORE 記録/新規",
+          "NOTES 重なる日",
+          "地点picker/候補sheet",
+          "記録地点詳細の線/範囲候補"
+        ],
+        "contract": "One rounded value determines the existing signed numeric table or elevation/depression/horizontal label and the B direction glyph. Rounded zero, including negative zero, is horizontal; unknown angles have no glyph. The UI_ICONS SVG constants are injected once through configure; the same row, text span and SVG survive same-direction rerenders. Icons are decorative, and the accessible label explains above/below horizontal. No ephemeris, terrain IO, saved fields or extra search. The legacy four-column header and rows share the wider angle column. Map bearing/elevation readouts retain their separate precision and purpose. A reused row takes its compact/numeric presentation from the actual existing row DOM, not a later host mode; register/apply and late context must not switch its label or unknown visibility. The composite angle has a named img role; its SVG is decorative.",
+        "checks": [
+          "tools/test-candidate-auto-search.cjs",
+          "tools/check-candidate-row-parity.cjs",
+          "tools/test-place-context-ui.cjs",
+          "tools/test-candidate-unified-ui.cjs",
+          "tools/check-trial-shape-planning.cjs",
+          "tools/test-record-candidate-moon.cjs"
+        ],
+        "consumers": [
+          {
+            "path": "src/features/candidates/candidate-picker.js",
+            "scope": "formatRow",
+            "count": 1
+          }
+        ]
       }
     ]
   }
