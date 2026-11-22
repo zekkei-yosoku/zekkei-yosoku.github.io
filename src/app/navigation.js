@@ -104,7 +104,9 @@ function applyRoute() {
   if (currentView === "list") listScrollY = window.scrollY;
   render();
   if (viewState.skyMap) SkyMapUI?.open();
-  if (predictionNeeded() && (predictionDirty || !AstroNotesPrediction.fresh(acceptedPrediction, place, Date.now()))) void load(false);
+  // Leaving cancels timers and marks the forecast dirty, so re-entry reloads it.
+  // Moving within a fresh forecast must keep the existing retry budget.
+  if (!predictionNeeded() || predictionDirty || !AstroNotesPrediction.fresh(acceptedPrediction, place, Date.now())) void load(false);
   // 2026-10-15 ユーザー「AstroNotesに切り替えたら一番上のタイトルも変えて。ロゴもある」。FramingとMap（メニューのAstroNotes）を開いている間は題名とマークをAstroNotesに
   const astroNotes = viewState.aim || viewState.skyMap;
   if (astroNotes) try { localStorage.setItem("sorami.astroLast", viewState.skyMap ? "skymap" : "aim"); } catch{/* 保存できない端末では覚えないだけ */}

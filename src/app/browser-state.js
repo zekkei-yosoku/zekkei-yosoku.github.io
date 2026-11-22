@@ -173,5 +173,5 @@ function createForecastRetry(run, maxAttempts = 3) {
   };
 }
 const extrasRetry = createForecastRetry(() => { extrasLoadedSeq = -1; kickExtras(); });
-export {SORTS,SkyMapUI,WIDE,aimCustomRequest,almanacDay,cleanFavorite,cleanSighting,extrasLoadedSeq,extrasRetry,favorites,nextAimCustomRequest,place,setAlmanacDay,setExtrasLoadedSeq,setSkyMapUI,
+export {SORTS,SkyMapUI,WIDE,aimCustomRequest,almanacDay,cleanFavorite,cleanSighting,createForecastRetry,extrasLoadedSeq,extrasRetry,favorites,nextAimCustomRequest,place,setAlmanacDay,setExtrasLoadedSeq,setSkyMapUI,
 sightings,store,viewState};

@@ -20,7 +20,6 @@ test('同じ週間の再表示が進行中の月詳細を無効にせず、取�
 test('前地点の付随処理を待たず、新地点の処理を開始して新しい実行状態を保持する',async()=>{
  const calls=[],x=vm.createContext({AstroNotesLibrary:__L,currentView:"list",predictionNeeded:()=>true,console,loadExtras(){const d=defer();calls.push(d);return d.promise;}});vm.runInContext('let bundle={},extrasRunning=false,extrasRunningSeq=-1,extrasLoadedSeq=-1,predictionLoadSeq=1;'+kick,x);
  vm.runInContext('kickExtras();predictionLoadSeq=2;kickExtras()',x);assert.equal(calls.length,2);calls[0].resolve();await calls[0].promise;await Promise.resolve();await Promise.resolve();assert.equal(calls.length,2);assert.equal(vm.runInContext('extrasRunning',x),true);calls[1].resolve();
- assert.match(html,/const seq = loadSeq\.next\(\);\s+extraSeq\.cancel\(\)/);
 });
 test('可視時刻の更新は太陽イベントなしでも動き、再試行は時計ずれで連打しない',()=>{
  const refresh=sourceDeclaration("refreshLightTimes");

@@ -15,8 +15,8 @@
 <meta name="shape-tower" content="astronotes-tower-models.js?v=18096173220502742430">
 <meta name="shape-surface-integrity" content="sha256-KIoZP+4Nov6SYNEncGT6DRAzPZrVahtxa7scLtTCLcM=">
 <meta name="shape-surface" content="astronotes-scene-hulls.js?v=2921175070670693118">
-<meta name="app-version" content="2588977808722582926">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-56jmg3BuQK9ZbzaCr6EG5R+se0UIaJmcbxe0qnaV8D0=' 'sha256-XnkxL+31Hx09oZeO9sriA/FwZyogJfEg5OgDo5tTME0=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-3aqQZX8IQkUlp/qONqloHEMbgT71GAN+S26rGANOiKw=' 'sha256-o8qxPJ2Rfhldd8+nmFPf9eYEPcQKKO5R3Z8LbO3wDfA=' 'sha256-6v19k+3xEUvgWhnv8RFjCg6ceV74vHZTvmBpSDtlPvg=' 'sha256-9g72QbUO9OBEGMml0JT2y80Bv2ZDARdRMBY5xUI1M04=' 'sha256-OJlkVP9hufrghSR3MJ27wX9WVke/fnQnW0IaBWJlsM8=' 'sha256-PXfRim6e5oUuXkRxfWkVR4w8BPzm/BAMc94/yPcXf0M=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://data.source.coop https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787 https://api.openstreetmap.org; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="17247709883501217937">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-56jmg3BuQK9ZbzaCr6EG5R+se0UIaJmcbxe0qnaV8D0=' 'sha256-XnkxL+31Hx09oZeO9sriA/FwZyogJfEg5OgDo5tTME0=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-Hw8P3STO2KsLgadNXdAPVRqpy65HIEdXsyAG964P+3o=' 'sha256-o8qxPJ2Rfhldd8+nmFPf9eYEPcQKKO5R3Z8LbO3wDfA=' 'sha256-6v19k+3xEUvgWhnv8RFjCg6ceV74vHZTvmBpSDtlPvg=' 'sha256-9g72QbUO9OBEGMml0JT2y80Bv2ZDARdRMBY5xUI1M04=' 'sha256-OJlkVP9hufrghSR3MJ27wX9WVke/fnQnW0IaBWJlsM8=' 'sha256-PXfRim6e5oUuXkRxfWkVR4w8BPzm/BAMc94/yPcXf0M=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://data.source.coop https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787 https://api.openstreetmap.org; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=17512682572335991690">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -3248,20 +3248,40 @@ function renderPredictionProgress(progress,seq){
  else{bar.setAttribute('data-indeterminate','');bar.removeAttribute('aria-valuenow');}
 }
 let loadSeq = AstroNotesLibrary.gate();         // 連続で地点や地形を変えたとき、古い応答を捨てるための連番
-async function load(force) {
+let predictionRetryContext = null;
+const predictionRetry = createForecastRetry(() => {
+  const retry = predictionRetryContext;
+  if (!retry || !loadSeq.current(retry.seq) || predictionKeyFor(place) !== retry.key || !predictionNeeded()) {
+    predictionRetry.reset(); predictionRetryContext = null; return;
+  }
+  void load(false, retry);
+});
+async function load(force, retry = null) {
   const requestKey = predictionKeyFor(place);
+  // Only the timer for this forecast generation can continue its retry budget.
+  if (retry && (retry !== predictionRetryContext || !loadSeq.current(retry.seq) || retry.key !== requestKey)) return;
   if (acceptedPrediction && predictionKeyFor(acceptedPrediction.place) !== requestKey) {
     bundle = null; weeks = {}; forecastDays = []; predictionPlace = null; acceptedPrediction = null;
+    $("predictionDataNotice").hidden = true; $("predictionDataNotice").innerHTML = '';
   }
   if (!predictionNeeded()) {
     loadSeq.cancel(); extraSeq.cancel(); extrasRetry.reset(); activePredictionKey = null; predictionDirty = true;
+    predictionRetry.reset(); predictionRetryContext = null;
     return;
   }
   if (activePredictionKey === requestKey) return;
+  // applyRoute() runs again after each accepted DTO. Its pending-load guard above
+  // must win before resetting, or a partial automatic retry gets a fresh budget.
+  if (!retry) predictionRetry.reset();
   activePredictionKey = requestKey;
   predictionDirty = true;
   const seq = loadSeq.next();
-  extraSeq.cancel(); extrasRetry.reset();
+  // The accepted same-place forecast remains on screen during a refresh. Its
+  // Moon/Fuji work still belongs to it, even if the new main request fails.
+  const preserveExtras = bundle && predictionPlace && predictionKeyFor(predictionPlace) === requestKey;
+  if (!preserveExtras) { extraSeq.cancel(); extrasRetry.reset(); }
+  predictionRetryContext = { seq, key: requestKey };
+  const current = () => loadSeq.current(seq) && predictionNeeded() && predictionKeyFor(place) === requestKey;
   const forPlace = place;   // 取得開始時の地点で最後まで一貫して評価する
   $("status").hidden = false;
   // 実際の取得・計算の完了項目数を表示。残り時間の推定％は使わない。
@@ -3273,26 +3293,41 @@ async function load(force) {
   try {
     // 光害はその地点の素質なので予報と並行に取得する。取れなくても致命的ではない。
     const prediction = await AstroNotesPrediction.fetch(forPlace,S,{onProgress:progress=>renderPredictionProgress(progress,seq)});
-    if (!loadSeq.current(seq)) return;
+    if (!current()) return;
+    // Retire old extras only when replacing their forecast. The new accepted
+    // generation lets kickExtras start once without waiting for the old job.
+    extraSeq.cancel(); extrasRetry.reset();
     predictionDirty = false; acceptedPrediction = prediction;
     bundle = prediction.bundle;
     S.setTimezoneOffset(bundle.utcOffsetSeconds);
     forPlace.lightPollution = prediction.lightPollution;
     const notice = $("predictionDataNotice");
-    notice.hidden = !prediction.warnings?.lightPollution;
-    notice.innerHTML = prediction.warnings?.lightPollution ? '星空の光害データを取得できませんでした。<button class="fav-btn" type="button">再取得</button>' : '';
+    const warnings = [];
+    if (prediction.warnings?.sunward) warnings.push('太陽方向の予報を一部取得できませんでした。');
+    if (prediction.warnings?.lightPollution) warnings.push('星空の光害データを取得できませんでした。');
+    notice.hidden = !warnings.length;
+    notice.innerHTML = warnings.length ? warnings.join('<br>') + '<button class="fav-btn" type="button">再取得</button>' : '';
     if (!notice.hidden) notice.querySelector('button').onclick = () => load(true);
     weeks = prediction.weeks;
     forecastDays = prediction.days || [];
     predictionPlace = prediction.place;
     predictionLoadSeq = seq;
     keepRounds(forPlace);
+    if (Number.isFinite(prediction.retryAt)) predictionRetry.schedule(prediction.retryAt - prediction.asOf);
+    else { predictionRetry.reset(); predictionRetryContext = null; }
     $("status").hidden = true;
     // 予報が揃ってから URL の場所を反映する。詳細のURLを直接開いた場合も
     // ここで初めてその現象を描ける。
     applyRoute();
   } catch (e) {
-    if (!loadSeq.current(seq)) return;
+    if (!current()) return;
+    // A retained forecast is still the accepted state. Internal navigation must
+    // not turn a failed refresh into a new manual attempt and reset its budget.
+    // TTL expiry remains the client's fresh() decision; a first load stays dirty.
+    if (preserveExtras) predictionDirty = false;
+    // A transient failure after a partial DTO still gets the remaining attempts.
+    // Keep the accepted forecast and its pre-event records while waiting.
+    if (retry) predictionRetry.schedule();
     $("status").hidden = false;
     // **短く書いて、押すものを大きく出す。** 以前は API の英語の理由をそのまま
     // 括弧に入れて出し（"Minutely API request limit exceeded..."）、再試行は
@@ -3306,12 +3341,7 @@ async function load(force) {
       + `${navigator.onLine === false ? "通信が切れているようです" : "予測に失敗しました"}</p>`
       + `<button id="retry" class="fav-btn primary">再試行</button>`;
     $("retry").onclick = () => load(true);
-    // 予測を使わない画面（天体・飛行機・ISS・記録・管理）は、取れなくてもURLどおり開く。
-    // 起動時の画面切替を予測の成功後にしか行っておらず、一時的な取得失敗で一覧に止まり、
-    // 地点名も「…」のままだった（2026-10-05 iOS 27 の総点検で確認）。
-    const route = routeFromHash();
-    if (!bundle && route && !route.id) applyRoute();
-    else $("placeName").textContent = place.name;
+    $("placeName").textContent = place.name;
   } finally {
     if (loadSeq.current(seq)) activePredictionKey = null;
   }
@@ -4867,7 +4897,9 @@ function applyRoute() {
   if (currentView === "list") listScrollY = window.scrollY;
   render();
   if (viewState.skyMap) SkyMapUI?.open();
-  if (predictionNeeded() && (predictionDirty || !AstroNotesPrediction.fresh(acceptedPrediction, place, Date.now()))) void load(false);
+  // Leaving cancels timers and marks the forecast dirty, so re-entry reloads it.
+  // Moving within a fresh forecast must keep the existing retry budget.
+  if (!predictionNeeded() || predictionDirty || !AstroNotesPrediction.fresh(acceptedPrediction, place, Date.now())) void load(false);
   // 2026-10-15 ユーザー「AstroNotesに切り替えたら一番上のタイトルも変えて。ロゴもある」。FramingとMap（メニューのAstroNotes）を開いている間は題名とマークをAstroNotesに
   const astroNotes = viewState.aim || viewState.skyMap;
   if (astroNotes) try { localStorage.setItem("sorami.astroLast", viewState.skyMap ? "skymap" : "aim"); } catch{/* 保存できない端末では覚えないだけ */}

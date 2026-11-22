@@ -1827,7 +1827,12 @@ ok(/id: `geo:\$\{pos\.coords\.latitude\.toFixed\(4\)\}/.test(html), "現在地�
 console.log("== 予報の応答が追い越しても混ざらない ==");
 // 連続で地点や地形を変えると、応答の順序は要求の順序と一致しない。
 ok(/let loadSeq = AstroNotesLibrary\.gate\(\)/.test(html) && /const seq = loadSeq\.next\(\)/.test(html), "取得に連番を振る");
-ok(/if \(!loadSeq\.current\(seq\)\) return;/.test(html), "追い越された応答を捨てる");
+const mainPredictionLoad = sourceDeclaration('load');
+// current は世代・画面・地点の複合guard。古い成功/失敗の実行順は
+// test-main-forecast-retry.mjs と test-loading.mjs で動作検査する。
+ok(/const current = \(\) => loadSeq\.current\(seq\) && predictionNeeded\(\) && predictionKeyFor\(place\) === requestKey;/.test(mainPredictionLoad)
+  && /await AstroNotesPrediction\.fetch\([^;]+;\s+if \(!current\(\)\) return;[\s\S]*?predictionDirty = false; acceptedPrediction = prediction;/.test(mainPredictionLoad),
+  "追い越された応答を捨てる");
 ok(/const forPlace = place;/.test(html) && /AstroNotesPrediction\.fetch\(forPlace(?:,|\))/.test(html),
   "取得開始時の観測条件でサーバーへ要求する");
 
@@ -2999,7 +3004,9 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
 }
 {
   // 今日の回の予測を残し、終わってから7日は写真なしで答えられる（2026-10-02 ユーザー「遡って記録とかできたら良い？」→「１も２もやろう」）
-  ok(/keepRounds\(forPlace\);\n    \$\("status"\)\.hidden = true;/.test(html), "予報を計算したら今日の回を残す");
+  // 再試行の予約処理が間に入っても、採用した予測を描画する前に保存する。
+  // 保存値・欠測除外・開始済み保護は下の実行検査と main retry の動作検査で守る。
+  ok(/weeks = prediction\.weeks;[\s\S]*?keepRounds\(forPlace\);[\s\S]*?\$\("status"\)\.hidden = true;[\s\S]*?applyRoute\(\);/.test(mainPredictionLoad), "予報を計算したら今日の回を残す");
   const C = req("./astronotes-core.js");
   const grab = (name) => { const i = html.indexOf(name); return html.slice(i, html.indexOf("\n}\n", i) + 2); };
   const src = [grab("function samePlaceAs"), 'const savedRoundClient={state:()=>({rounds:[]})};\n'+html.slice(html.indexOf("const ROUND_KEEP_MS"), html.indexOf("function findSighting"))].join("\n");

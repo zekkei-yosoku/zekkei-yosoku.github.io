@@ -1,5 +1,5 @@
 import {createRequire as __req} from 'node:module';const __L=__req(import.meta.url)('./astronotes-library.js'),__gate=(n=0)=>{const g=__L.gate();while(n-->0)g.cancel();return g;};
-import {sourceHtml} from './tools/test-source.mjs';
+import {sourceHtml,sourceDeclaration} from './tools/test-source.mjs';
 import {releaseProducts} from './tools/build-index.mjs';
 import vm from 'node:vm';
 import {createHash} from 'node:crypto';
@@ -80,5 +80,5 @@ test('validated access opens before sync; late sync refreshes favorites without 
 test('forecast requests are demand-driven, shared, and discarded after an unseen place change',async()=>{
  const vm=await import('node:vm'),html=sourceHtml(),start=html.indexOf('let predictionDirty = true'),end=html.indexOf('// アメダス実況',start),calls=[];let route={skymap:true};const nodes=new Map(),node=id=>{if(!nodes.has(id))nodes.set(id,{hidden:true,textContent:'',innerHTML:''});return nodes.get(id);};
  const c=vm.createContext({AstroNotesLibrary:__L,console,Date,JSON,place:{latitude:1,longitude:2},routeFromHash:()=>route,forecastSummary:null,extraSeq:__gate(),extrasRetry:{reset(){}},bundle:null,weeks:{},forecastDays:[],predictionPlace:null,predictionLoadSeq:0,S:{MODELS:[],setTimezoneOffset(){}},AstroNotesPrediction:{fetch:p=>new Promise(resolve=>calls.push({p,resolve}))},$:node,renderSkeleton:()=>'',keepRounds(){},applyRoute(){},ensureNowcast(){},navigator:{onLine:true}});
- vm.runInContext(html.slice(start,end),c);await c.load(false);assert.equal(calls.length,0);route=null;const first=c.load(false);await c.load(false);assert.equal(calls.length,1);route={skymap:true};c.place={latitude:3,longitude:4};await c.load(true);calls[0].resolve({bundle:{utcOffsetSeconds:0},place:calls[0].p,weeks:{}});await first;assert.equal(c.bundle,null,'late result cannot relabel another location');route=null;const next=c.load(false);assert.equal(calls.length,2);calls[1].resolve({bundle:{utcOffsetSeconds:0},place:calls[1].p,weeks:{}});await next;assert.equal(c.predictionPlace.latitude,3);
+ vm.runInContext(sourceDeclaration('createForecastRetry')+'\n'+html.slice(start,end),c);await c.load(false);assert.equal(calls.length,0);route=null;const first=c.load(false);await c.load(false);assert.equal(calls.length,1);route={skymap:true};c.place={latitude:3,longitude:4};await c.load(true);calls[0].resolve({bundle:{utcOffsetSeconds:0},place:calls[0].p,weeks:{}});await first;assert.equal(c.bundle,null,'late result cannot relabel another location');route=null;const next=c.load(false);assert.equal(calls.length,2);calls[1].resolve({bundle:{utcOffsetSeconds:0},place:calls[1].p,weeks:{}});await next;assert.equal(c.predictionPlace.latitude,3);
 });
