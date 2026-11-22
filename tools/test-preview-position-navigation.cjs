@@ -7,7 +7,7 @@ const ready=page=>page.waitForFunction(()=>{const h=document.getElementById('aim
 (async()=>{const results=[];for(const [engine,type] of [['chrome',chromium],['webkit',webkit]].filter(([n])=>(process.env.POSITION_NAV_ENGINES||'chrome,webkit').split(',').includes(n))){
  const browser=await type.launch(engine==='chrome'?{channel:'chrome',headless:true}:{headless:true});
  try{for(const width of (process.env.POSITION_NAV_WIDTHS||'320,390').split(',').map(Number)){
-  const context=await browser.newContext({viewport:{width,height:844},locale:'ja-JP',timezoneId:'Asia/Tokyo',colorScheme:engine==='chrome'?'light':'dark',reducedMotion:'reduce'});let writes=0;
+  const context=await browser.newContext({viewport:{width,height:844},locale:'ja-JP',timezoneId:'Asia/Tokyo',colorScheme:engine==='chrome'?'light':'dark',reducedMotion:'reduce',hasTouch:process.env.POSITION_NAV_TOUCH==='1'});let writes=0;
   await context.addInitScript(fixture,grants);await context.addInitScript(()=>dateFixture.positionDemo=true);
   await context.route('**/*',r=>{const u=new URL(r.request().url());if(u.origin===new URL(base).origin)return r.continue();if(/zekkei-api|localhost:8787/.test(u.origin)){if(!['GET','OPTIONS'].includes(r.request().method()))writes++;return r.fulfill({json:{allowed:true,tool:'skymap',loginId:'date-test',tools:grants,favorites:[],sightings:[],records:[],rev:1}});}return r.abort();});
   const page=await context.newPage(),errors=[];page.setDefaultTimeout(25000);page.on('pageerror',e=>errors.push(e.message));
@@ -27,7 +27,7 @@ const ready=page=>page.waitForFunction(()=>{const h=document.getElementById('aim
    assert.equal(changed.latitude,35.6905);assert.equal(changed.eye,4);assert.equal(changed.at,AstroTime('2026-11-19T12:20:00+09:00'));assert.equal(changed.stage,'preview');assert(changed.bar);assert.equal(changed.loads,loads);
    await page.getByRole('button',{name:'前の撮影位置',exact:true}).click();await ready(page);assert(Math.abs(await page.evaluate(()=>SkyMapUI.selectionState().observer.latitude)-35.6904)<1e-10);
    await page.getByRole('button',{name:'次の撮影位置',exact:true}).click();await ready(page);assert.equal(await positions.inputValue(),deck.value);
-   const fineMovement=await require('./check-observer-movement.cjs')(page,{screenshot:out+'/'+engine+'-'+width+'-move-map.png'});
+   const fineMovement=await require('./check-observer-movement.cjs')(page,{touch:process.env.POSITION_NAV_TOUCH==='1',screenshot:out+'/'+engine+'-'+width+'-move-map.png'});
    await page.locator('#exploreConditions > summary .explore-condition-edit').click();await page.waitForFunction(()=>document.getElementById('exploreConditions').open);
    assert.equal(await page.locator('#skyMapView').getAttribute('data-explore-stage'),'preview');assert(await page.locator('#exploreScenePanel').isVisible());assert(await page.locator('#exploreFindPlaces').isVisible());assert((await page.locator('#exploreFindPlaces').boundingBox()).height>=44);assert.equal(await page.evaluate(()=>dateFixture.loads.length),loads);
    await page.screenshot({path:out+'/'+engine+'-'+width+'-conditions.png',fullPage:true});

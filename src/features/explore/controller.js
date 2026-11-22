@@ -168,9 +168,31 @@ new MutationObserver(()=>{const wide=observerMoveWrap.classList.contains('sky-ma
 const observerMoveGate=AstroNotesLibrary.gate();let observerMovement=null,observerMoveTimer=null,observerMovePending=null,applyingObserverMove=false,observerMoveMap=null,observerMoveMapSource='',observerMoveDraft=null,observerMoveMapHasOpened=false;
 let observerGuideKey='',observerGuides=[],observerGuideTimer=null;const observerGuideCache=new Map();
 let observerSurface=null,observerSurfaceKey='',observerSurfaceLoading=false,observerDraftGuide=null;const observerSurfaceGate=AstroNotesLibrary.gate();
+// Late guides must not move a pressed confirmation button before its native click.
+// Only presentation waits: keys, calculations and stale-guide guards remain current.
+function createObserverGuidePaint(){
+ const pointers=new Set();let pending=null,timer=null;
+ const flush=()=>{timer=null;if(pointers.size||!pending)return;const paint=pending;pending=null;paint();};
+ const schedule=()=>{if(timer===null)timer=setTimeout(flush,0);};
+ return {
+  paint(fn){pending=fn;if(!pointers.size&&timer===null)flush();},
+  hold(id){pointers.add(id);if(timer!==null)clearTimeout(timer);timer=null;},
+  release(id){if(pointers.delete(id)&&!pointers.size)schedule();},
+  releaseAll(){if(pointers.size){pointers.clear();schedule();}},
+  reset(){pointers.clear();pending=null;if(timer!==null)clearTimeout(timer);timer=null;}
+ };
+}
+const observerGuidePaint=createObserverGuidePaint();
+observerMoveCard.addEventListener('pointerdown',e=>observerGuidePaint.hold(e.pointerId),true);
+document.addEventListener('pointerup',e=>observerGuidePaint.release(e.pointerId),true);
+document.addEventListener('pointercancel',e=>observerGuidePaint.release(e.pointerId),true);
+window.addEventListener('blur',()=>observerGuidePaint.releaseAll());
+function paintObserverGuideMessage(text,current=()=>observerMoveSection.open&&active()){
+ observerGuidePaint.paint(()=>{if(!current())return;observerGuideButtons.replaceChildren();observerGuideNote.textContent=text;});
+}
 function clearObserverGuides(text){
- observerGuideKey='';observerGuides=[];observerDraftGuide=null;observerGuideButtons.replaceChildren();observerMoveSection.dataset.guideCount='0';
- if(observerGuideTimer!==null)clearTimeout(observerGuideTimer);observerGuideTimer=null;observerGuideNote.textContent=text;observerMoveMap?.redraw();
+ observerGuideKey='';observerGuides=[];observerDraftGuide=null;observerMoveSection.dataset.guideCount='0';
+ if(observerGuideTimer!==null)clearTimeout(observerGuideTimer);observerGuideTimer=null;paintObserverGuideMessage(text);observerMoveMap?.redraw();
 }
 function movementSeed(s){
  const row=previewPositions?.choices.find(c=>c.key===previewPositions.key)?.row;
@@ -199,7 +221,7 @@ function updateObserverGuides(s){
  const current=()=>observerMoveSection.open&&active()&&observerGuideKey===key;
  const compute=async()=>{
   observerGuideTimer=null;if(!current())return;
-  if(!Number.isFinite(ground)){observerGuideNote.textContent='地面の高さを確認できないため、目安を表示できません';return;}
+  if(!Number.isFinite(ground)){paintObserverGuideMessage('地面の高さを確認できないため、目安を表示できません',current);return;}
   let result=observerGuideCache.get(key);
   if(!result){
    const known=(previewPositions?.shortcuts||[]).filter(c=>{
@@ -207,13 +229,16 @@ function updateObserverGuides(s){
     return o&&Math.abs(c.row.event.at-s.at)<=2*3600000&&(p.standAglM??p.eyeHeightAGL??1.5)===eye;
    }).map(c=>({...AstroNotesCandidatePicker.positionPlace(c.row),label:c.label,partId:c.partId||c.row.event.partId||c.label,at:c.row.event.at,row:c.row,approximate:false}));
    try{result=await AstroNotesCandidatePicker.movementGuides({...s,target:{...s.target,parts:(s.target.parts||[]).filter(p=>!known.some(g=>g.partId===p.id))}},observerSurface,{groundM:ground,eyeM:eye,isCurrent:current});}
-   catch(e){if(current()){globalThis.AstroNotesErrors?.note('explore.map-guides',e);observerGuideNote.textContent='目安を計算できませんでした。地図を開き直してください';}return;}
+   catch(e){if(current()){globalThis.AstroNotesErrors?.note('explore.map-guides',e);paintObserverGuideMessage('目安を計算できませんでした。地図を開き直してください',current);}return;}
    if(!current())return;result={...result,guides:[...known,...result.guides]};observerGuideCache.set(key,result);if(observerGuideCache.size>8)observerGuideCache.delete(observerGuideCache.keys().next().value);
   }
   if(!current())return;observerGuides=result.guides.map(g=>({...g,requestAt:s.at,atmosphere:AstroNotesAtmosphere.dataKey()}));observerMoveSection.dataset.guideCount=String(observerGuides.length);
-  observerGuideNote.textContent=observerSurface.label+'の近く'+(observerGuides.length?' ・ 部位と時刻から選択（目安は地面を同じ高さと仮定）'+(result.partial?' ・ 一部の目安':''):result.partial?' ・ この付近の目安を一部確認しました':' ・ この付近では部位の目安を見つけられませんでした');
+  observerGuidePaint.paint(()=>{
+   if(!current())return;observerGuideButtons.replaceChildren();
+   observerGuideNote.textContent=observerSurface.label+'の近く'+(observerGuides.length?' ・ 部位と時刻から選択（目安は地面を同じ高さと仮定）'+(result.partial?' ・ 一部の目安':''):result.partial?' ・ この付近の目安を一部確認しました':' ・ この付近では部位の目安を見つけられませんでした');
   for(const guide of observerGuides){const clock=observerGuideTime(guide),b=node('button',{type:'button',className:'chip'},guide.label+' '+clock);b.dataset.partId=guide.partId;b.dataset.latitude=String(guide.latitude);b.dataset.longitude=String(guide.longitude);
    b.setAttribute('aria-label',guide.label+' '+clock+(guide.approximate?'の目安':'の候補')+'へ地図を移動');b.onclick=()=>{if(!current())return;observerDraftGuide=guide;observerMoveMap.setCenter(guide.latitude,guide.longitude);};observerGuideButtons.append(b);}
+  });
   observerMoveMap?.redraw();
  };
  observerGuideTimer=setTimeout(compute,120);observerMoveMap?.redraw();
@@ -222,7 +247,7 @@ function updateObserverGuides(s){
 const observerMoveContext=()=>JSON.stringify([auth?.loginId,accessState.generation,positionCondition(SkyMapUI.selectionState())]);
 function cancelObserverMoveLookup(){observerMoveGate.cancel();if(observerMoveTimer!==null)clearTimeout(observerMoveTimer);observerMoveTimer=null;observerMovePending=null;}
 function resetObserverMovement(close=true){
- cancelObserverMoveLookup();observerMovement=null;observerMoveMapSource='';observerMoveDraft=null;observerSurfaceKey='';observerSurface=null;observerSurfaceLoading=false;observerDraftGuide=null;
+ observerGuidePaint.reset();cancelObserverMoveLookup();observerMovement=null;observerMoveMapSource='';observerMoveDraft=null;observerSurfaceKey='';observerSurface=null;observerSurfaceLoading=false;observerDraftGuide=null;
  observerMoveUndo.hidden=true;
  if(close){observerMoveSection.open=false;observerMoveControls.hidden=true;observerMoveWrap._mapShell?.setWide(false);}
 }
@@ -345,11 +370,11 @@ observerMoveUndo.onclick=()=>{
  finally{applyingObserverMove=false;}observerMoveMapSource='';syncPositionNavigation();syncObserverMovement(SkyMapUI.selectionState());
 };
 observerMoveRetry.onclick=()=>{if(observerSurfaceLoading||!resultActive())return;observerSurfaceKey='';loadObserverSurface(SkyMapUI.selectionState(),true);syncObserverMovement(SkyMapUI.selectionState());};
-observerMoveSection.addEventListener('toggle',()=>{if(!observerMoveSection.open){cancelObserverMoveLookup();observerMoveMapSource='';observerMoveWrap._mapShell?.setWide(false);
+observerMoveSection.addEventListener('toggle',()=>{if(!observerMoveSection.open){observerGuidePaint.reset();cancelObserverMoveLookup();observerMoveMapSource='';observerMoveWrap._mapShell?.setWide(false);
  if(observerGuideTimer!==null)clearTimeout(observerGuideTimer);observerGuideTimer=null;observerGuideKey='';if(observerSurfaceLoading)observerSurfaceKey='';}syncObserverMovement(SkyMapUI.selectionState());});
 observerMoveControls.addEventListener('pointerdown',e=>e.stopPropagation());
 document.addEventListener('visibilitychange',()=>{
- if(document.hidden){cancelObserverMoveLookup();if(observerGuideTimer!==null)clearTimeout(observerGuideTimer);observerGuideTimer=null;observerGuideKey='';observerGuides=[];if(observerSurfaceLoading)observerSurfaceKey='';return;}
+ if(document.hidden){observerGuidePaint.reset();cancelObserverMoveLookup();if(observerGuideTimer!==null)clearTimeout(observerGuideTimer);observerGuideTimer=null;observerGuideKey='';observerGuides=[];if(observerSurfaceLoading)observerSurfaceKey='';return;}
  const s=SkyMapUI.selectionState();if(active()&&s?.observer&&s?.target)syncObserverMovement(s);
 });
 const mainSearchActive=()=>active()&&!resultRequested&&!selectionPending&&flowOwner===auth?.loginId&&flowGeneration===accessState.generation;

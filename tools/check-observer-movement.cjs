@@ -1,10 +1,38 @@
 const assert=require('node:assert/strict');
-module.exports=async function checkObserverMovement(page,{screenshot}={}){
+module.exports=async function checkObserverMovement(page,{screenshot,touch=false}={}){
  const ready=()=>page.waitForFunction(()=>{const s=SkyMapUI.selectionState(),h=document.getElementById('aimLook');return !!s?.observer&&!h.hidden&&Math.abs(h._lookAt-s.at)<1000&&Math.abs(h._lookSpec?.obs.latitude-s.observer.latitude)<1e-10;});
  const move=page.locator('#exploreObserverMove'),controls=page.locator('#exploreObserverMoveControls'),canvas=page.locator('#exploreObserverMoveCanvas'),apply=page.locator('#exploreObserverMoveApply');
  const open=async()=>{if(await move.getAttribute('open')===null)await move.locator('summary').click();await controls.waitFor({state:'visible'});await page.waitForFunction(()=>document.getElementById('exploreObserverMoveCanvas').width>0&&document.getElementById('exploreObserverMoveCoordinate').textContent.includes(',')&&document.getElementById('exploreObserverMove').dataset.onSurface==='true');};
  const drag=async(dx=45,dy=10)=>{await canvas.scrollIntoViewIfNeeded();const b=await canvas.boundingBox(),x=b.x+b.width*.5,y=b.y+b.height*.5;await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+dx,y+dy,{steps:8});await page.mouse.up();await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));await page.waitForFunction(()=>!document.getElementById('exploreObserverMoveApply').disabled);};
  const coordinate=()=>page.locator('#exploreObserverMoveCoordinate').innerText();
+ // The click may wait for scrolling/layout. Assert the coordinate actually shown
+ // when the native click arrives, before the application's handler consumes it.
+ const confirmShownCoordinate=async(confirm=()=>apply.click())=>{
+  await page.evaluate(()=>{
+   const f=observerMoveFixture,button=document.getElementById('exploreObserverMoveApply');
+   const rect=id=>{const b=document.getElementById(id).getBoundingClientRect();return {x:b.x,y:b.y,width:b.width,height:b.height};};
+   const snapshot=()=>{const s=SkyMapUI.selectionState();return {label:document.getElementById('exploreObserverMoveCoordinate').textContent,observer:s?.observer&&{latitude:s.observer.latitude,longitude:s.observer.longitude},at:s?.at,
+    open:document.getElementById('exploreObserverMove').open,disabled:button.disabled,applies:f.applies,groundCalls:f.calls.map(p=>({...p})),note:document.getElementById('exploreObserverMoveNote').textContent,
+    canvasRect:rect('exploreObserverMoveCanvas'),applyRect:rect('exploreObserverMoveApply')};};
+   const confirmation=f.confirmation={before:snapshot(),click:null,snapshot};
+   confirmation.capture=event=>{confirmation.click={...snapshot(),trusted:event.isTrusted};};
+   button.addEventListener('click',confirmation.capture,{capture:true,once:true});
+  });
+  try{
+   await confirm();
+   const click=await page.evaluate(()=>observerMoveFixture.confirmation.click);
+   assert(click?.trusted,'the native confirmation click must reach the button');
+   await page.waitForFunction(text=>{const p=SkyMapUI.selectionState().observer;return p.latitude.toFixed(6)+', '+p.longitude.toFixed(6)===text&&!document.getElementById('exploreObserverMove').open;},click.label);
+   assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().at),click.at,'a manual confirmation preserves its displayed time');
+   return click.label;
+  }catch(error){
+   const diagnostic=await page.evaluate(()=>{const c=observerMoveFixture.confirmation;return {before:c.before,click:c.click,final:c.snapshot()};}).catch(e=>({diagnosticError:String(e)}));
+   throw new Error('Observer confirmation failed: '+error.message+'\n'+JSON.stringify(diagnostic),{cause:error});
+  }finally{
+   await page.evaluate(()=>{const c=observerMoveFixture.confirmation;document.getElementById('exploreObserverMoveApply').removeEventListener('click',c.capture,true);});
+  }
+ };
+
  await page.evaluate(()=>{window.observerMoveFixture={ground:AstroNotesTerrain.groundElevation,apply:SkyMapUI.moveObserver,select:SkyMapUI.selectCandidate,surface:AstroNotesCandidatePicker.movementSurface,guides:AstroNotesCandidatePicker.movementGuides,guideCalls:0,calls:[],applies:0,mode:'ok',holds:[]};AstroNotesTerrain.groundElevation=async(latitude,longitude)=>{const f=observerMoveFixture;f.calls.push({latitude,longitude});if(f.mode==='hold')return new Promise(resolve=>f.holds.push(resolve));return f.mode==='fail'?NaN:40;};SkyMapUI.moveObserver=(...args)=>{observerMoveFixture.applies++;return observerMoveFixture.apply(...args);};AstroNotesCandidatePicker.movementSurface=async seed=>{const x=seed.longitude,y=seed.latitude;return {origin:{latitude:y,longitude:x},radiusM:600,label:'検証用の公園',geometry:{lines:[],polygons:[[[[x-.002,y-.002],[x+.002,y-.002],[x+.002,y+.002],[x-.002,y+.002],[x-.002,y-.002]]]]}};};AstroNotesCandidatePicker.movementGuides=async(s,domain)=>{observerMoveFixture.guideCalls++;return {partial:false,guides:s.target.parts.map((p,i)=>({partId:p.id,label:p.name.replace(/（[^）]*）/g,''),latitude:domain.origin.latitude+i*.0002,longitude:domain.origin.longitude+i*.0002,at:s.at-i*60000,approximate:true}))};};});
  try{
   await page.evaluate(()=>SkyMapUI.setTime(Date.parse('2026-11-19T12:20:00+09:00')));await ready();await open();await page.waitForFunction(()=>document.querySelectorAll('#exploreObserverGuides button').length===3);
@@ -29,7 +57,7 @@ module.exports=async function checkObserverMovement(page,{screenshot}={}){
   await page.locator('#exploreObserverMoveDone').click();await page.evaluate(()=>{AstroNotesCandidatePicker.movementGuides=observerMoveFixture.liveGuides;SkyMapUI.setTime(Date.parse('2026-11-19T14:27:00+09:00'));});await ready();await open();await page.waitForFunction(()=>document.querySelectorAll('#exploreObserverGuides button').length===3);assert.equal(await guides.count(),3,'an exception is not cached as no guide');
   const beforeGuide=await page.evaluate(()=>SkyMapUI.selectionState());await guides.filter({hasText:'天望デッキ'}).click();await page.waitForFunction(()=>document.getElementById('exploreObserverMoveApply').textContent.includes('時刻'));
   await apply.click();await page.waitForFunction(at=>SkyMapUI.selectionState().at===at,beforeGuide.at-120000);await ready();assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().at),beforeGuide.at-120000,'a nearby guide applies its displayed time');await open();await page.locator('#exploreObserverMoveUndo').click();await ready();assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().at),beforeGuide.at,'guide undo restores original time');await open();await page.waitForFunction(()=>document.querySelectorAll('#exploreObserverGuides button').length===3);
-  await page.evaluate(()=>SkyMapUI.setTime(SkyMapUI.selectionState().at+60000));await ready();await drag();const manualDestination=await coordinate();await apply.click();await page.waitForFunction(text=>{const p=SkyMapUI.selectionState().observer;return p.latitude.toFixed(6)+', '+p.longitude.toFixed(6)===text&&!document.getElementById('exploreObserverMove').open;},manualDestination);await ready();await open();await page.locator('#exploreObserverMoveUndo').click();await ready();assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().at),beforeGuide.at+60000,'a manual move after guide undo preserves a later user time');
+  await page.evaluate(()=>SkyMapUI.setTime(SkyMapUI.selectionState().at+60000));await ready();await drag();await confirmShownCoordinate();await ready();await open();await page.locator('#exploreObserverMoveUndo').click();await ready();assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().at),beforeGuide.at+60000,'a manual move after guide undo preserves a later user time');
   await page.evaluate(at=>SkyMapUI.setTime(at),beforeGuide.at);await ready();await open();await page.waitForFunction(()=>document.querySelectorAll('#exploreObserverGuides button').length===3);await page.evaluate(()=>{observerMoveFixture.calls=[];observerMoveFixture.applies=0;});
   if(screenshot)await page.screenshot({path:screenshot.replace('.png','-guides.png')});
   await guides.filter({hasText:'先端'}).click();await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
@@ -75,9 +103,53 @@ module.exports=async function checkObserverMovement(page,{screenshot}={}){
   await open();await page.evaluate(()=>observerMoveFixture.mode='hold');await drag();await apply.click();await page.waitForFunction(()=>observerMoveFixture.holds.length===3);
   await page.locator('#exploreBackToCandidates').click();await page.evaluate(()=>observerMoveFixture.holds[2](100));await page.waitForTimeout(150);assert.equal(await page.locator('#skyMapView').getAttribute('data-explore-stage'),'search');assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().at),Date.parse('2026-11-19T09:59:00+09:00'));
   await page.locator('#candidateUnifiedResults>.list-item:visible').first().click();await ready();await choice.selectOption(deck);await ready();
-  await open();await page.evaluate(()=>observerMoveFixture.mode='ok');await drag();const weatherDestination=await coordinate();await apply.click();await page.waitForFunction(text=>{const p=SkyMapUI.selectionState().observer;return p.latitude.toFixed(6)+', '+p.longitude.toFixed(6)===text&&!document.getElementById('exploreObserverMove').open;},weatherDestination);await ready();await open();
+  await open();await page.evaluate(()=>observerMoveFixture.mode='ok');await drag();await confirmShownCoordinate();await ready();await open();
   await page.evaluate(()=>{observerMoveFixture.airKey=AstroNotesAtmosphere.dataKey;AstroNotesAtmosphere.dataKey=()=>observerMoveFixture.airKey()+'/weather-arrived';TrialExplore.sync();});assert(await page.locator('#exploreObserverMoveUndo').isEnabled(),'weather arriving retains the movement origin');await page.evaluate(()=>AstroNotesAtmosphere.dataKey=observerMoveFixture.airKey);await page.locator('#exploreObserverMoveUndo').click();await ready();
   await page.evaluate(()=>SkyMapUI.setTime(Date.parse('2026-11-19T00:01:00+09:00')));await ready();await open();await page.waitForFunction(()=>document.querySelectorAll('#exploreObserverGuides button').length===3);const midnight=page.locator('#exploreObserverGuides button').filter({hasText:'天望デッキ'});assert((await midnight.innerText()).includes('前日 23:59'));await midnight.click();await apply.click();await page.waitForFunction(()=>SkyMapUI.selectionState().at===Date.parse('2026-11-18T23:59:00+09:00'));await ready();await open();await page.locator('#exploreObserverMoveUndo').click();await ready();assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().at),Date.parse('2026-11-19T00:01:00+09:00'));
-  return {mapDrag:true,mapPanComputesNothing:true,confirmAppliesCenter:true,timePreserved:true,eyePreserved:true,groundUpdated:true,staleElevationRejected:true,unknownElevationRejected:true,undoReusedGround:true,failedSwitchKeepsOrigin:true,leavingCancels:true,candidatesRetained:true,canvasAndTimeBarRetained:true};
+  // A visible old guide can survive until pointerup, but its old key must already
+  // be unusable if the time changes during the press.
+  await open();await page.waitForFunction(()=>document.querySelectorAll('#exploreObserverGuides button').length===3);
+  const staleGuide=guides.filter({hasText:'天望デッキ'});await staleGuide.scrollIntoViewIfNeeded();const staleBox=await staleGuide.boundingBox(),staleCoordinate=await coordinate();
+  assert.notEqual(await staleGuide.evaluate(b=>Number(b.dataset.latitude).toFixed(6)+', '+Number(b.dataset.longitude).toFixed(6)),staleCoordinate,'the stale guide would move the map without its current-key guard');
+  await page.mouse.move(staleBox.x+staleBox.width/2,staleBox.y+staleBox.height/2);await page.mouse.down();
+  try{const invalidated=await page.evaluate(()=>{SkyMapUI.setTime(SkyMapUI.selectionState().at+123000);TrialExplore.paintScrubTime();return {shown:document.getElementById('exploreObserverGuides').children.length,count:document.getElementById('exploreObserverMove').dataset.guideCount};});
+   assert.equal(invalidated.shown,3,'the pressed old guide remains in place until pointerup');assert.equal(invalidated.count,'0','old guides are logically invalidated immediately');
+  }finally{await page.mouse.up();}
+  await ready();await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  assert.equal(await coordinate(),staleCoordinate,'clicking a guide invalidated during its press cannot move the map');
+  // Resolve only the synthetic guide calculation while a real pointer is pressed.
+  // The guide state advances immediately, but neither normal nor fullscreen Apply
+  // may move before its native click. No event is dispatched to manufacture a click.
+  const lateGuidePress=[];
+  for(const wide of [false,true]){
+   await open();await page.waitForFunction(()=>document.querySelectorAll('#exploreObserverGuides button').length===3);
+   await page.evaluate(()=>{const f=observerMoveFixture;f.lateGuideOriginal=AstroNotesCandidatePicker.movementGuides;f.lateGuideHeld=false;f.lateGuideReleased=false;f.lateGuideUp=null;
+    AstroNotesCandidatePicker.movementGuides=(...args)=>new Promise(resolve=>{f.releaseGuide=()=>{if(f.lateGuideReleased)return;f.lateGuideReleased=true;resolve(f.lateGuideOriginal(...args));};f.lateGuideHeld=true;});
+    SkyMapUI.setTime(SkyMapUI.selectionState().at+123000);
+   });
+   try{
+    await ready();await page.waitForFunction(()=>observerMoveFixture.lateGuideHeld);await drag();
+    if(wide){await page.locator('#exploreObserverMoveMap>.sky-map-expand').click();await page.waitForFunction(()=>document.getElementById('exploreObserverMoveCard').parentElement.classList.contains('shared-map-footer'));}
+    await apply.scrollIntoViewIfNeeded();
+    await page.evaluate(()=>{const f=observerMoveFixture,b=document.getElementById('exploreObserverMoveApply');
+     const rect=()=>{const r=b.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};};
+     f.releaseGuideOnPress=()=>{f.lateGuideDown=rect();f.releaseGuide();};
+     f.readGuideOnUp=()=>{f.lateGuideUp={rect:rect(),count:document.getElementById('exploreObserverMove').dataset.guideCount,shown:document.getElementById('exploreObserverGuides').children.length};};
+     b.addEventListener('pointerdown',f.releaseGuideOnPress,{once:true});document.addEventListener('pointerup',f.readGuideOnUp,{capture:true,once:true});
+    });
+    const label=await confirmShownCoordinate(async()=>{
+     if(touch){await apply.tap();return;}
+     const b=await apply.boundingBox();await page.mouse.move(b.x+b.width/2,b.y+b.height/2);await page.mouse.down();
+     try{await page.waitForFunction(()=>observerMoveFixture.lateGuideReleased&&document.getElementById('exploreObserverMove').dataset.guideCount==='3');}
+     finally{await page.mouse.up();}
+    });
+    const press=await page.evaluate(()=>({down:observerMoveFixture.lateGuideDown,up:observerMoveFixture.lateGuideUp}));
+    assert.equal(press.up.count,'3','the late guide calculation completed during the press');assert.equal(press.up.shown,0,'late guide DOM waits until the native click finishes');
+    assert.deepEqual(press.up.rect,press.down,'guide arrival cannot move the pressed confirmation button');
+    lateGuidePress.push({wide,input:touch?'touch':'mouse',label,...press});
+    await ready();await open();await page.locator('#exploreObserverMoveUndo').click();await ready();
+   }finally{await page.evaluate(()=>{const f=observerMoveFixture;AstroNotesCandidatePicker.movementGuides=f.lateGuideOriginal;f.releaseGuide?.();document.getElementById('exploreObserverMoveApply').removeEventListener('pointerdown',f.releaseGuideOnPress);document.removeEventListener('pointerup',f.readGuideOnUp,true);});}
+  }
+  return {lateGuidePress,stalePressedGuideRejected:true,mapDrag:true,mapPanComputesNothing:true,confirmAppliesCenter:true,timePreserved:true,eyePreserved:true,groundUpdated:true,staleElevationRejected:true,unknownElevationRejected:true,undoReusedGround:true,failedSwitchKeepsOrigin:true,leavingCancels:true,candidatesRetained:true,canvasAndTimeBarRetained:true};
  }finally{await page.evaluate(()=>{AstroNotesTerrain.groundElevation=observerMoveFixture.ground;SkyMapUI.moveObserver=observerMoveFixture.apply;SkyMapUI.selectCandidate=observerMoveFixture.select;AstroNotesCandidatePicker.movementSurface=observerMoveFixture.surface;AstroNotesCandidatePicker.movementGuides=observerMoveFixture.guides;});}
 };
