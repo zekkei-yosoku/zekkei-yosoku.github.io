@@ -6584,13 +6584,17 @@ function clean(r) { return AstroNotesLibrary.cleanObservation(r); }
 function load() { const raw = store.get(key(), []); return Array.isArray(raw) ? raw.map(clean).filter(Boolean) : []; }
 const when = (r) => r.date ? Date.parse(r.date + 'T12:00:00+09:00') : r.createdAt;
 const placeOf = (id) => favorites.find((f) => f.id === id) || null;
+function newerRecord(r, best) {
+  return !best || (r.registration&&!best.registration) || (r.registration===best.registration && (when(r)>when(best) || (when(r)===when(best) && r.updatedAt>=best.updatedAt))) || (!r.registration&&!best.registration && (when(r)>when(best) || (when(r)===when(best) && r.updatedAt>=best.updatedAt)));
+}
+function currentRecord(best, here) {
+  if (best?.observer && here && (AstroNotesTerrain.distanceKm(here.latitude, here.longitude, best.observer.latitude, best.observer.longitude) >= NEAR_KM || Math.abs((here.eyeHeightAGL ?? 1.5) - best.observer.eyeHeightAGL) > 1)) return null;
+  return best?.registration && best.removed ? null : best || null;
+}
 function statusOf(placeId, targetKey, list = load()) {
   let best = null;
-  for (const r of list) if (r.placeId === placeId && r.target.key === targetKey && (!best || (r.registration&&!best.registration) || (r.registration===best.registration && (when(r) > when(best) || (when(r) === when(best) && r.updatedAt >= best.updatedAt))) || (!r.registration&&!best.registration&&
-  (when(r)>when(best)||(when(r)===when(best)&&r.updatedAt>=best.updatedAt))))) best = r;
-  const here = placeOf(placeId);
-  if (best?.observer && here && (AstroNotesTerrain.distanceKm(here.latitude, here.longitude, best.observer.latitude, best.observer.longitude) >= NEAR_KM || Math.abs((here.eyeHeightAGL ?? 1.5) - best.observer.eyeHeightAGL) > 1)) return null;
-  return best?.registration && best.removed ? null : best;
+  for (const r of list) if (r.placeId === placeId && r.target.key === targetKey && newerRecord(r, best)) best = r;
+  return currentRecord(best, placeOf(placeId));
 }
 const targetChoices = () => [...new Map([...aimTargetList(),...(sheetState?.targetDrafts||[]).map(x=>AstroNotesLibrary.targetFromFavorite(x.entry))].filter(t=>t.id!=='custom'&&finite(t.latitude)&&(t.parts||[]).length).map(t=>[t.id,t])).values()];
 const resolveTarget = (k) => targetChoices().find((t) => t.id === k) || null;
@@ -7554,8 +7558,9 @@ function geometryValid(key,value){
  if(key.startsWith('shp:'))return /^shp:[0-9a-f]{16}:\d{1,5}$/.test(key)&&recordShapeBlockValid(value)&&key.endsWith(':'+value.i0);
  return false;
 }
-async function solve(input){
- configure(input);const pair=input.input,day=Date.parse(input.day+'T00:00:00+09:00');
+function overlapCheck(context){if(context?.isCurrent?.()===false)throw Error('calculation-cancelled');}
+async function solve(input,context){
+ overlapCheck(context);configure(input);const pair=input.input,day=Date.parse(input.day+'T00:00:00+09:00');
  // Date-independent geometry the caller already holds (synced with the records). What this
  // check used and was not given is returned so the caller can keep and sync it.
  const given=new Set();if(recordGeometry.known.size>5000)recordGeometry.known.clear();
@@ -7568,16 +7573,19 @@ async function solve(input){
  let refreshAt=Infinity,atmosphereResolution={requested:aimAirSettings.mode};
  if(aimAirSettings.mode==='auto'){
   const ground=Number.isFinite(place.groundManualM)?place.groundManualM:Number.isFinite(place.elevation)?place.elevation:await candidateElevation(place.latitude,place.longitude);
+  overlapCheck(context);
   if(!Number.isFinite(ground))return {rows:[],issues:[{reason:'elevation-unknown'}],status:'partial',checked:0,expiresAt:globalThis.__overlapNow+60000,calculationMs:0,atmosphereResolution:{requested:'auto',fallback:true,reason:'observer-ground-unknown'}};
   {
    const observer=aimObserverAt(aimSavedFrom(place),ground);
    const weather=await AstroNotesAtmosphere.load({...observer,elevation:observer.elevation+observer.eyeM},day,{target:pair.target,now:globalThis.__overlapNow});
+   overlapCheck(context);
    refreshAt=weather?.refreshAt??weather?.loadedAt+3600000;atmosphereResolution={requested:aimAirSettings.mode,source:weather?.source||null,fallback:!!weather?.error,reason:weather?.error||null};
   }
  }
  const plan={target:pair.target,body:pair.body,at:day,partId:pair.partId,limb:pair.limb,matchMode:pair.matchMode};
  const started=performance.now();
- const result=recordEventOptions(await recordSearch(plan,[{place,record}],{isCurrent:()=>true,variant:input.variant||'opportunity'}),pair);
+ const result=recordEventOptions(await recordSearch(plan,[{place,record}],{isCurrent:context?.isCurrent||(()=>true),variant:input.variant||'opportunity'}),pair);
+ overlapCheck(context);
  const rows=(result.rows||[]).map(row=>({...row,pairId:input.pairId,body:pair.body,target:pair.target,sourcePlaceId:pair.sourcePlaceId||place.id}));
  const geometry={};for(const [key,value] of recordGeometry.used)if(!given.has(key))geometry[key]=value;recordGeometry.used=new Map();
  return {geometry,rows,issues:result.issues||[],status:result.failed||result.cancelled||result.issues?.length?'partial':'complete',checked:result.checked||0,stepM:result.stepM,expiresAt:Number.isFinite(refreshAt)?refreshAt:null,calculationMs:performance.now()-started,atmosphereResolution,atmosphereKey:AstroNotesAtmosphere.dataKey()};
@@ -7585,14 +7593,18 @@ async function solve(input){
 // 2026-11-10 探す（記録の撮影地点）: the registered places the device hands over, checked with the
 // device's own refraction settings (input.preferences) exactly as on the page. Weather the device has
 // loaded is not available here; the page keeps places near it.
-async function discover(input){
- configure(input);
+async function discover(input,context){
+ overlapCheck(context);configure(input);
  if(!input.plan||typeof input.plan.target!=='object'||!Array.isArray(input.entries)||!input.entries.length||input.entries.length>64)throw Error('invalid discovery input');
  favorites=Array.isArray(input.favorites)?input.favorites:[];AstroNotesAtmosphere.resetSnapshot();
  recordGeometry.collect=false;recordGeometry.used=new Map();
  const started=performance.now(),before=recordSearchSession?.far||0,results=[];
  // One result per place, as if each were sent alone (several are sent together to save round trips).
- for(const entry of input.entries)results.push(await recordSearch(input.plan,[entry],{isCurrent:()=>true,variant:'discovery'}));
+ for(const entry of input.entries){
+  overlapCheck(context);results.push(await recordSearch(input.plan,[entry],{isCurrent:context?.isCurrent||(()=>true),variant:'discovery'}));
+  // Even cached searches must let the message loop receive cancellation.
+  await recordSearchYield();overlapCheck(context);
+ }
  return {results,far:(recordSearchSession?.far||0)-before,calculationMs:performance.now()-started};
 }
 // Private fixture verification only; the daemon never dispatches this operation.
@@ -7606,17 +7618,21 @@ async function reference(input){
 }
 // 2026-11-11 見え方の「重なる日時」（aimBuildingDays）: one stretch of days for one place and pair, checked as the page
 // checks them (whole-target overlap for buildings and towers; mountains stay on the page), with the device's refraction.
-async function days(input){
- configure(input);AstroNotesAtmosphere.resetSnapshot();
+async function days(input,context){
+ overlapCheck(context);configure(input);AstroNotesAtmosphere.resetSnapshot();
  const {obs,target,body,partId,limb,start,count,from,limit}=input;
  if(!obs||typeof target!=='object'||target.rim||!Number.isFinite(start)||!Number.isFinite(from)||!(count>0)||count>120||!(limit>0))throw Error('invalid days input');
  await AstroNotesBodies.ensure?.(body);
+ overlapCheck(context);
  const plan={target,body,partId,limb,matchMode:'overlap'},flat=()=>false,started=performance.now();
  const view=AstroNotesAlign.prepareDailyView(obs,target,body,{partId:'__whole',eyeM:obs.eyeM}),rows=[];
+ let yielded=performance.now();
  for(let i=0;i<count&&rows.length<limit;i++){
+  overlapCheck(context);
   const events=AstroNotesShooting.eventsFor(plan,obs,start+i*86400000,{align:AstroNotesAlign,isMountain:flat,view});
   // As the trial's observer calendar: daytime moon overlaps are kept.
   const row=events.find(e=>e.at>=from&&AstroNotesShooting.matches(e,plan,flat));if(row)rows.push(row);
+  if(context&&performance.now()-yielded>=8){await recordSearchYield();overlapCheck(context);yielded=performance.now();}
  }
  return {rows,calculationMs:performance.now()-started};
 }

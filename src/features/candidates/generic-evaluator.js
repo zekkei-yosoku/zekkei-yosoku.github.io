@@ -106,6 +106,23 @@ function memoOutlines(align){
 function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,trees=null,staticTerrain=null,sidewalks=null,angularPrefilter=false,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
  const align=memoOutlines(rawAlign);
  const visibilityCache=new Map(),targetLines=new Map();
+ // Only the current point evaluation owns these reads. Its precheck and event
+ // check may share a confirmed endpoint ray, never a sky ray or an unknown read.
+ // Endpoint readers derive altitude from endpoint height; the supplied altitude
+ // is immaterial there. Bearing, foot height, model and weather still must match.
+ async function targetRead(kind,observer,ray,options,read,usable){
+  const memo=options.targetReads,end=ray.endpoint;
+  if(!memo||!end||![end.latitude,end.longitude,end.elevation,ray.maxM].every(Number.isFinite))return read();
+  const key=JSON.stringify([kind,observer.latitude,observer.longitude,observer.elevation,observer.eyeM??1.5,end.latitude,end.longitude,end.elevation,
+   ray.azimuth,ray.maxM,ray.refractionK,ray.targetKey,kind==='trees'?ray.footM:null,!!options.skipTrees,!!options.preview,weatherKey()]);
+  const city=root.AstroNotesCityModels?.[ray.targetKey],towers=root.AstroNotesTowerModels,hit=memo.get(key);
+  if(hit&&hit.city===city&&hit.towers===towers)return hit.value;
+  const value=await read();
+  if(options.isCurrent?.()!==false&&usable(value)&&city===root.AstroNotesCityModels?.[ray.targetKey]&&towers===root.AstroNotesTowerModels)memo.set(key,{city,towers,value});
+  return value;
+ }
+ const heightTrace=(observer,ray,options)=>targetRead('buildings',observer,ray,options,
+  ()=>heights.trace(observer,ray,{isCurrent:options.isCurrent,skipTrees:!!options.skipTrees}),r=>r?.status==='clear'&&!r.partial);
  // Whether the place was surveyed as seeing this target (and not merely some other one).
  const surveyedFor=(place,target)=>!!target?.id&&Array.isArray(place?.surveyedTargets)&&place.surveyedTargets.includes(target.id);
  // What hides the lower part of the target on its line (2026-11-12, user: name it, not a distance).
@@ -135,11 +152,11 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
  }
  const skylineOf=async(observer,ray,options)=>{
   if(!heights?.skyline||!ray.endpoint)return null;
-  const s=await heights.skyline(observer,ray,{isCurrent:options.isCurrent,preview:options.preview}).catch(e=>{if(e?.message==='candidate-cancelled')throw e;return null;});
+  const s=await targetRead('skyline',observer,ray,options,()=>heights.skyline(observer,ray,{isCurrent:options.isCurrent,preview:options.preview}).catch(e=>{if(e?.message==='candidate-cancelled')throw e;return null;}),r=>r?.status==='ok'&&r.complete);
   return s?.status==='ok'?s:null;
  };
  // Tree tops on the line (tree-heights.js). Unread (offline, the map's server) leaves trees as before: OSM woods only.
- const treesOf=async(observer,ray,options)=>trees?trees.sight(observer,ray,{isCurrent:options.isCurrent}):null;
+ const treesOf=async(observer,ray,options)=>trees?targetRead('trees',observer,ray,options,()=>trees.sight(observer,ray,{isCurrent:options.isCurrent}),r=>r?.status==='clear'):null;
  // How the place frames the target (2026-11-13, user's choice for the order: 対象がよく見える・高い所・見晴らし・
  // 背景がすっきり; the size beside the body was dropped on 2026-11-14, "月との比率はいらないよ"): how much of the target shows
  // over what is in front, how far the place stands above the ground around it, and how many bearings beside the target
@@ -159,8 +176,11 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   return {visibleFraction:Math.max(0,Math.min(1,(top-hidden)/Math.max(1,top-groundT))),heightGainM:gain,cleanSky:clean};
  }
  async function terrainRay(observer,ray,options){
+  // The archived raster still traces the supplied altitude, even with an
+  // endpoint. Recheck it for every ray before sharing only the native fallback.
   if(staticTerrain){const tested=staticTerrain.trace(observer,ray);if(tested.hit||tested.checked>0&&tested.missing===0)return {...tested,status:tested.hit?'blocked':'model-clear',nativeRaster:true};}
-  return terrain?terrain.trace(observer,{...ray,...options}):{status:'unknown',reason:'terrain-unavailable',missing:1};
+  return targetRead('terrain',observer,ray,options,
+   ()=>terrain?terrain.trace(observer,{...ray,...options}):{status:'unknown',reason:'terrain-unavailable',missing:1},r=>r?.status==='model-clear'&&!r.missing&&!r.partial);
  }
  async function buildingRay(observer,ray,options={}){
   if(!trees)return buildingsOnly(observer,ray,options,false);
@@ -175,7 +195,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
  }
  async function buildingsOnly(observer,ray,options,skipTrees){
   // Building tops along the whole line (PLATEAU heights, GSI footprints elsewhere). Unknown is never clear.
-  if(heights){const r=await heights.trace(observer,ray,{isCurrent:options.isCurrent,skipTrees}),skyline=r.status==='blocked'?null:await skylineOf(observer,ray,options);
+  if(heights){const r=await heightTrace(observer,ray,{...options,skipTrees}),skyline=r.status==='blocked'?null:await skylineOf(observer,ray,options);
    return {...r,skyline,status:r.status==='clear'?'model-clear':r.status,complete:r.status!=='unknown',evaluated:r.status!=='unknown',unresolvedTargetContacts:false};}
   if(!index)return {status:'unknown',complete:false};
   const end=ray.endpoint||geo.destination(observer.latitude,observer.longitude,ray.azimuth,ray.maxM/1000);
@@ -264,6 +284,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   return result;
  }
  async function evaluate(plan,point,data,options={}){
+  options={...options,targetReads:new Map()};
   if(point.access==='no'||point.access==='private')return {status:'excluded',recommend:false,reason:'access-restricted'};
   if(point.standingSurfaceKnown!==true||point.nonTerrainStructure&&![point.surfaceElevationM,point.surfaceAglM,point.surfaceHeightM].some(Number.isFinite))return {status:'unknown',recommend:false,reason:'standing-height-unknown'};
   const ground=Number.isFinite(point.groundM)?point.groundM:await terrain?.at(point,options);
@@ -291,7 +312,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
     const line={azimuth:inv.azimuth,altitude:0,maxM:inv.km*1000,endpoint:{latitude:plan.target.latitude,longitude:plan.target.longitude,elevation:top},footM:plan.target.groundM,targetKey:plan.target.id,refractionK:k};
     // Buildings and terrain first (local data); the trees' walk only for a line they leave open.
     const lineUnverified=pre=>({status:'unverified',recommend:false,heightUnknown:missingHeights(pre),nearBuilding:pre.reason==='near-building',obstacle:['trees','elevated-structure'].includes(pre.reason),reason:'target-line-unverified',partial:true});
-    const pre=await heights.trace(obs,line,{isCurrent:options.isCurrent,skipTrees:!!trees});
+    const pre=await heightTrace(obs,line,{...options,skipTrees:!!trees});
     if(pre.status==='blocked')return {status:'model-blocked',recommend:false,reason:'target-line-blocked',partial:true};
     if(pre.status!=='clear')return lineUnverified(pre);
     const land=await terrainRay(obs,line,options);
@@ -301,7 +322,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
      const tr=await treesOf(obs,line,options);
      if(tr?.status==='blocked')return {status:'model-blocked',recommend:false,reason:'target-line-trees',partial:true};
      if(tr?.status==='unknown')return {status:'unverified',recommend:false,obstacle:true,reason:'target-line-unverified',partial:true};
-     if(tr?.status==='unread'){const osm=await heights.trace(obs,line,{isCurrent:options.isCurrent});if(osm.status==='blocked')return {status:'model-blocked',recommend:false,reason:'target-line-blocked',partial:true};if(osm.status!=='clear')return lineUnverified(osm);}
+     if(tr?.status==='unread'){const osm=await heightTrace(obs,line,options);if(osm.status==='blocked')return {status:'model-blocked',recommend:false,reason:'target-line-blocked',partial:true};if(osm.status!=='clear')return lineUnverified(osm);}
      if(partsHidden(plan.target,hiddenTop(land.skyline,built,tr?.skyline)))return partsGone;
      break;
     }

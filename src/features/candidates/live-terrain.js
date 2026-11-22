@@ -3,8 +3,16 @@
 'use strict';
 const api=root.AstroNotesCandidateTerrain||(typeof require==='function'?require('./terrain-model.js'):null);
 const RAD=Math.PI/180,R=6371008.8;
-function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96,timeoutMs=7000,maxDurationMs=35000,lookAhead=false,layers=[['dem5a',15],['dem5b',15],['dem5c',15],['dem',14]]}={}){
- const cache=new Map(),done=new Map();let fetched=0,started=Date.now(),limit=maxTiles;
+function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96,maxCachedTiles=128,timeoutMs=7000,maxDurationMs=35000,lookAhead=false,layers=[['dem5a',15],['dem5b',15],['dem5c',15],['dem',14]]}={}){
+ // A tile is 256 KiB. Keep at most 32 MiB of completed rasters by default,
+ // independently of a job's read budget; pending reads stay shared until settled.
+ const cache=new Map(),done=new Map(),last=new Map(),readKeys=new Set(),cacheLimit=Math.max(1,Math.floor(Number.isFinite(maxCachedTiles)?maxCachedTiles:128));
+ let fetched=0,started=Date.now(),limit=maxTiles,newest=null;
+ function touch(key,value){if(newest!==key){done.delete(key);done.set(key,value);newest=key;}}
+ function retain(key,value){
+  touch(key,value);
+  while(done.size>cacheLimit){const old=done.keys().next().value;done.delete(old);for(const [layer,memo]of last)if(memo.key===old)last.delete(layer);}
+ }
  const pixel=(p,z)=>[(p.longitude+180)/360*256*2**z,(1-Math.asinh(Math.tan(p.latitude*RAD))/Math.PI)/2*256*2**z];
  async function fetchTile(key,layer,z,x,y,options){
   if(lookAhead&&options.signal?.aborted)return {missing:true,reason:'terrain-fetch'};
@@ -23,10 +31,14 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
  }
  async function tile(layer,z,x,y,options){
   const key=[layer,z,x,y].join('/');
+  if(done.has(key)){const value=done.get(key);touch(key,value);readKeys.add(key);return value;}
   if(cache.has(key))return cache.get(key);
   if(options.isCurrent?.()===false)throw Error('candidate-cancelled');
-  if(fetched>=limit||Date.now()-started>=maxDurationMs)return {missing:true,reason:'terrain-budget'};
-  fetched++;
+  // Eviction must not spend the budget again on ground this job already read.
+  // Failed fresh requests still cost a read and remain retryable, as before.
+  const reread=readKeys.has(key);
+  if(!reread&&fetched>=limit||Date.now()-started>=maxDurationMs)return {missing:true,reason:'terrain-budget'};
+  if(!reread)fetched++;
   // A staged read counts towards the budget and cache only when the ray actually needs it.
   const ahead=options.prefetched?.get(key);
   const stop=()=>ahead?.controller.abort();
@@ -41,21 +53,20 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
   }):fetchTile(key,layer,z,x,y,options);
   cache.set(key,pending);const result=await pending;
   if(ahead)options.signal?.removeEventListener('abort',stop);
-  done.set(key,result);
-
+  cache.delete(key);
   // A failed request is retryable, unlike an authoritative absent tile.
-  if(result.reason==='terrain-fetch'||result.reason==='terrain-size'){cache.delete(key);done.delete(key);}
+  if(result.reason!=='terrain-fetch'&&result.reason!=='terrain-size'){readKeys.add(key);retain(key,result);}
   return result;
  }
  // The height where every tile it needs is already read; undefined when one is still to be read (see sample), null when
  // no layer holds the point. Lets a sweep over many points wait only once per tile (visibility-map.js). seaAsZero: a
  // point every layer leaves empty (an absent tile or a no-value pixel; the 10 m DEM covers all land) is the sea at 0 m,
  // as far along a line (sampleFar).
- const last=new Map();
  function peek(point,{seaAsZero=false}={}){
   let sea=true;
   for(const [layer,z]of layers){const [px,py]=pixel(point,z),x=Math.floor(px/256),y=Math.floor(py/256),memo=last.get(layer);
-   let d=memo&&memo.x===x&&memo.y===y?memo.d:done.get(layer+'/'+z+'/'+x+'/'+y);if(!d)return undefined;if(!memo||memo.d!==d)last.set(layer,{x,y,d});
+   const key=layer+'/'+z+'/'+x+'/'+y;
+   let d=memo&&memo.x===x&&memo.y===y?memo.d:done.get(key);if(!d)return undefined;touch(key,d);readKeys.add(key);if(!memo||memo.d!==d)last.set(layer,{key,x,y,d});
    if(d.missing){if(d.reason!=='missing-tile')sea=false;if(d.reason==='terrain-budget')return null;continue;}
    const h=d.heights[(Math.floor(py)%256+256)%256*256+(Math.floor(px)%256+256)%256];if(Number.isFinite(h))return h;}
   return seaAsZero&&sea?0:null;
@@ -117,7 +128,7 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
      const lo=scan+marks[i-1]*(next-scan),hi=scan+marks[i]*(next-scan),middle=(lo+hi)/2;
      const p=geo.destination(observer.latitude,observer.longitude,azimuth,middle/1000);
      const [px,py]=pixel(p,z),x=Math.floor(px/256),y=Math.floor(py/256),key=[layer,z,x,y].join('/');
-     if(cache.has(key)||prefetched.has(key))continue;
+     if(cache.has(key)||done.has(key)||prefetched.has(key))continue;
      const controller=new AbortController(),data=fetchTile(key,layer,z,x,y,{signal:controller.signal});
      prefetched.set(key,{controller,data});
     }
@@ -159,7 +170,7 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
  // resetBudget(scale): a caller reading far more ground for one place (a surveyed observation room's rays) asks for
  // that many times the tiles; without a scale the budget is the one it was made with.
  return {sample,peek,at:async(p,o)=>(await sample(p,o)).height,trace,
-  resetBudget:(scale=1)=>{fetched=0;started=Date.now();limit=maxTiles*(scale>0?scale:1);},stats:()=>({tiles:cache.size,fetched}),clearFailures:()=>{fetched=0;}};
+  resetBudget:(scale=1)=>{fetched=0;readKeys.clear();started=Date.now();limit=maxTiles*(scale>0?scale:1);},stats:()=>({tiles:done.size+cache.size,cachedTiles:done.size,pendingTiles:cache.size,cacheLimit,fetched}),clearFailures:()=>{fetched=0;}};
 }
 api.createLive=createLive;
 if(typeof module==='object'&&module.exports)module.exports={createLive};

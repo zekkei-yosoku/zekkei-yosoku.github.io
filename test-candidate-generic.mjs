@@ -18,6 +18,38 @@ test('live DEM preserves missing pixels, true zero, lower-resolution provenance 
  let failed=true;const retry=createLive({geo:G,fetchImpl:async()=>{if(failed)throw Error('offline');return {ok:true,text:async()=>dem('12')};}});assert.equal((await retry.sample({latitude:35,longitude:139})).height,null);failed=false;assert.equal((await retry.sample({latitude:35,longitude:139})).height,12);
 });
 
+test('DEM completed tiles use an LRU independent of the read budget and invalidate the peek shortcut',async()=>{
+ let calls=0;const t=createLive({geo:G,maxTiles:3,maxCachedTiles:2,layers:[['dem',14]],fetchImpl:async()=>{calls++;return {ok:true,text:async()=>dem(5)};}}),p=i=>({latitude:35,longitude:139+i*.03});
+ await t.at(p(0));await t.at(p(1));assert.equal(t.peek(p(0)),5,'peek refreshes recency');
+ await t.at(p(2));assert.equal(t.peek(p(1)),undefined,'least recently used tile was released');assert.equal(t.peek(p(0)),5);
+ assert.equal(await t.at(p(1)),5,'evicted ground can be read again even at the unique-read budget');
+ assert.equal(t.stats().fetched,3);assert.equal(calls,4);assert.equal(t.stats().cachedTiles,2);assert.equal(t.stats().pendingTiles,0);
+ assert.equal((await t.sample(p(3))).reason,'terrain-budget','new ground still obeys the original budget');
+ t.resetBudget();await t.at(p(3));await t.at(p(4));assert.equal(t.peek(p(0)),undefined,'last-per-layer shortcut must not retain an evicted tile');
+});
+
+test('DEM pending reads remain shared while completed tiles are evicted',async()=>{
+ const release=new Map();let calls=0;const t=createLive({geo:G,maxTiles:8,maxCachedTiles:1,layers:[['dem',14]],fetchImpl:url=>{calls++;return new Promise(resolve=>release.set(url,()=>resolve({ok:true,text:async()=>dem(7)})));}}),p=i=>({latitude:35,longitude:139+i*.03});
+ const first=t.at(p(0)),joined=t.at(p(0)),second=t.at(p(1));assert.equal(calls,2);assert.equal(t.stats().pendingTiles,2);
+ const jobs=[...release.values()];jobs[1]();assert.equal(await second,7);assert.equal(t.stats().cachedTiles,1);assert.equal(t.stats().pendingTiles,1);
+ const joinedAgain=t.at(p(0));assert.equal(calls,2,'pending key survives pressure from completed reads');jobs[0]();
+ assert.deepEqual(await Promise.all([first,joined,joinedAgain]),[7,7,7]);assert.equal(t.stats().pendingTiles,0);assert.equal(t.stats().cachedTiles,1);
+ assert.equal(t.peek(p(1)),undefined);assert.equal(t.peek(p(0)),7);
+});
+
+test('DEM eviction preserves multi-layer missingness and repeated long-ray results',async()=>{
+ const t=createLive({geo:G,maxTiles:4,maxCachedTiles:2,layers:[['dem5a',15],['dem',14]],fetchImpl:async url=>({ok:true,text:async()=>dem(url.includes('/dem5a/')?'e':0)})}),p=i=>({latitude:35,longitude:139+i*.03});
+ assert.equal(await t.at(p(0)),0);assert.equal(t.peek(p(0)),0);assert.equal(await t.at(p(1)),0);
+ assert.equal(t.peek(p(0),{seaAsZero:true}),undefined,'unread or evicted ground is not sea');
+ assert.equal(await t.at(p(0)),0);assert.equal(t.stats().fetched,4);assert.equal(t.peek(p(0)),0);
+ const input={latitude:35.69,longitude:139.85,elevation:8,eyeM:1.5},ray={azimuth:87,altitude:0,maxM:12000};
+ const reader=n=>createLive({geo:G,maxTiles:96,maxCachedTiles:n,fetchImpl:async()=>({ok:true,text:async()=>dem(0)})});
+ const tiny=reader(1),roomy=reader(128),expected=await roomy.trace(input,ray);
+ assert.deepEqual(await tiny.trace(input,ray),expected);const unique=tiny.stats().fetched;
+ assert.deepEqual(await tiny.trace(input,ray),expected);assert.equal(tiny.stats().fetched,unique,'re-reading evicted tiles does not shorten the second ray');
+ assert.equal(tiny.stats().cachedTiles,1);
+});
+
 test('a line over water pixels (no value in any layer) takes the last bank height instead of failing',async()=>{
  // Each tile: the north half has no value (a river surface), the south half is ground at 5 m.
  const half=Array.from({length:256},(_,r)=>Array(256).fill(r<128?'e':'5').join(',')).join('\n');
@@ -508,4 +540,62 @@ test('celestial sampling preserves all nine ray positions and outcomes when the 
  assert.deepEqual(seen.map(r=>[Math.sign(r.azimuth),Math.sign(r.altitude-10)].join('/')).sort(),['-1/-1','-1/0','-1/1','0/-1','0/0','0/1','1/-1','1/0','1/1'].sort());
  const star=await createGeneric({align:clearOutline,bodies,geo:G,terrain:clearTerrain,heights:openHeights,yieldTask:async()=>{}}).visibility({...plan,body:'sirius'},solution());
  assert.equal(star.totalSamples,1);assert.equal(star.visibleSamples,1);
+});
+
+test('one point reuses only confirmed identical endpoint reads, keeping sky rays and later points separate',async()=>{
+ const counts={terrain:0,buildings:0,skyline:0,trees:0,sky:0},fixtureTarget={...target,groundM:0},distance=G.inverse(point.latitude,point.longitude,target.latitude,target.longitude).km;
+ const fixtureAlign={...outlined,geometryFrom:()=>({...align.geometryFrom(),distanceKm:distance})};
+ const terrain={at:async()=>50,trace:async(o,r)=>{if(r.endpoint)counts.terrain++;else counts.sky++;return {status:'model-clear',checked:1,missing:0};}};
+ const heights={trace:async(o,r)=>{if(r.endpoint)counts.buildings++;return {status:'clear',heights:'plateau'};},skyline:async()=>{counts.skyline++;return {status:'ok',toM:0,complete:true};}};
+ const trees={sight:async(o,r)=>{if(r.endpoint)counts.trees++;return {status:'clear',skyline:null};}};
+ const model=createGeneric({align:fixtureAlign,bodies,geo:G,terrain,heights,trees,yieldTask:async()=>{}}),p={...plan,target:fixtureTarget};
+ const first=await model.evaluate(p,point,{});assert(first.recommend);
+ assert.deepEqual(counts,{terrain:1,buildings:1,skyline:1,trees:2,sky:8},'identical endpoint readers are shared; trees retain the different foot-height scope and all sky samples remain');
+ await model.evaluate(p,point,{});
+ assert.deepEqual(counts,{terrain:2,buildings:2,skyline:2,trees:3,sky:8},'a new evaluation has its own precheck lifetime; the existing event cache is independent');
+});
+
+test('endpoint reuse does not cross a different part, unknown data, weather change, or model replacement',async()=>{
+ const oldAir=globalThis.AstroNotesAtmosphere,oldModels=globalThis.AstroNotesCityModels;
+ try{
+  for(const change of ['part','unknown-terrain','incomplete-skyline','weather','model']){
+   let weather=0,terrainCalls=0,buildingCalls=0,skylineCalls=0;
+   globalThis.AstroNotesAtmosphere={targetK:()=>7/6,dataKey:()=>String(weather)};globalThis.AstroNotesCityModels={[target.id]:{revision:0}};
+   const fixtureTarget={...target,groundM:0},distance=G.inverse(point.latitude,point.longitude,target.latitude,target.longitude).km;
+   const fixtureAlign={...outlined,geometryFrom:()=>({...align.geometryFrom(),distanceKm:distance,topM:change==='part'?90:110})};
+   const terrain={at:async()=>50,trace:async(o,r)=>{
+    if(r.endpoint&&++terrainCalls===1&&change==='unknown-terrain')return {status:'unknown',missing:1};
+    return {status:'model-clear',checked:1,missing:0};
+   }};
+   const heights={trace:async(o,r)=>{if(r.endpoint)buildingCalls++;return {status:'clear'};},skyline:async()=>{skylineCalls++;return {status:'ok',toM:0,complete:change!=='incomplete-skyline'};}};
+   const changedBodies={...bodies,ensure:async()=>{if(change==='weather')weather++;if(change==='model')globalThis.AstroNotesCityModels[target.id]={revision:1};}};
+   const model=createGeneric({align:fixtureAlign,bodies:changedBodies,geo:G,terrain,heights,yieldTask:async()=>{}});
+   await model.evaluate({...plan,target:fixtureTarget},point,{});
+   if(change!=='incomplete-skyline')assert.equal(terrainCalls,2,change+' must trace the target again');
+   if(['part','weather','model'].includes(change))assert.equal(buildingCalls,2,change+' must read buildings again');
+   if(change==='incomplete-skyline')assert.equal(skylineCalls,2,'an incomplete skyline is retryable');
+  }
+ }finally{globalThis.AstroNotesAtmosphere=oldAir;globalThis.AstroNotesCityModels=oldModels;}
+});
+
+test('archived terrain keeps each supplied altitude while partial and unknown archives share only the native endpoint fallback',async()=>{
+ const fixtureTarget={...target,groundM:0},distance=G.inverse(point.latitude,point.longitude,target.latitude,target.longitude).km;
+ const fixtureAlign={...outlined,geometryFrom:()=>({...align.geometryFrom(),distanceKm:distance})};
+ for(const mode of ['complete','partial','unknown','blocked']){
+  const angles=[];let nativeEndpoints=0;
+  const terrain={at:async()=>50,trace:async(o,r)=>{if(r.endpoint)nativeEndpoints++;return {status:'model-clear',checked:1,missing:0,minMarginM:99};}};
+  const staticTerrain={trace:(o,r)=>{
+   if(r.endpoint)angles.push(r.altitude);
+   // The archive port's margin/hit contract depends on altitude, unlike the
+   // native endpoint port. Even a complete earlier read is not interchangeable.
+   const hit=mode==='blocked'&&r.endpoint&&r.altitude!==0?{distanceM:200,terrainM:80,rayM:79}:null;
+   return {checked:mode==='unknown'?0:1,missing:mode==='partial'?1:0,hit,minMarginM:r.altitude};
+  }};
+  const model=createGeneric({align:fixtureAlign,bodies,geo:G,terrain,staticTerrain,heights:openHeights,yieldTask:async()=>{}});
+  const result=await model.evaluate({...plan,target:fixtureTarget},point,{});
+  assert.deepEqual(angles,[0,10],mode+' must evaluate both supplied altitudes');
+  assert.equal(nativeEndpoints,['partial','unknown'].includes(mode)?1:0,mode+' retains native-only endpoint reuse');
+  if(mode==='blocked')assert.equal(result.recommend,false,'a later archive hit cannot reuse the earlier clear ray');
+  else {assert(result.recommend);assert.equal(result.visibility.target.terrain.minMarginM,mode==='complete'?10:99);}
+ }
 });

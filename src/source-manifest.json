@@ -350,6 +350,7 @@
     {
       "entry": "src/features/candidates/entry.inc",
       "output": "astronotes-candidate-search.js",
+      "legacyShapeLoader": "astronotes-assets.js",
       "sourceOrder": [
         "src/features/candidates/building-model.js",
         "src/features/candidates/height-grid.js",
@@ -359,7 +360,6 @@
         "src/features/candidates/osm-places.js",
         "src/features/candidates/terrain-model.js",
         "src/features/candidates/live-terrain.js",
-        "src/features/candidates/scene-hulls.js",
         "src/features/candidates/scene-surface.js",
         "src/features/candidates/composition.js",
         "src/features/candidates/model-evaluator.js",
@@ -397,6 +397,13 @@
         "visibility/cinderella.json": "data/visibility/cinderella.json",
         "visibility/tinkerbell.json": "data/visibility/tinkerbell.json"
       }
+    },
+    {
+      "entry": "src/features/candidates/scene-hulls.js",
+      "output": "astronotes-scene-hulls.js",
+      "sourceOrder": [
+        "src/features/candidates/scene-hulls.js"
+      ]
     }
   ],
   "architecture": {

@@ -87,9 +87,17 @@ test('every skipped group contains only polygons that the original bounds would 
  }
  assert(checked>1000);
 });
-test('patched prepared views retain all event fields for towers, mountains and every body',()=>{
+test('optimized distance retains all current event fields for towers, mountains and every body',()=>{
  const load=s=>{const c=vm.createContext({require:createRequire(new URL('../astronotes-align.js',import.meta.url))});vm.runInContext(s,c);return c.AstroNotesAlign;};
- const old=load(source),next=load(now);
+ // Compare today's event contract with the actual old distance routine in the
+ // same current engine. A pre-promotion whole engine predates azimuth/target
+ // position fields and fails on their schema before it can check any values.
+ // The six independent old-math tests above and exact() remain unchanged.
+ const start=now.indexOf('    const distanceToPolygons=polygons?(function prepareExactPolygonDistance('),end=now.indexOf('    const evaluate = (at, st = bodyAt(body, at, obs)) => {',start);
+ assert(start>=0&&end>start,'the current distance routine must be located explicitly');
+ const metadata=`    if(polygons)distanceToPolygons.bounds={minX:Math.min(...bounds.map(b=>b.minX)),maxX:Math.max(...bounds.map(b=>b.maxX)),minY:Math.min(...bounds.map(b=>b.minY)),maxY:Math.max(...bounds.map(b=>b.maxY))};\n`;
+ const reference=now.slice(0,start)+oldBody+metadata+now.slice(end);
+ const old=load(reference),next=load(now);
  const observers=[{latitude:35.58386,longitude:139.56853,elevation:87.2},{latitude:35.73874,longitude:139.90204,elevation:5}];
  for(const observer of observers)for(const target of old.TARGETS.filter(t=>['skytree','tokyotower','fuji'].includes(t.id)))for(const body of ['sun','moon','sirius','mercury','venus','mars','jupiter','saturn'])for(const eyeM of [0,1.5,149,700]){
   const opts={eyeM,partId:'__whole',...(target.id==='fuji'?{ridge:[[245,1],[246,2],[247,4],[248,2],[249,1]],ridgeBase:0}:{})};

@@ -6,8 +6,9 @@ export function versionAssets(input,readAsset){
   const hash=createHash('sha256').update(readAsset(name)).digest('hex');
   return name+'?v='+BigInt('0x'+hash.slice(0,16)).toString();
  });
- for(const kind of ['city','tower']){
-  const digest=createHash('sha256').update(readAsset('astronotes-'+kind+'-models.js')).digest('base64');
+ for(const [kind,name] of [['city','astronotes-city-models.js'],['tower','astronotes-tower-models.js'],['surface','astronotes-scene-hulls.js']]){
+  if(!html.includes('name="shape-'+kind+'-integrity"'))continue;
+  const digest=createHash('sha256').update(readAsset(name)).digest('base64');
   html=html.replace(new RegExp('name="shape-'+kind+'-integrity" content="[^\"]*"'),'name="shape-'+kind+'-integrity" content="sha256-'+digest+'"');
  }
  for(const [,src] of html.matchAll(/<script src="([^"]+)"/g))if(/^[A-Za-z0-9_-]+\.js$/.test(src))throw Error('Missing content version: '+src);

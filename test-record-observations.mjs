@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url),L=require('./astronotes-library.js'),terrain=require('./astronotes-terrain.js');
 const source=fs.readFileSync(new URL('./astronotes-myplaces.js',import.meta.url),'utf8');
-function fixture(){const values=new Map(),auth={loginId:'first'},favorites=[{id:'p',name:'撮影地',latitude:35,longitude:139,elevation:50,eyeHeightAGL:4}];const api=new Function('AstroNotesLibrary','store','auth','favorites','AstroNotesTerrain','const withShape=f=>f;'+source.slice(source.indexOf('const RESULTS'),source.indexOf('// 目標は構図'))+';return {clean,load,statusOf,placesFor};')(L,{get:(k,d)=>values.get(k)??d,set:(k,v)=>values.set(k,v)},auth,favorites,terrain);return {api,values,auth,favorites};}
+function fixture(){let reads=0;const values=new Map(),auth={loginId:'first'},favorites=[{id:'p',name:'撮影地',latitude:35,longitude:139,elevation:50,eyeHeightAGL:4}];const api=new Function('AstroNotesLibrary','store','auth','favorites','AstroNotesTerrain','const withShape=f=>f,shapeData=()=>({});'+source.slice(source.indexOf('const RESULTS'),source.indexOf('// 目標は構図'))+';return {clean,load,statusOf,placesFor,recordStatusIndex,targetsSeenFrom};')(L,{get:(k,d)=>{reads++;return values.get(k)??d;},set:(k,v)=>values.set(k,v)},auth,favorites,terrain);return {api,values,auth,favorites,reads:()=>reads};}
 const raw={id:'one',placeId:'p',target:{key:'tower',name:'塔',latitude:35.1,longitude:139.1},result:'seen',date:'2026-10-16',observer:{latitude:35,longitude:139,elevation:50,eyeHeightAGL:4},createdAt:1,updatedAt:1};
 test('記録時の観測座標と高さを保持し、不正な識別子を保存対象にしない',()=>{const {api}=fixture(),r=api.clean(raw);assert.deepEqual(r.observer,raw.observer);assert.equal(api.clean({...raw,target:{...raw.target,name:'x'.repeat(201)}}),null);assert.equal(api.clean({...raw,result:'unknown'}),null);});
 test('撮影場所の移動・立つ高さの変更後は古い実績を候補へ流用しない',()=>{const {api,favorites}=fixture(),r=api.clean(raw);assert.equal(api.statusOf('p','tower',[r]).id,'one');favorites[0].latitude=35.01;assert.equal(api.statusOf('p','tower',[r]),null);favorites[0].latitude=35;favorites[0].eyeHeightAGL=20;assert.equal(api.statusOf('p','tower',[r]),null);assert.equal(r.observer.eyeHeightAGL,4);});
@@ -59,4 +59,26 @@ test('対象の一括変更は追加と除外だけを追記し、観測日や�
 
 test('対象の近傍照合は組み込み/自作の既存IDを保持する',()=>{
  for(const id of ['skytree','fav:owned']){const target={id,latitude:35,longitude:139};assert.equal(L.nearby([target],{latitude:35.00001,longitude:139}).id,id);}
+});
+
+test('一覧の地点別索引は全件を一度だけ読み、最新・解除・観測位置の失効を保つ',()=>{
+ const f=fixture(),rows=[];
+ for(let i=0;i<500;i++){
+  const id='p'+i;f.favorites.push({...f.favorites[0],id});
+  rows.push({...raw,id:'old'+i,placeId:id},{...raw,id:'latest'+i,placeId:id,result:'partial',updatedAt:2});
+ }
+ rows.push({...raw,id:'removed',placeId:'p1',registration:true,removed:true,createdAt:3});
+ f.favorites.find(p=>p.id==='p2').latitude=36;
+ f.favorites.find(p=>p.id==='p3').eyeHeightAGL=20;
+ f.values.set('sorami.observations.v1:first',rows);
+ const index=f.api.recordStatusIndex();
+ for(let i=0;i<500;i++){
+  const got=f.api.targetsSeenFrom('p'+i,index);
+  if([1,2,3].includes(i))assert.deepEqual(got,[]);
+  else {assert.equal(got.length,1);assert.equal(got[0].id,'latest'+i);assert.equal(got[0].result,'partial');}
+ }
+ assert.equal(f.reads(),1,'render-scoped index does not reload records per place');
+ f.auth.loginId='second';assert.deepEqual(f.api.targetsSeenFrom('p0'),[],'next render reads the new account');
+ f.auth.loginId='first';f.values.set('sorami.observations.v1:first',[{...raw,placeId:'p0',id:'edited',result:'hidden'}]);
+ assert.equal(f.api.targetsSeenFrom('p0')[0].id,'edited','next render sees storage edits without a stale global cache');
 });

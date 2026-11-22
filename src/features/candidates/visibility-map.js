@@ -39,10 +39,10 @@ function create({ground,buildings=null,trees=null,store=null,builtIn=null,capM=I
  const maps=new Map();
  // Everything a sector's rays will read, in parallel before the walk (its two edges and middle every 250 m), so the walk
  // waits on no tile.
- async function prefetch(target,index,maxM,key){
+ async function prefetch(target,index,maxM,key,isCurrent){
   const jobs=[];for(const f of [0,.5,1])for(let u=START_M;u<=maxM;u+=250){const p=destination(target.latitude,target.longitude,(index+f)*SECTOR_DEG,u);
    jobs.push(()=>ground.at(p),()=>buildings?buildings.loadAt(p.latitude,p.longitude):null,()=>trees?trees.canopy(p.latitude,p.longitude):null);}
-  let next=0;const worker=async()=>{while(next<jobs.length){const job=jobs[next++];try{await job();}catch(e){if(e?.message==='candidate-cancelled')throw e;}}};
+  let next=0;const worker=async()=>{while(next<jobs.length){if(!isCurrent())throw Error('candidate-cancelled');const job=jobs[next++];try{await job();}catch(e){if(e?.message==='candidate-cancelled')throw e;}}};
   await Promise.all(Array.from({length:8},worker));
  }
  // One sector (1 degree, 20 rays) of the map. Ground that cannot be read ends the ray as unknown; a missing building mesh
@@ -50,7 +50,8 @@ function create({ground,buildings=null,trees=null,store=null,builtIn=null,capM=I
  async function sector(target,index,{isCurrent=()=>true}={}){
   const levels=levelsFor(target);if(!levels.length)return null;
   const maxM=Math.min(capM,reach(target,levels)),N=Math.floor((maxM-START_M)/STEP_M)+1,K=levels.length,delay=Math.ceil(NEAR_M/STEP_M),window=Math.floor(TREE_RANGE_M/STEP_M),c=1/(2*R*REFRACTION_K),key=target.id;
-  await prefetch(target,index,maxM,key);if(!isCurrent())throw Error('candidate-cancelled');
+  if(!isCurrent())throw Error('candidate-cancelled');
+  await prefetch(target,index,maxM,key,isCurrent);if(!isCurrent())throw Error('candidate-cancelled');
   const solid=Array.from({length:K},()=>new Float64Array(N)),tree=Array.from({length:K},()=>new Float64Array(N)),running=new Float64Array(K),rays=[];
   const queue=Array.from({length:K},()=>new Int32Array(N));
   for(let r=0;r<RAYS;r++){

@@ -22,6 +22,7 @@ run source-check node tools/build-index.mjs --check
 run overlap-check python3 tools/build-overlap-products.py --check
 run build-check python3 build-preview.py --check
 [ -n "$SKIP_BROWSER" ] && exit $failed
+run overlap-cancellation OVERLAP_CANCEL_BASE=$B node tools/test-overlap-cancellation.cjs
 run generic CANDIDATE_GENERIC_BASE=$B CANDIDATE_GENERIC_OUT="$OUT/generic" node tools/test-candidate-generic-runtime.cjs
 run continuation CANDIDATE_BASE=${B}index.html CANDIDATE_OUT="$OUT/continuation" CANDIDATE_WIDTHS=320,390 node tools/check-trial-candidate-continuation.cjs
 run composition COMPOSITION_BASE=${B}index.html COMPOSITION_OUT="$OUT/composition" node tools/test-candidate-composition.cjs

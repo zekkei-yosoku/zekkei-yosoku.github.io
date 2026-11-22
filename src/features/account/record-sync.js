@@ -52,51 +52,70 @@ const RecordSync = (() => {
   function scan() {
     const id = login(); if (!id) return 0;
     const s = snap(id); recover(id, s);
-    if (Object.keys(kinds).some(kind => local(id, kind).size || Object.keys(s[kind]).length)) saveSnap(id, s);
-    let n = 0;
+    const lists = Object.fromEntries(Object.keys(kinds).map(kind => [kind, local(id, kind)]));
+    if (Object.keys(kinds).some(kind => lists[kind].size || Object.keys(s[kind]).length)) saveSnap(id, s);
+    const changes = [];
     for (const kind of Object.keys(kinds)) {
-      const now = local(id, kind), before = s[kind];
+      const now = lists[kind], before = s[kind];
       // 保存そのものが消えたとき（サイトのデータの削除など）に、サーバーの記録まで消さない。取り直す（自分で全部消したときは空の保存が残る）
       if (!now.size && Object.keys(before).length && store.get(kinds[kind].key(id), undefined) === undefined) { s[kind] = {}; saveSnap(id, s); if (syncInfo?.loginId === id) { syncInfo = { ...syncInfo, records: 0 }; store.set("sorami.sync", syncInfo); } continue; }
-      for (const [k, v] of now) if (before[k] !== hash(v)) { enqueue(PREFIX + kind + ":" + k); n++; }
-      for (const k of Object.keys(before)) if (!now.has(k)) { enqueue(PREFIX + kind + ":" + k); n++; }
+      for (const [k, v] of now) if (before[k] !== hash(v)) changes.push(PREFIX + kind + ":" + k);
+      for (const k of Object.keys(before)) if (!now.has(k)) changes.push(PREFIX + kind + ":" + k);
     }
-    return n;
+    enqueueAll(changes);
+    return changes.length;
   }
-  function enqueue(recId) {
-    const at = pushQueue.findIndex((q) => q.kind === "rec" && q.id === recId);
-    const change = { kind: "rec", id: recId };
-    if (at < 0) pushQueue.push(change); else pushQueue[at] = change;
+  function enqueueAll(ids) {
+    if (!ids.length) return;
+    const positions = new Map();
+    pushQueue.forEach((q, i) => { if (q.kind === "rec" && !positions.has(q.id)) positions.set(q.id, i); });
+    for (const recId of ids) {
+      const change = { kind: "rec", id: recId };
+      if (positions.has(recId)) pushQueue[positions.get(recId)] = change;
+      else { positions.set(recId, pushQueue.length); pushQueue.push(change); }
+    }
     store.set("sorami.queue", pushQueue);
   }
   // 送る中身（無ければ削除）
   function item(recId) {
-    const id = login(), [kind, k] = split(recId);
-    const v = id && kind ? local(id, kind).get(k) : undefined;
-    return v === undefined ? { ...toItem({ id: recId }, true), sent: null } : { id: recId, body: { kind, value: v }, updated_at: Date.now(), deleted: false, sent: hash(v) };
+    return items([recId])[0];
+  }
+  // Snapshots live only for this synchronous batch. The next batch/ack must
+  // reread storage so an edit made during POST remains queued.
+  function items(ids) {
+    const id = login(), lists = {};
+    return ids.map(recId => {
+      const [kind, k] = split(recId);
+      const v = id && kind ? (lists[kind] ||= local(id, kind)).get(k) : undefined;
+      return v === undefined ? { ...toItem({ id: recId }, true), sent: null } : { id: recId, body: { kind, value: v }, updated_at: Date.now(), deleted: false, sent: hash(v) };
+    });
   }
   // 受理されたら、送った中身を「一致」として覚える
   function accepted(sent) {
     const id = login(); if (!id) return;
-    const s = snap(id);
-    for (const it of sent) {
+    const s = snap(id), current = items(sent.map(it => it.id)), changed = [];
+    for (let i = 0; i < sent.length; i++) {
+      const it = sent[i];
       const [kind, k] = split(it.id); if (!kind) continue;
       if (it.sent === null) delete s[kind][k]; else s[kind][k] = it.sent;
-      if (item(it.id).sent !== it.sent) enqueue(it.id);
+      if (current[i].sent !== it.sent) changed.push(it.id);
     }
+    enqueueAll(changed);
     saveSnap(id, s);
   }
   // サーバーから届いた記録を、この端末の保存へ反映する（送信待ちのものは端末を優先）
   function apply(rows) {
     const id = login(); if (!id || !Array.isArray(rows) || !rows.length) return;
-    const pending = new Set(pushQueue.filter((q) => q.kind === "rec").map((q) => q.id)), s = snap(id), maps = {}, dirty = new Set(), receipts = {};
+    const pending = new Set(pushQueue.filter((q) => q.kind === "rec").map((q) => q.id)), s = snap(id), originals = {}, maps = {}, dirty = new Set(), receipts = {}, changed = [];
     if (recover(id, s)) throw new Error("記録の受信を再開しています。同期を再試行してください。");
     for (const row of rows) {
       if (!row || typeof row.id !== "string" || pending.has(row.id)) continue;
       const [kind, k] = split(row.id); if (!kind) continue;
-      maps[kind] ||= local(id, kind);
-      const existing = local(id, kind).get(k), actual = existing === undefined ? undefined : hash(existing);
-      if (actual !== s[kind][k]) { enqueue(row.id); continue; }
+      // Compare to the local snapshot, not earlier rows in the same receipt.
+      // Duplicate IDs must still let a later tombstone replace an earlier row.
+      if (!maps[kind]) { originals[kind] = local(id, kind); maps[kind] = new Map(originals[kind]); }
+      const existing = originals[kind].get(k), actual = existing === undefined ? undefined : hash(existing);
+      if (actual !== s[kind][k]) { changed.push(row.id); continue; }
       receipts[kind] ||= {};
       if (row.deleted) { if (maps[kind].delete(k)) dirty.add(kind); receipts[kind][k] = null; continue; }
       let body; try { body = JSON.parse(row.body); } catch { continue; }
@@ -104,6 +123,7 @@ const RecordSync = (() => {
       if (!v || (kind !== "shape" && v.id !== k)) continue;
       maps[kind].set(k, v); receipts[kind][k] = hash(v); dirty.add(kind);
     }
+    enqueueAll(changed);
     if (!Object.keys(receipts).length) return;
     s.receiving = receipts; saveSnap(id, s);
     writing = true;
@@ -117,6 +137,6 @@ const RecordSync = (() => {
     s.receiving = {}; saveSnap(id, s);
     if (dirty.size) window.dispatchEvent(new CustomEvent("sorami:records-synced"));
   }
-  return { touched, scan, item, accepted, apply, kick: () => { if (login()) touched(kinds.obs.key(login())); } };
+  return { touched, scan, item, items, accepted, apply, kick: () => { if (login()) touched(kinds.obs.key(login())); } };
 })();
 export {RecordSync};

@@ -53,6 +53,18 @@ async function selectAfterTab(page,id,value){
  const ready=async()=>{await page.waitForFunction(()=>typeof MyPlacesUI==='object'&&typeof SkyMapUI==='object');await page.evaluate(async()=>{await startupSessionReady;RecordSync.kick=()=>{};RecordSync.touched=()=>{};const sync=accountSync();sync.syncNow=async()=>{};sync.queuePush=()=>{};});};
  try{
   await page.goto(base+'#/records');await ready();
+  result.largeList=await page.evaluate(()=>{
+   const n=500,keys=AstroNotesLibrary.keys(auth.loginId);
+   favorites=Array.from({length:n},(_,i)=>({id:'perf-'+i,name:'合成地点 '+i,latitude:35.70+i/100000,longitude:139.80,elevation:5,eyeHeightAGL:1.5,recordRegistered:true}));
+   const records=favorites.map((p,i)=>({id:'r'+i,placeId:p.id,target:{key:'skytree',name:'東京スカイツリー',latitude:35.7101,longitude:139.8107},result:'seen',createdAt:1,updatedAt:1}));
+   localStorage.setItem(keys.observations,JSON.stringify(records));localStorage.setItem(keys.shapes,'{}');
+   const get=store.get;let reads=0;store.get=(key,fallback)=>{if(key===keys.observations)reads++;return get(key,fallback);};
+   const started=performance.now();
+   try{MyPlacesUI.renderRecordsHub();return {n,reads,rows:document.querySelectorAll('#myRecordsHub [data-notebook-place]').length,ms:performance.now()-started};}
+   finally{store.get=get;localStorage.setItem(keys.observations,'[]');}
+  });
+  assert.equal(result.largeList.rows,500,'all saved places remain visible');
+  assert.equal(result.largeList.reads,1,'one render reads observations once, independent of the number of places');
   await page.evaluate(places=>{localStorage.removeItem('sorami.placeSort');favorites=structuredClone(places);store.set('sorami.favorites',favorites);MyPlacesUI.renderRecordsHub();},places);
   const sort=page.locator('#recordPlaceSort');await sort.waitFor({state:'visible'});
   assert.deepEqual(await sort.locator('option').allTextContents(),['名前順','住所順','近い順','追加順']);

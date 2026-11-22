@@ -60,3 +60,14 @@ test('段の数の並びは同じ値の続きで詰めて保存し、元に戻�
  const counts=Uint8Array.from([0,0,0,6,6,255,255,1,...Array(300).fill(2)]);
  assert.deepEqual(Array.from(VM.decodeRay(VM.encodeRay(counts),counts.length)),Array.from(counts));
 });
+
+test('cancelled visibility prefetch stops scheduling and never publishes a partial sector',async()=>{
+ let current=true,reads=0;const ground={peek:()=>0,at:async()=>{reads++;current=false;}};
+ const vm=VM.create({ground,capM:20000,yieldTask:async()=>{}});
+ await assert.rejects(vm.ensure(target,[0],{isCurrent:()=>current}),/candidate-cancelled/);
+ assert.equal(reads,1,'no new read is handed out after the first one cancels');
+ assert.equal(vm.maps.get(VM.mapKey(target)).sectors.size,0);
+ reads=0;await assert.rejects(vm.sector(target,0,{isCurrent:()=>false}),/candidate-cancelled/);assert.equal(reads,0,'an already cancelled sector starts no reads');
+ current=true;const resumed=VM.create({ground:flat,capM:2000,yieldTask:async()=>{}});
+ assert.equal((await resumed.ensure(target,[0])).sectors.size,3,'ordinary complete work still publishes every requested sector');
+});

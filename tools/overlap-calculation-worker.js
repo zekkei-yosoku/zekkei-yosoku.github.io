@@ -43,18 +43,26 @@
  }
  let ready=false;
  try{importScripts(OVERLAP_SOURCE);ready=typeof globalThis.__overlap?.solve==='function';}catch{ready=false;}
- let tail=Promise.resolve();
+ let tail=Promise.resolve();const jobs=new Map();
  addEventListener('message',event=>{
   const message=event.data;
   if(message?.type!==channel||!Number.isSafeInteger(message.id))return;
+  // Cancellation must run outside the serial engine queue, including for queued jobs.
+  if(message.op==='cancel'){const job=jobs.get(message.id);if(job)job.cancelled=true;return;}
+  if(jobs.has(message.id))return;
+  const job={cancelled:false};jobs.set(message.id,job);
   tail=tail.then(async()=>{
    try{
+    if(job.cancelled)throw Error('calculation-cancelled');
     if(message.op!=='solve'&&message.op!=='discover'&&message.op!=='days')throw Error('unknown operation');
    // A saved target can carry its PLATEAU shape (cityModel); the engine reads models by target id.
    (function register(x,depth,seen){if(!x||typeof x!=='object'||depth>5||seen.has(x))return;seen.add(x);if(typeof x.id==='string'&&x.cityModel&&String(x.cityModel.id||'').startsWith('plateau-'))(globalThis.AstroNotesCityModels||(globalThis.AstroNotesCityModels={}))[x.id]=x.cityModel;for(const k in x)register(x[k],depth+1,seen);})(message.input,0,new Set());
-    postMessage({type:channel,id:message.id,result:await globalThis.__overlap[message.op](message.input)});
+    const result=await globalThis.__overlap[message.op](message.input,{isCurrent:()=>!job.cancelled});
+    if(job.cancelled)throw Error('calculation-cancelled');
+    postMessage({type:channel,id:message.id,result});
    }catch(error){postMessage({type:channel,id:message.id,error:String(error?.message||error)});}
+   finally{jobs.delete(message.id);}
   });
  });
- postMessage({type:channel,ready,engine:ready?OVERLAP_ENGINE:null});
+ postMessage({type:channel,ready,engine:ready?OVERLAP_ENGINE:null,cancellation:true});
 })();

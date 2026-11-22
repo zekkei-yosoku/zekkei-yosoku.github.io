@@ -10,6 +10,13 @@ const RECEIVE_STORAGE_ERROR = "同期した変更を端末に保存できませ�
 
 function create({state,session,apiCall,store,toItem,cleanFavorite,cleanSighting,records,refresh,render}){
 
+// Preserve Array.find's first-match behavior while indexing once per POST.
+function firstById(list) {
+  const rows = new Map();
+  for (const row of list) if (!rows.has(row.id)) rows.set(row.id, row);
+  return rows;
+}
+
 /// 送れなかったものを覚えておく。次に繋がったときに送る。
 function queuePush(kind, id) {
   if (!session.auth()) return;
@@ -37,11 +44,13 @@ async function syncNow() {
         // 同じアカウントの通信は直列化し、500件を超える取込も続けて送る。
         while (state.pushQueue.length && sent++ < 40) {
           const batch = state.pushQueue.slice(0, 500);
+          const favoriteById = firstById(state.favorites);
+          const sightingById = firstById(state.sightings);
           const favs = batch.filter(q => q.kind === "fav")
-            .map(q => { const f = state.favorites.find(x => x.id === q.id); return f ? toItem(f) : toItem({ id: q.id }, true); });
+            .map(q => { const f = favoriteById.get(q.id); return f ? toItem(f) : toItem({ id: q.id }, true); });
           const sights = batch.filter(q => q.kind === "sight")
-            .map(q => { const x = state.sightings.find(y => y.id === q.id); return x ? toItem(x) : toItem({ id: q.id }, true); });
-          const recs = records() ? batch.filter(q => q.kind === "rec").map(q => records().item(q.id)) : [];
+            .map(q => { const x = sightingById.get(q.id); return x ? toItem(x) : toItem({ id: q.id }, true); });
+          const recs = records() ? records().items(batch.filter(q => q.kind === "rec").map(q => q.id)) : [];
           const res = await apiCall("POST", "/sync", { favorites: favs, sightings: sights,
             ...(recs.length ? { records: recs.map(({ sent, ...r }) => r) } : {}) });
           if (!current()) return;
@@ -49,7 +58,8 @@ async function syncNow() {
           const accepted = q => (q.kind === "fav" ? okFav : q.kind === "rec" ? okRec : okSight).has(q.id);
           if (recs.length) records().accepted(recs.filter(r => okRec.has(r.id)));
           // IDが同じでも送信中に編集された項目は別のオブジェクト。新しい変更は消さない。
-          state.pushQueue = state.pushQueue.filter(q => !batch.includes(q) || !accepted(q));
+          const sentItems = new Set(batch);
+          state.pushQueue = state.pushQueue.filter(q => !sentItems.has(q) || !accepted(q));
           store.set("sorami.queue", state.pushQueue);
           if (!batch.some(accepted)) break;
         }

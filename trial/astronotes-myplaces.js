@@ -24,22 +24,37 @@ const when = (r) => r.date ? Date.parse(r.date + 'T12:00:00+09:00') : r.createdA
 const placeOf = (id) => favorites.find((f) => f.id === id) || null;
 const placeNear = (p, km = NEAR_KM) => p && favorites.find((f) => AstroNotesTerrain.distanceKm(f.latitude, f.longitude, p.latitude, p.longitude) < km) || null;
 // 地点×目標の状態は最新の記録で決める（古い記録は残す。木の伸び・工事で変わるため）
+function newerRecord(r, best) {
+  return !best || (r.registration&&!best.registration) || (r.registration===best.registration && (when(r)>when(best) || (when(r)===when(best) && r.updatedAt>=best.updatedAt))) || (!r.registration&&!best.registration && (when(r)>when(best) || (when(r)===when(best) && r.updatedAt>=best.updatedAt)));
+}
+function currentRecord(best, here) {
+  if (best?.observer && here && (AstroNotesTerrain.distanceKm(here.latitude, here.longitude, best.observer.latitude, best.observer.longitude) >= NEAR_KM || Math.abs((here.eyeHeightAGL ?? 1.5) - best.observer.eyeHeightAGL) > 1)) return null;
+  return best?.registration && best.removed ? null : best || null;
+}
+// A render owns its snapshot. Do not retain it across edits, account switches or
+// changes to a saved observer's coordinates/height.
+function recordStatusIndex(list = load()) {
+  const groups = new Map(), places = new Map();
+  for (const f of favorites) if (!places.has(f.id)) places.set(f.id, f);
+  for (const r of list) {
+    let targets = groups.get(r.placeId);
+    if (!targets) { targets = new Map(); groups.set(r.placeId, targets); }
+    if (newerRecord(r, targets.get(r.target.key))) targets.set(r.target.key, r);
+  }
+  return { groups, places };
+}
 function statusOf(placeId, targetKey, list = load()) {
   let best = null;
-  for (const r of list) if (r.placeId === placeId && r.target.key === targetKey && (!best || (r.registration&&!best.registration) || (r.registration===best.registration && (when(r) > when(best) || (when(r) === when(best) && r.updatedAt >= best.updatedAt))) || (!r.registration&&!best.registration&&
-  (when(r)>when(best)||(when(r)===when(best)&&r.updatedAt>=best.updatedAt))))) best = r;
-  const here = placeOf(placeId);
-  if (best?.observer && here && (AstroNotesTerrain.distanceKm(here.latitude, here.longitude, best.observer.latitude, best.observer.longitude) >= NEAR_KM || Math.abs((here.eyeHeightAGL ?? 1.5) - best.observer.eyeHeightAGL) > 1)) return null;
-  return best?.registration && best.removed ? null : best;
+  for (const r of list) if (r.placeId === placeId && r.target.key === targetKey && newerRecord(r, best)) best = r;
+  return currentRecord(best, placeOf(placeId));
 }
 function placesFor(targetKey) {
-  const list = load(), out = [];
-  for (const f of favorites) { const r = statusOf(f.id, targetKey, list); if (r && r.result !== 'hidden') out.push({ place: withShape(f), record: r }); }
+  const index = recordStatusIndex(), shapes = shapeData(), out = [];
+  for (const f of favorites) { const r = currentRecord(index.groups.get(f.id)?.get(targetKey), index.places.get(f.id)); if (r && r.result !== 'hidden') out.push({ place: withShape(f, shapes, index.places), record: r }); }
   return out;
 }
-function targetsSeenFrom(placeId) {
-  const list = load(), keys = [...new Set(list.filter((r) => r.placeId === placeId).map((r) => r.target.key))];
-  return keys.map((k) => statusOf(placeId, k, list)).filter(Boolean);
+function targetsSeenFrom(placeId, index = recordStatusIndex()) {
+  return [...(index.groups.get(placeId)?.values() || [])].map(r => currentRecord(r, index.places.get(placeId))).filter(Boolean);
 }
 function badge(f) {
   const seen = targetsSeenFrom(f.id).filter((r) => r.result !== 'hidden');
@@ -56,9 +71,9 @@ PLACE_PICKERS.records = { title: '撮影地点', custom: () => null, point: () =
 // Shape metadata follows the same account-local lifetime as visible targets.
 const shapesKey=()=>AstroNotesLibrary.keys(auth?.loginId).shapes;
 function shapeData(){const raw=store.get(shapesKey(),{});return raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};}
-function shapeFor(f){const r=shapeData()[f?.id];return r&&r.latitude===f.latitude&&r.longitude===f.longitude?AstroNotesShooting.cleanShape(r.shape):null;}
-const withShape=f=>{
- const own=shapeFor(f),source=f?.sourcePlaceId&&favorites.find(p=>p.id===f.sourcePlaceId),inherited=source&&shapeFor(source);
+function shapeFor(f, shapes=shapeData()){const r=shapes[f?.id];return r&&r.latitude===f.latitude&&r.longitude===f.longitude?AstroNotesShooting.cleanShape(r.shape):null;}
+const withShape=(f,shapes=shapeData(),places=null)=>{
+ const own=shapeFor(f,shapes),source=f?.sourcePlaceId&&(places?places.get(f.sourcePlaceId):favorites.find(p=>p.id===f.sourcePlaceId)),inherited=source&&shapeFor(source,shapes);
  const shape=own||(inherited&&AstroNotesShooting.shapeContains(inherited,f)?inherited:null);
  return {...f,...(shape?{shape}:{})};
 };
@@ -263,15 +278,24 @@ function renderRecordsHub() {
   count.setAttribute('role','status');count.setAttribute('aria-live','polite');count.textContent=notebookEdit.ids.size+'地点を選択中';actions.prepend(count);}
   host.append(actions);
   const list = document.createElement('div'); list.className = 'al my-list'; host.append(list);
-  const records = load();
+  const records = load(), index = recordStatusIndex(records), shapes = shapeData();
+  const activeByPlace = new Map(), shapeByPlace = new Map();
+  const activeFor = f => {
+    if (!activeByPlace.has(f.id)) activeByPlace.set(f.id, targetsSeenFrom(f.id, index).filter(r => r.result !== 'hidden'));
+    return activeByPlace.get(f.id);
+  };
+  const placeShape = f => {
+    if (!shapeByPlace.has(f.id)) shapeByPlace.set(f.id, shapeFor(f, shapes));
+    return shapeByPlace.get(f.id);
+  };
   // Favorites are location candidates, not records. Keep historical records
   // and explicitly saved line/area locations visible without adding bare favorites.
   const recordedIds=new Set(records.map(r=>r.placeId));
-  const recordedPlaces=favorites.filter(f=>f.recordRegistered||recordedIds.has(f.id)||!!shapeFor(f));
+  const recordedPlaces=favorites.filter(f=>f.recordRegistered||recordedIds.has(f.id)||!!placeShape(f));
   if(recordsFilterOwner!==auth.token){recordsFilterOwner=auth.token;recordsTargetFilter='';recordsBodyFilter='';}
-  if(notebookEdit)for(const id of notebookEdit.ids)if(!recordedPlaces.some(f=>f.id===id))notebookEdit.ids.delete(id);
+  if(notebookEdit){const ids=new Set(recordedPlaces.map(f=>f.id));for(const id of notebookEdit.ids)if(!ids.has(id))notebookEdit.ids.delete(id);}
   if(notebookEdit)el('notebookCount').textContent=notebookEdit.ids.size+'地点を選択中';
-  const filterTargets=[...new Map(recordedPlaces.flatMap(f=>targetsSeenFrom(f.id).filter(r=>r.result!=='hidden').map(r=>[r.target.key,r.target]))).values()];
+  const filterTargets=[...new Map(recordedPlaces.flatMap(f=>activeFor(f).map(r=>[r.target.key,r.target]))).values()];
   if(!filterTargets.some(t=>t.key===recordsTargetFilter))recordsTargetFilter='';
   const filters=document.createElement('div');filters.className='my-actions';
   const reset=document.createElement('button');reset.type='button';reset.className='chip';reset.textContent='すべて';reset.setAttribute('aria-pressed',String(!recordsTargetFilter&&!recordsBodyFilter));reset.onclick=()=>{recordsTargetFilter='';recordsBodyFilter='';renderRecordsHub();};
@@ -282,7 +306,7 @@ function renderRecordsHub() {
   reset.hidden=!!notebookEdit;if(notebookEdit)filters.classList.add('notebook-edit-filters');
   filters.append(reset,targetSelect,bodySelect,...recordSortControl('recordPlaceSort',renderRecordsHub));host.insertBefore(filters,list);
   if(recordsBodyFilter){const hint=document.createElement('p');hint.className='tiny';hint.textContent='選んだ天体との重なりを調べられる対象がある撮影地点です。';host.insertBefore(hint,list);}
-  const visiblePlaces=recordedPlaces.filter(f=>{const active=targetsSeenFrom(f.id).filter(r=>r.result!=='hidden'),matching=active.filter(r=>!recordsTargetFilter||r.target.key===recordsTargetFilter);
+  const visiblePlaces=recordedPlaces.filter(f=>{const active=activeFor(f),matching=active.filter(r=>!recordsTargetFilter||r.target.key===recordsTargetFilter);
   return (!recordsTargetFilter||matching.length)&&(!recordsBodyFilter||planningPairs(matching,[recordsBodyFilter]).length);});
   if(notebookNotice){const notice=document.createElement('p');notice.className='tiny';notice.setAttribute('role','status');notice.textContent=notebookNotice;host.insertBefore(notice,list);}
   if(notebookEdit){
@@ -309,7 +333,7 @@ function renderRecordsHub() {
   if (!recordedPlaces.length) { const empty = document.createElement('p'); empty.className = 'tiny'; empty.textContent = '撮影地点はまだありません。まず撮りたい場所と対象を探せます。'; list.append(empty);if(screenAllowed('framing')&&screenAllowed('skymap')){const find=document.createElement('button');find.type='button';
   find.className='chip';find.textContent='撮影機会を探す';find.onclick=()=>navigationHistory.pushRoute('#/explore');list.append(find);} }
   for (const f of sortRecordPlaces(recordedPlaces)) {
-    const active=targetsSeenFrom(f.id).filter(r=>r.result!=='hidden');
+    const active=activeFor(f);
     const matching=active.filter(r=>!recordsTargetFilter||r.target.key===recordsTargetFilter);
     if(recordsTargetFilter&&!matching.length)continue;
     if(recordsBodyFilter&&!planningPairs(matching,[recordsBodyFilter]).length)continue;
@@ -317,9 +341,8 @@ function renderRecordsHub() {
     const row = document.createElement('button'); row.type = 'button'; row.className = 'list-item my-place-row';
     const name = document.createElement('strong'); name.textContent = f.name;
     const sub = document.createElement('span'); sub.className = 'tiny sub-line';
-    const mine = records.filter(r => r.placeId === f.id).sort((a,b) => when(b)-when(a));
-    const targets=targetsSeenFrom(f.id).filter(r=>r.result!=='hidden');
-    sub.textContent=shapeFor(f)?shapeName(shapeFor(f))+' ・ ':'';sub.textContent+=targets.length?`対象${targets.length}件 ・ ${targets.map(r=>r.target.name).join('・')}`:'対象は未登録';
+    const targets=active, shape=placeShape(f);
+    sub.textContent=shape?shapeName(shape)+' ・ ':'';sub.textContent+=targets.length?`対象${targets.length}件 ・ ${targets.map(r=>r.target.name).join('・')}`:'対象は未登録';
     row.dataset.notebookPlace=f.id;
     if(notebookEdit){const state=notebookEdit;row.setAttribute('role','checkbox');row.setAttribute('aria-checked',String(state.ids.has(f.id)));row.insertAdjacentHTML('beforeend',notebookCheck(state.ids.has(f.id)));}
     row.append(name, sub); row.onclick = () => {if(notebookEdit){const state=notebookEdit;if(state.ids.has(f.id))state.ids.delete(f.id);else state.ids.add(f.id);state.error='';state.targets=[];state.drafts=[];renderRecordsHub();
@@ -2726,7 +2749,8 @@ function opportunityFrameOpen(){
   const timer=setTimeout(()=>reject(Error('calculation frame unavailable')),60000);
   state.listener=event=>{
    const message=event.data;if(event.source!==frame.contentWindow||event.origin!==location.origin||message?.type!=='astronotes-overlap')return;
-   if('ready' in message){clearTimeout(timer);opportunityDeviceStats.frameMs=Math.round(performance.now()-began);if(message.ready&&/^[a-f0-9]{64}$/.test(message.engine||'')){state.engine=message.engine;resolve(state);}else reject(Error('calculation engine unavailable'));return;}
+   if('ready' in message){clearTimeout(timer);opportunityDeviceStats.frameMs=Math.round(performance.now()-began);
+    if(message.ready&&/^[a-f0-9]{64}$/.test(message.engine||'')){state.engine=message.engine;state.cancellation=message.cancellation===true;resolve(state);}else reject(Error('calculation engine unavailable'));return;}
    const call=calls.get(message.id);if(!call)return;calls.delete(message.id);
    if(message.error)call.reject(Error(message.error));else call.resolve(message.result);
   };
@@ -2741,13 +2765,28 @@ function opportunityFrameClose(){
 }
 // The frame runs one check at a time. A check that never settles would hold
 // every later one, so it is abandoned with its frame and reported unchecked.
-async function opportunityFrameSolve(input,op='solve'){
- const state=await opportunityFrameOpen(),id=++opportunityFrameSeq;
+function opportunityCalculationCall(calls,id,message,send,close,isCurrent){
+ if(!isCurrent())return Promise.reject(Error('calculation-cancelled'));
  return new Promise((resolve,reject)=>{
-  const timer=setTimeout(()=>{if(opportunityFrame===state)opportunityFrameClose();},120000);
-  state.calls.set(id,{resolve:v=>{clearTimeout(timer);resolve(v);},reject:e=>{clearTimeout(timer);reject(e);}});
-  state.frame.contentWindow.postMessage({type:'astronotes-overlap',id,op,input},location.origin);
+  let watcher,done=false;
+  const finish=(fn,value)=>{if(done)return;done=true;clearTimeout(timer);clearTimeout(watcher);calls.delete(id);fn(value);};
+  const timer=setTimeout(close,120000);
+  calls.set(id,{resolve:value=>finish(resolve,value),reject:error=>finish(reject,error)});
+  const watch=()=>{
+   if(done)return;
+   if(!isCurrent()){
+    try{send({type:'astronotes-overlap',id,op:'cancel'});}catch{/* A closed engine has no remaining work to cancel. */}
+    finish(reject,Error('calculation-cancelled'));return;
+   }
+   watcher=setTimeout(watch,40);
+  };
+  try{send(message);watch();}catch(error){finish(reject,error);}
  });
+}
+async function opportunityFrameSolve(input,op='solve',isCurrent=()=>true){
+ const state=await opportunityFrameOpen(),id=++opportunityFrameSeq;
+ const send=message=>{if(message.op!=='cancel'||state.cancellation)state.frame.contentWindow.postMessage(message,location.origin);};
+ return opportunityCalculationCall(state.calls,id,{type:'astronotes-overlap',id,op,input},send,()=>{if(opportunityFrame===state)opportunityFrameClose();},isCurrent);
 }
 // 2026-11-09 Where the browser can decode terrain tiles off the main thread,
 // the same engine runs in several workers and checks pairs in parallel. The
@@ -2767,7 +2806,7 @@ function opportunityWorkersOpen(){
   const timer=setTimeout(()=>reject(Error('calculation worker unavailable')),60000);
   worker.onmessage=event=>{
    const message=event.data;if(message?.type!=='astronotes-overlap')return;
-   if('ready' in message){clearTimeout(timer);if(message.ready&&/^[a-f0-9]{64}$/.test(message.engine||'')){slot.engine=message.engine;resolve(slot);}else reject(Error('calculation engine unavailable'));return;}
+   if('ready' in message){clearTimeout(timer);if(message.ready&&/^[a-f0-9]{64}$/.test(message.engine||'')){slot.engine=message.engine;slot.cancellation=message.cancellation===true;resolve(slot);}else reject(Error('calculation engine unavailable'));return;}
    const call=slot.calls.get(message.id);if(!call)return;slot.calls.delete(message.id);
    if(message.error)call.reject(Error(message.error));else call.resolve(message.result);
   };
@@ -2783,14 +2822,10 @@ function opportunityWorkersClose(){
  const pool=opportunityWorkers;if(!pool)return;opportunityWorkers=null;
  for(const slot of pool.slots){slot.worker.terminate();for(const call of slot.calls.values())call.reject(Error('calculation worker closed'));slot.calls.clear();}
 }
-async function opportunityWorkerSolve(input,op='solve',fixed=null){
+async function opportunityWorkerSolve(input,op='solve',fixed=null,isCurrent=()=>true){
  const pool=await opportunityWorkersOpen(),slot=Number.isInteger(fixed)?pool.slots[fixed%pool.slots.length]:pool.slots.reduce((a,b)=>b.calls.size<a.calls.size?b:a),id=++opportunityWorkerSeq;
- return new Promise((resolve,reject)=>{
-  // A check that never settles is abandoned with the pool and reported unchecked.
-  const timer=setTimeout(()=>{if(opportunityWorkers===pool)opportunityWorkersClose();},120000);
-  slot.calls.set(id,{resolve:v=>{clearTimeout(timer);resolve(v);},reject:e=>{clearTimeout(timer);reject(e);}});
-  slot.worker.postMessage({type:'astronotes-overlap',id,op,input});
- });
+ const send=message=>{if(message.op!=='cancel'||slot.cancellation)slot.worker.postMessage(message);};
+ return opportunityCalculationCall(slot.calls,id,{type:'astronotes-overlap',id,op,input},send,()=>{if(opportunityWorkers===pool)opportunityWorkersClose();},isCurrent);
 }
 // Workers first; if they cannot start here, the frame for the rest of the session.
 async function opportunityEngineOpen(){
@@ -2799,7 +2834,7 @@ async function opportunityEngineOpen(){
  return opportunityFrameOpen();
 }
 const opportunityEngineSlots=()=>opportunityEngineMode==='workers'&&opportunityWorkers?Math.max(1,opportunityWorkers.slots.length):1;
-function opportunityEngineSolve(input,op='solve',slot=null){return opportunityEngineMode==='workers'?opportunityWorkerSolve(input,op,slot):opportunityFrameSolve(input,op);}
+function opportunityEngineSolve(input,op='solve',slot=null,isCurrent=()=>true){return opportunityEngineMode==='workers'?opportunityWorkerSolve(input,op,slot,isCurrent):opportunityFrameSolve(input,op,isCurrent);}
 // 2026-11-11 見え方の「重なる日時」（ユーザー「計算が遅いこと」）: 400日を40日ずつに分け、計算本体のWorkerで並行して解く。
 // 早い日から順に確定し、求める件数（4件）が前の区間だけで揃えば後ろは解かない。全体に重なる（建物・塔）だけ。山、ほかの
 // 重ね方、この端末が読み込んだ気象が効く地点（3km以内）は、今までどおりこの画面で計算する（nullを返す）。
@@ -2818,10 +2853,11 @@ async function aimDaysEngine(obs,target,body,partId,{from,limb,matchMode,days=40
  // Rows of the finished chunks in front, and whether they already hold the wanted count.
  const front=()=>{const rows=[];for(let i=0;i<chunks.length&&results[i];i++){rows.push(...results[i]);if(rows.length>=limit)return {rows:rows.slice(0,limit),done:true,end:i};}let i=0;while(i<chunks.length&&results[i])i++;return {rows,done:i===chunks.length,end:i-1};};
  const lane=async slot=>{while(!broken&&live()){if(front().done)return;const i=next++;if(i>=chunks.length)return;
-  try{results[i]=(await opportunityEngineSolve({...base,...chunks[i]},'days',slot)).rows||[];}catch{broken=true;return;}
+  const needed=()=>live()&&!broken&&!front().done;
+  try{results[i]=(await opportunityEngineSolve({...base,...chunks[i]},'days',slot,needed)).rows||[];}catch(error){if(error?.message!=='calculation-cancelled')broken=true;return;}
   const f=front();onScanned(f.done&&f.rows.length>=limit?S.Cal.startOfDay(f.rows[limit-1].at)+86400000:f.end>=0?chunks[f.end].start+chunks[f.end].count*86400000:from);}};
  await Promise.all(Array.from({length:opportunityEngineSlots()},(_,k)=>lane(k)));
- if(broken)return null;if(!live())return [];
+ if(!live())return [];if(broken)return null;
  return front().rows;
 }
 globalThis.AstroNotesDaysEngine=aimDaysEngine;
@@ -2873,7 +2909,8 @@ async function recordEngineDiscover(plan,points,isCurrent,onProgress){
   for(let k=0;k<queue.length;k+=8){
    if(broken||!live())return;
    const group=queue.slice(k,k+8),own=[...new Set(group.flatMap(i=>favoritesFor(points[i])))];
-   try{const r=await opportunityEngineSolve({...base,favorites:own,entries:group.map(i=>points[i])},'discover',slot);if(!Array.isArray(r?.results)||r.results.length!==group.length)throw Error('discovery result');group.forEach((i,n)=>{results[i]=r.results[n];});}catch(e){broken=e;return;}
+   try{const r=await opportunityEngineSolve({...base,favorites:own,entries:group.map(i=>points[i])},'discover',slot,()=>!broken&&live());
+    if(!Array.isArray(r?.results)||r.results.length!==group.length)throw Error('discovery result');group.forEach((i,n)=>{results[i]=r.results[n];});}catch(e){broken=e;return;}
    for(const i of group)done(i);
   }
  };
@@ -3064,48 +3101,80 @@ function opportunityDeviceInput(pair,day){
  return {input:{...pair,contextFavorites:favorites.filter(f=>f.id===pair.target.favId).map(f=>({id:f.id,targetCategory:f.targetCategory}))},day:opportunityDateAt(day),pairId:pair.id,preferences:opportunityListSettings(),tools:(auth?.tools||[]).slice(),generation:accessState.generation,
  evaluationNow:Date.now()};
 }
-function opportunityDeviceRun(priority,work){
- return new Promise((resolve,reject)=>{opportunityDeviceQueue[priority].push({work,resolve,reject});opportunityDevicePump();});
+function opportunityDeviceRun(priority,work,flight,live=()=>true){
+ return new Promise((resolve,reject)=>{
+  let watcher;
+  const item={work,resolve,reject,start:()=>{clearTimeout(watcher);if(flight?.queued===item)flight.queued=null;}};
+  if(flight)flight.queued=item;
+  const watch=()=>{
+   if(!live()){
+    for(const queue of [opportunityDeviceQueue.high,opportunityDeviceQueue.low]){const i=queue.indexOf(item);if(i>=0)queue.splice(i,1);}
+    item.start();resolve({rows:[],cancelled:true});return;
+   }
+   watcher=setTimeout(watch,40);
+  };
+  opportunityDeviceQueue[priority].push(item);watch();opportunityDevicePump();
+ });
+}
+function opportunityDevicePromote(flight){
+ flight.priority='high';const item=flight.queued;if(!item)return;
+ const i=opportunityDeviceQueue.low.indexOf(item);
+ if(i>=0){opportunityDeviceQueue.low.splice(i,1);opportunityDeviceQueue.high.push(item);opportunityDevicePump();}
 }
 // As many checks run at once as the engine has workers (one for the frame).
 function opportunityDevicePump(){
  const q=opportunityDeviceQueue;
  while(q.running<opportunityEngineSlots()){
   // 探す's registered-place search goes first: background days wait while it runs.
-  const item=q.high.shift()||(recordDiscoveryBusy?null:q.low.shift());if(!item)return;q.running++;
+  const item=q.high.shift()||(recordDiscoveryBusy?null:q.low.shift());if(!item)return;item.start();q.running++;
   Promise.resolve().then(item.work).then(item.resolve,item.reject).finally(()=>{q.running--;opportunityDevicePump();});
  }
 }
 // One (pair, day) check. Rows carry the current labels on a stored hit,
 // since labels are not part of the calculation key.
 async function opportunityDeviceSolve(pair,day,{priority='high',isCurrent=()=>true}={}){
- const owner=auth?.loginId;if(!owner)return {rows:[],failed:1};
+ const owner=auth?.loginId,token=auth?.token,generation=accessState.generation;
+ const reader=()=>isCurrent()&&owner===auth?.loginId&&token===auth?.token&&generation===accessState.generation;
+ if(!owner)return {rows:[],failed:1};if(!reader())return {rows:[],cancelled:true};
  const state=await opportunityEngineOpen(),settings=opportunityListSettings();
  const key=await opportunityDigest(['astronotes.device-overlap.v1',state.engine,owner,(auth?.tools||[]).slice().sort(),settings,opportunitySemantic(pair),opportunityDateAt(day)]);
+ if(!reader())return {rows:[],cancelled:true};
  const relabel=rows=>rows.map(row=>({...row,place:{...row.place,name:pair.place.name},target:pair.target}));
  let flight=opportunityDeviceFlights.get(key);
+ if(flight&&(flight.token!==token||flight.generation!==generation))flight.cancelled=true;
+ // Once cancellation was sent, new readers start after the old job has settled.
+ if(flight?.cancelled){await flight.promise.catch(()=>{});return reader()?opportunityDeviceSolve(pair,day,{priority,isCurrent}):{rows:[],cancelled:true};}
  if(!flight){
-  flight=(async()=>{
+  flight={readers:new Set([reader]),token,generation,priority,cancelled:false,promise:null};
+  const live=()=>{
+   if(flight.cancelled)return false;
+   for(const current of flight.readers)if(current())return true;
+   flight.cancelled=true;return false;
+  };
+  flight.promise=(async()=>{
    const saved=await opportunityDbDo('readonly',store=>store.get(key)).catch(()=>null);
+   if(!live())return {rows:[],cancelled:true};
    if(saved?.owner===owner&&saved.engine===state.engine){opportunityDeviceStats.hits++;return {rows:saved.rows,stored:true};}
-   // A pair whose geometry is not built yet waits for the other body's check of the same
-   // place and target, then uses what that check built instead of building it twice.
+   // Other bodies share the same geometry; keep its producer alive while any reader needs it.
    const turn=Object.keys((await opportunityGeometryFor(pair)).entries).length?null:await opportunityGeometryTurn(await opportunityGeometryId(pair));
-   try{return await opportunityDeviceRun(priority,async()=>{
-    if(!isCurrent()||owner!==auth?.loginId)return {rows:[],cancelled:true};
-    const geometry=await opportunityGeometryFor(pair);
-    const began=performance.now(),result=await opportunityEngineSolve({...opportunityDeviceInput(pair,day),geometry:geometry.entries});
+   try{return await opportunityDeviceRun(flight.priority,async()=>{
+    if(!live())return {rows:[],cancelled:true};
+    const geometry=await opportunityGeometryFor(pair);if(!live())return {rows:[],cancelled:true};
+    const began=performance.now(),result=await opportunityEngineSolve({...opportunityDeviceInput(pair,day),geometry:geometry.entries},'solve',null,live);
+    if(!live())return {rows:[],cancelled:true};
     opportunityDeviceStats.solves++;opportunityDeviceStats.solveMs+=Math.round(performance.now()-began);
-    if(result.geometry&&typeof result.geometry==='object'&&Object.keys(result.geometry).length&&owner===auth?.loginId){opportunityDeviceStats.geometry=(opportunityDeviceStats.geometry||0)+Object.keys(result.geometry).length;await opportunityGeometryKeep(geometry.id,result.geometry);}
+    if(result.geometry&&typeof result.geometry==='object'&&Object.keys(result.geometry).length){opportunityDeviceStats.geometry=(opportunityDeviceStats.geometry||0)+Object.keys(result.geometry).length;await opportunityGeometryKeep(geometry.id,result.geometry);}
+    if(!live())return {rows:[],cancelled:true};
     if(result.status!=='complete'){opportunityDeviceStats.failures++;return {rows:result.rows||[],failed:1};}
-    if(owner===auth?.loginId)await opportunityDbDo('readwrite',store=>store.put({key,owner,engine:state.engine,day:opportunityDateAt(day),savedAt:Date.now(),rows:result.rows})).catch(()=>{});
+    await opportunityDbDo('readwrite',store=>store.put({key,owner,engine:state.engine,day:opportunityDateAt(day),savedAt:Date.now(),rows:result.rows})).catch(()=>{});
     return {rows:result.rows};
-   });}finally{turn?.();}
-  })().finally(()=>{if(opportunityDeviceFlights.get(key)===flight)opportunityDeviceFlights.delete(key);});
+   },flight,live);}finally{turn?.();}
+  })().catch(error=>{if(error?.message==='calculation-cancelled')return {rows:[],cancelled:true};throw error;}).finally(()=>{if(opportunityDeviceFlights.get(key)===flight)opportunityDeviceFlights.delete(key);});
   opportunityDeviceFlights.set(key,flight);
- }
- const result=await flight;
- if(result.cancelled)return isCurrent()?opportunityDeviceSolve(pair,day,{priority,isCurrent}):{rows:[],cancelled:true};
+ }else{flight.readers.add(reader);if(priority==='high')opportunityDevicePromote(flight);}
+ let result;try{result=await flight.promise;}finally{flight.readers.delete(reader);}
+ if(!reader())return {rows:[],cancelled:true};
+ if(result.cancelled)return opportunityDeviceSolve(pair,day,{priority,isCurrent});
  return {...result,rows:relabel(result.rows)};
 }
 // While the app is in front, the next seven days of sun/moon pairs fill in

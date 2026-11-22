@@ -47,7 +47,9 @@ async function same(makeServer,run,options){
       const {receiveVersion, ...cursor} = value;
       return cursor;
     };
-    const trace = w.trace.map(entry => entry[0] === 'store' && entry[1] === 'sorami.sync'
+    // Sending now reads one batch snapshot instead of calling item once per ID.
+    // Compare transport/order/durable state; batch read counts are asserted separately.
+    const trace = w.trace.filter(entry => !(entry[0] === 'rec' && entry[1] === 'item')).map(entry => entry[0] === 'store' && entry[1] === 'sorami.sync'
       ? [...entry.slice(0, 2), JSON.stringify(legacyCursor(JSON.parse(entry[2])))] : entry);
     const disk = [...w.disk].map(([key, value]) => {
       const data = JSON.parse(value);
@@ -74,7 +76,7 @@ test('POST→記録受理→GET複数頁→受信の順序・保存・文言が�
   assert.deepEqual([...posts(out.trace),...gets(out.trace)].map(x=>x[2]),['/sync','/sync?since=0','/sync?since=3']);
   assert.deepEqual(posts(out.trace)[0][3].records.map(r=>r.id),['rec:plan:p']);
   assert.equal(posts(out.trace)[0][3].favorites[1].deleted,true);
-  assert.deepEqual(out.trace.filter(x=>x[0]==='rec').map(x=>x[1]),['scan','item','accepted','apply','apply']);
+  assert.deepEqual(out.trace.filter(x=>x[0]==='rec').map(x=>x[1]),['scan','accepted','apply','apply']);
   assert.deepEqual(out.state.syncInfo,{loginId:'owner',rev:5,records:1});
   assert.deepEqual(out.state.pushQueue,[]);assert.equal(out.state.syncError,null);
   assert.deepEqual(out.state.favorites.map(x=>x.id),['f1','r1']);assert.deepEqual(out.state.sightings,[]);

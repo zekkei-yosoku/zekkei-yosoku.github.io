@@ -6,7 +6,6 @@
 @@include:src/features/candidates/osm-places.js@@
 @@include:src/features/candidates/terrain-model.js@@
 @@include:src/features/candidates/live-terrain.js@@
-@@include:src/features/candidates/scene-hulls.js@@
 @@include:src/features/candidates/scene-surface.js@@
 @@include:src/features/candidates/composition.js@@
 @@include:src/features/candidates/model-evaluator.js@@

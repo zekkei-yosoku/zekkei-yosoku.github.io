@@ -44,6 +44,17 @@ test('a real surface composition passes full model LOS and the final scene expos
 
 test('surface hulls are bound to the exact drawing geometry and reject a mixed model version',()=>{const S=require('./src/features/candidates/scene-surface.js'),H=require('./src/features/candidates/scene-hulls.js'),crypto=require('node:crypto'),m=A.TOWER_MODELS.skytree;assert.equal(crypto.createHash('sha256').update(JSON.stringify(m)).digest('hex'),H.modelSha256);assert(S.model(A,target));const previous=globalThis.AstroNotesTowerModels,changed={...m,vertices:m.vertices.map((v,i)=>i?v:[v[0]+1,v[1],v[2]])};try{globalThis.AstroNotesTowerModels={skytree:changed};assert.equal(S.model(A,target),null);}finally{if(previous===undefined)delete globalThis.AstroNotesTowerModels;else globalThis.AstroNotesTowerModels=previous;}});
 
+test('surface module can initialize before lazy hull data and returns identical geometry after load',async()=>{
+ const vm=await import('node:vm'),fs=await import('node:fs'),S=require('./src/features/candidates/scene-surface.js'),H=require('./src/features/candidates/scene-hulls.js');
+ const c=vm.createContext({AstroNotesTerrain:require('./astronotes-terrain.js')});
+ vm.runInContext(fs.readFileSync(new URL('./src/features/candidates/scene-surface.js',import.meta.url),'utf8'),c);
+ assert.equal(c.AstroNotesTrialSurface.model(A,target),null,'do not recompute large hulls or cache incomplete geometry while data is absent');
+ c.AstroNotesTrialSurfaceHulls=H;
+ const expected=S.model(A,target),actual=c.AstroNotesTrialSurface.model(A,target);
+ assert.equal(actual.signature,expected.signature);assert.equal(actual.vertices.length,expected.vertices.length);
+ assert.equal(JSON.stringify(actual.surfaceTriangles),JSON.stringify(expected.surfaceTriangles));
+});
+
 
 test('invalid composition is distinct from the previous valid search and never loads data',async()=>{const D=require('./src/features/candidates/search.js'),plan={target,body:'moon',at:0},key=p=>D.keyFor(p,1,'standard');assert.notEqual(key(plan),key({...plan,compositionInvalid:true}));let loads=0;const engine=D.create({loadData:async()=>{loads++;return {};},evaluate:async()=>({})});await assert.rejects(engine.search({...plan,compositionInvalid:true}),/invalid-composition/);assert.equal(loads,0);});
 

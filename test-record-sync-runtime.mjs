@@ -25,3 +25,32 @@ test('partial multi-kind receipt recovers without uploading either stale value',
 test('duplicate incoming ID keeps the latest tombstone rather than requeueing older value',()=>{const f=fixture();f.baseline();f.c.rec.apply([...f.remote({...old,title:'older'}).records,{id:'rec:plan:p',deleted:true}]);assert.equal(f.c.store.get(key,[]).length,0);assert.equal(f.c.pushQueue.length,0)});
 test('saving a record schedules a sync, and other keys do not',async()=>{const f=fixture();const timers=[];f.c.setTimeout=fn=>{timers.push(fn);return timers.length};f.c.clearTimeout=()=>{};let calls=0;f.c.accountSync=()=>({syncNow:async()=>{calls++;}});f.c.rec.touched('unrelated.key');assert.equal(timers.length,0);f.c.store.set(key,[old]);f.c.rec.touched(key);assert.equal(timers.length,1);timers[0]();await new Promise(setImmediate);assert.equal(calls,1);});
 test('a queued record is not replaced by incoming data even when its content matches the last sync',()=>{const f=fixture();f.baseline();f.c.pushQueue=[{kind:'rec',id:'rec:plan:p'}];f.c.rec.apply(f.remote({...old,title:'remote'}).records);assert.equal(f.c.store.get(key,[])[0].title,'before');});
+
+test('large sync batches read each record collection once and persist the queue once per scan',async()=>{
+ const f=fixture(),rows=Array.from({length:1200},(_,i)=>({...old,id:'p'+i,title:'plan '+i}));
+ f.c.store.set(key,rows);const get=f.c.store.get,set=f.c.store.set;
+ let reads=0,queueWrites=0;
+ f.c.store.get=(k,d)=>{if(k===key)reads++;return get(k,d);};
+ f.c.store.set=(k,v)=>{if(k==='sorami.queue')queueWrites++;return set(k,v);};
+ assert.equal(f.c.rec.scan(),1200);assert.equal(reads,1);assert.equal(queueWrites,1);
+ reads=0;const batch=f.c.rec.items(f.c.pushQueue.slice(0,500).map(q=>q.id));
+ assert.equal(reads,1);assert.equal(batch.length,500);assert.equal(batch[499].body.value.id,'p499');
+ reads=0;f.c.rec.accepted(batch);assert.equal(reads,1,'ack takes a fresh snapshot once, after the request');
+ f.c.pushQueue=[];reads=0;
+ f.c.rec.apply(batch.map(it=>({id:it.id,body:JSON.stringify({kind:'plan',value:{...it.body.value,title:'remote'}})})));
+ assert.equal(reads,1,'receipt keeps original local values without reparsing for each row');
+ assert.equal(get(key,[])[499].title,'remote');
+});
+
+test('POST batches use the batch reader and recheck in-flight edits without retaining its snapshot',async()=>{
+ const f=fixture(),rows=Array.from({length:1001},(_,i)=>({...old,id:'p'+i}));
+ f.c.store.set(key,rows);const readItems=f.c.rec.items;let batches=0;
+ f.c.rec.items=ids=>{batches++;return readItems(ids);};
+ f.c.rec.item=()=>{throw Error('single-item parser must not be used by transport');};
+ f.c.apiCall=async(m,p,b)=>{
+  if(m==='POST'){f.posts.push(b);return {accepted:{records:b.records.map(r=>r.id)}};}
+  return {records:[],rev:2,more:false};
+ };
+ await f.c.syncNow();assert.equal(f.c.syncError,null);assert.deepEqual(f.posts.map(b=>b.records.length),[500,500,1]);
+ assert.equal(batches,3);assert.equal(f.c.pushQueue.length,0);
+});

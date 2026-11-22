@@ -1,7 +1,7 @@
 /* Trial picking on the existing drawing's convex volumes. This is approximate drawing geometry, not surveyed PLATEAU geometry. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AstroNotesTrialSurface=api;})(globalThis,function(){
 'use strict';
-const rad=Math.PI/180,G=()=>globalThis.AstroNotesTerrain||(typeof require==='function'?require('../../../astronotes-terrain.js'):null),hulls=globalThis.AstroNotesTrialSurfaceHulls||(typeof require==='function'?require('./scene-hulls.js'):null);
+const rad=Math.PI/180,G=()=>globalThis.AstroNotesTerrain||(typeof require==='function'?require('../../../astronotes-terrain.js'):null),surfaceHulls=()=>globalThis.AstroNotesTrialSurfaceHulls||(typeof require==='function'?require('./scene-hulls.js'):null);
 let cached=null;const modelChecks=new WeakMap(),compiled=new WeakMap();
 const targetFrame=t=>JSON.stringify([t.id,t.latitude,t.longitude,t.groundM,t.parts]);
 const hash=value=>{const text=JSON.stringify(value);let h=2166136261;for(let i=0;i<text.length;i++)h=Math.imul(h^text.charCodeAt(i),16777619);return h>>>0;};
@@ -38,7 +38,8 @@ function sourceModel(align,target){
  return id?Object.values(align).find(m=>has(m)&&m.id===id)||null:null;
 }
 function model(align,target){
- if(!align||!target?.parts?.length)return null;const raw=sourceModel(align,target);if(!raw)return null;
+ if(!align||!target?.parts?.length)return null;const hulls=surfaceHulls();if(!hulls)return null;
+ const raw=sourceModel(align,target);if(!raw)return null;
  const frameKey=targetFrame(target);let byFrame=compiled.get(raw);if(byFrame?.has(frameKey))return byFrame.get(frameKey);
  if(!(raw.heightM>0)||raw.heightMode&&!['scale','translate-top'].includes(raw.heightMode))return null;
  if(raw.id===hulls?.modelId){if(!modelChecks.has(raw))modelChecks.set(raw,raw.vertices?.length===hulls.vertexCount&&raw.faces?.length===hulls.triangles.length&&hash({vertices:raw.vertices,faces:raw.faces,heightM:raw.heightM})===hulls.signature);if(!modelChecks.get(raw))return null;}
