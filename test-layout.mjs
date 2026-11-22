@@ -949,7 +949,7 @@ ok(/const AIM_STAND_ON_WATER_OK = new Set\(\["橋", "桟橋"\]\);/.test(html), "
 ok(/return water === true \? aimMoveToLand\(c, lines, opts\) : water === false \? c : null;/.test(html), "ねらう: 水の上なら陸へ動かす（動かせなければ外す）");
 ok(/const hit = AstroNotesAlign\.crossingNear\(\{ latitude: pt\.latitude, longitude: pt\.longitude, elevation: ground \}/.test(html),
   "ねらう: 動かした点で重なりを解き直す");
-ok(/const water = await AstroNotesTerrain\.waterAt\(picks\);\s+const onLand = picks\.filter\(\(n, i\) => water\[i\] !== true\);/.test(html),
+ok(/const water = await AstroNotesTerrain\.waterAt\(picks\);\s+check\(\);\s+const onLand = picks\.filter\(\(n, i\) => water\[i\] !== true\);/.test(html),
   "ISS: 立つ場所は水の上を外す（橋も外す）");
 ok(/iss\.result = rows\.filter\(\(r\) => r\.stand !== null\);/.test(html), "ISS: 帯が水の上だけを通る回は並べない");
 ok(/海や湖の上だけを通る回（\$\{iss\.overWater\}回）は除外/.test(html), "ISS: 外した回の数は一言で書く");

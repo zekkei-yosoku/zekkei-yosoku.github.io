@@ -14,11 +14,11 @@ test('targetCategoryOf reads the favorite category, then the built-in target kin
  assert.equal(c.targetCategoryOf({favId:'f'}),'橋');assert.equal(c.targetCategoryOf({favId:'gone'}),'');assert.equal(c.targetCategoryOf({id:'fuji'}),'山');assert.equal(c.targetCategoryOf({id:'skytree'}),'建物');assert.equal(c.targetCategoryOf({id:'no-such'}),'');
 });
 test('issPickFindVisible releases its button when there is nothing to search',async()=>{
- const button=el();const c=run(['issPickFindVisible'],{issPick:{visSeq:__gate(),list:[]},issFromPoint:()=>null,issLoadSat:async()=>null,$:()=>button});
+ const button=el(),nodes={issPickVisible:button,issPickSheet:{open:true}};const c=run(['issPickFindVisible'],{issPick:{visSeq:__gate(),list:[]},viewState:{iss:true},toolAllowed:tool=>tool==='iss',issFromPoint:()=>null,issLoadSat:async()=>null,$:id=>nodes[id]});
  const running=c.issPickFindVisible();assert.equal(button.disabled,true);await running;assert.equal(button.disabled,false);
 });
 test('issPickFindVisible says so when the calculation parts cannot load',async()=>{
- const nodes={issPickVisible:el(),issPickInfo:el()};const c=run(['issPickFindVisible'],{issPick:{visSeq:__gate(),list:[{}]},issFromPoint:()=>({}),issLoadSat:async()=>{throw Error('x');},$:id=>nodes[id]});
+ const nodes={issPickVisible:el(),issPickInfo:el(),issPickSheet:{open:true}};const c=run(['issPickFindVisible'],{issPick:{visSeq:__gate(),list:[{}]},viewState:{iss:true},toolAllowed:tool=>tool==='iss',issFromPoint:()=>({}),issLoadSat:async()=>{throw Error('x');},$:id=>nodes[id]});
  await c.issPickFindVisible();assert.match(nodes.issPickInfo.textContent,/読めませんでした/);assert.equal(nodes.issPickVisible.disabled,false);
 });
 test('aimLineSheetPick asks for a tap on the line when the tap misses',async()=>{

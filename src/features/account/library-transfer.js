@@ -28,13 +28,8 @@ $("importFile").onchange = async (e) => {
     const local=globalThis.MyPlacesUI?.backupState?.()||{observations:[],shapes:{}};
     const restored=AstroNotesLibrary.restore(data,{favorites,sightings,...local,cleanFavorite,cleanSighting,cleanShape:AstroNotesShooting.cleanShape});
     const {goodRecs,goodFavs,dropped}=restored,nextSightings=restored.sightings,nextFavorites=restored.favorites;
-    const nextQueue = pushQueue.slice();
-    if (auth) for (const [kind, records] of [["sight", goodRecs], ["fav", goodFavs]]) {
-      for (const { id } of records) {
-        const at = nextQueue.findIndex(q => q.kind === kind && q.id === id), change = { kind, id };
-        if (at < 0) nextQueue.push(change); else nextQueue[at] = change;
-      }
-    }
+    const nextQueue = AstroNotesAccountSync.queueChanges(pushQueue, auth
+      ? [...goodRecs.map(({id})=>({kind:"sight",id})), ...goodFavs.map(({id})=>({kind:"fav",id}))] : []);
     const libraryKeys=AstroNotesLibrary.keys(auth?.loginId||dataOwner);
     persistImportedData([["sorami.sightings",nextSightings],["sorami.favorites",nextFavorites],["sorami.queue",nextQueue],[libraryKeys.observations,restored.observations],[libraryKeys.shapes,restored.shapes]]);
     sightings = nextSightings; favorites = nextFavorites; pushQueue = nextQueue;

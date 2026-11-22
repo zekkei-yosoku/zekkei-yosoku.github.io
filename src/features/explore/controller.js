@@ -31,7 +31,7 @@ function updateSkyInfo(s){
  }else if(!AstroNotesBodies.definition(s.body).limbs){text=esc(AstroNotesBodies.sky(AstroNotesAstro.sun(s.at,o).geometricAltitude));}skyInfo.innerHTML=text;skyInfo.hidden=!text;}catch{skyInfoKey='';skyInfo.hidden=true;skyInfo.textContent='';}
 }
 const plan=AstroNotesPlanningSession.create({readRenderState:()=>SkyMapUI.renderState(),clone:v=>structuredClone(v),getAuthGeneration:()=>accessState.generation,dayStart:at=>AstroNotesSkyMap.dayStart(at),getAirMode:()=>aimAirSettings.mode,getAtmosphereKey:()=>AstroNotesAtmosphere.dataKey?.(),
- onInvalidate:(keepScene=false)=>{if(!keepScene)look._lookSeq=(look._lookSeq||0)+1;look._planKey=null;if(look._captionTimer){clearTimeout(look._captionTimer);look._captionTimer=0;}}});
+ onInvalidate:(keepScene=false)=>{if(look._lookOwner!=='explore')return;if(!keepScene)look._lookSeq=(look._lookSeq||0)+1;look._planKey=null;if(look._captionTimer){clearTimeout(look._captionTimer);look._captionTimer=0;}}});
 const stamp=plan.stamp,baseStamp=plan.baseStamp,snapshot=plan.snapshot,invalidate=plan.invalidate;
 // 候補ピンの切替は地図だけに効くので、地図の下（共有の行）へ置く（2026-10-22 ユーザー「候補ピンは下に下ろしてほしい」）
 function placePins(){const row=$('skyMapShareRow'),all=[...document.querySelectorAll('#shootingPins')],t=all.find(x=>x.parentNode!==row)||all[0];if(!t)return;for(const x of all)if(x!==t)x.remove();if(layout.mounted){if(row&&t.parentNode!==row)row.prepend(t);

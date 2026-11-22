@@ -97,7 +97,7 @@ function editTargetCategory(op, name, next) {
   const nextFavs = favorites.map((f) => (f.targetCategory === name ? { ...f, targetCategory: op === "rename" ? next : null } : f));
   AstroNotesLibrary.transaction(localStorage, [["sorami.favorites", nextFavs]]);
   favorites = nextFavs;
-  for (const f of changed) accountSync().queuePush("fav", f.id);
+  accountSync().queuePushAll(changed.map(f => ({kind: "fav", id: f.id})));
   renderSheet();
   globalThis.MyPlacesUI?.renderRecordsHub?.();
 }

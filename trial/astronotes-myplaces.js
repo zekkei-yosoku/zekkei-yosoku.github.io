@@ -31,7 +31,7 @@ function currentRecord(best, here) {
   if (best?.observer && here && (AstroNotesTerrain.distanceKm(here.latitude, here.longitude, best.observer.latitude, best.observer.longitude) >= NEAR_KM || Math.abs((here.eyeHeightAGL ?? 1.5) - best.observer.eyeHeightAGL) > 1)) return null;
   return best?.registration && best.removed ? null : best || null;
 }
-// A render owns its snapshot. Do not retain it across edits, account switches or
+// A render or synchronous commit owns its snapshot. Do not retain it across edits, account switches or
 // changes to a saved observer's coordinates/height.
 function recordStatusIndex(list = load()) {
   const groups = new Map(), places = new Map();
@@ -225,14 +225,21 @@ function notebookCheck(state=false){return ('<svg class="notebook-check" viewBox
 }
 let notebookEdit=null,notebookGeneration=AstroNotesLibrary.gate(),notebookNotice='';
 function notebookStamp(ids){const selected=new Set(ids);return JSON.stringify([favorites.filter(f=>selected.has(f.id)),load().filter(r=>selected.has(r.placeId)),Object.entries(shapeData()).filter(([id])=>selected.has(id))]);}
+function queueFavoriteChanges(ids){
+ if(!ids.length)return;
+ const sync=accountSync();
+ if(typeof sync.queuePushAll==='function')sync.queuePushAll(ids.map(id=>({kind:'fav',id})));
+ else for(const id of ids)sync.queuePush('fav',id); // Older cached HTML owns the single-item API.
+}
 function notebookCommit(mode,state,ids,stamp,targets=[],drafts=[]){
  if(notebookEdit!==state||state.owner!==auth?.token||!toolAllowed('records')||!viewState.records)return false;
  try{
   if(notebookStamp(ids)!==stamp)throw Error('選んだ地点が変更されました。選び直してください');
-  const plan=AstroNotesLibrary.prepareNotebookBulk({owner:auth.loginId,favorites,observations:load(),shapes:shapeData(),placeIds:ids,mode,targets:targets.map(targetData),drafts,currentTargets:id=>savedTargets(id)});
+  const observations=load(),index=recordStatusIndex(observations);
+  const plan=AstroNotesLibrary.prepareNotebookBulk({owner:auth.loginId,favorites,observations,shapes:shapeData(),placeIds:ids,mode,targets:targets.map(targetData),drafts,currentTargets:id=>savedTargets(id,index)});
   AstroNotesLibrary.transaction(localStorage,plan.entries);favorites=plan.favorites;
   if(typeof RecordSync!=='undefined')RecordSync.kick();
-  for(const id of plan.changedFavorites)accountSync().queuePush('fav',id);
+  queueFavoriteChanges(plan.changedFavorites);
   notebookEdit=null;notebookGeneration.cancel();notebookNotice=ids.length+'地点'+(mode==='delete'?'を記録から削除しました':'に対象を追加しました');
   version++;candidateCache.clear();changed();aimFillSelects();SkyMapUI?.refreshTargets?.();return true;
  }catch(e){state.error=e.message||'保存できませんでした。もう一度お試しください';renderRecordsHub();return false;}
@@ -668,7 +675,7 @@ function recordGroups(records) {
 }
 const targetData=t=>({key:t.key||t.id,name:t.name,latitude:t.latitude,longitude:t.longitude});
 const targetSetKey=targets=>JSON.stringify(targets.map(targetData).sort((a,b)=>a.key.localeCompare(b.key)));
-const savedTargets=placeId=>targetsSeenFrom(placeId).filter(r=>r.result!=='hidden').map(r=>targetData(r.target));
+const savedTargets=(placeId,index)=>targetsSeenFrom(placeId,index).filter(r=>r.result!=='hidden').map(r=>targetData(r.target));
 const draftChanged=()=>!!sheetState&&(recordBodyDirty()||recordHeightDirty()||recordAlignmentDirty()||(sheetState.targetDrafts||[]).length>0||sheetState.newPlace||(sheetState.place.name||'').trim()!==sheetState.initialName||targetSetKey(sheetState.draftTargets)!==sheetState.baseline||
 shapeKey(sheetState.draftShape)!==shapeKey(sheetState.initialShape));
 function addDraftTarget(t){
@@ -900,7 +907,7 @@ function commitRecordDraft(current,isNew){
  try{
   const plan=prepareHeightRecord({owner:auth.loginId,favorites,observations:load(),shapes:shapeData(),place:current,isNew,initialTargets:s.initialTargets,targets:s.draftTargets,shape:s.draftShape,drafts:s.targetDrafts||[],cleanShape:AstroNotesShooting.cleanShape});
   AstroNotesLibrary.transaction(localStorage,plan.entries);favorites=plan.favorites;if(typeof RecordSync!=='undefined')RecordSync.kick();
-  for(const id of plan.changedFavorites)accountSync().queuePush('fav',id);
+  queueFavoriteChanges(plan.changedFavorites);
   s.place={...placeOf(current.id)};s.initialName=s.place.name;s.newPlace=false;s.targetDrafts=[];s.initialShape=s.draftShape;s.shapeBaseline=shapeKey(s.initialShape);s.initialTargets=s.draftTargets.map(targetData);s.baseline=targetSetKey(s.initialTargets);
   version++;candidateCache.clear();changed();aimFillSelects();SkyMapUI?.refreshTargets?.();
   err.hidden=true;sheet.close();return true;
@@ -961,7 +968,7 @@ function quickRecord(observer,target){
  try{
   const plan=prepareAlignedQuickRecord({owner:auth.loginId,favorites,observations:load(),shapes:shapeData(),observer,target,knownTargets:[...AstroNotesAlign.TARGETS.map(aimWithHeights),...aimFavTargets().map(aimFavTarget)],currentTargets:savedTargets,cleanShape:AstroNotesShooting.cleanShape});
   if(owner.token!==auth?.token||owner.loginId!==auth?.loginId||owner.generation!==accessState.generation||!toolAllowed('records'))throw Error('アカウントまたは利用権限が変わりました。開き直してください');
-  if(!plan.already){AstroNotesLibrary.transaction(localStorage,plan.entries);favorites=plan.favorites;if(typeof RecordSync!=='undefined')RecordSync.kick();for(const id of plan.changedFavorites)accountSync().queuePush('fav',id);version++;candidateCache.clear();changed();aimFillSelects();
+  if(!plan.already){AstroNotesLibrary.transaction(localStorage,plan.entries);favorites=plan.favorites;if(typeof RecordSync!=='undefined')RecordSync.kick();queueFavoriteChanges(plan.changedFavorites);version++;candidateCache.clear();changed();aimFillSelects();
   SkyMapUI?.refreshTargets?.();}
   return {ok:true,already:plan.already,placeId:plan.place.id};
  }catch(e){return {ok:false,error:e.message||'撮影地点を保存できませんでした'};}
@@ -3511,7 +3518,7 @@ async function discoverySearch(plan,points,isCurrent,terrainCache,onProgress){
 }
 
 window.MyPlacesUI = { discoveryPoints,discoverySearch,discoveryRevision,savedPlaces,alignmentText:RecordAlignment.text,
-  recordSortControl,sortRecordPlaces, eyeAdjustmentFor, opportunities,recordProgress:showRecordProgress, backupState:()=>({observations:load(),shapes:shapeData()}),imported:()=>{version++;candidateCache.clear();changed();
+  recordSortControl,sortRecordPlaces, eyeAdjustmentFor, opportunities,recordProgress:showRecordProgress, backupState:()=>({observations:load(),shapes:shapeData()}),imported:()=>{notebookNotice='';version++;candidateCache.clear();changed();
 },selectShape, resetShapePicker, shapeFor, withShape, drawShape, renderAim, renderPickerPanel, skyDraw, skyRender, skyPreview, skyOverlap:s=>{if(s===skySession&&skyOwner===auth?.token)checkOverlap(s);}, leaveSky, pickSky, badge, openPlace, recordFor, quickRecord, load, renderRecordsHub };
 // 読み込みより先に構図が描かれていたら、ここで一覧を出す
 if (el('aimView') && !el('aimView').hidden) { try { renderAim(); } catch { /* 構図を止めない */ } }

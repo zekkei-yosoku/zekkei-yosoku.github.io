@@ -25,6 +25,27 @@
   const WGS_A = 6378.137, WGS_F = 1 / 298.257223563, WGS_E2 = WGS_F * (2 - WGS_F);
   const WGS_B = WGS_A * (1 - WGS_F);
 
+  // Synchronous callers and the UI consume the same sequence of numerical steps.
+  // Yielding keeps one scan's boundary/refinement state; splitting into days would not.
+  function finishSteps(steps) {
+    let next; do { next = steps.next(); } while (!next.done);
+    return next.value;
+  }
+  async function finishStepsAsync(steps, { isCurrent = () => true,
+    yieldTask = () => new Promise(resolve => setTimeout(resolve, 0)), clock = () => performance.now() } = {}) {
+    const check = () => { if (!isCurrent()) { const error = Error('calculation-cancelled'); error.name = 'AbortError'; throw error; } };
+    let deadline = clock() + 8;
+    try {
+      while (true) {
+        check();
+        const next = steps.next();
+        check();
+        if (next.done) return next.value;
+        if (clock() >= deadline) { await yieldTask(); check(); deadline = clock() + 8; }
+      }
+    } finally { steps.return(); }
+  }
+
   /// CelesTrak の3行（名前・1行目・2行目）を読む
   function parseTle(text) {
     const lines = String(text || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
@@ -121,12 +142,15 @@
    * その観測点で、ISS が天体の円盤の中を通る時間[秒]と、いちばん近づく角度[度]。
    * 中心線の点で呼ぶと通過の長さ、ずらした点で呼ぶと帯の縁を探せる。
    */
-  function passAt(sat, rec, body, obsLat, obsLon, tCenter, { spanS = 6, stepS = 0.02 } = {}) {
+  function passAt(...args) { return finishSteps(passAtSteps(...args)); }
+  function* passAtSteps(sat, rec, body, obsLat, obsLon, tCenter, { spanS = 6, stepS = 0.02 } = {}) {
     const O = geodeticToEcef(obsLat, obsLon, 0);
     let best = { sep: 99, t: tCenter }, inside = 0;
     const radius = body === "moon" ? A.moonAngularRadius(A.bodyEcef("moon", tCenter).distanceKm)
       : A.sunAngularRadius(A.bodyEcef("sun", tCenter).distanceKm);
+    let step = 0;
     for (let t = tCenter - spanS * 1000; t <= tCenter + spanS * 1000; t += stepS * 1000) {
+      if (++step % 32 === 0) yield;
       const S = satEcef(sat, rec, t); if (!S) continue;
       const sep = separationDeg(O, S, A.bodyEcef(body, t));
       if (sep < best.sep) best = { sep, t };
@@ -142,30 +166,36 @@
    * @param {object} opts    { center:{latitude,longitude}, radiusKm, fromMs, hours, body, minAltDeg }
    * @returns {Array} 近い順ではなく時刻順。各回に中心線・帯の幅・通過の長さ・天体の高さ
    */
-  function transits(sat, tle, {
+  function transits(sat, tle, options) { return finishSteps(transitSteps(sat, tle, options)); }
+  function transitsAsync(sat, tle, options, control) { return finishStepsAsync(transitSteps(sat, tle, options), control); }
+  function* transitSteps(sat, tle, {
     center, radiusKm = 150, fromMs = Date.now(), hours = 72, body = "moon", minAltDeg = 5, coarseS = 5,
   } = {}) {
     const rec = sat.twoline2satrec(tle.line1, tle.line2);
     const out = [];
     let run = null;
-    const flush = () => { if (run) { const t = refine(sat, rec, body, run, center, radiusKm, minAltDeg); if (t) out.push(t); run = null; } };
+    const flush = function* () { if (run) { const t = yield* refine(sat, rec, body, run, center, radiusKm, minAltDeg); if (t) out.push(t); run = null; } };
+    let step = 0;
     for (let t = fromMs; t <= fromMs + hours * 3600000; t += coarseS * 1000) {
+      if (++step % 32 === 0) yield;
       const S = satEcef(sat, rec, t);
       const g = S && groundPoint(A.bodyEcef(body, t), S);
       const p = g && ecefToGeodetic(g);
       // 粗い刻みでは点が数百kmずつ跳ぶので、広めの円で拾ってから細かく解く
       const near = p && distanceKm(center.latitude, center.longitude, p.latitude, p.longitude) < radiusKm + 400;
       if (near) { if (!run) run = { from: t, to: t }; else run.to = t; }
-      else flush();
+      else if (run) yield* flush();
     }
-    flush();
+    yield* flush();
     return out;
   }
 
   /// 粗く拾った区間を 0.2秒刻みで解き直し、中心線と、観測点にいちばん近い点を出す
-  function refine(sat, rec, body, run, center, radiusKm, minAltDeg) {
+  function* refine(sat, rec, body, run, center, radiusKm, minAltDeg) {
     const track = [];
+    let step = 0;
     for (let t = run.from - 10000; t <= run.to + 10000; t += 200) {
+      if (++step % 32 === 0) yield;
       const S = satEcef(sat, rec, t);
       const B = A.bodyEcef(body, t);
       const g = S && groundPoint(B, S);
@@ -180,7 +210,7 @@
     track.forEach((q, i) => { const d = distanceKm(center.latitude, center.longitude, q.latitude, q.longitude); if (d < bd) { bd = d; bi = i; } });
     if (bd > radiusKm) return null;
     const c = track[bi];
-    const pass = passAt(sat, rec, body, c.latitude, c.longitude, c.at);
+    const pass = yield* passAtSteps(sat, rec, body, c.latitude, c.longitude, c.at);
     // 帯の半幅: 中心線に直角な向きへずらし、ISS がちょうど円盤の縁をかすめる距離
     const a = track[Math.max(0, bi - 1)], b = track[Math.min(track.length - 1, bi + 1)];
     const dirN = (b.latitude - a.latitude), dirE = (b.longitude - a.longitude) * Math.cos(c.latitude * DEG);
@@ -191,7 +221,7 @@
     let lo = 0, hi = 30;
     for (let i = 0; i < 18; i++) {
       const mid = (lo + hi) / 2, q = off(mid);
-      const pa = passAt(sat, rec, body, q.latitude, q.longitude, c.at, { spanS: 4, stepS: 0.05 });
+      const pa = yield* passAtSteps(sat, rec, body, q.latitude, q.longitude, c.at, { spanS: 4, stepS: 0.05 });
       if (pa.minSep < pa.radius) lo = mid; else hi = mid;
     }
     const B = A.bodyEcef(body, c.at);
@@ -241,7 +271,9 @@
    * @param {object} opts { observer:{latitude,longitude,elevation[m]}, fromMs, hours, minEl（最大仰角がこれ未満の回は捨てる）, stepS, pathStepS }
    * @returns {Array} 時刻順。各回に出・最大・消、空の通り道（日が当たっているか付き）、見える区間（無ければ null）
    */
-  function passes(sat, tle, { observer, fromMs = Date.now(), hours = 168, minEl = VISIBLE_MIN_EL, stepS = 20, pathStepS = 5 } = {}) {
+  function passes(sat, tle, options) { return finishSteps(passSteps(sat, tle, options)); }
+  function passesAsync(sat, tle, options, control) { return finishStepsAsync(passSteps(sat, tle, options), control); }
+  function* passSteps(sat, tle, { observer, fromMs = Date.now(), hours = 168, minEl = VISIBLE_MIN_EL, stepS = 20, pathStepS = 5 } = {}) {
     const rec = sat.twoline2satrec(tle.line1, tle.line2);
     const gd = { latitude: observer.latitude * DEG, longitude: observer.longitude * DEG, height: (observer.elevation || 0) / 1000 };
     const obs = { latitude: observer.latitude, longitude: observer.longitude, elevation: observer.elevation || 0 };
@@ -261,7 +293,9 @@
     // いま通過中の回も拾えるよう、20分前から見る
     const end = fromMs + hours * 3600000;
     let prev = at(fromMs - 20 * 60000), run = null;
+    let step = 0;
     for (let t = fromMs - 20 * 60000 + stepS * 1000; t <= end + 20 * 60000; t += stepS * 1000) {
+      if (++step % 32 === 0) yield;
       const p = at(t);
       if (!p || !prev) { prev = p; run = null; continue; }
       if (prev.elevation <= 0 && p.elevation > 0) run = { rise: edge(prev, p), best: p };
@@ -269,7 +303,7 @@
       if (run && prev.elevation > 0 && p.elevation <= 0) {
         const set = edge(prev, p);
         if (set.at >= fromMs && run.rise.at <= end) {
-          const r = finish(run.rise, run.best, set);
+          const r = yield* finish(run.rise, run.best, set);
           if (r && r.max.elevation >= minEl) out.push(r);
         }
         run = null;
@@ -278,7 +312,7 @@
     }
     return out;
 
-    function finish(rise, best, set) {
+    function* finish(rise, best, set) {
       // 最大仰角: 粗い刻みのいちばん高い点の前後を黄金分割で詰める
       let lo = Math.max(rise.at, best.at - stepS * 1000), hi = Math.min(set.at, best.at + stepS * 1000);
       for (let i = 0; i < 30 && hi - lo > 200; i++) {
@@ -287,9 +321,9 @@
       }
       const max = at((lo + hi) / 2);
       const path = [];
-      for (let t = rise.at; t < set.at; t += pathStepS * 1000) path.push(at(t));
+      for (let t = rise.at; t < set.at; t += pathStepS * 1000) { if (++step % 32 === 0) yield; path.push(at(t)); }
       path.push(set);
-      for (const q of path) q.lit = sunlit(q.S, A.bodyEcef("sun", q.at));
+      for (const q of path) { if (++step % 32 === 0) yield; q.lit = sunlit(q.S, A.bodyEcef("sun", q.at)); }
       const sunAlt = (t) => A.sun(t, obs).apparentAltitude;
       const dark = sunAlt(max.at) <= DARK_SUN_ALT;
       const seen = path.filter((q) => q.lit && q.elevation >= VISIBLE_MIN_EL && (dark || sunAlt(q.at) <= DARK_SUN_ALT));
@@ -318,7 +352,7 @@
     return out;
   }
 
-  const AstroNotesISS = { parseTle, parseTleList, transits, passes, groundTrack, sunlit, passAt, groundPoint, geodeticToEcef, ecefToGeodetic,
+  const AstroNotesISS = { parseTle, parseTleList, transits, transitsAsync, passes, passesAsync, groundTrack, sunlit, passAt, groundPoint, geodeticToEcef, ecefToGeodetic,
                       distanceKm, separationDeg, VISIBLE_MIN_EL, DARK_SUN_ALT };
   global.AstroNotesISS = AstroNotesISS;
   if (typeof module !== "undefined" && module.exports) module.exports = AstroNotesISS;

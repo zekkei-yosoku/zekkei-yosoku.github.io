@@ -2,7 +2,7 @@ import {$,S,esc} from '../../../ui/presentation-helpers.js';
 import {blendBodyState,lightTimingText,moonGlyphAt} from '../../forecast/view.js';
 import {AimMap,aim,aimIsMountain,aimSceneBackdrop} from '../controller.js';
 import {aimLookRidge,aimTerrainBeyond,aimTerrainFront} from './terrain.js';
-import {AIM_SENSOR,aimDrawGrid,aimLens,aimLookHMS,aimLookHosts,aimLookRel} from './lens.js';
+import {AIM_SENSOR,aimDrawGrid,aimLens,aimLookHMS,aimLookHosts,aimLookRel,aimLookVisible} from './lens.js';
 import {aimLookSolidSilhouette,aimLookForeground} from './silhouette.js';
 import {aimLookEphemeris,aimLookSceneGeometry,warmLookEphemeris} from './calculations.js';
 import {aimLookPick} from './input.js';
@@ -15,9 +15,28 @@ function aimComposeNear(st,az,topAngle,baseAngle){const R=Math.PI/180,d=Math.aco
 function parkLookAir(host){const air=$("aimAir");if(air&&host.contains(air))host.after(air);}
 async function aimLookRender(host, spec) {
   if (!host) return;
+  host._lookOwner = globalThis.TrialExplore?.ownsScene?.() ? 'explore' : 'framing';
   globalThis.AstroNotesCameraUI?.invalidate(host);
   const seq = (host._lookSeq = (host._lookSeq || 0) + 1);
-  const currentLook = () => seq === host._lookSeq && !host.hidden;
+  // The legacy route shares this host with Explore, whose lifecycle can expire
+  // its sequence while a tab is hidden. Keep incomplete work visible to resume.
+  const lookWork = { pending: 1 };
+  host._lookWork = lookWork;
+  host._lookNeedsRefresh = true;
+  const currentLook = () => {
+    if (seq !== host._lookSeq) return false;
+    if (aimLookVisible(host)) return true;
+    host._lookNeedsRefresh = true;
+    return false;
+  };
+  const finishWork = () => {
+    if (--lookWork.pending === 0 && host._lookWork === lookWork && currentLook()) host._lookNeedsRefresh = false;
+  };
+  const trackWork = promise => {
+    lookWork.pending++;
+    if (host._lookWork === lookWork) host._lookNeedsRefresh = true;
+    return Promise.resolve(promise).finally(finishWork);
+  };
   const t = aim.target, body = aim.body;
   const restoredContext = JSON.stringify([aimLookKey(),spec.obs,spec.eyeM,t?.latitude,t?.longitude,t?.parts]);
   if(host._restoredPlanContext!==restoredContext)host._restoredPlanContext=null;
@@ -31,7 +50,7 @@ async function aimLookRender(host, spec) {
   aimLookHosts.add(host);
   // 逆引き（撮れる場所を探す）は、逆引きの結果から描くときだけ続ける。日付・合わせ方・候補地を替えたら終わる
   if (!spec.pick) { host._pick = null; aimReverseClear(); }
-  if (!t || !(t.parts || []).length || !spec || !Number.isFinite(spec.at)) { host.hidden = true; return; }
+  if (!t || !(t.parts || []).length || !spec || !Number.isFinite(spec.at)) { host.hidden = true; host._lookNeedsRefresh = false; return; }
   host.hidden = false;
   if (!host.querySelector("canvas")) {
     parkLookAir(host);
@@ -193,11 +212,11 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
   // 塔・建物：手前の地面がどこまで隠すか。探索の視線と同じ計算を呼ぶので、一覧の文と図の線が同じ数字になる
   // （2026-11-13 ユーザー「その建物が立ってるところの地面をグランドラインにして天体の軌道は関係なくラインで出せばいいんじゃないの?」）
   const hiddenPending = outline && typeof AstroNotesCandidatePicker === "object" && typeof AstroNotesCandidatePicker.hiddenView === "function"
-    ? AstroNotesCandidatePicker.hiddenView(lookObs, t, aim.partId, currentLook) : null;
+    ? trackWork(AstroNotesCandidatePicker.hiddenView(lookObs, t, aim.partId, currentLook)) : null;
   if (outline) shape = outline.points.map(([a, h]) => toPx(proj(a, h))).filter(Boolean);
   else {
     // 稜線を待つ間も新しい目標の図を先に描く。前の建物や時刻を残さない。
-    ridgePending = aimLookRidge(spec.obs, eye, t, { ...win, panLimit });
+    ridgePending = trackWork(aimLookRidge(spec.obs, eye, t, { ...win, panLimit, isCurrent: currentLook }));
   }
   for (const item of scene) {
     // 視線の後ろへ回る頂点を間引くと別の形になるので、その面は描かない。
@@ -209,9 +228,9 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
       const center = proj(item.azimuth, item.topAngle);
       // 背面の山は描かない。地形取得は山自身の方位・距離で行う。
       if (!center) continue;
-      const rw = { ...win, az0: item.azimuth, panLimit };
-      aimLookRidge(spec.obs, eye, item.target, rw).then(ridge => {
-        if (seq !== host._lookSeq) return;
+      const rw = { ...win, az0: item.azimuth, panLimit, isCurrent: currentLook };
+      trackWork(aimLookRidge(spec.obs, eye, item.target, rw)).then(ridge => {
+        if (!currentLook()) return;
         sceneVersion++;
         item.shape = ridge ? ridge.map(([a, h]) => toPx(proj(a, h))).filter(Boolean) : null;
         item.failed = !ridge;
@@ -251,7 +270,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     const span = Math.min(85, Math.max(win.halfW, ...corners));
     const n = Math.max(16, Math.min(241, Math.ceil(2 * span * k / 3))), step = 2 * span / n;
     const bearings = Array.from({length:n}, (_, i) => (win.az0 - span + (i + .5) * step + 360) % 360);
-    AstroNotesCandidatePicker.skylineView(lookObs, t, bearings, currentLook).then(rows=>{
+    trackWork(AstroNotesCandidatePicker.skylineView(lookObs, t, bearings, currentLook)).then(rows=>{
       if (!currentLook() || rows?.length !== n) return;
       const bounds = [-panLimit * W, -H, (1 + panLimit) * W, footY + Math.max(12, Math.min(24, H * .04))];
       if (bounds[3] <= bounds[1]) return;
@@ -267,12 +286,13 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
   const mountainHorizonY = mountain ? toPx(proj(az, seaAngle))[1] : null;
   let skyline = null;
   const loadSkyline = async (ridge) => {
+    if (!currentLook()) return;
     const rel = (a) => ((a - az + 540) % 360) - 180, rels = ridge.map(([a]) => rel(a)), from = Math.min(...rels), to = Math.max(...rels);
     // 構図を動かしても山の幅に収まる望遠なら読まない
     if (win.halfW * (1 + 2 * panLimit) <= Math.min(-from, to)) return;
-    const [near, far] = await Promise.all([aimTerrainFront(spec.obs, eye, t, AIM_MOUNTAIN_SKY_SPAN), aimTerrainBeyond(spec.obs, eye, t, AIM_MOUNTAIN_SKY_SPAN).catch(() => null)]);
+    const [near, far] = await trackWork(Promise.all([aimTerrainFront(spec.obs, eye, t, AIM_MOUNTAIN_SKY_SPAN, { isCurrent: currentLook }), aimTerrainBeyond(spec.obs, eye, t, AIM_MOUNTAIN_SKY_SPAN, { isCurrent: currentLook }).catch(() => null)]));
     const rows = far || near?.ridge;
-    if (seq !== host._lookSeq || !rows?.length) return;
+    if (!currentLook() || !rows?.length) return;
     const merged = rows.map(([a, h], i) => [a, Math.max(seaAngle, h, near?.ridge?.[i]?.[1] ?? -90)]), side = (keep) => merged.filter(([a]) => keep(rel(a))).map(([a, h]) => toPx(proj(a, h))).filter(Boolean);
     skyline = { left: side((r) => r < from), right: side((r) => r > to) };
     sceneVersion++; draw(cur, host._lookAt);
@@ -777,7 +797,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     draw:ms=>{if(host._lookSeq===seq){host._blendP=null;draw(timeIndex(ms),ms);}}};
   cur = timeIndex(selectedAt); draw(cur);
   if (ridgePending) ridgePending.then((ridge) => {
-    if (seq !== host._lookSeq) return;
+    if (!currentLook()) return;
     if (ridge) { shape = ridge.map(([a, h]) => toPx(proj(a, h))).filter(Boolean);sceneVersion++; void loadSkyline(ridge); }
     note.textContent = shape ? "" : "稜線を読み込めませんでした";
     note.dataset.primary = note.textContent;
@@ -785,7 +805,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     note.hidden = !note.textContent;
     draw(cur, host._lookAt);
   });
-  if (canReadFrontage) setTimeout(loadFrontage, 120);
+  if (canReadFrontage) trackWork(new Promise(resolve => setTimeout(() => { loadFrontage(); resolve(); }, 120)));
   if (hiddenPending) hiddenPending.catch(() => null).then((r) => {
     if (!currentLook()) return;
     // 遮蔽の高さは探索と共有。説明は読み上げ用に保持し、図には凹凸と未確認状態だけを出す。
@@ -793,6 +813,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     placeGround(); sceneVersion++;
     draw(cur, host._lookAt);
   });
+  finishWork();
 }
 
 /**

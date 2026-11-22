@@ -50,7 +50,7 @@ async function selectAfterTab(page,id,value){
  },[grants,here]);
  await context.route('**/*',r=>{const u=new URL(r.request().url());if(u.origin===new URL(base).origin)return r.continue();if(/zekkei-api|localhost:8787/.test(u.origin)){if(!['GET','OPTIONS'].includes(r.request().method()))writes++;return r.fulfill({json:{allowed:true,tool:'skymap',loginId:'sort-tester',tools:grants,favorites:[],sightings:[],records:[],rev:1}});}return r.abort();});
  const page=await context.newPage(),errors=[],result={engine,width,base};page.setDefaultTimeout(20000);page.on('pageerror',e=>errors.push(e.message));
- const ready=async()=>{await page.waitForFunction(()=>typeof MyPlacesUI==='object'&&typeof SkyMapUI==='object');await page.evaluate(async()=>{await startupSessionReady;RecordSync.kick=()=>{};RecordSync.touched=()=>{};const sync=accountSync();sync.syncNow=async()=>{};sync.queuePush=()=>{};});};
+ const ready=async()=>{await page.waitForFunction(()=>typeof MyPlacesUI==='object'&&typeof SkyMapUI==='object');await page.evaluate(async()=>{await startupSessionReady;RecordSync.kick=()=>{};RecordSync.touched=()=>{};const sync=accountSync();sync.syncNow=async()=>{};sync.queuePush=()=>{};sync.queuePushAll=()=>{};});};
  try{
   await page.goto(base+'#/records');await ready();
   result.largeList=await page.evaluate(()=>{

@@ -937,7 +937,7 @@
         "layer": "presentation",
         "scope": "classic-composition",
         "provides": [],
-        "requires": []
+        "requires": ["AstroNotesAccountSync"]
       },
       {
         "path": "src/startup/runtime-effects.js",

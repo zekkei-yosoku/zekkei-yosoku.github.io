@@ -70,7 +70,7 @@ test('高所の建物図の地上線は対象の足元または手前の遮蔽�
  c.hidden={m:250};c.place();assert.equal(c.groundEdge,200,'足元より低い遮蔽は足元を動かさない');
 });
 test('屋根の読取は図のあとで始め、遮蔽の状態文言を図に描かない',()=>{
- assert.match(html,/if \(canReadFrontage\) setTimeout\(loadFrontage, 120\)/);
+ assert.match(html,/if \(canReadFrontage\) trackWork\(new Promise\(resolve => setTimeout\(\(\) => \{ loadFrontage\(\); resolve\(\); \}, 120\)\)\)/);
  assert.doesNotMatch(html,/手前の建物を確認中|手前の地形は未確認|手前の遮蔽は一部未確認/);
  assert.match(html,/groundText = \{ str: "水平（0°）"/);
 });

@@ -55,7 +55,7 @@ async function run(browser,url,{mayCollect=false,profileName=null}={}){
   await page.goto(url+'#/records');await page.waitForFunction(()=>typeof MyPlacesUI==='object'&&typeof SkyMapUI==='object'&&typeof AstroNotesTrialOverlap==='object');
   await page.evaluate(async()=>{
    await startupSessionReady;await AstroNotesAssets.ensureModels();AstroNotesAtmosphere.configure('standard');
-   RecordSync.kick=()=>{};RecordSync.touched=()=>{};accountSync().syncNow=async()=>{};accountSync().queuePush=()=>{};
+   RecordSync.kick=()=>{};RecordSync.touched=()=>{};accountSync().syncNow=async()=>{};accountSync().queuePush=()=>{};accountSync().queuePushAll=()=>{};
    // Ground height is part of the saved synthetic place; ridge elevations are actual frozen GSI data.
    AstroNotesTerrain.groundElevation=async()=>87.2;
   });

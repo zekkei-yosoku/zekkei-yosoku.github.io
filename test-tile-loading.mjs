@@ -55,3 +55,28 @@ test('a failed download gives its place to the next tile',async()=>{
  assert(results.some(r=>r.status==='rejected'));
  assert(results.some(r=>r.status==='fulfilled'),'later tiles still load');
 });
+
+test('more pending tiles than the completed capacity still share each download',{timeout:3000},async()=>{
+ let active=0,peak=0,released=false;
+ const waiting=[],urls=[];
+ const {terrain}=load({fetch:async url=>{
+  urls.push(url);active++;peak=Math.max(peak,active);
+  if(!released)await new Promise(resolve=>waiting.push(resolve));
+  active--;return okTile();
+ }});
+ const jobs=Array.from({length:241},(_,i)=>terrain.elevationFromTile(32,130+i*.05,14));
+ jobs.push(terrain.elevationFromTile(32,130,14));
+ while(waiting.length<8)await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(peak,8);
+ released=true;for(const resolve of waiting)resolve();
+ const values=await Promise.all(jobs);
+ assert(values.every(value=>value===0));
+ assert.equal(urls.length,241,'a second consumer must not start a duplicate queued tile');
+ assert.equal(new Set(urls).size,241);
+ assert.equal(peak,8);
+ const before=urls.length;
+ await terrain.elevationFromTile(32,130+240*.05,14);
+ assert.equal(urls.length,before,'the last completed tile remains cached');
+ await terrain.elevationFromTile(32,130,14);
+ assert.equal(urls.length,before+1,'completed tile storage still has its 240-entry limit');
+});

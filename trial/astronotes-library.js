@@ -105,8 +105,9 @@ function prepareQuickRecord({owner,favorites,observations,shapes,observer,target
 }
 function prepareNotebookBulk({owner,favorites,observations,shapes,placeIds,mode,targets=[],drafts=[],currentTargets}){
  if(!owner||!Array.isArray(placeIds)||!placeIds.length)throw Error('撮影地点を選んでください');
- const ids=new Set(placeIds),places=[...ids].map(id=>favorites.find(f=>f.id===id));
- if(places.some(p=>!p)||places.some(p=>!observations.some(r=>r.placeId===p.id)&&!shapes[p.id]&&!p.recordRegistered))throw Error('選んだ撮影地点が変更されました。選び直してください');
+ const byId=new Map();for(const f of favorites)if(!byId.has(f.id))byId.set(f.id,f);
+ const recorded=new Set(observations.map(r=>r.placeId)),ids=new Set(placeIds),places=[...ids].map(id=>byId.get(id));
+ if(places.some(p=>!p)||places.some(p=>!recorded.has(p.id)&&!shapes[p.id]&&!p.recordRegistered))throw Error('選んだ撮影地点が変更されました。選び直してください');
  let nextFavorites=favorites,nextObservations=observations,nextShapes=Object.assign(Object.create(null),shapes),changedFavorites=[];
  if(mode==='delete'){
   nextObservations=observations.filter(r=>!ids.has(r.placeId));
@@ -137,11 +138,11 @@ function restore(data,{favorites,sightings,observations,shapes,cleanFavorite,cle
  if(!Array.isArray(incoming))throw Error('形式が違います');
  const incomingFav=Array.isArray(data?.favorites)?data.favorites:[],rawObs=data?.library?.observations??[],rawShapes=data?.library?.shapes??{};
  if(!Array.isArray(rawObs)||!rawShapes||typeof rawShapes!=='object'||Array.isArray(rawShapes))throw Error('撮影地点のデータ形式を確認してください');
- const goodRecs=incoming.map(cleanSighting).filter(Boolean),goodFavs=incomingFav.map(cleanFavorite).filter(Boolean),nextFavorites=merge(favorites,goodFavs),ids=new Set(nextFavorites.map(f=>f.id));
+ const goodRecs=incoming.map(cleanSighting).filter(Boolean),goodFavs=incomingFav.map(cleanFavorite).filter(Boolean),nextFavorites=merge(favorites,goodFavs),favoriteById=new Map(nextFavorites.map(f=>[f.id,f]));
  let shapeCount=0;
- const goodObs=rawObs.map(cleanObservation).filter(r=>r&&ids.has(r.placeId)),nextShapes=Object.assign(Object.create(null),shapes);let dropped=incoming.length-goodRecs.length+incomingFav.length-goodFavs.length+rawObs.length-goodObs.length;
+ const goodObs=rawObs.map(cleanObservation).filter(r=>r&&favoriteById.has(r.placeId)),nextShapes=Object.assign(Object.create(null),shapes);let dropped=incoming.length-goodRecs.length+incomingFav.length-goodFavs.length+rawObs.length-goodObs.length;
  for(const [id,row]of Object.entries(rawShapes)){
-  const f=nextFavorites.find(f=>f.id===id),s=cleanShape(row?.shape);
+  const f=favoriteById.get(id),s=cleanShape(row?.shape);
   if(!f||!s||row.latitude!==f.latitude||row.longitude!==f.longitude){dropped++;continue;}
   nextShapes[id]={latitude:f.latitude,longitude:f.longitude,shape:s};shapeCount++;
  }

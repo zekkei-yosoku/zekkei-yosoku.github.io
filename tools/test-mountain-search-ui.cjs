@@ -25,7 +25,7 @@ async function run(browser,url,label){
   await page.goto(url+'#/almanac');await page.waitForFunction(()=>typeof MyPlacesUI==='object'&&typeof SkyMapUI==='object'&&globalThis.AstroNotesTrialOverlap);
   await page.evaluate(async()=>{
    await startupSessionReady;await AstroNotesAssets.ensureModels();AstroNotesAtmosphere.configure('standard');
-   RecordSync.touched=()=>{};RecordSync.kick=()=>{};accountSync().queuePush=()=>{};accountSync().syncNow=async()=>{};
+   RecordSync.touched=()=>{};RecordSync.kick=()=>{};accountSync().queuePush=()=>{};accountSync().queuePushAll=()=>{};accountSync().syncNow=async()=>{};
    AstroNotesTerrain.groundElevation=async()=>87.2;groundAt=async()=>87.2;
    navigationHistory.pushRoute('#/explore');await SkyMapUI.open();
   });

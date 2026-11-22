@@ -9,7 +9,7 @@ const AccountSync=require('./src/services/account-sync.js');
 // 実factoryのportへfixtureをつなぐ。状態はcの現在値を毎回読み書きし、写しを持たない。
 function connectAccountSync(c,ports={}){const lexical=name=>vm.runInContext(`typeof ${name}!=="undefined"?${name}:undefined`,c);const sync=AccountSync.create({state:c,session:{auth:()=>c.auth,generation:()=>c.authGeneration},apiCall:(...a)=>c.apiCall(...a),store:{set:(k,v)=>c.store.set(k,v)},toItem:(...a)=>lexical('toItem')(...a),cleanFavorite:x=>c.cleanFavorite(x),cleanSighting:x=>c.cleanSighting(x),records:()=>lexical('RecordSync'),refresh:()=>c.AstroTargetPicker?.refresh?.(),render:()=>c.renderAuthButton(),...ports});Object.assign(c,sync);return sync;}
 function fixture(){const disk=new Map(),alerts=[],calls=[],els={importFile:{value:'fixture'}};let failure=null;
- const c={AstroNotesLibrary:require('./astronotes-library.js'),AstroNotesShooting:require('./astronotes-shooting.js'),aimFillSelects(){},SkyMapUI:null,auth:{loginId:'owner',token:'synthetic'},authGeneration:1,dataOwner:'owner',favorites:[],sightings:[],pushQueue:[],syncInfo:null,syncError:null,
+ const c={AstroNotesLibrary:require('./astronotes-library.js'),AstroNotesShooting:require('./astronotes-shooting.js'),AstroNotesAccountSync:AccountSync,aimFillSelects(){},SkyMapUI:null,auth:{loginId:'owner',token:'synthetic'},authGeneration:1,dataOwner:'owner',favorites:[],sightings:[],pushQueue:[],syncInfo:null,syncError:null,
  localStorage:{getItem:k=>disk.get(k)??null,setItem(k,v){if(failure===k){failure=null;throw Error('quota');}disk.set(k,v)},removeItem:k=>disk.delete(k)},
  $:id=>els[id]??={},cleanSighting:x=>x?.id?x:null,cleanFavorite:x=>x?.id?x:null,render(){},renderAuthButton(){},alert:x=>alerts.push(x),
  apiCall:async(m,p,body)=>{calls.push({m,p,body});return m==='POST'?{accepted:{favorites:body.favorites.map(x=>x.id),sightings:body.sightings.map(x=>x.id)}}:{favorites:[],sightings:[],rev:1};}};
@@ -27,6 +27,17 @@ test('送信中の同じIDの編集を旧受理で消さず、通信は直列に
 test('受信待ちに編集したデータを古いサーバー値や削除で上書きしない',async()=>{const f=fixture();f.c.favorites=[{id:'f',name:'new'}];f.c.pushQueue=[{kind:'fav',id:'f'}];f.c.applyIncoming({favorites:[{id:'f',body:JSON.stringify({name:'old'})}],sightings:[]});assert.equal(f.c.favorites[0].name,'new');f.c.applyIncoming({favorites:[{id:'f',deleted:true}],sightings:[]});assert.equal(f.c.favorites[0].name,'new');});
 test('旧アカウントの送信応答で新アカウントのキューを変更しない',async()=>{const f=fixture();let done;f.c.apiCall=()=>new Promise(r=>done=r);f.c.favorites=[{id:'f'}];f.c.pushQueue=[{kind:'fav',id:'f'}];const run=f.c.syncNow();f.c.authGeneration++;f.c.auth={loginId:'other'};const other=[{kind:'fav',id:'f'}];f.c.pushQueue=other;done({accepted:{favorites:['f'],sightings:[]}});await run;assert.equal(f.c.pushQueue,other);assert.equal(f.disk.size,0);});
 test('サーバーに拒否された項目は保持し、無限再送せず未送信を伝える',async()=>{const f=fixture();f.c.apiCall=async(m,p,body)=>{f.calls.push({m,p,body});return m==='POST'?{accepted:{favorites:[],sightings:[]}}:{favorites:[],sightings:[],rev:1};};f.c.pushQueue=[{kind:'fav',id:'f'}];await f.c.syncNow();assert.equal(f.c.pushQueue.length,1);assert.equal(f.calls.filter(x=>x.m==='POST').length,1);assert.match(f.c.syncError,/未送信/);});
+
+test('取込transactionの失敗では既存queue配列と各送信objectを変えない',async()=>{
+ const f=fixture(),first={kind:'fav',id:'fav'},duplicate={kind:'fav',id:'fav'},untouched={kind:'sight',id:'keep'},queue=[first,duplicate,untouched];f.c.pushQueue=queue;f.fail('sorami.queue');await f.import(backup);
+ assert.equal(f.c.pushQueue,queue);assert.equal(queue[0],first);assert.equal(queue[1],duplicate);assert.equal(queue[2],untouched);assert.equal(f.calls.length,0);assert.match(f.alerts[0],/読み込めませんでした/);
+});
+test('POST中の取込は新しいqueue identityを作り、旧応答に取り込んだ値を消させない',async()=>{
+ const f=fixture(),pending=[];f.c.apiCall=async(m,p,body)=>m==='GET'?{favorites:[],sightings:[],rev:1}:new Promise(resolve=>pending.push({body,resolve}));
+ const old={kind:'fav',id:'fav'};f.c.favorites=[{id:'fav',name:'old'}];f.c.pushQueue=[old];const running=f.c.syncNow();await tick();await f.import(backup);const current=f.c.pushQueue[0];assert.notEqual(current,old);assert.equal(pending.length,1);
+ pending[0].resolve({accepted:{favorites:['fav'],sightings:[]}});await tick();assert.equal(pending.length,2);assert.equal(f.c.pushQueue[0],current);assert.equal(pending[1].body.favorites[0].body.name,'new');assert.equal(pending[1].body.sightings[0].id,'sight');
+ pending[1].resolve({accepted:{favorites:['fav'],sightings:['sight']}});await running;assert.equal(f.c.pushQueue.length,0);
+});
 
 test('古いファイルの解析失敗は新しい選択にエラー通知を出さない',async()=>{const f=fixture();let done;const old=f.import(()=>new Promise(r=>done=r));await f.import(backup);const count=f.alerts.length;done('{invalid');await old;assert.equal(f.alerts.length,count);});
 test('バックアップの範囲外座標をお気に入りへ取り込まない',()=>{const source=sourceDeclaration("cleanFavorite");const c={isText:v=>typeof v==='string',freshDecks:x=>x,AstroNotesTerrain:{locationScope:()=> 'point'},TERRAINS:[],S:{PHENOMENA:{}}};vm.createContext(c);vm.runInContext(source,c);for(const [latitude,longitude] of [[91,0],[-91,0],[0,181],[0,-181],[NaN,0]])assert.equal(c.cleanFavorite({id:'f',latitude,longitude}),null);for(const [latitude,longitude] of [[90,180],[-90,-180],[0,0]])assert.ok(c.cleanFavorite({id:'f',latitude,longitude}));});

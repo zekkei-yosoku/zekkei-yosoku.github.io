@@ -8,6 +8,26 @@ const RECEIVE_VERSION = 1;
 const RECEIVE_PENDING = "まだ受信していない変更があります。同期を再試行してください。";
 const RECEIVE_STORAGE_ERROR = "同期した変更を端末に保存できませんでした。空き容量や保存設定を確認して、同期を再試行してください。";
 
+// Pure preparation also serves imports, which must save their data and queue atomically.
+function queueChanges(queue, changes) {
+  const next = queue.slice(), positions = new Map();
+  // Preserve the first position, including queues restored with duplicate IDs.
+  for (let i = 0; i < next.length; i++) {
+    const { kind, id } = next[i];
+    if (!positions.has(kind)) positions.set(kind, new Map());
+    const ids = positions.get(kind);
+    if (!ids.has(id)) ids.set(id, i);
+  }
+  for (const { kind, id } of changes) {
+    if (!positions.has(kind)) positions.set(kind, new Map());
+    const ids = positions.get(kind), change = { kind, id };
+    // Replace the object so acknowledgement of an older POST cannot erase this edit.
+    if (ids.has(id)) next[ids.get(id)] = change;
+    else { ids.set(id, next.length); next.push(change); }
+  }
+  return next;
+}
+
 function create({state,session,apiCall,store,toItem,cleanFavorite,cleanSighting,records,refresh,render}){
 
 // Preserve Array.find's first-match behavior while indexing once per POST.
@@ -19,10 +39,12 @@ function firstById(list) {
 
 /// 送れなかったものを覚えておく。次に繋がったときに送る。
 function queuePush(kind, id) {
-  if (!session.auth()) return;
-  const at = state.pushQueue.findIndex(q => q.kind === kind && q.id === id);
-  const change = { kind, id };
-  if (at < 0) state.pushQueue.push(change); else state.pushQueue[at] = change;
+  queuePushAll([{ kind, id }]);
+}
+
+function queuePushAll(changes) {
+  if (!changes.length || !session.auth()) return;
+  state.pushQueue = queueChanges(state.pushQueue, changes);
   store.set("sorami.queue", state.pushQueue);
   render();
   syncNow().catch(() => {});
@@ -127,7 +149,7 @@ function saveReceivedList(name, value) {
   }
 }
 
-return {queuePush,syncNow,applyIncoming};
+return {queuePush,queuePushAll,syncNow,applyIncoming};
 }
-return {create};
+return {create,queueChanges};
 });

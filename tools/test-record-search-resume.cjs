@@ -76,7 +76,7 @@ async function run(browser,engine,screen,signal){
   report.version=await page.locator('meta[name=app-version]').getAttribute('content');
   await page.evaluate(async()=>{
    await startupSessionReady;await AstroNotesAssets.ensureModels();AstroNotesAtmosphere.configure('standard');
-   RecordSync.kick=()=>{};RecordSync.touched=()=>{};accountSync().syncNow=async()=>{};accountSync().queuePush=()=>{};
+   RecordSync.kick=()=>{};RecordSync.touched=()=>{};accountSync().syncNow=async()=>{};accountSync().queuePush=()=>{};accountSync().queuePushAll=()=>{};
    // Keep recordSearch() and its MessageChannel yields intact, but make the
    // astronomy deterministic so the test is about resumption, not CPU speed.
    AstroNotesShooting.candidates=async(plan,entries,{isCurrent=()=>true}={})=>{

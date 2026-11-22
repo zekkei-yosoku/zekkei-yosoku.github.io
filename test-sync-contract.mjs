@@ -292,7 +292,7 @@ test('applyIncomingは送信待ちを優先し、未ログインのqueuePushは�
 test('constructorはstate/storage/fetch/callbackへ触れない',()=>{
   const touched=[];const spy=name=>new Proxy(()=>{},{get:(t,k)=>{touched.push([name,'get',String(k)]);return undefined;},set:(t,k)=>{touched.push([name,'set',String(k)]);return true;},apply:()=>{touched.push([name,'call']);}});
   const api=AccountSync.create({state:spy('state'),session:{auth:spy('auth'),generation:spy('generation')},apiCall:spy('apiCall'),store:spy('store'),toItem:spy('toItem'),cleanFavorite:spy('cleanFavorite'),cleanSighting:spy('cleanSighting'),records:spy('records'),refresh:spy('refresh'),render:spy('render')});
-  assert.deepEqual(touched,[]);assert.deepEqual(Object.keys(api),['queuePush','syncNow','applyIncoming']);
+  assert.deepEqual(touched,[]);assert.deepEqual(Object.keys(api),['queuePush','queuePushAll','syncNow','applyIncoming']);
   const other=AccountSync.create({state:spy('state'),session:{auth:()=>null,generation:()=>0},apiCall:spy('apiCall'),store:spy('store'),records:spy('records'),refresh:spy('refresh'),render:spy('render')});
   assert.notEqual(other.syncNow,api.syncNow);
 });

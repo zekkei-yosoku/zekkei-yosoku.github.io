@@ -116,7 +116,7 @@ async function issApply() {
   const ageH = (Date.now() - tle.epochMs) / 3600000;
   // 軌道要素の古さは、古いとき（1日より前）だけ一言（3日より先の回には「目安」が付く）
   $("issTle").textContent = ageH > 24 ? `軌道要素が${Math.round(ageH / 24)}日前のため目安` : "";
-  // 画面を止めないよう、次の描画を待ってから解く（3日ぶんで0.2秒ほど）
+  // まず計算中の表示を描き、その後も計算本体が短い区間ごとに処理を譲る。
   await new Promise((r) => setTimeout(r, 0));
   if (!iss.seq.current(seq)) return;
   if (pass) return issApplyPasses(seq, sat, tle, P);
@@ -124,13 +124,16 @@ async function issApply() {
 }
 
 /// 月・太陽の前を横切る回（2026-09-30 からの計算をそのまま、選んだ衛星に）
+const issCalculationCurrent = (seq, tab) => iss.seq.current(seq) && viewState.iss && iss.tab === tab && toolAllowed('iss');
 async function issApplyTransits(seq, sat, tle, P) {
+  const current = () => issCalculationCurrent(seq, 'transit');
+  if (!current()) return;
   let rows = [];
   try {
-    rows = AstroNotesISS.transits(sat, tle, { center: { latitude: P.latitude, longitude: P.longitude },
-      radiusKm: iss.rangeKm, fromMs: Date.now(), hours: 168, body: iss.body });
-  } catch { rows = []; }
-  if (!iss.seq.current(seq)) return;
+    rows = await AstroNotesISS.transitsAsync(sat, tle, { center: { latitude: P.latitude, longitude: P.longitude },
+      radiusKm: iss.rangeKm, fromMs: Date.now(), hours: 168, body: iss.body }, { isCurrent: current });
+  } catch (error) { if (error.name === 'AbortError' || !current()) return; rows = []; }
+  if (!current()) return;
   // 昼の月も残す。高く昇った昼の月は見えていて、ISS の影は望遠で写る（月面通過の写真の多くは昼）。
   // 空の明るさは行に「昼・薄明・夜」で添える
   iss.result = rows; iss.pick = 0; iss.overWater = 0; iss.standsDone = false;
@@ -141,8 +144,8 @@ async function issApplyTransits(seq, sat, tle, P) {
   if (!rows.length) return;
   // 立つ場所（陸の上）。地名の表と水域のタイルを読むので、行を先に出してから足す
   for (const r of rows) {
-    try { r.stand = await issStand(r); } catch { r.stand = undefined; }
-    if (!iss.seq.current(seq)) return;
+    try { r.stand = await issStand(r, { isCurrent: current }); } catch (error) { if (error.name === 'AbortError' || !current()) return; r.stand = undefined; }
+    if (!current()) return;
   }
   // 帯が水の上だけを通る回は、陸から見られないので並べない（何回外したかは書く）
   const pickedAt = rows[iss.pick] && rows[iss.pick].at;
@@ -166,7 +169,12 @@ async function issApplyTransits(seq, sat, tle, P) {
  *   2. 無ければ、中心線をいまの地点から近い順にたどって、最初の陸の点（名前なし）
  *   3. それも無ければ（帯が水の上だけを通る）、立つ場所は出さない（null）
  */
-async function issStand(r) {
+async function issStand(r, { isCurrent = () => true, clock = () => performance.now(),
+  yieldTask = () => new Promise(resolve => setTimeout(resolve, 0)) } = {}) {
+  const check = () => { if (!isCurrent()) { const error = Error('calculation-cancelled'); error.name = 'AbortError'; throw error; } };
+  check();
+  let deadline = clock() + 8;
+  const pause = async () => { await yieldTask(); check(); deadline = clock() + 8; };
   const P = issFromPoint();
   const F = (la, lo) => [(lo - r.center.longitude) * 111.32 * Math.cos(r.center.latitude * Math.PI / 180), (la - r.center.latitude) * 110.54];
   const track = r.track.map((q) => F(q.latitude, q.longitude));
@@ -184,8 +192,10 @@ async function issStand(r) {
   const core = Math.max(0.15, r.halfWidthKm * 0.6);
   const lats = r.track.map((q) => q.latitude), lons = r.track.map((q) => q.longitude);
   const pad = core / 100 + 0.01;
-  const inBox = (la, lo) => la >= Math.min(...lats) - pad && la <= Math.max(...lats) + pad
-    && lo >= Math.min(...lons) - pad * 1.3 && lo <= Math.max(...lons) + pad * 1.3;
+  // The track is unchanged while every candidate place is filtered.
+  const minLat = Math.min(...lats) - pad, maxLat = Math.max(...lats) + pad;
+  const minLon = Math.min(...lons) - pad * 1.3, maxLon = Math.max(...lons) + pad * 1.3;
+  const inBox = (la, lo) => la >= minLat && la <= maxLat && lo >= minLon && lo <= maxLon;
   const named = [];
   const add = (name, kind, la, lo) => {
     if (!name || !inBox(la, lo)) return;
@@ -196,11 +206,14 @@ async function issStand(r) {
     named.push({ name, kind, latitude: la, longitude: lo, offsetKm: off, fromHereKm: away,
       score: away * (kind === "山頂" || kind === "山" ? 1.6 : 1) + off * 2 });
   };
-  try { for (const p of await aimPlaces()) add(p.name, p.kind, p.latitude, p.longitude); } catch { /* 無くても索引で探す */ }
   try {
-    const idx = await placeIndex();
-    for (const p of idx.places) add(p[1], idx.kinds[p[0]] || "", p[3] / 1e5, p[4] / 1e5);
-  } catch { /* 無くても中心線で探す */ }
+    const places = await aimPlaces(); check();
+    for (const p of places) { if (clock() >= deadline) await pause(); add(p.name, p.kind, p.latitude, p.longitude); }
+  } catch { check(); /* 無くても索引で探す */ }
+  try {
+    const idx = await placeIndex(); check();
+    for (const p of idx.places) { if (clock() >= deadline) await pause(); add(p[1], idx.kinds[p[0]] || "", p[3] / 1e5, p[4] / 1e5); }
+  } catch { check(); /* 無くても中心線で探す */ }
   named.sort((a, b) => a.score - b.score);
   // 同じ所が2つの表に入っていることがある。近いもの（300m）は1つに
   const picks = [];
@@ -211,6 +224,7 @@ async function issStand(r) {
   }
   // 橋・桟橋も外す（ねらうと違って、ISS は川や海の上から見る理由が無い。陸の公園や展望地を先に出す）
   const water = await AstroNotesTerrain.waterAt(picks);
+  check();
   const onLand = picks.filter((n, i) => water[i] !== true);
   if (onLand.length) return { ...onLand[0], others: onLand.slice(1, 3) };
   // 名前のある場所が無い。中心線を、いまの地点から近い順にたどる
@@ -222,6 +236,7 @@ async function issStand(r) {
   for (let i = 0; i < line.length; i += 12) {
     const batch = line.slice(i, i + 12);
     const w = await AstroNotesTerrain.waterAt(batch);
+    check();
     const k = w.findIndex((v) => v === false);
     if (k >= 0) return { ...batch[k], name: "", kind: "", offsetKm: 0, others: [] };
   }
@@ -289,7 +304,9 @@ const issHm = (ms) => new Date(ms + 9 * 3600000).toISOString().slice(11, 16);
 const issShownPasses = () => (iss.showAll ? iss.passes : iss.passes.filter((p) => p.visible));
 const issSky = (sunAlt) => (sunAlt < -6 ? "夜" : sunAlt < 0 ? "薄明" : "昼");
 
-function issApplyPasses(seq, sat, tle, P) {
+async function issApplyPasses(seq, sat, tle, P) {
+  const current = () => issCalculationCurrent(seq, 'pass');
+  if (!current()) return;
   // 1日に1.5周より遅い（静止衛星など）は空の同じ所に止まって見え、出入りが無い。いまの方角と高さだけ出す
   const revPerDay = Number(tle.line2.slice(52, 63));
   if (revPerDay < 1.5) {
@@ -308,10 +325,10 @@ function issApplyPasses(seq, sat, tle, P) {
   }
   let rows = [];
   try {
-    rows = AstroNotesISS.passes(sat, tle, { observer: { latitude: P.latitude, longitude: P.longitude, elevation: P.elevation || 0 },
-      fromMs: Date.now(), hours: 168 });
-  } catch { rows = []; }
-  if (!iss.seq.current(seq)) return;
+    rows = await AstroNotesISS.passesAsync(sat, tle, { observer: { latitude: P.latitude, longitude: P.longitude, elevation: P.elevation || 0 },
+      fromMs: Date.now(), hours: 168 }, { isCurrent: current });
+  } catch (error) { if (error.name === 'AbortError' || !current()) return; rows = []; }
+  if (!current()) return;
   iss.passes = rows; iss.tle = tle; iss.passPick = -1; iss.track = []; iss.passesReady = true;
   issRenderPasses();
 }
@@ -658,26 +675,33 @@ function issChoose(catnr, tle) {
 /// 開いているジャンルで、これから24時間に見える回。全機を順に解くので押したときだけ
 async function issPickFindVisible() {
   const seq = issPick.visSeq.next(), P = issFromPoint(), list = issPick.list;
+  const current = () => issPick.visSeq.current(seq) && viewState.iss && $("issPickSheet").open && toolAllowed('iss');
   $("issPickVisible").disabled = true;   // 押した瞬間に止める（計算の部品を読む間に2回目が走らないように）
   let sat = null;
   try { sat = await issLoadSat(); } catch { sat = null; }
-  if (!issPick.visSeq.current(seq) || !P || !list.length) { $("issPickVisible").disabled = false; return; }
+  if (!current() || !P || !list.length) { $("issPickVisible").disabled = false; return; }
   if (!sat) { $("issPickInfo").textContent = "計算の部品を読めませんでした。もう一度押してください。"; $("issPickVisible").disabled = false; return; }
   $("issPickQuery").value = "";
   const found = [], from = Date.now();
   const observer = { latitude: P.latitude, longitude: P.longitude, elevation: P.elevation || 0 };
+  let deadline = performance.now() + 8;
   for (let i = 0; i < list.length; i++) {
+    if (!current()) return;
     try {
-      for (const p of AstroNotesISS.passes(sat, list[i], { observer, fromMs: from, hours: 24, stepS: 60, minEl: 15 })) {
+      const passes = await AstroNotesISS.passesAsync(sat, list[i], { observer, fromMs: from, hours: 24, stepS: 60, minEl: 15 }, { isCurrent: current });
+      if (!current()) return;
+      for (const p of passes) {
         if (p.visible) found.push({ tle: list[i], pass: p });
       }
-    } catch { /* 解けない要素（落下直前など）は飛ばす */ }
-    if (i % 15 === 14) {
+    } catch (error) { if (error.name === 'AbortError' || !current()) return; /* 解けない要素（落下直前など）は飛ばす */ }
+    if (performance.now() >= deadline) {
       $("issPickInfo").textContent = `計算しています…（${i + 1}/${list.length}機）`;
       await new Promise((r) => setTimeout(r, 0));
-      if (!issPick.visSeq.current(seq)) return;
+      if (!current()) return;
+      deadline = performance.now() + 8;
     }
   }
+  if (!current()) return;
   // 並びは「見え始めの分」→ よく見る3機 → 日本語名のある衛星 → 衛星番号。
   // 2026-10-21 ユーザー「連打すると順番が変わる」: ISS にドッキング中の宇宙船など一緒に飛ぶ機体は見え始めが1秒も違わず、
   // 押した時刻で計算の刻みがずれるたびに前後が入れ替わっていた（0.3〜0.6秒差の2機で再現）。秒は画面に出していないので分でそろえる

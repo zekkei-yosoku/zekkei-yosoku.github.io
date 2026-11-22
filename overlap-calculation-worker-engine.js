@@ -1880,7 +1880,7 @@ if(typeof AstroNotesAstro!=='undefined')globalThis.SoramiAstro=AstroNotesAstro;i
     });
   }
 
-  const tiles = new Map();
+  const tiles = new Map(), pendingTiles = new Map();
   const tileAvailability = new WeakMap();
   const TILE_MEM = 240;                      // 手元に持つ画素（1枚 約260KB）。古いものから手放し、要れば保存領域から読み直す
   // 標高タイルの無い升目（404＝陸の無い外洋）。水の判定で、海と分かっている所へ水域タイルを取りに行かないために憶える
@@ -1904,6 +1904,7 @@ if(typeof AstroNotesAstro!=='undefined')globalThis.SoramiAstro=AstroNotesAstro;i
   function loadTile(z, x, y, layer = "dem_png", strict = false) {
     const key = layer === "dem_png" ? `${z}/${x}/${y}` : `${layer}/${z}/${x}/${y}`;
     if (tiles.has(key)) return tiles.get(key);
+    if (pendingTiles.has(key)) return pendingTiles.get(key);
     const url = `${GSI_TILE.replace(/dem_png$/, layer)}/${z}/${x}/${y}.png`;
     const availability={missing:false,verified:false};
     // Image success confirms this exact layer. Image failure never confirms 404.
@@ -1969,11 +1970,17 @@ if(typeof AstroNotesAstro!=='undefined')globalThis.SoramiAstro=AstroNotesAstro;i
       });
     })();
     tileAvailability.set(p,availability);
-    p.then(image=>{ availability.image=image; },()=>{});
-    tiles.set(key, p);
-    // 失敗を憶えない。憶えると、同じ画面の次の測定まで試さずに失敗する
-    p.catch(() => { if (tiles.get(key) === p) tiles.delete(key); });
-    while (tiles.size > TILE_MEM) tiles.delete(tiles.keys().next().value);
+    // 未完了の読取は容量制限で捨てない。同じタイルの別利用者も同じPromiseを待つ。
+    pendingTiles.set(key, p);
+    p.then(image => {
+      availability.image = image;
+      if (pendingTiles.get(key) === p) pendingTiles.delete(key);
+      tiles.set(key, p);
+      while (tiles.size > TILE_MEM) tiles.delete(tiles.keys().next().value);
+    }, () => {
+      // 失敗を憶えず、次の測定で再試行できるようにする。
+      if (pendingTiles.get(key) === p) pendingTiles.delete(key);
+    });
     return p;
   }
 
@@ -5867,8 +5874,9 @@ function prepareQuickRecord({owner,favorites,observations,shapes,observer,target
 }
 function prepareNotebookBulk({owner,favorites,observations,shapes,placeIds,mode,targets=[],drafts=[],currentTargets}){
  if(!owner||!Array.isArray(placeIds)||!placeIds.length)throw Error('撮影地点を選んでください');
- const ids=new Set(placeIds),places=[...ids].map(id=>favorites.find(f=>f.id===id));
- if(places.some(p=>!p)||places.some(p=>!observations.some(r=>r.placeId===p.id)&&!shapes[p.id]&&!p.recordRegistered))throw Error('選んだ撮影地点が変更されました。選び直してください');
+ const byId=new Map();for(const f of favorites)if(!byId.has(f.id))byId.set(f.id,f);
+ const recorded=new Set(observations.map(r=>r.placeId)),ids=new Set(placeIds),places=[...ids].map(id=>byId.get(id));
+ if(places.some(p=>!p)||places.some(p=>!recorded.has(p.id)&&!shapes[p.id]&&!p.recordRegistered))throw Error('選んだ撮影地点が変更されました。選び直してください');
  let nextFavorites=favorites,nextObservations=observations,nextShapes=Object.assign(Object.create(null),shapes),changedFavorites=[];
  if(mode==='delete'){
   nextObservations=observations.filter(r=>!ids.has(r.placeId));
@@ -5899,11 +5907,11 @@ function restore(data,{favorites,sightings,observations,shapes,cleanFavorite,cle
  if(!Array.isArray(incoming))throw Error('形式が違います');
  const incomingFav=Array.isArray(data?.favorites)?data.favorites:[],rawObs=data?.library?.observations??[],rawShapes=data?.library?.shapes??{};
  if(!Array.isArray(rawObs)||!rawShapes||typeof rawShapes!=='object'||Array.isArray(rawShapes))throw Error('撮影地点のデータ形式を確認してください');
- const goodRecs=incoming.map(cleanSighting).filter(Boolean),goodFavs=incomingFav.map(cleanFavorite).filter(Boolean),nextFavorites=merge(favorites,goodFavs),ids=new Set(nextFavorites.map(f=>f.id));
+ const goodRecs=incoming.map(cleanSighting).filter(Boolean),goodFavs=incomingFav.map(cleanFavorite).filter(Boolean),nextFavorites=merge(favorites,goodFavs),favoriteById=new Map(nextFavorites.map(f=>[f.id,f]));
  let shapeCount=0;
- const goodObs=rawObs.map(cleanObservation).filter(r=>r&&ids.has(r.placeId)),nextShapes=Object.assign(Object.create(null),shapes);let dropped=incoming.length-goodRecs.length+incomingFav.length-goodFavs.length+rawObs.length-goodObs.length;
+ const goodObs=rawObs.map(cleanObservation).filter(r=>r&&favoriteById.has(r.placeId)),nextShapes=Object.assign(Object.create(null),shapes);let dropped=incoming.length-goodRecs.length+incomingFav.length-goodFavs.length+rawObs.length-goodObs.length;
  for(const [id,row]of Object.entries(rawShapes)){
-  const f=nextFavorites.find(f=>f.id===id),s=cleanShape(row?.shape);
+  const f=favoriteById.get(id),s=cleanShape(row?.shape);
   if(!f||!s||row.latitude!==f.latitude||row.longitude!==f.longitude){dropped++;continue;}
   nextShapes[id]={latitude:f.latitude,longitude:f.longitude,shape:s};shapeCount++;
  }
@@ -6512,7 +6520,35 @@ async function aimShootingView(obs, target, body, partId, matchMode, indexed=fal
 }
 const aimRidgeCache = new Map();
 const aimRidgePending = new Map();
+function aimTerrainTask(pending, key, isCurrent, work) {
+  if (isCurrent && !isCurrent()) return Promise.resolve(null);
+  let entry = pending?.get(key);
+  if (entry?.cancelled) { pending.delete(key); entry = null; }
+  if (entry) {
+    if (!isCurrent) { entry.persistent = true; entry.consumers.clear(); }
+    else if (!entry.persistent) entry.consumers.add(isCurrent);
+    return entry.promise;
+  }
+  entry = { persistent: !isCurrent, consumers: new Set(isCurrent ? [isCurrent] : []) };
+  const current = () => {
+    if (entry.persistent) return true;
+    for (const consumer of entry.consumers) {
+      if (consumer()) return true;
+      entry.consumers.delete(consumer);
+    }
+    entry.cancelled = true;
+    return false;
+  };
+  pending?.set(key, entry);
+  entry.promise = work(current).finally(() => {
+    entry.consumers.clear();
+    if (pending?.get(key) === entry) pending.delete(key);
+  });
+  return entry.promise;
+}
 async function aimLookRidge(obs, eye, target, win) {
+  const isCurrent = win?.isCurrent;
+  if (isCurrent && !isCurrent()) return null;
   const {km:D,azimuth:az0} = AstroNotesTerrain.inverse(obs.latitude, obs.longitude, target.latitude, target.longitude);
   // 山の地形範囲・解像度はレンズや構図から独立させる。広角でも山頂を粗くしない。
   const s = target.id === "fuji" ? 18 : Math.max(1.5, Math.min(12, D * 0.15));
@@ -6522,8 +6558,7 @@ async function aimLookRidge(obs, eye, target, win) {
     target.parts[0].m].map((v) => v.toFixed(5)).join(",") + JSON.stringify(target.rim || null);
   if (!win?.exactSearch && aimRidgeCache.has(key+airK)) { const cached=aimRidgeCache.get(key+airK);aimRidgeCache.delete(key+airK);aimRidgeCache.set(key+airK,cached);return cached; }
   const pendingKey = key + airK;
-  if (!win?.exactSearch && aimRidgePending.has(pendingKey)) return aimRidgePending.get(pendingKey);
-  const task = (async () => {
+  return aimTerrainTask(win?.exactSearch ? null : aimRidgePending, pendingKey, isCurrent, async current => {
   const pts = [], distances = Array.from({length:n+1},(_,j)=>Math.max(0.15, D - s + (2 * s * j) / n));
   for (let i = 0; i <= cols; i++) {
     const az = az0 - spanAz + (2 * spanAz * i) / cols, destination = AstroNotesTerrain.prepareRidgeDestination(obs.latitude,obs.longitude,az);
@@ -6534,7 +6569,7 @@ async function aimLookRidge(obs, eye, target, win) {
   }
   let el;
   try { el = await AstroNotesTerrain.elevations(pts, { zoom: D > 40 ? 12 : 13, from: obs }); } catch { return null; }
-  if(airK!==AstroNotesAtmosphere.targetK())return null;
+  if(!current()||airK!==AstroNotesAtmosphere.targetK())return null;
   const angles=distances.map(d=>AstroNotesTerrain.prepareRidgeElevation(d,eye,{k:airK}));
   const rim = AstroNotesAlign.rimOutline({ ...obs, elevation: eye }, target);
   const summit = aimAirAngle(D, eye, target.parts[0].m);
@@ -6571,9 +6606,7 @@ async function aimLookRidge(obs, eye, target, win) {
   if(!win?.exactSearch)aimRidgeCache.set(key+airK, out);
   while(aimRidgeCache.size>256)aimRidgeCache.delete(aimRidgeCache.keys().next().value);
   return out;
-  })().finally(() => { if (aimRidgePending.get(pendingKey) === task) aimRidgePending.delete(pendingKey); });
-  if(!win?.exactSearch)aimRidgePending.set(pendingKey, task);
-  return task;
+  });
 }
 const aimAirAngle=(...args)=>AstroNotesAstro.targetElevationAngle(...args,{k:AstroNotesAtmosphere.targetK()});
 const NEAR_KM = 0.02;

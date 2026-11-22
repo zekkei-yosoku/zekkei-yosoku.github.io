@@ -13,7 +13,7 @@ async function fixture(browser,url){
  await page.goto(url+'#/records');await page.waitForFunction(()=>typeof MyPlacesUI==='object'&&typeof SkyMapUI==='object');
  await page.evaluate(async()=>{
   await startupSessionReady;await AstroNotesAssets.ensureModels();AstroNotesAtmosphere.configure('standard');
-  RecordSync.kick=()=>{};RecordSync.touched=()=>{};const sync=accountSync();sync.syncNow=async()=>{};sync.queuePush=()=>{};
+  RecordSync.kick=()=>{};RecordSync.touched=()=>{};const sync=accountSync();sync.syncNow=async()=>{};sync.queuePush=()=>{};sync.queuePushAll=()=>{};
   const p={name:'鷺沼北公園',latitude:35.58386,longitude:139.56853,elevation:87.2,groundManualM:87.2,eyeHeightAGL:1.5,standAglM:1.5,stand:'ground'};
   window.dailyBench={p,target:aimTargetList().find(t=>t.id==='skytree'),calls:0,prepared:0,dem:0};
   const A=AstroNotesAlign,originalPrepare=A.prepareDailyView,originalDaily=A.dailyView,originalCandidates=AstroNotesShooting.candidates;

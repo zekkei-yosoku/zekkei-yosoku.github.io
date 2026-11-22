@@ -21,7 +21,7 @@ for(const [engine,type]of [['chrome',chromium],['webkit',webkit]].filter(([e])=>
   try{
    await page.goto(base+'#/almanac');await page.waitForFunction(()=>globalThis.MyPlacesUI&&typeof SkyMapUI==='object'&&globalThis.TrialExplore&&globalThis.AstroNotesTrialOverlap);
    result.version=await page.locator('meta[name=app-version]').getAttribute('content');
-   await page.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();RecordSync.touched=()=>{};RecordSync.kick=()=>{};accountSync().queuePush=()=>{};
+   await page.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();RecordSync.touched=()=>{};RecordSync.kick=()=>{};accountSync().queuePush=()=>{};accountSync().queuePushAll=()=>{};
     window.overlapCalls=[];const days=aimBuildingDays;aimBuildingDays=(obs,t,body,partId,seq,o)=>{overlapCalls.push([t.id,partId,o?.matchMode]);return days(obs,t,body,partId,seq,o);};
     navigationHistory.pushRoute('#/explore');await SkyMapUI.open();});
    await page.locator('#exploreShowResult').waitFor({state:'visible'});

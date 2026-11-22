@@ -5,15 +5,47 @@ const aimRidgeCache = new Map(), aimRidgePending = new Map();
 // 目標の方位の左右 AIM_FRONT_SPAN° の扇で、観測点から目標の手前までの地形の見かけの高さを列ごとに取る。
 // 図の手前の山並みと、目標が地形に隠れるかの判定（真ん中の列＝目標の方位）に使う。取れなければ null
 const AIM_FRONT_SPAN = 20, AIM_SKY_ZOOM = 10, aimFrontCache = new Map(), aimFrontPending = new Map();
-async function aimTerrainFront(obs, eye, target, span = AIM_FRONT_SPAN) {
+// Keep completed profiles bounded independently of in-flight work. A profile has
+// only 81/121 angular pairs; 256 entries match the existing mountain-ridge budget.
+const AIM_FRONT_CACHE_LIMIT = 256;
+// A shared read belongs to all current consumers, not the first render alone.
+// Callers without a lifetime predicate (searches) keep their existing contract.
+function aimTerrainTask(pending, key, isCurrent, work) {
+  if (isCurrent && !isCurrent()) return Promise.resolve(null);
+  let entry = pending?.get(key);
+  if (entry?.cancelled) { pending.delete(key); entry = null; }
+  if (entry) {
+    if (!isCurrent) { entry.persistent = true; entry.consumers.clear(); }
+    else if (!entry.persistent) entry.consumers.add(isCurrent);
+    return entry.promise;
+  }
+  entry = { persistent: !isCurrent, consumers: new Set(isCurrent ? [isCurrent] : []) };
+  const current = () => {
+    if (entry.persistent) return true;
+    for (const consumer of entry.consumers) {
+      if (consumer()) return true;
+      entry.consumers.delete(consumer);
+    }
+    entry.cancelled = true;
+    return false;
+  };
+  pending?.set(key, entry);
+  entry.promise = work(current).finally(() => {
+    entry.consumers.clear();
+    if (pending?.get(key) === entry) pending.delete(key);
+  });
+  return entry.promise;
+}
+
+async function aimTerrainFront(obs, eye, target, span = AIM_FRONT_SPAN, { isCurrent } = {}) {
+  if (isCurrent && !isCurrent()) return null;
   const D = AstroNotesTerrain.distanceKm(obs.latitude, obs.longitude, target.latitude, target.longitude);
   const az0 = AstroNotesTerrain.bearing(obs.latitude, obs.longitude, target.latitude, target.longitude);
   const near = 0.3, far = D - 0.3, airK = AstroNotesAtmosphere.targetK();
   if (!(far > near + 0.5)) return { ridge: [], block: null };
   const key = [obs.latitude, obs.longitude, eye, target.latitude, target.longitude, span].map((v) => v.toFixed(5)).join(",") + "|" + airK;
-  if (aimFrontCache.has(key)) return aimFrontCache.get(key);
-  if (aimFrontPending.has(key)) return aimFrontPending.get(key);
-  const task = (async () => {
+  if (aimFrontCache.has(key)) { const hit = aimFrontCache.get(key); aimFrontCache.delete(key); aimFrontCache.set(key, hit); return hit; }
+  return aimTerrainTask(aimFrontPending, key, isCurrent, async current => {
     const cols = span > AIM_FRONT_SPAN ? 120 : 80, n = 80, pts = [];
     for (let i = 0; i <= cols; i++) {
       const az = az0 - span + (2 * span * i) / cols;
@@ -23,7 +55,7 @@ async function aimTerrainFront(obs, eye, target, span = AIM_FRONT_SPAN) {
     let el;
     // 広い幅は山の外をつなぐだけなので粗いズームで読む（細かいままだと1回で約350枚）
     try { el = await (span > AIM_FRONT_SPAN ? AstroNotesTerrain.tileElevations(pts, AIM_SKY_ZOOM) : AstroNotesTerrain.elevations(pts, { zoom: D > 40 ? 11 : 12, from: obs })); } catch { return null; }
-    if (airK !== AstroNotesAtmosphere.targetK()) return null;
+    if (!current() || airK !== AstroNotesAtmosphere.targetK()) return null;
     const ridge = []; let block = null;
     for (let i = 0; i <= cols; i++) {
       let best = -90, at = null;
@@ -37,30 +69,29 @@ async function aimTerrainFront(obs, eye, target, span = AIM_FRONT_SPAN) {
     }
     const out = { ridge, block };
     aimFrontCache.set(key, out);
+    while (aimFrontCache.size > AIM_FRONT_CACHE_LIMIT) aimFrontCache.delete(aimFrontCache.keys().next().value);
     return out;
-  })();
-  aimFrontPending.set(key, task);
-  try { return await task; } finally { aimFrontPending.delete(key); }
+  });
 }
 
 // 2026-11-01 高い所から塔を見ると、足元より上に地平線がある（ユーザー「月のラインが水平線より上にくる」）。
 // 目標より先の地形の見かけの高さを列ごとに取る。海の地平線より低い所は海の地平線まで見える（z9で実測0.07°以内。候補を外した1回あたり約50枚）
 const AIM_BEYOND_MAX_KM = 300, AIM_BEYOND_ZOOM = 9, aimBeyondCache = new Map(), aimBeyondPending = new Map();
-async function aimTerrainBeyond(obs, eye, target, span = AIM_FRONT_SPAN) {
+async function aimTerrainBeyond(obs, eye, target, span = AIM_FRONT_SPAN, { isCurrent } = {}) {
+  if (isCurrent && !isCurrent()) return null;
   const D = AstroNotesTerrain.distanceKm(obs.latitude, obs.longitude, target.latitude, target.longitude);
   const az0 = AstroNotesTerrain.bearing(obs.latitude, obs.longitude, target.latitude, target.longitude);
   const airK = AstroNotesAtmosphere.targetK();
   const key = [obs.latitude, obs.longitude, eye, target.latitude, target.longitude, span].map((v) => v.toFixed(5)).join(",") + "|" + airK;
   if (aimBeyondCache.has(key)) return aimBeyondCache.get(key);
-  if (aimBeyondPending.has(key)) return aimBeyondPending.get(key);
-  const task = (async () => {
+  return aimTerrainTask(aimBeyondPending, key, isCurrent, async current => {
     const cols = span > AIM_FRONT_SPAN ? 240 : 160, n = 240, near = D + 0.3, far = Math.max(near + 1, AIM_BEYOND_MAX_KM), pts = [];
     for (let i = 0; i <= cols; i++) {
       const az = az0 - span + (2 * span * i) / cols;
       for (let j = 0; j <= n; j++) { const d = near * Math.pow(far / near, j / n); pts.push({ ...AstroNotesTerrain.destination(obs.latitude, obs.longitude, az, d), az, d }); }
     }
     const el = await AstroNotesTerrain.tileElevations(pts, AIM_BEYOND_ZOOM);
-    if (airK !== AstroNotesAtmosphere.targetK()) return null;
+    if (!current() || airK !== AstroNotesAtmosphere.targetK()) return null;
     const ridge = [];
     for (let i = 0; i <= cols; i++) {
       let best = -90;
@@ -72,12 +103,12 @@ async function aimTerrainBeyond(obs, eye, target, span = AIM_FRONT_SPAN) {
     aimBeyondCache.set(key, ridge);
     while (aimBeyondCache.size > 16) aimBeyondCache.delete(aimBeyondCache.keys().next().value);
     return ridge;
-  })();
-  aimBeyondPending.set(key, task);
-  try { return await task; } finally { aimBeyondPending.delete(key); }
+  });
 }
 
 async function aimLookRidge(obs, eye, target, win) {
+  const isCurrent = win?.isCurrent;
+  if (isCurrent && !isCurrent()) return null;
   const {km:D,azimuth:az0} = AstroNotesTerrain.inverse(obs.latitude, obs.longitude, target.latitude, target.longitude);
   // 山の地形範囲・解像度はレンズや構図から独立させる。広角でも山頂を粗くしない。
   const s = target.id === "fuji" ? 18 : Math.max(1.5, Math.min(12, D * 0.15));
@@ -87,8 +118,7 @@ async function aimLookRidge(obs, eye, target, win) {
     target.parts[0].m].map((v) => v.toFixed(5)).join(",") + JSON.stringify(target.rim || null);
   if (!win?.exactSearch && aimRidgeCache.has(key+airK)) { const cached=aimRidgeCache.get(key+airK);aimRidgeCache.delete(key+airK);aimRidgeCache.set(key+airK,cached);return cached; }
   const pendingKey = key + airK;
-  if (!win?.exactSearch && aimRidgePending.has(pendingKey)) return aimRidgePending.get(pendingKey);
-  const task = (async () => {
+  return aimTerrainTask(win?.exactSearch ? null : aimRidgePending, pendingKey, isCurrent, async current => {
   const pts = [], distances = Array.from({length:n+1},(_,j)=>Math.max(0.15, D - s + (2 * s * j) / n));
   for (let i = 0; i <= cols; i++) {
     const az = az0 - spanAz + (2 * spanAz * i) / cols, destination = AstroNotesTerrain.prepareRidgeDestination(obs.latitude,obs.longitude,az);
@@ -99,7 +129,7 @@ async function aimLookRidge(obs, eye, target, win) {
   }
   let el;
   try { el = await AstroNotesTerrain.elevations(pts, { zoom: D > 40 ? 12 : 13, from: obs }); } catch { return null; }
-  if(airK!==AstroNotesAtmosphere.targetK())return null;
+  if(!current()||airK!==AstroNotesAtmosphere.targetK())return null;
   const angles=distances.map(d=>AstroNotesTerrain.prepareRidgeElevation(d,eye,{k:airK}));
   const rim = AstroNotesAlign.rimOutline({ ...obs, elevation: eye }, target);
   const summit = aimAirAngle(D, eye, target.parts[0].m);
@@ -136,9 +166,7 @@ async function aimLookRidge(obs, eye, target, win) {
   if(!win?.exactSearch)aimRidgeCache.set(key+airK, out);
   while(aimRidgeCache.size>256)aimRidgeCache.delete(aimRidgeCache.keys().next().value);
   return out;
-  })().finally(() => { if (aimRidgePending.get(pendingKey) === task) aimRidgePending.delete(pendingKey); });
-  if(!win?.exactSearch)aimRidgePending.set(pendingKey, task);
-  return task;
+  });
 }
 
 export {aimLookRidge,aimRidgeCache,aimTerrainBeyond,aimTerrainFront};

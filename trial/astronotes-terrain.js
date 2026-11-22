@@ -248,7 +248,7 @@
     });
   }
 
-  const tiles = new Map();
+  const tiles = new Map(), pendingTiles = new Map();
   const tileAvailability = new WeakMap();
   const TILE_MEM = 240;                      // 手元に持つ画素（1枚 約260KB）。古いものから手放し、要れば保存領域から読み直す
   // 標高タイルの無い升目（404＝陸の無い外洋）。水の判定で、海と分かっている所へ水域タイルを取りに行かないために憶える
@@ -272,6 +272,7 @@
   function loadTile(z, x, y, layer = "dem_png", strict = false) {
     const key = layer === "dem_png" ? `${z}/${x}/${y}` : `${layer}/${z}/${x}/${y}`;
     if (tiles.has(key)) return tiles.get(key);
+    if (pendingTiles.has(key)) return pendingTiles.get(key);
     const url = `${GSI_TILE.replace(/dem_png$/, layer)}/${z}/${x}/${y}.png`;
     const availability={missing:false,verified:false};
     // Image success confirms this exact layer. Image failure never confirms 404.
@@ -337,11 +338,17 @@
       });
     })();
     tileAvailability.set(p,availability);
-    p.then(image=>{ availability.image=image; },()=>{});
-    tiles.set(key, p);
-    // 失敗を憶えない。憶えると、同じ画面の次の測定まで試さずに失敗する
-    p.catch(() => { if (tiles.get(key) === p) tiles.delete(key); });
-    while (tiles.size > TILE_MEM) tiles.delete(tiles.keys().next().value);
+    // 未完了の読取は容量制限で捨てない。同じタイルの別利用者も同じPromiseを待つ。
+    pendingTiles.set(key, p);
+    p.then(image => {
+      availability.image = image;
+      if (pendingTiles.get(key) === p) pendingTiles.delete(key);
+      tiles.set(key, p);
+      while (tiles.size > TILE_MEM) tiles.delete(tiles.keys().next().value);
+    }, () => {
+      // 失敗を憶えず、次の測定で再試行できるようにする。
+      if (pendingTiles.get(key) === p) pendingTiles.delete(key);
+    });
     return p;
   }
 

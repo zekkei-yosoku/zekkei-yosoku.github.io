@@ -115,3 +115,27 @@ test('既存地点の名前だけの保存はID/座標/形/過去記録を保持
  assert.throws(()=>plan({favorites:[original],place:{...original,name:'  '},isNew:false}),/情報/);
  const storage=disk();storage.setItem('sorami.favorites',JSON.stringify([original]));storage.fail(L.keys('owner').shapes);assert.throws(()=>L.transaction(storage,p.entries),/取り消しました/);assert.equal(JSON.parse(storage.getItem('sorami.favorites'))[0].name,'川沿い');
 });
+
+test('bulk membership scans each collection once and preserves first duplicate favorite and selection order',()=>{
+ const n=1000;let favoriteReads=0,recordReads=0;
+ const favorites=Array.from({length:n},(_,i)=>({...place,get id(){favoriteReads++;return 'p'+i;}}));
+ const observations=Array.from({length:n},(_,i)=>({get placeId(){recordReads++;return 'p'+i;}}));
+ const p=L.prepareNotebookBulk({owner:'owner',favorites,observations,shapes:{},placeIds:favorites.map(f=>f.id).reverse(),mode:'add',targets:[target],currentTargets:()=>[]});
+ assert(recordReads<=n*2,'membership does not rescan observations for each place');assert(favoriteReads<=n*8,'favorite lookup does not rescan for each selection: '+favoriteReads);
+ assert.deepEqual(p.observations.slice(n).map(r=>r.placeId),Array.from({length:n},(_,i)=>'p'+(n-i-1)));
+ const first={...place,recordRegistered:false},later={...place,recordRegistered:true,latitude:36};
+ assert.throws(()=>bulk({favorites:[first,later],observations:[],shapes:{},placeIds:['p']}),/変更/,'the first duplicate governs membership, as Array.find did');
+ const duplicate=bulk({favorites:[{...first,recordRegistered:true},later],observations:[],shapes:{},placeIds:['p'],mode:'add',targets:[target],currentTargets:()=>[]});
+ assert.equal(duplicate.observations[0].observer.latitude,35);
+});
+
+test('backup shapes use one favorite lookup index and keep merge order and last duplicate values',()=>{
+ const n=1000;let reads=0;
+ const favorites=Array.from({length:n},(_,i)=>({...place,get id(){reads++;return 'p'+i;}})),shapes=Object.fromEntries(Array.from({length:n},(_,i)=>['p'+i,{latitude:35,longitude:139,shape:line}]));
+ const options={favorites,sightings:[],observations:[],shapes:{},cleanFavorite:x=>x,cleanSighting:x=>x,cleanShape:S.cleanShape};
+ const restored=L.restore({schemaVersion:2,sightings:[],favorites:[],library:{shapes}},options);
+ assert.equal(restored.shapeCount,n);assert(reads<=n*3,'each shape must not scan the complete favorite list: '+reads);
+ const duplicate=L.restore({sightings:[],favorites:[{...place,id:'p',latitude:36}],library:{shapes:{p:{latitude:36,longitude:139,shape:line}}}},
+  {...options,favorites:[place,{...place,id:'other'},{...place,id:'p',latitude:35.5}]});
+ assert.deepEqual(duplicate.favorites.map(f=>[f.id,f.latitude]),[['p',36],['other',35]]);assert.equal(duplicate.shapeCount,1);assert.equal(duplicate.shapes.p.latitude,36);
+});

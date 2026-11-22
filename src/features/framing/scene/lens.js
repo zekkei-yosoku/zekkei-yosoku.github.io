@@ -20,6 +20,10 @@ const aimLens = (() => { try { const x = JSON.parse(localStorage.getItem("sorami
 return { on: x.mode ? !!x.on : true, mode: x.mode === "manual" ? "manual" : "auto", focal: Number.isFinite(x.focal) && x.focal >= 8 && x.focal <= 2000 ? x.focal : null, sensor: AIM_SENSOR[x.sensor] ? x.sensor : "full", portrait: !!x.portrait, grid: ["thirds",
 "diagonal"].includes(x.grid) ? x.grid : "none" }; } catch { return { on: true, mode: "auto", focal: null, sensor: "full", portrait: false, grid: "none" }; } })();
 const aimLookHosts = new Set();
+// A visible host can still sit under a hidden route/pane.
+function aimLookVisible(host) {
+  return !document.hidden && host.isConnected && !host.hidden && host.getClientRects().length > 0;
+}
 const aimLookHMS = (ms) => `${S.JstCal.hhmm(ms)}:${String(new Date(ms).getUTCSeconds()).padStart(2, "0")}`;
 /// 重なる時刻からの差を短く（「重なる3分前」「重なる20秒後」）
 function aimLookRel(dt, name = "重なる") {
@@ -35,4 +39,4 @@ function aimLookRel(dt, name = "重なる") {
  */
 // 部品を別々に不透明マスクへ描き、外の空から届かない内部の穴だけ埋める。
 // 凸包ではないので、城の塔間・像の腕の外など、空へ開いた凹輪郭を保つ。
-export {AIM_SENSOR,aimDrawGrid,aimLens,aimLookHMS,aimLookHosts,aimLookRel};
+export {AIM_SENSOR,aimDrawGrid,aimLens,aimLookHMS,aimLookHosts,aimLookRel,aimLookVisible};

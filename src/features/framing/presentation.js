@@ -8,7 +8,7 @@ targetCategoryList,targetCategoryOf,targetLocationLabel} from './controller.js';
 import {aimApply} from './apply-and-list.js';
 import {aimCal,aimCalMove,aimFromPoint} from './observer.js';
 import {aimSideName,aimUpdateLook} from './candidates.js';
-import {aimLens,aimLookHMS} from './scene/lens.js';
+import {aimLens,aimLookHMS,aimLookVisible} from './scene/lens.js';
 import {aimLookRender} from './scene/render.js';
 import {aimAirSettings,aimLookKey,openAim} from './reverse-and-entry.js';
 import {nearName,openPlaceSheet,placeSheetFor,wireSearchBox} from '../places/search.js';
@@ -26,7 +26,7 @@ let resetAimCalSwipe = () => {};
   scene.hidden=!both&&which!=='scene';places.hidden=!both&&which!=='places';
   tabs.forEach((t,i)=>{const on=(i===0)===(which==='scene');t.setAttribute('aria-selected',String(on));t.tabIndex=on?0:-1;if(focus&&on)t.focus();});
   requestAnimationFrame(()=>{if(!places.hidden){const key=`${aim.target?.id}|${aim.body}|${aim.dayMs}|${aim.partId}|${aim.limb}|${aim.lines?.length}`;if(aim.lines?.length&&places._lineFitKey!==key){places._lineFitKey=key;aimFitLines(aim.lines);}AimMap.redraw();
-  }if(!scene.hidden&&look._lookSpec&&!look.hidden){const cv=look.querySelector('canvas');if(cv&&Math.round(cv.clientWidth)!==look._lookW)aimLookRender(look,look._lookSpec);}});
+  }if(!scene.hidden&&look._lookSpec&&aimLookVisible(look)){const cv=look.querySelector('canvas');if(cv&&(look._lookNeedsRefresh||Math.round(cv.clientWidth)!==look._lookW))aimLookRender(look,look._lookSpec);}});
  }
  tabs.forEach((t,i)=>{t.onclick=()=>{show(i?'places':'scene');update();};t.onkeydown=e=>{let j;if(e.key==='ArrowRight'||e.key==='ArrowLeft')j=1-i;else if(e.key==='Home')j=0;else if(e.key==='End')j=1;else return;e.preventDefault();show(j?'places':'scene',true);};});
  wide.addEventListener('change',()=>show(mode));show('scene');
@@ -206,7 +206,14 @@ let resetAimCalSwipe = () => {};
   for(const row of el('aimCandList').querySelectorAll('.cand-row.on'))if(!row.querySelector('.preview-show-scene')){const b=document.createElement('button');b.type='button';b.className='chip preview-show-scene';b.textContent='この場所の見え方';b.onclick=()=>{show('scene',true);
   if(!wide.matches)el('previewSceneTab').scrollIntoView({block:'start',behavior:'smooth'});};row.append(b);}
  };
- function resumeLegacyPreview(){if(!legacyTimelineVisible())return;const at=look._uiTime?.current;if(Number.isFinite(at))commitPreviewTime(at);update();}
+ function resumeLegacyPreview(){
+  if(!legacyTimelineVisible())return;
+  const at=look._uiTime?.current??look._lookAt;
+  // Finishing a day-crossing gesture must still commit the day and requested time.
+  if(look._uiTime&&Number.isFinite(at)&&S.JstCal.startOfDay(at)!==aim.dayMs)commitPreviewTime(at);
+  else if(look._lookNeedsRefresh&&look._lookSpec)aimLookRender(look,{...look._lookSpec,at:Number.isFinite(at)?at:look._lookSpec.at});
+  update();
+ }
  document.addEventListener('visibilitychange',resumeLegacyPreview);
  new MutationObserver(update).observe(root,{childList:true,subtree:true});update();
  // 既存の地図移動処理より先に表示する。計算や地点選択の処理は既存のまま。

@@ -115,8 +115,15 @@ test('旧日時帯は背景のExplore所有と幅0を、単独画面の可視状
 });
 test('単独の日時帯は背景で止まった最終時刻を前面復帰時に確定し、共有日時帯へ書き込まない',()=>{
  const start=html.indexOf(' function resumeLegacyPreview(){'),end=html.indexOf(" document.addEventListener('visibilitychange',resumeLegacyPreview);",start);assert(start>=0&&end>start);
- let visible=false,updates=0;const commits=[],c={legacyTimelineVisible:()=>visible,look:{_uiTime:{current:Date.parse('2026-11-20T00:01:00+09:00')}},commitPreviewTime:at=>commits.push(at),update:()=>updates++,Number};vm.createContext(c);vm.runInContext(html.slice(start,end),c);
- c.resumeLegacyPreview();assert.equal(commits.length,0);assert.equal(updates,0);visible=true;c.resumeLegacyPreview();assert.deepEqual(commits,[c.look._uiTime.current]);assert.equal(updates,1);
+ let visible=false,updates=0;const commits=[],renders=[],day=Date.parse('2026-11-19T00:00:00+09:00'),finalAt=Date.parse('2026-11-20T00:01:07+09:00');
+ const c={legacyTimelineVisible:()=>visible,aim:{dayMs:day},S:{JstCal:{startOfDay:at=>Math.floor((at+32400000)/86400000)*86400000-32400000}},
+  look:{_uiTime:{current:finalAt},_lookNeedsRefresh:true,_lookSpec:{at:day+86340000}},commitPreviewTime:at=>commits.push(at),aimLookRender:(_h,s)=>renders.push(s.at),update:()=>updates++,Number};
+ vm.createContext(c);vm.runInContext(html.slice(start,end),c);
+ c.resumeLegacyPreview();assert.equal(commits.length,0);assert.equal(updates,0);assert.equal(renders.length,0);
+ visible=true;c.resumeLegacyPreview();assert.deepEqual(commits,[finalAt]);assert.equal(updates,1);assert.equal(renders.length,0,'日跨ぎは日付の確定経路を通す');
+ c.aim.dayMs=day+86400000;c.look._lookNeedsRefresh=false;c.resumeLegacyPreview();assert.deepEqual(commits,[finalAt]);assert.equal(renders.length,0,'同日の完了済み表示は再計算しない');
+ c.look._lookNeedsRefresh=true;c.resumeLegacyPreview();assert.deepEqual(renders,[finalAt],'同日の未完表示は秒を保って再開する');
+ visible=false;const before=updates;c.resumeLegacyPreview();assert.equal(updates,before);assert.deepEqual(commits,[finalAt]);assert.deepEqual(renders,[finalAt],'共有日時帯の所有中は書き込まない');
 });
 
 test('body change after leaving cannot mutate or dereference a cleared session',async()=>{const f=fixture();await f.open();f.c.SkyMapUI.leave();const before=f.calls;f.element('skyMapBody').value='moon';assert.doesNotThrow(()=>f.element('skyMapBody').onchange());assert.equal(f.calls,before);});

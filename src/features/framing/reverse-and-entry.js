@@ -7,7 +7,7 @@ import {aimApply,aimDateLabel,aimRenderList} from './apply-and-list.js';
 import {aimCal,aimFromPoint,aimRenderFrom,aimRenderSelectedPoint,aimSetCustomTarget,aimSetFrom} from './observer.js';
 import {AIM_DIR8,aimSideName} from './candidates.js';
 import {aimRidgeCache} from './scene/terrain.js';
-import {aimLookHMS,aimLookHosts} from './scene/lens.js';
+import {aimLookHMS,aimLookHosts,aimLookVisible} from './scene/lens.js';
 import {aimLookRender} from './scene/render.js';
 import {AIM_PLACE_ENABLED} from './scene/input.js';
 import {nearName,placeSheetFor} from '../places/search.js';
@@ -236,7 +236,7 @@ window.addEventListener("resize", () => {
       if (!h.isConnected) { aimLookHosts.delete(h); continue; }
       // **幅が変わったときだけ描き直す。** iPhone はスクロールでツールバーが出入りするたびに resize が来て、選んだ時刻が戻っていた
       const cv = h.querySelector("canvas");
-      if (!h.hidden && h._lookSpec && cv && Math.round(cv.clientWidth) !== h._lookW) aimLookRender(h, h._lookSpec);
+      if (aimLookVisible(h) && h._lookSpec && cv && Math.round(cv.clientWidth) !== h._lookW) aimLookRender(h, h._lookSpec);
     }
   }, 150);
 });
