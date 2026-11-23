@@ -210,23 +210,24 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
   }
   }catch(error){if(!wanted())return {cancelled:true};throw error;}
  }
- // A batch yields, but does not end a zero-result action or discard a solver's
- // local state. Only the safety deadline and real cancellation retire that work.
- async function searchRecommended(plan,{budgetMs=12000,hardBudgetMs=60000,mapBudgetMs=2000,targetPlaces=8,maxEvaluations=Infinity,countPlaces=rows=>rows.length,onPage=()=>{},onBatchStart=()=>{},...options}={}){
+ // Yield between batches. The normal search ends at the place quota, source
+ // exhaustion or a recoverable stall. Callers may opt into a diagnostic deadline.
+ async function searchRecommended(plan,{hardBudgetMs=Infinity,mapBudgetMs=2000,targetPlaces=10,maxEvaluations=Infinity,countPlaces=rows=>rows.length,onPage=()=>{},onBatchStart=()=>{},...options}={}){
   if(plan.compositionInvalid)throw Error('invalid-composition');
-  const active=sessions.get(requestKey(plan));if(active?.busy&&active.current?.()!==false)return {cancelled:true,reason:'busy'};
-  const key=requestKey(plan),started=now(),softDeadline=started+Math.max(1,budgetMs),deadline=started+Math.max(1,hardBudgetMs),own=new AbortController();
+  const key=requestKey(plan),active=sessions.get(key);
+  if(active?.busy&&active.current?.()!==false)return {cancelled:true,reason:'busy'};
+  const started=now(),deadline=started+Math.max(1,hardBudgetMs),own=new AbortController();
   const external=()=>!options.signal?.aborted&&(options.isCurrent?.()??true);
   const cancel=()=>own.abort();options.signal?.addEventListener('abort',cancel,{once:true});
-  if(options.signal?.aborted)cancel();const timer=setTimeout(cancel,Math.max(1,hardBudgetMs));
-  let page=sessions.get(key)?.lastResult,more=!!options.more,places=countPlaces(page?.rows||[]),reason=null;
-  const initialChecked=sessions.get(key)?.counts.checked||0,cursors=new Set();
+  if(options.signal?.aborted)cancel();const timer=Number.isFinite(deadline)?setTimeout(cancel,deadline-started):null;
+  let page,more=!!options.more,places=countPlaces(active?.rows||[]),reason=null;
+  const initialChecked=active?.counts.checked||0,cursors=new Set();
   // Retry only failures present when the user started this action. A failed
   // request cannot recursively schedule itself throughout the foreground job.
-  const retries=new Set(more?sessions.get(key)?.retryWork.keys():[]);
-  const publish=p=>{page=p;places=countPlaces(p.rows);onPage(p);};
+  const retries=new Set(more?active?.retryWork.keys():[]);
+  const publish=p=>{page=p;places=countPlaces(p.rows);onPage(p,places);};
   // Continue means more new choices, not an immediate stop at the old quota.
-  const initialPlaces=places,goal=places+targetPlaces,softDone=()=>places>initialPlaces&&now()>=softDeadline;
+  const goal=places+targetPlaces;
   try{
    while(external()&&!own.signal.aborted&&now()<deadline){
     const session=sessions.get(key),checked=(session?.counts.checked||0)-initialChecked;
@@ -240,7 +241,7 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
     onBatchStart();
     const next=await search(plan,{...options,signal:own.signal,deadline,more,retryFailed:false,retryWork,retainFailures:true,onRows:publish,prioritizeKnown:true,diverse:true,mapBudgetMs,
      deferTimedOut:()=>external()&&(own.signal.aborted||now()>=deadline),
-     pointLimit:Math.min(maxPointsPerBatch,maxEvaluations-checked),shouldPause:()=>places>=goal||softDone()||(sessions.get(key)?.counts.checked||0)-initialChecked>=maxEvaluations,
+     pointLimit:Math.min(maxPointsPerBatch,maxEvaluations-checked),shouldPause:()=>places>=goal||(sessions.get(key)?.counts.checked||0)-initialChecked>=maxEvaluations,
      providerOptions:{maxTiles:2,maxPoints:48}});
     if(!external())return {cancelled:true};
     if(next.cancelled){if(next.reason==='busy')return next;break;}
@@ -248,8 +249,7 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
     page=next;places=countPlaces(page.rows);
     if(!page.canContinue)return page;
     if(places>=goal){reason='enough-places';break;}
-    if(softDone()){reason='first-useful';break;}
-    onPage(page);
+    onPage(page,places);
     // Cooling sources resume on a later user action; never wait a minute here.
     if(!page.coverage.pendingPoints&&page.retryAt>now()){reason='source-wait';break;}
     const retryProgress=[...sessions.get(key).retryWork.values()].map(work=>[work.kind,work.attempts,work.cursor]);
@@ -258,7 +258,7 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
     more=true;await yieldTask();
    }
   }catch(error){if(external()&&!own.signal.aborted&&now()<deadline)throw error;}
-  finally{clearTimeout(timer);options.signal?.removeEventListener('abort',cancel);own.abort();}
+  finally{if(timer!==null)clearTimeout(timer);options.signal?.removeEventListener('abort',cancel);own.abort();}
   if(!external())return {cancelled:true};
   let session=sessions.get(key);if(!session){session=fresh(key,null);sessions.set(key,session);while(sessions.size>4)sessions.delete(sessions.keys().next().value);}
   page=result(session);if(session.started&&!page.canContinue)return page;

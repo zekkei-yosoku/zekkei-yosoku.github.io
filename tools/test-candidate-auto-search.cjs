@@ -37,7 +37,7 @@ const grants=['records','tower','diamond','pearl','skymap','multiscene'];
    const shown=()=>p.evaluate(()=>AstroNotesCandidatePicker.visibleRows().map(r=>r.id));
    await state('候補を探す');assert.deepEqual(await loads(),[]);
    await button.click();await waitHold();assert.deepEqual(await loads(),[0,7]);await activeProgress();
-   assert.equal(await working.getByRole('status').innerText(),'撮影場所の情報を取得中');
+   assert.equal(await working.getByRole('status').innerText(),'新規2か所 ・ 撮影場所の情報を取得中');
    // 2026-11-11 the first page's rows show while the next page is still being searched; progress and cancel stay.
    await p.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2);await activeProgress();
    await progress.scrollIntoViewIfNeeded();await p.screenshot({path:out+'/'+engine+'-auto-progress.png'});

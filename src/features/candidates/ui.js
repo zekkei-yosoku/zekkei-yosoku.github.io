@@ -551,6 +551,8 @@ function mount(){
   searching=true;failed=false;renderAction();
   visibleCredits.hidden=!hasResults;
   const label='撮影できる地域を計算しています…',updateProgress=showCandidateProgress(status,label,!!main);
+  let progressLabel=label,foundPlaces=0;
+  const renderProgress=()=>updateProgress(foundPlaces?`新規${foundPlaces}か所 ・ ${progressLabel}`:progressLabel);
   try{
    // The search asks this between every few calculations; rebuilding the page snapshot each time took about a quarter of
    // a phone's search time (2026-11-11). The run and the section are checked every time, the page conditions at most
@@ -559,13 +561,14 @@ function mount(){
    const searchCurrent=()=>{if(token!==run||!node.isConnected)return false;const now=performance.now();if(now-checkedAt>=250){checkedAt=now;stillCurrent=current(token,selected,node);}return stillCurrent;};
    const result=await engine.searchRecommended(selected,{more:resuming,signal,isCurrent:searchCurrent,
    deprioritizePoints:()=>{const recorded=globalThis.MyPlacesUI?.savedPlaces?.()||[];return point=>AstroNotesCandidatePicker.fixedSurveyedInRecords?.(point,selected.target?.id,recorded)??false;},
-   countPlaces:rows=>AstroNotesCandidatePicker.countNewPlaces(rows,globalThis.MyPlacesUI?.savedPlaces?.()||[],availableLabels?.facilities),onPage:page=>{
+   countPlaces:rows=>AstroNotesCandidatePicker.countNewPlaces(rows,globalThis.MyPlacesUI?.savedPlaces?.()||[],availableLabels?.facilities),onPage:(page,places)=>{
+    if(searchCurrent()&&Number.isFinite(places)&&places!==foundPlaces){foundPlaces=places;renderProgress();}
     if(page.rows?.length>offeredRows&&searchCurrent()){offeredRows=page.rows.length;present(page,selected,node,token,{partial:true}).catch(()=>{});}
    },onBatchStart:()=>{live.resetBudget();
    footprintGround.resetBudget();treeGround.resetBudget();evaluationBudgetStarted=false;},
    onProgress:counts=>{if(!searchCurrent())return;
-    const message=counts.stage==='inverse'?label:counts.stage==='evaluate'?'構図と見通しを確認中':'撮影場所の情報を取得中';
-    updateProgress(message);
+    progressLabel=counts.stage==='inverse'?label:counts.stage==='evaluate'?'構図と見通しを確認中':'撮影場所の情報を取得中';
+    renderProgress();
    }});
    if(!current(token,selected,node))return;if(result.cancelled){failed=true;continuation=true;setStatus('候補の情報を取得できませんでした。');return;}
    await present(result,selected,node,token);

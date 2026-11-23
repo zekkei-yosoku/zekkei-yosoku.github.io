@@ -826,32 +826,29 @@ test('explicit road scope admits unclassified surveyed places only with their cl
  }
 }));
 
-test('zero-result batches automatically reach the 161st useful point within one foreground action',()=>recommendedFixture(async()=>{
- let now=0;const points=recommendedPoints(162),seen=[],published=[];
+test('default search streams late candidates and continues until ten places without a time cutoff',()=>recommendedFixture(async()=>{
+ let now=0;const points=recommendedPoints(172),seen=[],published=[];
  const engine=createGenericSearch({now:()=>now,bodies,yieldTask:async()=>{},provider:{load:async()=>({points,coverage:{nextCursor:null}})},evaluate:async(p,q)=>{
-  seen.push(q.id);now++;return q.id==='r160'?recommendedRow(q):{status:'no-overlap',recommend:false};
+  seen.push(q.id);now+=500;return +q.id.slice(1)>=160?recommendedRow(q):{status:'no-overlap',recommend:false};
  }});
- const result=await engine.searchRecommended(plan,{budgetMs:12,hardBudgetMs:1000,onPage:p=>published.push(p.rows.map(r=>r.id))});
- assert.equal(result.pauseReason,'first-useful');assert.equal(result.rows[0].id,'r160');assert.equal(result.counts.checked,161);assert.equal(now,161);
- assert.equal(result.coverage.pendingPoints,1);assert.equal(seen.length,161);assert(published.some(ids=>ids.includes('r160')));
+ const result=await engine.searchRecommended(plan,{onPage:(p,places)=>published.push({places,checked:p.counts.checked,now})});
+ assert.equal(result.pauseReason,'enough-places');assert.equal(result.rows[0].id,'r160');assert.equal(result.rows.length,10);
+ assert.equal(result.counts.checked,170);assert.equal(result.coverage.pendingPoints,2);assert.equal(new Set(seen).size,170);
+ assert.deepEqual(published.find(p=>p.places===1),{places:1,checked:161,now:80500});
+ assert(engine.restart(plan));
+ const rechecked=await engine.searchRecommended(plan);
+ assert.equal(rechecked.rows.length,10,'the old cached result does not increase the new search quota');
+ assert.equal(rechecked.coverage.pendingPoints,2);
 }));
 
-test('soft first-result time never cancels a long point or repeats its local work',()=>recommendedFixture(async()=>{
+test('a long point keeps its local work and search can finish below quota when the source is exhausted',()=>recommendedFixture(async()=>{
  let now=0;const calls=[],inside=[],points=recommendedPoints(2);
  const engine=createGenericSearch({now:()=>now,bodies,yieldTask:async()=>{},provider:{load:async()=>({points,coverage:{nextCursor:null}})},evaluate:async(p,q,data,options)=>{
-  calls.push(q.id);for(let step=0;step<3;step++){now+=6;await Promise.resolve();inside.push(options.isCurrent());}return recommendedRow(q);
+  calls.push(q.id);for(let step=0;step<3;step++){now+=25000;await Promise.resolve();inside.push(options.isCurrent());}return recommendedRow(q);
  }});
- const result=await engine.searchRecommended(plan,{budgetMs:12,hardBudgetMs:60});
- assert.deepEqual(calls,['r0']);assert.deepEqual(inside,[true,true,true]);assert.equal(result.pauseReason,'first-useful');assert.equal(result.counts.checked,1);assert.equal(result.rows.length,1);
-}));
-
-test('inverse and provider preparation can finish after the soft goal without being restarted',()=>recommendedFixture(async()=>{
- let now=0,inverseCalls=0,providerCalls=0;const original=C.inverseSeeds;
- C.inverseSeeds=async()=>{inverseCalls++;now+=13;return {seeds:[{latitude:35,longitude:139,radiusM:300}],partial:true};};
- try{
-  const engine=createGenericSearch({now:()=>now,bodies,yieldTask:async()=>{},provider:{load:async()=>{providerCalls++;now+=13;return {points:recommendedPoints(1),coverage:{nextCursor:null}};}},evaluate:async(p,q)=>recommendedRow(q)});
-  const result=await engine.searchRecommended(plan,{budgetMs:12,hardBudgetMs:60});assert.equal(result.rows.length,1);assert.equal(result.canContinue,false);assert.equal(inverseCalls,1);assert.equal(providerCalls,1);
- }finally{C.inverseSeeds=original;}
+ const result=await engine.searchRecommended(plan);
+ assert.deepEqual(calls,['r0','r1']);assert(inside.every(Boolean));assert.equal(now,150000);
+ assert.equal(result.canContinue,false);assert.equal(result.counts.checked,2);assert.equal(result.rows.length,2);
 }));
 
 test('slow optional map falls back to exact work and its late rejection cannot own the session',()=>recommendedFixture(async()=>{
