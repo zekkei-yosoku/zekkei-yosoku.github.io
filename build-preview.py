@@ -23,6 +23,9 @@ for f in sorted(runtime_assets):emit(out/f.name,f.read_bytes())
 # 2026-11-13 見える場所の地図（data/visibility/）も同じく本体の data/ だけに置く。
 shared=lambda p:p.parts[1] in ('building-heights','building-shapes','osm-places','visibility') or p.parts[1].startswith('candidate-')
 tracked=set(subprocess.check_output(['git','ls-files','data','vendor'],cwd=root,text=True).splitlines())
+# Classification evidence is a build input; runtime reads candidate-surveyed-viewpoints.json.
+build_inputs={'data/surveyed-viewpoint-categories.json'}
+tracked.difference_update(build_inputs)
 for name in ['data','vendor']:
  for f in (root/name).rglob('*'):
   if f.is_file() and str(f.relative_to(root)) in tracked and not shared(f.relative_to(root)):
