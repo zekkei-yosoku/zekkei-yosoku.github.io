@@ -163,7 +163,8 @@ test('FOV uses actual sensor, rotation and crop without changing celestial geome
  const missing=lensCheck({...p,lens:{...p.lens,targetExtent:'whole'}},point,state,geometry,align);assert.equal(missing.status,'unknown');assert(!missing.fits);
 });
 test('request identity includes fixed time, focal length, crop, orientation, target height and secondary conditions',()=>{
- const p={...plan,owner:'fixture'};for(const change of [{timeSpec:{kind:'instant',at:1}},{lens:{focal:200}},{lens:{crop:2}},{lens:{portrait:true}},{target:{...target,parts:[{id:'tip',m:111}]}},{extraTargets:[target],requireAllTargets:true}])assert.notEqual(requestKey({...p,...change}),requestKey(p));
+ const p={...plan,owner:'fixture'};for(const change of [{timeSpec:{kind:'instant',at:1}},{lens:{focal:200}},{lens:{crop:2}},{lens:{portrait:true}},{target:{...target,parts:[{id:'tip',m:111}]}},{extraTargets:[target],requireAllTargets:true},{includeRoads:true}])assert.notEqual(requestKey({...p,...change}),requestKey(p));
+ assert.equal(requestKey({...p,includeRoads:false}),requestKey(p));
 });
 test('generic queue is resumable and keeps event-position pairs; cancellation never publishes late results',async()=>{
  const original=C.inverseSeeds;C.inverseSeeds=async()=>({seeds:[{latitude:35,longitude:139,radiusM:300,priority:0}],partial:true});
@@ -285,7 +286,7 @@ test('a point whose line to the target top is blocked or unconfirmed is ruled ou
 });
 // 2026-11-13 ユーザー選択「名前のある部分が1つも見えない地点は外す」: 新宿御苑から東京タワーはビルでアンテナしか出ない。
 test('a place whose buildings in front hide every named part below the tip is no candidate; the tip-only target keeps the tip rule',async()=>{
- const named={...target,parts:[{id:'tip',name:'先端',m:110},{id:'deck',name:'展望台',m:80}]},p={...plan,target:named};
+ const named={...target,parts:[{id:'tip',name:'先端',m:110},{id:'legacy-level',name:'名前のある部位',m:80}]},p={...plan,target:named};
  const heights=toM=>({trace:async()=>({status:'clear',heights:'plateau'}),skyline:async()=>({status:'ok',toM,distanceM:500,topM:60,complete:true})});
  const make=toM=>createGeneric({align:outlined,bodies,geo:G,terrain:openTerrain,heights:heights(toM),yieldTask:async()=>{}});
  const hidden=await make(90).evaluate(p,point,{});assert.equal(hidden.status,'model-blocked');assert.equal(hidden.reason,'target-parts-hidden');
@@ -296,7 +297,7 @@ test('a place whose buildings in front hide every named part below the tip is no
 });
 // 2026-11-13 木の高さ（樹高地図）: 新宿御苑の園内の木が判定に入っていなかった。
 test('trees on the line rule a place out like buildings; unread trees leave the old judgement and say so',async()=>{
- const named={...target,parts:[{id:'tip',name:'先端',m:110},{id:'deck',name:'展望台',m:80}]},p={...plan,target:named};
+ const named={...target,parts:[{id:'tip',name:'先端',m:110},{id:'legacy-level',name:'名前のある部位',m:80}]},p={...plan,target:named};
  const skipped=[],heights={trace:async(o,ray,opt)=>{skipped.push(!!opt?.skipTrees);return {status:'clear',heights:'plateau'};},skyline:async()=>({status:'ok',toM:20,complete:true})};
  const make=trees=>createGeneric({align:outlined,bodies,geo:G,terrain:openTerrain,heights,trees,yieldTask:async()=>{}});
  const blocked=await make({sight:async()=>({status:'blocked',hit:{distanceM:120,topM:75,crownM:25,rayM:60}})}).evaluate(p,point,{});
@@ -323,6 +324,15 @@ test('surface movement rechecks actual areas, drops the old park label and refus
  const at=longitude=>standingMetadata({latitude:35,longitude},data,seed);
  assert.equal(at(139.002).placeKind,'park');const moved=at(139.005);assert.equal(moved.placeKind,'road');assert.equal(moved.name,'公園外へ続く歩道');assert.equal(moved.sourceEvidence.resolvedPositionAreaChecked,true);
  for(const lon of [139.0065,139.0085,139.0098,139.0052,139.03])assert.equal(at(lon),false);
+});
+test('standing metadata keeps a mapped park named 川テラス and reclassifies the path outside it',()=>{
+ const path={id:'way/path',sourceId:'osm/way/path',walking:true,tags:{highway:'footway'},name:'公園外の歩道',polygons:[],lines:[[[139,35],[139.01,35]]]};
+ const park={id:'way/park',sourceId:'osm/way/park',kind:'park',name:'川テラス',tags:{leisure:'park'},polygons:[[[[138.999,34.999],[139.004,34.999],[139.004,35.001],[138.999,35.001],[138.999,34.999]]]]};
+ const data={features:[path,park],coverage:{fetchedRegions:[{bbox:[138.99,34.99,139.02,35.01]}]}},seed={...point,sourceId:path.sourceId,polygonId:path.id,placeKind:'park',name:park.name,sourceEvidence:{kind:'osm-mapped-walking-surface'}};
+ const within=standingMetadata({latitude:35,longitude:139.002},data,seed),outside=standingMetadata({latitude:35,longitude:139.005},data,seed);
+ assert.equal(within.placeKind,'park');assert.equal(within.name,park.name);assert.equal(within.placeId,park.sourceId);
+ assert.equal(outside.placeKind,'road');assert.equal(outside.name,path.name);assert.equal(outside.placeId,path.sourceId);
+ assert.equal(within.sourceEvidence.resolvedPositionAreaChecked,true);assert.equal(outside.sourceEvidence.resolvedPositionAreaChecked,true);
 });
 
 test('an unknown whole-target outline is never certified: neither its framing nor the line past it',async()=>{
@@ -599,3 +609,218 @@ test('archived terrain keeps each supplied altitude while partial and unknown ar
   else {assert(result.recommend);assert.equal(result.visibility.target.terrain.minMarginM,mode==='complete'?10:99);}
  }
 });
+
+// Foreground recommendation rounds retain the exhaustive engine's exact point
+// evaluation; only scheduling and the user-action boundary change.
+async function recommendedFixture(run){
+ const original=C.inverseSeeds;C.inverseSeeds=async()=>({seeds:[{latitude:35,longitude:139,radiusM:300}],partial:true});
+ try{return await run();}finally{C.inverseSeeds=original;}
+}
+const recommendedPoints=n=>Array.from({length:n},(_,i)=>({...point,id:'r'+i,surfaceId:'r'+i,latitude:35+i*.001}));
+const recommendedRow=q=>({recommend:true,id:q.id,place:q,event:{at:0}});
+test('recommended rounds count new distinct places, publish after a recorded first row and resume for additional choices',()=>recommendedFixture(async()=>{
+ const points=recommendedPoints(20),seen=[],pages=[];
+ const engine=createGenericSearch({bodies,yieldTask:async()=>{},provider:{load:async()=>({points,coverage:{nextCursor:null}})},evaluate:async(p,q)=>{seen.push(q.id);return {...recommendedRow(q),area:q.id==='r1'?'r0':q.id,recorded:q.id==='r0'};}});
+ const countPlaces=rows=>new Set(rows.filter(r=>!r.recorded).map(r=>r.area)).size;
+ const first=await engine.searchRecommended(plan,{countPlaces,targetPlaces:8,onPage:p=>pages.push(p.rows.map(r=>r.id))});
+ assert.equal(first.pauseReason,'enough-places');assert.equal(countPlaces(first.rows),8);assert.equal(first.counts.checked,9);
+ assert.deepEqual(pages[0],['r0']);assert.deepEqual(pages[1],['r0','r1'],'a hidden raw first result cannot suppress the next publish');
+ assert(engine.cached(plan).paused);assert.equal(first.coverage.pendingPoints,11);
+ const next=await engine.searchRecommended(plan,{more:true,countPlaces,targetPlaces:8});
+ assert.equal(countPlaces(next.rows),16);assert.equal(next.counts.checked,17);assert.equal(next.pauseReason,'enough-places');
+ const last=await engine.searchRecommended(plan,{more:true,countPlaces,targetPlaces:8});
+ assert.equal(last.canContinue,false);assert.equal(last.counts.checked,20);assert.equal(new Set(seen).size,20);assert.equal(seen.length,20);
+}));
+test('recommended deadline keeps an unevaluated point and reports a pause instead of a false empty completion',()=>recommendedFixture(async()=>{
+ let now=0,slow=true;const evaluated=[],points=recommendedPoints(3);
+ const engine=createGenericSearch({now:()=>now,bodies,yieldTask:async()=>{},provider:{load:async()=>({points,coverage:{nextCursor:null}})},evaluate:async(p,q,o,options)=>{
+  evaluated.push(q.id);if(slow){now=13;slow=false;}return recommendedRow(q);
+ }});
+ const paused=await engine.searchRecommended(plan,{budgetMs:12});assert.equal(paused.pauseReason,'time-budget');assert.equal(paused.cancelled,undefined);assert.equal(paused.rows.length,0);assert.equal(paused.counts.checked,0);assert.equal(paused.coverage.pendingPoints,3);
+ const result=await engine.searchRecommended(plan,{more:true,budgetMs:12});assert.equal(result.canContinue,false);
+ assert.deepEqual(result.rows.map(r=>r.id),['r1','r2','r0']);assert.deepEqual(evaluated,['r0','r1','r2','r0']);
+}));
+test('recommended deadline detaches slow initial IO and caches a resumable preparation state',()=>recommendedFixture(async()=>{
+ let release,first=true;const oldBody=bodies.ensure;
+ const engine=createGenericSearch({bodies:{...bodies,ensure:()=>first?(first=false,new Promise(r=>release=r)):oldBody()},yieldTask:async()=>{},provider:{load:async()=>({points:recommendedPoints(1),coverage:{nextCursor:null}})},evaluate:async(p,q)=>recommendedRow(q)});
+ const paused=await engine.searchRecommended(plan,{budgetMs:15});assert.equal(paused.pauseReason,'time-budget');assert(engine.cached(plan).canContinue);assert.equal(paused.rows.length,0);
+ const result=await engine.searchRecommended(plan,{more:true});assert.equal(result.rows.length,1);assert.equal(result.canContinue,false);
+ release();await Promise.resolve();assert.equal(engine.cached(plan).rows.length,1);
+}));
+test('recommended late provider and evaluator responses cannot advance cursor, consume a point or overwrite the next round',()=>recommendedFixture(async()=>{
+ for(const stage of ['provider','evaluate']){
+  let release,oldCurrent,first=true;const cursors=[],points=recommendedPoints(2),evaluated=[];
+  const hold=options=>new Promise(resolve=>{oldCurrent=options.isCurrent;release=resolve;});
+  const engine=createGenericSearch({bodies,yieldTask:async()=>{},provider:{load:async(p,o)=>{cursors.push(o.cursor);if(stage==='provider'&&first){first=false;await hold(o);}return {points,coverage:{nextCursor:null}};}},evaluate:async(p,q,data,o)=>{
+   evaluated.push(q.id);if(stage==='evaluate'&&first){first=false;await hold(o);}return recommendedRow(q);
+  }});
+  const paused=await engine.searchRecommended(plan,{budgetMs:15});assert(paused.paused);assert.equal(paused.counts.checked,0);assert.equal(oldCurrent(),false);
+  const done=await engine.searchRecommended(plan,{more:true});assert.equal(done.rows.length,2);assert.equal(done.counts.checked,2);
+  release();await Promise.resolve();await Promise.resolve();assert.deepEqual(engine.cached(plan).rows,done.rows);assert.equal(engine.cached(plan).counts.checked,2);
+  assert.deepEqual(cursors,stage==='provider'?[0,0]:[0]);assert.deepEqual(evaluated,stage==='provider'?['r0','r1']:['r0','r1','r0']);
+ }
+}));
+test('recommended cancellation remains distinct from a deadline and point budget remains resumable',()=>recommendedFixture(async()=>{
+ const points=recommendedPoints(5),controller=new AbortController();
+ const engine=createGenericSearch({bodies,yieldTask:async()=>{},provider:{load:async()=>({points,coverage:{nextCursor:null}})},evaluate:async(p,q)=>recommendedRow(q)});
+ const cancelled=await engine.searchRecommended(plan,{signal:controller.signal,onPage:()=>controller.abort()});assert(cancelled.cancelled);assert.equal(cancelled.paused,undefined);assert.equal(engine.cached(plan).rows.length,1);
+ const limited=await engine.searchRecommended(plan,{more:true,maxEvaluations:2,targetPlaces:8});assert.equal(limited.pauseReason,'point-budget');assert.equal(limited.counts.checked,3);assert.equal(limited.coverage.pendingPoints,2);
+ const done=await engine.searchRecommended(plan,{more:true});assert.equal(done.rows.length,5);assert.equal(done.canContinue,false);
+}));
+test('recommended known viewpoints precede map and OSM loading but still pass evaluation and new-place counting',()=>recommendedFixture(async()=>{
+ const order=[],known={...recommendedPoints(1)[0],surveyedTargets:[plan.target.id]},engine=createGenericSearch({bodies,yieldTask:async()=>{},
+  prefilter:{regions:async()=>{order.push('map');return null;}},provider:{surveyed:async()=>{order.push('known');return [known];},load:async()=>{order.push('places');return {points:[],coverage:{nextCursor:null}};}},
+  evaluate:async(p,q)=>{order.push('evaluate');return recommendedRow(q);}});
+ const first=await engine.searchRecommended(plan,{targetPlaces:1});assert.equal(first.pauseReason,'enough-places');assert.deepEqual(order,['known','evaluate']);
+ const done=await engine.searchRecommended(plan,{more:true});assert.equal(done.canContinue,false);assert.deepEqual(order,['known','evaluate','map','places']);
+}));
+test('recommended surface diversity crosses provider pages without discarding seeds or using a different page geometry',()=>recommendedFixture(async()=>{
+ const surface=(id,offset)=>({sourceId:id,surfaceId:id,surfaceAglM:0,eyeM:1.5,surfaceGeometry:{lines:[[[139+offset,35],[139+offset,35.01]]],polygons:[]}});
+ const points=recommendedPoints(6).map((p,i)=>({...p,...surface(i<3?'a':'b',i<3?0:.01),id:'r'+i})),evaluated=[],loads=[];
+ const engine=createGenericSearch({bodies,yieldTask:async()=>{},provider:{load:async(p,o)=>{loads.push(o.cursor);const page=o.cursor===0?0:1;return {points:points.slice(page*3,page*3+3),marker:page,coverage:{nextCursor:page===0?1:null}};}},evaluate:async(p,q,data)=>{evaluated.push([q.id,data.marker]);return recommendedRow(q);}});
+ const first=await engine.searchRecommended(plan,{targetPlaces:2});assert.equal(first.pauseReason,'enough-places');assert.deepEqual(evaluated,[['r0',0],['r3',1]]);assert.equal(first.coverage.pendingPoints,4);
+ const done=await engine.searchRecommended(plan,{more:true,targetPlaces:8});assert.equal(done.canContinue,false);assert.equal(done.counts.checked,6);assert.deepEqual(loads,[0,1]);assert.equal(new Set(evaluated.map(x=>x[0])).size,6);assert(evaluated.every(([id,page])=>page===(+id.slice(1)<3?0:1)));
+}));
+test('recommended source cooldown does not auto-wait and an exhausted zero-result search is not a paused quota',()=>recommendedFixture(async()=>{
+ let load=0;const engine=createGenericSearch({bodies,yieldTask:async()=>{},provider:{load:async()=>({points:[],coverage:++load===1?{nextCursor:1,retryAfterMs:60000}:{nextCursor:null}})},evaluate:async()=>{throw Error('unexpected');}});
+ const wait=await engine.searchRecommended(plan);assert.equal(wait.pauseReason,'source-wait');assert.equal(load,1);assert.equal(wait.rows.length,0);
+ const done=await engine.searchRecommended(plan,{more:true});assert.equal(load,2);assert.equal(done.canContinue,false);assert.equal(done.paused,undefined);
+}));
+
+test('recommended deferred surface seeds stay bounded by the buffer plus one page and eventually all retain exact page data',()=>recommendedFixture(async()=>{
+ const evaluated=[],pending=[],cursors=[];let serial=0;
+ const shape={sourceId:'shared',surfaceId:'shared',surfaceAglM:0,eyeM:1.5,surfaceGeometry:{lines:[[[139,35],[139,36]]],polygons:[]}};
+ const engine=createGenericSearch({bodies,maxDeferredPoints:4,yieldTask:async()=>{},provider:{load:async(p,o)=>{
+  const page=o.cursor;cursors.push(page);return {marker:page,points:Array.from({length:3},()=>({...point,...shape,id:'d'+serial,latitude:35+(serial++)*.001})),coverage:{nextCursor:page<5?page+1:null}};
+ }},evaluate:async(p,q,data)=>{evaluated.push([q.id,data.marker]);return {recommend:false,status:'no-overlap'};}});
+ const result=await engine.searchRecommended(plan,{maxEvaluations:100,onPage:p=>pending.push(p.coverage.pendingPoints)});
+ assert.equal(result.canContinue,false);assert.deepEqual(cursors,[0,1,2,3,4,5]);assert.equal(evaluated.length,18);assert.equal(new Set(evaluated.map(e=>e[0])).size,18);
+ assert(evaluated.every(([id,page])=>Math.floor(+id.slice(1)/3)===page));assert(Math.max(...pending)<=6);
+}));
+test('recommended stalled empty provider returns promptly with its resumable cursor',()=>recommendedFixture(async()=>{
+ let calls=0;const engine=createGenericSearch({bodies,yieldTask:async()=>{},provider:{load:async()=>{calls++;return {points:[],coverage:{nextCursor:4}};}},evaluate:async()=>{throw Error('unexpected');}});
+ const result=await engine.searchRecommended(plan);assert.equal(result.pauseReason,'source-stalled');assert(result.stalled);assert(result.canContinue);assert.equal(result.coverage.nextCursor,4);assert.equal(calls,2);
+}));
+
+test('recommended duplicate owner cannot reset an active batch or replace its cache with a paused result',()=>recommendedFixture(async()=>{
+ let release,entered;const ready=new Promise(r=>entered=r),points=recommendedPoints(2);
+ const engine=createGenericSearch({bodies,yieldTask:async()=>{},provider:{load:async()=>({points,coverage:{nextCursor:null}})},evaluate:async(p,q)=>{if(q.id==='r1'){entered();await new Promise(r=>release=r);}return recommendedRow(q);}});
+ const running=engine.searchAll(plan);await ready;const cached=engine.cached(plan);let resets=0;
+ const duplicate=await engine.searchRecommended(plan,{onBatchStart:()=>resets++});assert.deepEqual(duplicate,{cancelled:true,reason:'busy'});assert.equal(resets,0);assert.deepEqual(engine.cached(plan),cached);
+ release();assert.equal((await running).rows.length,2);
+}));
+
+test('recommended continuation moves past a repeatedly slow point without discarding it or its page data',()=>recommendedFixture(async()=>{
+ let now=0,slow=true;const seen=[],loads=[],points=recommendedPoints(3);
+ const engine=createGenericSearch({now:()=>now,bodies,yieldTask:async()=>{},provider:{load:async(p,o)=>{
+  loads.push(o.cursor);return {points:o.cursor===0?points.slice(0,1):points.slice(1),marker:o.cursor,coverage:{nextCursor:o.cursor===0?1:null}};
+ }},evaluate:async(p,q,data)=>{seen.push([q.id,data.marker]);if(q.id==='r0'&&slow)now+=13;return recommendedRow(q);}});
+ const first=await engine.searchRecommended(plan,{budgetMs:12});assert.equal(first.counts.checked,0);assert.equal(first.coverage.pendingPoints,1);
+ const next=await engine.searchRecommended(plan,{more:true,budgetMs:12});
+ assert.equal(next.counts.checked,2);assert.deepEqual(next.rows.map(r=>r.id),['r1','r2']);assert.equal(next.canContinue,true);
+ assert.equal(next.coverage.pendingPoints,1);assert.equal(next.coverage.timeDeferredPoints,1);assert.deepEqual(loads,[0,1]);
+ slow=false;const done=await engine.searchRecommended(plan,{more:true,budgetMs:12});
+ assert.equal(done.canContinue,false);assert.equal(done.counts.checked,3);assert.equal(done.coverage.timeDeferredPoints,0);
+ assert.deepEqual(done.rows.map(r=>r.id),['r1','r2','r0']);assert(seen.every(([id,page])=>page===(id==='r0'?0:1)));
+}));
+
+test('recommended timeout fairness precedes surface diversity while explicit cancellation preserves the pending point',()=>recommendedFixture(async()=>{
+ for(const explicitCancel of [false,true]){
+  let now=0,first=true;const seen=[],controller=new AbortController(),points=recommendedPoints(3);
+  const shared={sourceId:'same',surfaceId:'same',surfaceAglM:0,eyeM:1.5,surfaceGeometry:{lines:[[[139,35],[139,36]]],polygons:[]}};
+  Object.assign(points[0],shared);Object.assign(points[1],shared);
+  const engine=createGenericSearch({now:()=>now,bodies,yieldTask:async()=>{},provider:{load:async()=>({points,coverage:{nextCursor:null}})},evaluate:async(p,q)=>{
+   seen.push(q.id);if(first){first=false;now+=13;if(explicitCancel)controller.abort();}return recommendedRow(q);
+  }});
+  const firstResult=await engine.searchRecommended(plan,{budgetMs:12,signal:controller.signal});
+  assert.equal(!!firstResult.cancelled,explicitCancel);
+  const done=await engine.searchRecommended(plan,{more:true,budgetMs:12});assert.equal(done.counts.checked,3);assert.equal(done.canContinue,false);
+  assert.equal(seen[1],explicitCancel?'r0':'r1');assert.equal(new Set(done.rows.map(r=>r.id)).size,3);
+ }
+}));
+
+test('recommended never-settling evaluation cannot starve other places or later commit after its deadline',()=>recommendedFixture(async()=>{
+ const pending=[],seen=[],points=recommendedPoints(3);
+ const engine=createGenericSearch({bodies,yieldTask:async()=>{},provider:{load:async()=>({points,coverage:{nextCursor:null}})},evaluate:async(p,q)=>{
+  seen.push(q.id);if(q.id==='r0')await new Promise(resolve=>pending.push(resolve));return recommendedRow(q);
+ }});
+ const first=await engine.searchRecommended(plan,{budgetMs:15});assert(first.paused);assert.equal(first.counts.checked,0);
+ const second=await engine.searchRecommended(plan,{more:true,budgetMs:15});
+ assert.deepEqual(second.rows.map(r=>r.id),['r1','r2']);assert.equal(second.counts.checked,2);assert.equal(second.coverage.timeDeferredPoints,1);
+ const third=await engine.searchRecommended(plan,{more:true,budgetMs:15});
+ assert.equal(third.canContinue,true);assert.equal(third.pauseReason,'time-budget');assert.equal(third.counts.checked,2);assert.equal(third.coverage.pendingPoints,1);
+ for(const resolve of pending)resolve();await Promise.resolve();await Promise.resolve();
+ assert.deepEqual(engine.cached(plan).rows,second.rows);assert.deepEqual(seen,['r0','r1','r2','r0','r0']);
+}));
+
+test('recommended record priority saves the first quota for new points without dropping known points or their page data',()=>recommendedFixture(async()=>{
+ const totals=[];
+ for(const priority of [false,true]){
+  const points=recommendedPoints(132),known=points.slice(0,122),seen=[];let snapshots=0;
+  const engine=createGenericSearch({bodies,yieldTask:async()=>{},provider:{surveyed:async()=>known,load:async()=>({points:points.slice(122),marker:'new',coverage:{nextCursor:null}})},
+   evaluate:async(p,q,data)=>{seen.push([q.id,data.marker??'known']);return {...recommendedRow(q),recorded:+q.id.slice(1)<122};}});
+  const options={targetPlaces:8,countPlaces:rows=>rows.filter(r=>!r.recorded).length,
+   deprioritizePoints:()=>{snapshots++;return p=>priority&&+p.id.slice(1)<122;}};
+  const first=await engine.searchRecommended(plan,options);totals.push(first.counts.checked);
+  assert.equal(first.rows.filter(r=>!r.recorded).length,8);assert.equal(first.coverage.pendingPoints,132-first.counts.checked);
+  assert(snapshots<first.counts.checked+10,'record snapshot is not rebuilt for every queued point');
+  const done=await engine.searchRecommended(plan,{...options,more:true,maxEvaluations:200});
+  assert.equal(done.canContinue,false);assert.equal(done.counts.checked,132);assert.equal(new Set(seen.map(x=>x[0])).size,132);
+  assert(seen.every(([id,marker])=>marker===(+id.slice(1)<122?'known':'new')));
+ }
+ assert.deepEqual(totals,[130,8]);
+}));
+
+test('recommended fixed record priority reads deletions on the next selection and does not add persistent skipped state',()=>recommendedFixture(async()=>{
+ const points=recommendedPoints(4),seen=[];let recorded=new Set(['r0','r1']);
+ const engine=createGenericSearch({bodies,yieldTask:async()=>{},provider:{surveyed:async()=>points.slice(0,2),load:async()=>({points:points.slice(2),coverage:{nextCursor:null}})},evaluate:async(p,q)=>{
+  seen.push(q.id);if(q.id==='r2')recorded.delete('r0');return recommendedRow(q);
+ }});
+ const options={deprioritizePoints:()=>{const snapshot=new Set(recorded);return p=>snapshot.has(p.id);},maxEvaluations:2,targetPlaces:8};
+ const first=await engine.searchRecommended(plan,options);assert.deepEqual(seen,['r2','r0']);assert.equal(first.coverage.pendingPoints,2);
+ recorded.clear();const done=await engine.searchRecommended(plan,{...options,more:true});assert.equal(done.canContinue,false);
+ assert.deepEqual(seen,['r2','r0','r1','r3']);assert.equal(done.counts.checked,4);
+}));
+
+test('road opt-in separates provider scope, evaluation and resumable caches while parks and riverbanks remain standard',()=>recommendedFixture(async()=>{
+ const points=recommendedPoints(4).map((p,i)=>({...p,placeKind:['park','riverbank','sidewalk','unknown'][i]})),seen=[],scopes=[];
+ const engine=createGenericSearch({bodies,yieldTask:async()=>{},provider:{load:async(p,o)=>{scopes.push([...o.pointKinds]);return {points,coverage:{nextCursor:null}};}},evaluate:async(p,q)=>{
+  seen.push([!!p.includeRoads,q.id]);return {...recommendedRow(q),placeKind:q.placeKind==='sidewalk'?'road':q.placeKind};
+ }});
+ const standard=await engine.searchRecommended(plan);assert.deepEqual(standard.rows.map(r=>r.id),['r0','r1']);assert.equal(standard.counts.checked,2);
+ assert.deepEqual(standard.rows.map(r=>r.placeKind),['park','riverbank']);
+ const extendedPlan={...plan,includeRoads:true},extended=await engine.searchRecommended(extendedPlan,{maxEvaluations:2});
+ assert.equal(extended.pauseReason,'point-budget');assert.deepEqual(extended.rows.map(r=>r.id),['r0','r1']);
+ assert.equal((await engine.search(plan)).cached,true);assert.deepEqual(engine.cached(plan).rows,standard.rows);
+ const done=await engine.searchRecommended(extendedPlan,{more:true});assert.deepEqual(done.rows.map(r=>r.id),['r0','r1','r2']);assert.equal(done.canContinue,false);
+ assert.deepEqual(scopes,[['viewpoint','plaza','park','riverbank'],['viewpoint','plaza','park','riverbank','sidewalk','road']]);
+ assert.deepEqual(seen,[[false,'r0'],[false,'r1'],[true,'r0'],[true,'r1'],[true,'r2']]);
+}));
+
+test('a park seed solved onto an independent road is offered only with road opt-in',()=>recommendedFixture(async()=>{
+ const q={...recommendedPoints(1)[0],placeKind:'park'},engine=createGenericSearch({bodies,yieldTask:async()=>{},provider:{load:async()=>({points:[q],coverage:{nextCursor:null}})},
+  evaluate:async()=>({...recommendedRow(q),placeKind:'road'})});
+ assert.equal((await engine.searchRecommended(plan)).rows.length,0);
+ assert.equal((await engine.searchRecommended({...plan,includeRoads:true})).rows.length,1);
+}));
+
+test('switching road scope cancels the old owner and does not publish its late road result into the standard cache',()=>recommendedFixture(async()=>{
+ let release,entered;const ready=new Promise(r=>entered=r),controller=new AbortController(),q={...recommendedPoints(1)[0],placeKind:'sidewalk'};
+ const engine=createGenericSearch({bodies,yieldTask:async()=>{},provider:{load:async()=>({points:[q],coverage:{nextCursor:null}})},evaluate:async()=>{entered();await new Promise(r=>release=r);return {...recommendedRow(q),placeKind:'road'};}});
+ const old=engine.searchRecommended({...plan,includeRoads:true},{signal:controller.signal});await ready;controller.abort();
+ const standard=await engine.searchRecommended(plan);assert.equal(standard.rows.length,0);assert.equal(standard.counts.checked,0);
+ release();assert((await old).cancelled);assert.equal(engine.cached(plan).rows.length,0);assert.equal(engine.cached(plan).counts.checked,0);
+}));
+
+test('explicit road scope admits unclassified surveyed places only with their classification evidence',()=>recommendedFixture(async()=>{
+ for(const basis of ['research-kind','research-description','mapped-category','official-description','unclassified']){
+ const evidence={kind:'surveyed-viewpoint',categoryEvidence:{basis,detail:'研究資料に施設種別なし',sourceUrls:['https://example.test/place']}},points=recommendedPoints(4).map(p=>({...p,placeKind:'unknown'}));
+ points[0].sourceEvidence=evidence;points[1].sourceEvidence={kind:'surveyed-viewpoint'};points[2].sourceEvidence={...evidence,kind:'osm-mapped-walking-surface'};points[3].placeKind='road';
+ const seen=[],engine=createGenericSearch({bodies,yieldTask:async()=>{},provider:{surveyed:async()=>points,load:async()=>({points:[],coverage:{nextCursor:null}})},evaluate:async(p,q)=>{
+  seen.push(q.id);return {...recommendedRow(q),placeKind:q.placeKind,sourceEvidence:q.sourceEvidence};
+ }});
+ assert.equal((await engine.searchRecommended(plan)).counts.checked,0);
+ const extended=await engine.searchRecommended({...plan,includeRoads:true});assert.deepEqual(extended.rows.map(r=>r.id),['r0','r3']);assert.deepEqual(seen,['r0','r3']);
+ assert.equal(extended.rows[0].placeKind,'unknown','an unclassified surveyed place is never renamed as a road or viewpoint');
+ }
+}));

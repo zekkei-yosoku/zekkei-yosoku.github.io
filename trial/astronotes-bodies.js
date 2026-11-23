@@ -43,6 +43,15 @@
     return {ra:((Math.atan2(v[1],v[0])*12/Math.PI)%24+24)%24,dec:Math.asin(v[2]/length)*180/Math.PI,distanceLightYears:length*3.261563777};
   }
   const cache=new Map();
+  const originalMoon=A?.moon,originalMoonDirection=A?.moonDirection;
+  // Optional solver capability. Custom providers and old Astro assets retain
+  // their state contract. Atmospheric data is applied on every read, not cached.
+  function direction(id,ms,observer,options={}) {
+    if(this&&typeof this.state==='function'&&this.state!==state)return this.state(id,ms,observer,options);
+    if(id!=='moon'||typeof originalMoonDirection!=='function'||A.moon!==originalMoon||A.moonDirection!==originalMoonDirection)return state(id,ms,observer,options);
+    const st=originalMoonDirection(ms,observer);
+    return options.refraction===false?{...st,altitude:st.geometricAltitude??st.altitude,apparentAltitude:st.geometricAltitude??st.altitude}:adjusted(st,ms,observer);
+  }
   function state(id,ms,observer,{refraction=true}={}) {
     const finish=st=>refraction?adjusted(st,ms,observer):{...st,altitude:st.geometricAltitude??st.altitude,apparentAltitude:st.geometricAltitude??st.altitude};
     const def=definition(id);
@@ -77,7 +86,7 @@
     if(Number.isFinite(at)&&at<end)out.push({at,kind,azimuth:state(id,at,observer,{refraction:false}).azimuth});}
     return out.sort((a,b)=>a.at-b.at);
   }
-  const api=Object.freeze({definitions,definition,ensure,ready:()=>!!engine,state,light,riseSet,siriusCatalog,sky,nearAngle:id=>definition(id)?.limbs?null:0.5});
+  const api=Object.freeze({definitions,definition,ensure,ready:()=>!!engine,state,direction,light,riseSet,siriusCatalog,sky,nearAngle:id=>definition(id)?.limbs?null:0.5});
   global.AstroNotesBodies=api;if(typeof module!=='undefined'&&module.exports) module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);
 

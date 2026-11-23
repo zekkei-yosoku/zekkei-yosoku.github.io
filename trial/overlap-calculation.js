@@ -241,6 +241,27 @@ globalThis.__overlapNow=Date.now();globalThis.__overlapClock=()=>globalThis.__ov
   /// 月の見かけ半径。距離で変わる（指示書 §6「見かけ半径は固定値にしない」）
   const moonAngularRadius = (distanceKm) => Math.asin(MOON_RADIUS_KM / distanceKm) / DEG;
 
+  // A search needs the direction, not the illuminated lunar surface. Prepare
+  // observer-independent terms once at each exact time; keep parallax and air
+  // correction at the actual observer. No interpolation or time rounding.
+  const moonDirectionContext = memoExactTime(ms => {
+    const g = moonGeocentric(ms + DELTA_T_MS);
+    const { dPsi, dEps } = nutation(g.T), eps = meanObliquity(g.T) + dEps;
+    const eq = toEquatorial(g.longitude + dPsi, g.latitude, eps);
+    return {ra:eq.ra, dec:eq.dec, gast:apparentSiderealTime(ms,dPsi,eps),
+      distanceKm:g.distanceKm, longitude:g.longitude, latitude:g.latitude, semi:moonAngularRadius(g.distanceKm)};
+  });
+  function moonDirection(ms, obs, air = {}) {
+    const {latitude:lat, longitude:lon, elevation=0} = obs, p = moonDirectionContext(ms);
+    const topo = topocentric(p.ra,p.dec,p.distanceKm,lat,lon,elevation,p.gast);
+    const hor = toHorizontal(topo.hourAngle,topo.dec,lat), refr = refraction(hor.altitude,air), semi = p.semi;
+    return {azimuth:hor.azimuth, geometricAltitude:hor.altitude, apparentAltitude:hor.altitude+refr,
+      refraction:refr, distanceKm:p.distanceKm, angularRadius:semi, angularDiameter:semi*2,
+      horizontalParallax:topo.horizontalParallax, upperLimbAltitude:hor.altitude+refr+semi,
+      lowerLimbAltitude:hor.altitude+refr-semi, rightAscension:topo.ra, declination:topo.dec,
+      hourAngle:topo.hourAngle, eclipticLongitude:p.longitude, eclipticLatitude:p.latitude};
+  }
+
   /// 太陽の見かけの半径[度]。距離で変わる（近日点 0.271 / 遠日点 0.262）。
   /// ダイヤモンド富士は「山頂に太陽が重なるか」なので、この幅が判定そのものになる。
   const sunAngularRadius = (distanceKm) => 0.266563 / (distanceKm / 149597870.7);
@@ -595,7 +616,7 @@ globalThis.__overlapNow=Date.now();globalThis.__overlapClock=()=>globalThis.__ov
   const AstroNotesAstro = {
     // 天文
     julianDay, centuries, nutation, meanObliquity,
-    sunPosition, sun, sunAngularRadius, moonGeocentric, moon,
+    sunPosition, sun, sunAngularRadius, moonGeocentric, moon, moonDirection,
     toEquatorial, toHorizontal, topocentric, apparentSiderealTime,
     refraction, moonAngularRadius, bodyEcef, DELTA_T_MS,
     findCrossing, moonCrossings, moonEvents, nearestRiseSet,
@@ -1589,6 +1610,15 @@ return new kd(this.curr.time,a,b)};$jscomp.global.Object.defineProperties(H.prot
     return {ra:((Math.atan2(v[1],v[0])*12/Math.PI)%24+24)%24,dec:Math.asin(v[2]/length)*180/Math.PI,distanceLightYears:length*3.261563777};
   }
   const cache=new Map();
+  const originalMoon=A?.moon,originalMoonDirection=A?.moonDirection;
+  // Optional solver capability. Custom providers and old Astro assets retain
+  // their state contract. Atmospheric data is applied on every read, not cached.
+  function direction(id,ms,observer,options={}) {
+    if(this&&typeof this.state==='function'&&this.state!==state)return this.state(id,ms,observer,options);
+    if(id!=='moon'||typeof originalMoonDirection!=='function'||A.moon!==originalMoon||A.moonDirection!==originalMoonDirection)return state(id,ms,observer,options);
+    const st=originalMoonDirection(ms,observer);
+    return options.refraction===false?{...st,altitude:st.geometricAltitude??st.altitude,apparentAltitude:st.geometricAltitude??st.altitude}:adjusted(st,ms,observer);
+  }
   function state(id,ms,observer,{refraction=true}={}) {
     const finish=st=>refraction?adjusted(st,ms,observer):{...st,altitude:st.geometricAltitude??st.altitude,apparentAltitude:st.geometricAltitude??st.altitude};
     const def=definition(id);
@@ -1623,7 +1653,7 @@ return new kd(this.curr.time,a,b)};$jscomp.global.Object.defineProperties(H.prot
     if(Number.isFinite(at)&&at<end)out.push({at,kind,azimuth:state(id,at,observer,{refraction:false}).azimuth});}
     return out.sort((a,b)=>a.at-b.at);
   }
-  const api=Object.freeze({definitions,definition,ensure,ready:()=>!!engine,state,light,riseSet,siriusCatalog,sky,nearAngle:id=>definition(id)?.limbs?null:0.5});
+  const api=Object.freeze({definitions,definition,ensure,ready:()=>!!engine,state,direction,light,riseSet,siriusCatalog,sky,nearAngle:id=>definition(id)?.limbs?null:0.5});
   global.AstroNotesBodies=api;if(typeof module!=='undefined'&&module.exports) module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);
 

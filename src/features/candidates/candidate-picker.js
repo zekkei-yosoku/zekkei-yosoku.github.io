@@ -130,12 +130,30 @@ function areaText(area){
 // 2026-11-14 ユーザー「重複しないような何かを考えて」: 新しい撮影地点には自分の記録に無い場所だけを出す。記録の撮影地点から
 // RECORD_M以内で、立つ高さ（足元＋その上の高さ）の差がRECORD_RISE_M以内の行は、記録の撮影地点の側に出るので出さない。
 const RECORD_M=100,RECORD_RISE_M=10;
+// The foreground quota counts new places, not several times at one place.
+// Reuse the list's height, opposite-bank and area rules without changing any
+// real event or the entries that the list presents.
+function countNewPlaces(rows,places,facilities){
+ const entries=rows.filter(row=>!inRecords(row,places)).map((row,index)=>({row:{...row,event:{...row.event,at:0}},types:kinds(row,facilities),show:true,index}));
+ return mergeEntries(entries,'recommended').length;
+}
 function inRecords(row,places){
  const p=row?.place,o=row?.assumedObserver||{};if(!p||!Array.isArray(places)||!places.length)return false;
  const ground=p.groundManualM??p.elevation??o.elevation,up=p.standAglM??p.eyeHeightAGL??o.eyeM,stand=Number.isFinite(ground)&&Number.isFinite(up)?ground+up:null;
  return places.some(f=>{if(!(metres(f,p)<=RECORD_M))return false;const g=f.groundManualM??f.elevation,h=f.standAglM??f.eyeHeightAGL;
   if(stand===null||!Number.isFinite(g)||!Number.isFinite(h))return !Number.isFinite(up)||!Number.isFinite(h)||Math.abs(up-h)<=RECORD_RISE_M;
   return Math.abs(stand-(g+h))<=RECORD_RISE_M;});
+}
+// Only this provider's fixed surveyed wrapper has the same (position, height)
+// before and after solving. A surface seed may move and must never use this.
+function fixedSurveyedInRecords(point,targetId,places){
+ const shape=point?.surfaceGeometry,source=point?.sourceEvidence,id='surveyed/'+source?.sourceId;
+ if(source?.kind!=='surveyed-viewpoint'||point.quality!=='surveyed-viewpoint'||point.sourceId!==id||point.surfaceId!==id||point.standingSurfaceKnown!==true
+  ||!targetId||!Array.isArray(point.surveyedTargets)||!point.surveyedTargets.includes(targetId)||!shape||!Array.isArray(shape.lines)||!Array.isArray(shape.polygons)||shape.lines.length||shape.polygons.length
+  ||shape.position?.latitude!==point.latitude||shape.position?.longitude!==point.longitude||point.surfaceAglM!==0
+  ||point.surfaceElevationM!=null||point.standingElevationM!=null||point.surfaceHeightM!=null&&point.surfaceHeightM!==0||point.heightBasis==='constant-absolute-floor'
+  ||![point.latitude,point.longitude,point.groundM,point.eyeM].every(Number.isFinite)||point.eyeM<0)return false;
+ return inRecords({place:{latitude:point.latitude,longitude:point.longitude,elevation:point.groundM,groundManualM:point.groundM,standAglM:point.eyeM,eyeHeightAGL:point.eyeM}},places);
 }
 function metres(a,b){
  if(![a?.latitude,a?.longitude,b?.latitude,b?.longitude].every(Number.isFinite))return Infinity;
@@ -609,7 +627,7 @@ function reset(){
  control?.remove();control=null;list=null;scope='';filterScope='';refinementOpen=false;mapScroll=null;suspendedView=null;
 }
 const api={mount,configure,renderRecorded,previewFor,positionChoices,positionKey,positionPlace,candidateKey,registerRegistered:register,registerAdditional:register,unregister,apply,kinds,accepts,compare,inRecords,showMap,suspend,reset,
- visibleRows:()=>visibleEntries.filter(currentEntry).map(e=>e.row)};
+ countNewPlaces,fixedSurveyedInRecords,visibleRows:()=>visibleEntries.filter(currentEntry).map(e=>e.row)};
 globalThis.AstroNotesCandidatePicker=api;
-if(typeof module!=='undefined')module.exports={recordedEntries,recordedPlan,recordedRow,passageOf,uncertainty,candidateTimeText,positionChoices,membersOf,kinds,accepts,compare,candidateKey,mergeEntries,placePriority,areaOf,areaText,inRecords};
+if(typeof module!=='undefined')module.exports={recordedEntries,recordedPlan,recordedRow,passageOf,uncertainty,candidateTimeText,positionChoices,membersOf,kinds,accepts,compare,candidateKey,mergeEntries,placePriority,areaOf,areaText,inRecords,countNewPlaces,fixedSurveyedInRecords};
 })();

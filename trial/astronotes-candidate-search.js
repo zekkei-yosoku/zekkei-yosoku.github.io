@@ -118,6 +118,64 @@ function endpointKey(observer,ray){
  const values=[observer.latitude,observer.longitude,observer.elevation,observer.eyeM??1.5,endpoint.latitude,endpoint.longitude,endpoint.elevation,ray.maxM,ray.refractionK||1];
  return values.every(Number.isFinite)?JSON.stringify([ray.targetKey,...values]):null;
 }
+// An associated structure is still checked over its full OSM width. This only
+// replaces unknown height when its complete polyline has a verified model.
+function structureModelTop(o,data){
+ const m=data.structureModels?.[o.id],g=m?.geometry,s=m?.source,polygons=m?.coverage?.polygons;
+ if(!m||!g||!s||!['road','railway','bridge'].includes(o.kind)||o.kind!==g.kind||!Object.is(o.halfWidthM??0,g.halfWidthM))return null;
+ if(!Number.isFinite(g.halfWidthM)||g.halfWidthM<0||!Number.isFinite(m.topM))return null;
+ if(typeof s.url!=='string'||!/^[a-f0-9]{64}$/.test(s.sha256)||typeof s.buildingId!=='string'||!s.buildingId)return null;
+ try{const url=new URL(s.url);if(url.protocol!=='https:'||!url.hostname||url.username||url.password)return null;}catch{return null;}
+ if(!Array.isArray(s.surfaces)||s.surfaces.length<3||s.surfaces.some(id=>typeof id!=='string'||!id)||new Set(s.surfaces).size!==s.surfaces.length)return null;
+ if(!Array.isArray(s.topRangeM)||s.topRangeM.length!==2||!s.topRangeM.every(Number.isFinite)||s.topRangeM[0]>s.topRangeM[1]||m.topM<Math.ceil(s.topRangeM[1]))return null;
+ if(typeof s.lod!=='string'||!s.lod||!Number.isInteger(s.surveyYear)||typeof m.coverage?.basis!=='string'||!m.coverage.basis)return null;
+ // This data contract describes complete line structures. Area/point models
+ // need their own coverage proof and fall back to unknown in this version.
+ if(!Array.isArray(g.rings)||!Array.isArray(g.points)||g.rings.length||g.points.length||(o.rings||[]).length||(o.points||[]).length)return null;
+ const point=p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&Math.abs(p[0])<=85&&Math.abs(p[1])<=180;
+ if(!Array.isArray(o.lines)||!Array.isArray(g.lines)||!g.lines.length||o.lines.length!==g.lines.length)return null;
+ for(let i=0;i<g.lines.length;i++){
+  const a=o.lines[i],b=g.lines[i];if(!Array.isArray(a)||!Array.isArray(b)||b.length<2||a.length!==b.length)return null;
+  for(let j=0;j<b.length;j++)if(!point(a[j])||!point(b[j])||!a[j].every((v,k)=>Object.is(v,b[j][k])))return null;
+ }
+ const cross=(a,b)=>a[0]*b[1]-a[1]*b[0],sub=(a,b)=>[a[0]-b[0],a[1]-b[1]];
+ const crossing=(a,b,c,d)=>{
+  const v=sub(b,a),w=sub(d,c),den=cross(v,w);if(!den)return null;
+  const t=cross(sub(c,a),w)/den,u=cross(sub(c,a),v)/den;return u>=0&&u<=1&&t>=0&&t<=1?t:null;
+ };
+ const ringValid=ring=>{
+  if(!Array.isArray(ring)||ring.length<4||ring.length>128||!ring.every(point)||!ring[0].every((v,k)=>v===ring.at(-1)[k]))return false;
+  let area=0;for(let i=1;i<ring.length;i++)area+=cross(sub(ring[i-1],ring[0]),sub(ring[i],ring[0]));
+  if(!Number.isFinite(area)||!area)return false;
+  for(let i=1;i<ring.length;i++)for(let j=i+2;j<ring.length;j++)if(!(i===1&&j===ring.length-1)&&crossing(ring[i-1],ring[i],ring[j-1],ring[j])!==null)return false;
+  return true;
+ };
+ if(!Array.isArray(polygons)||!polygons.length||polygons.length>16)return null;
+ for(const p of polygons)if(!p||!ringValid(p.outer)||!Array.isArray(p.holes)||p.holes.length>16||!p.holes.every(ringValid))return null;
+ const inside=(p,ring)=>{
+  let found=false;
+  for(let i=1;i<ring.length;i++){
+   const a=ring[i-1],b=ring[i],v=sub(b,a),w=sub(p,a);
+   // Refuse boundary-scale rounding instead of filling a microscopic gap.
+   const vv=v[0]*v[0]+v[1]*v[1],t=vv?Math.max(0,Math.min(1,(w[0]*v[0]+w[1]*v[1])/vv)):0;
+   if(Math.hypot(w[0]-t*v[0],w[1]-t*v[1])<=1e-10)return null;
+   if((a[0]>p[0])!==(b[0]>p[0])&&p[1]<(b[1]-a[1])*(p[0]-a[0])/(b[0]-a[0])+a[1])found=!found;
+  }
+  return found;
+ };
+ const covered=p=>polygons.some(poly=>inside(p,poly.outer)===true&&poly.holes.every(h=>inside(p,h)===false));
+ for(const line of g.lines)for(let i=1;i<line.length;i++){
+  const a=line[i-1],b=line[i];if(!covered(a)||!covered(b))return null;
+  const cuts=[0,1];for(const p of polygons)for(const ring of [p.outer,...p.holes])for(let j=1;j<ring.length;j++){
+   const t=crossing(a,b,ring[j-1],ring[j]);if(t!==null)cuts.push(t);
+  }
+  cuts.sort((a,b)=>a-b);
+  for(let j=1;j<cuts.length;j++)if(cuts[j]>cuts[j-1]){
+   const t=(cuts[j]+cuts[j-1])/2;if(!covered([a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1])]))return null;
+  }
+ }
+ return m.topM;
+}
 function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):null),base='data/building-heights/',loadIndex=null,gsiAlong=null,groundAt=null,ownFootprint=null,ownFootprintVersion=null,obstacles=null}={}){
  let indexPromise=null;const meshes=new Map(),ready=new Map(),overlays=new Map(),partLoads=new Map(),parts=new Map(),ownCells=new Map();
  const blockedEndpoints=new Map(),BLOCKED_ENDPOINT_LIMIT=1024;
@@ -481,6 +539,76 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   if(!data.parts?.[p4])return;
   await queueHeightRead(async()=>{const list=parts.get(p4)||await part(p4,data);requireCurrent(isCurrent);if(list[code])await mesh(code,list[code]);},{current:isCurrent,kind:'demand'});
  }
+ // New-place tower quality uses every cell of a conservative width patch.
+ // Missing PLATEAU coverage is unknown: GSI class percentiles are not height
+ // upper bounds. This path never uses the padded target footprint exclusion.
+ async function upperPatch(patch,targetKey,{isCurrent=()=>true,check=()=>requireCurrent(isCurrent)}={}){
+  check();
+  // obstaclesAlong returns all rows in its padded bbox, using the crossed
+  // 0.01-degree cells and neighbours. A patch narrower than half a cell has
+  // every bbox cell in that neighbourhood; larger/custom envelopes stay unknown.
+  if(!obstacles||patch.east-patch.west>.005||patch.north-patch.south>.005)return {status:'unknown',reason:'upper-obstacles-unavailable'};
+  const extra=await obstacles({latitude:patch.south,longitude:patch.west},{latitude:patch.north,longitude:patch.east});check();
+  if(!Array.isArray(extra))return {status:'unknown',reason:'upper-obstacles-unavailable'};
+  const data=await index();check();
+  const overlaps=(a,b,width=0,refine=true,modelTop=null)=>{
+   if(!Number.isFinite(width)||width<0)return true;
+   const py=width/110000,px=py/Math.cos(Math.max(Math.abs(a[0]),Math.abs(b[0]))*RAD);
+   let lo=0,hi=1;
+   for(const [v,d,min,max]of [[a[0],b[0]-a[0],patch.south-py,patch.north+py],[a[1],b[1]-a[1],patch.west-px,patch.east+px]]){
+    if(Math.abs(d)<1e-15){if(v<min||v>max)return false;continue;}
+    const t0=(min-v)/d,t1=(max-v)/d;lo=Math.max(lo,Math.min(t0,t1));hi=Math.min(hi,Math.max(t0,t1));if(lo>hi)return false;
+   }
+   if(!refine)return true;
+   // The clipped centre segment plus its full width encloses every contact.
+   // +Infinity alone means outside the tower fan/range; missing/NaN heights
+   // cannot prove absence. Outward padding preserves touching endpoints.
+   const ay=a[0]+lo*(b[0]-a[0]),ax=a[1]+lo*(b[1]-a[1]),by=a[0]+hi*(b[0]-a[0]),bx=a[1]+hi*(b[1]-a[1]),pad=1e-10;
+   const box={south:Math.min(ay,by)-py-pad,north:Math.max(ay,by)+py+pad,west:Math.min(ax,bx)-px-pad,east:Math.max(ax,bx)+px+pad};
+   const low=typeof patch.lowAt==='function'?patch.lowAt(box):patch.lowM;
+   if(typeof patch.lowAt==='function'&&low===Infinity)return false;
+   return !(modelTop!==null&&Number.isFinite(low)&&low>modelTop+MARGIN_M);
+  };
+  for(const o of extra){
+   if(o.kind==='tree')continue; // Native canopy cells are checked independently.
+   const geometry=[...(o.lines||[]),...(o.rings||[]),o.points||[]].flat();
+   if(!geometry.length||geometry.some(p=>!Array.isArray(p)||p.length<2||!p.slice(0,2).every(Number.isFinite)))return {status:'unknown',reason:'upper-obstacle-geometry-unavailable'};
+   const modelTop=structureModelTop(o,data);
+   let touch=(o.points||[]).some(p=>overlaps(p,p,o.halfWidthM??0,true,modelTop));
+   for(const line of [...(o.lines||[]),...(o.rings||[])]){
+    const ring=(o.rings||[]).includes(line);
+    // Filled rings keep their broad intersection: filtering only their edges
+    // would not prove the enclosed interior outside the fan.
+    for(let i=1;i<line.length&&!touch;i++)touch=overlaps(line[i-1],line[i],o.halfWidthM??0,!ring,modelTop);
+    if(!touch&&ring&&line.length>1)touch=overlaps(line.at(-1),line[0],o.halfWidthM??0,false);
+    // A large closed ring may contain the entire patch without an edge touch.
+    if(!touch&&(o.rings||[]).includes(line)){
+     const x=(patch.west+patch.east)/2,y=(patch.south+patch.north)/2;let inside=false;
+     for(let i=0,j=line.length-1;i<line.length;j=i++)if((line[i][0]>y)!==(line[j][0]>y)&&x<(line[j][1]-line[i][1])*(y-line[i][0])/(line[j][0]-line[i][0])+line[i][1])inside=!inside;
+     touch=inside;
+    }
+   }
+   if(touch)return {status:'unknown',reason:'upper-structure-height-unknown',kind:o.kind,obstacleId:o.id,fromM:patch.fromM,toM:patch.toM};
+  }
+  let count=0,lastCode=null,grid,other;
+  for(let gy=Math.floor(patch.south*LAT);gy<=Math.floor(patch.north*LAT);gy++)for(let gx=Math.floor(patch.west*LON);gx<=Math.floor(patch.east*LON);gx++){
+   check();const my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS),code=meshCode(my,mx),p4=code.slice(0,4);
+   if(code!==lastCode){
+    if(!data.parts?.[p4])return {status:'unknown',reason:'height-coverage-unavailable'};
+    await queueHeightRead(async()=>{const list=parts.get(p4)||await part(p4,data);check();if(list[code])await mesh(code,list[code]);},{current:isCurrent,kind:'demand'});check();
+    if(!parts.get(p4)?.[code]||!ready.has(code))return {status:'unknown',reason:'height-coverage-unavailable'};
+    lastCode=code;grid=ready.get(code);other=overlay(code,data,targetKey);
+   }
+   const i=(gy-my*ROWS)*COLS+(gx-mx*COLS),v=Math.max(grid[i],other.get(i)||0);count++;
+   const low=patch.lowAt?.({west:gx/LON,east:(gx+1)/LON,south:gy/LAT,north:(gy+1)/LAT})??patch.lowM;
+   if(!v||low>v-data.grid.offsetM+MARGIN_M)continue;
+   // Target-only overlay cells are absent from the base grid. A base height
+   // at the same cell cannot be separated from an associated/adjacent building.
+   if(other.own.has(i))return {status:'unknown',reason:'target-building-contact'};
+   return {status:low<v-data.grid.offsetM-2?'blocked':'unknown',reason:'upper-building',topM:v-data.grid.offsetM,rayM:low,cells:count};
+  }
+  return {status:'clear',cells:count,source:'plateau-grid',estimated:false};
+ }
  // The highest a building top rises above the eye along each bearing (deg, with the earth's curve), up to maxM: whether
  // other buildings stand into the sky beside the target in the photograph (generic-evaluator.js compositionOf). PLATEAU
  // tops only; the aimed target's own cells are left out.
@@ -549,7 +677,7 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   }
   requireCurrent(isCurrent);return rows;
  }
- return {trace,skyline,index,topNow,loadAt,angles,frontage};
+ return {trace,skyline,index,topNow,loadAt,angles,frontage,upperPatch};
 }
 return {create,decode,meshCode,profile,cells,GSI_MAX_M,MARGIN_M};
 });
@@ -609,7 +737,7 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
    for(const tag of [324,325])if(typeof pick[tag]==='number')pick[tag]=[pick[tag]];else if(!Array.isArray(pick[tag])){const p=pick[tag],more=await range(url,p.at,p.at+p.count*p.size-1),dv=new DataView(more),le=new DataView(buf).getUint16(0)===0x4949;
     pick[tag]=Array.from({length:p.count},(_,k)=>p.size===2?dv.getUint16(2*k,le):dv.getUint32(4*k,le));}
    const scale=full[33550][0]*full[256]/pick[256];
-   const info={url,x0:full[33922][3],y0:full[33922][4],scale,across:Math.ceil(pick[256]/512),offsets:pick[324],counts:pick[325]};infos.set(q,info);return info;
+   const info={url,x0:full[33922][3],y0:full[33922][4],scale,width:pick[256],height:pick[257]??pick[256],across:Math.ceil(pick[256]/512),offsets:pick[324],counts:pick[325]};infos.set(q,info);return info;
   })().catch(e=>{heads.delete(q);throw e;}));
   return heads.get(q);
  }
@@ -663,7 +791,39 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   }catch(e){if(e?.message==='candidate-cancelled')throw e;return {status:'unread',reason:'canopy-unavailable'};}
   return {status,hit,skyline:sky,source:'meta-wri-chm-v2'};
  }
- return {sight,canopy,canopyNow};
+ // Complete native-overview coverage for an upper-tower width patch. Unlike
+ // the legacy point ray, this includes near, far and endpoint crowns; absent
+ // files and no-data values stay unknown. The supplied ground is the maximum
+ // over all DEM cells in the same patch, not a single ground sample.
+ async function upperPatch(patch,{groundMaxM,groundMax,isCurrent=()=>true,check=()=>{if(!isCurrent())throw Error('candidate-cancelled');}}={}){
+  if(!Number.isFinite(groundMaxM))return {status:'unknown',reason:'tree-ground-unavailable'};
+  const nw=tileOf(patch.north,patch.west),se=tileOf(patch.south,patch.east),[west,south]=merc(patch.south,patch.west),[east,north]=merc(patch.north,patch.east);
+  const span=2*Math.PI*RM/2**ZOOM,origin=Math.PI*RM;let cells=0;
+  for(let ty=nw.y;ty<=se.y;ty++)for(let tx=nw.x;tx<=se.x;tx++){
+   check();const info=await head(quadkey(tx,ty));check();if(!info)return {status:'unknown',reason:'canopy-coverage-unavailable'};
+   const l=Math.max(west,tx*span-origin),r=Math.min(east,(tx+1)*span-origin),t=Math.min(north,origin-ty*span),b=Math.max(south,origin-(ty+1)*span);
+   if(l<info.x0-1e-6||r>info.x0+info.width*info.scale+1e-6||t>info.y0+1e-6||b<info.y0-info.height*info.scale-1e-6)return {status:'unknown',reason:'canopy-coverage-unavailable'};
+   // Each quadkey owns a half-open extent. The neighbour checks its own
+   // boundary cell; an exactly touching edge is not a missing TIFF column.
+   const x0=Math.max(0,Math.floor((l-info.x0)/info.scale)),x1=Math.min(info.width-1,Math.floor((r-info.x0)/info.scale));
+   const y0=Math.max(0,Math.floor((info.y0-t)/info.scale)),y1=Math.min(info.height-1,Math.floor((info.y0-b)/info.scale));
+   let lastKey=null,bytes;
+   for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
+    check();const bx=x>>9,by=y>>9,key=bx+','+by;if(key!==lastKey){bytes=await block(info,bx,by);check();lastKey=key;}
+    const crown=bytes[(y&511)*512+(x&511)];cells++;if(crown===255)return {status:'unknown',reason:'canopy-no-data'};
+    if(!crown)continue;
+    const lon=X=>X/RM/RAD,lat=Y=>(2*Math.atan(Math.exp(Y/RM))-Math.PI/2)/RAD;
+    const bounds={west:lon(info.x0+x*info.scale),east:lon(info.x0+(x+1)*info.scale),north:lat(info.y0-y*info.scale),south:lat(info.y0-(y+1)*info.scale)};
+    const low=patch.lowAt?.(bounds)??patch.lowM;if(low===Infinity)continue;
+    const ground=groundMax?groundMax(bounds):groundMaxM;if(!Number.isFinite(ground))return {status:'unknown',reason:'tree-ground-unavailable'};
+    const top=ground+crown+CROWN_ADD_M;
+    if(low<=top+MARGIN_M)return {status:low<top-MARGIN_M?'blocked':'unknown',reason:'upper-trees',cells,topM:top,rayM:low,source:'meta-wri-chm-v2'};
+   }
+  }
+  if(!cells)return {status:'unknown',reason:'canopy-coverage-unavailable'};
+  return {status:'clear',cells,source:'meta-wri-chm-v2'};
+ }
+ return {sight,canopy,canopyNow,upperPatch};
 }
 return {create,directories,quadkey,tileOf,NEAR_M,RANGE_M,END_M,MARGIN_M,CROWN_ADD_M};
 });
@@ -762,6 +922,12 @@ function create({ground,buildings=null,trees=null,store=null,builtIn=null,capM=I
  async function ensure(target,bearings,{isCurrent=()=>true,deadline=Infinity}={}){
   const key=mapKey(target);let m=maps.get(key);
   if(!m){m=await shipped(target,key)||await restore(key)||{levels:levelsFor(target),maxM:null,steps:null,sectors:new Map()};maps.set(key,m);while(maps.size>8)maps.delete(maps.keys().next().value);}
+  // The persisted ray counts do not change; the new-place acceptance policy
+  // requires the lower named deck, using the target's existing height datum.
+  const named=(target.parts||[]).filter(p=>['main','deck'].includes(p.id)&&Number.isFinite(p.m)).sort((a,b)=>a.m-b.m)[0];
+  const partId=target.id==='skytree'?'deck':target.id==='tokyotower'?'main':named?.id;
+  m.requiredUpperM=partId?target.parts?.find(p=>p.id===partId)?.m:undefined;
+  m.requiredUpperPart=partId;
   if(!m.levels.length)return m;
   const want=new Set();for(const a of bearings)if(Number.isFinite(a)){const i=Math.floor(((a%360)+360)%360/SECTOR_DEG);for(const d of [0,-1,1])want.add((i+d+360)%360);}
   let added=0;for(const i of want){if(m.sectors.has(i))continue;if(Date.now()>deadline)break;const s=await sector(target,i,{isCurrent});if(!s)continue;m.sectors.set(i,s.rays);m.maxM=s.maxM;m.steps=s.steps;added++;}
@@ -782,7 +948,10 @@ function lookup(m,target,lat,lon){
 }
 // How many levels from the top a place must see to keep it: down to the second named part (the user's choice of
 // 2026-11-13, generic-evaluator.js partsHidden), or the top alone for a target named by its tip only.
-function needFor(m){const named=(m?.levels||[]).map((l,i)=>({...l,i})).filter(l=>l.name);return named.length>1?named[1].i+1:1;}
+function needFor(m){
+ if(m?.requiredUpperPart){const i=m.levels?.findIndex(l=>l.m===m.requiredUpperM);return i>=0?i+1:0;}
+ const named=(m?.levels||[]).map((l,i)=>({...l,i})).filter(l=>l.name);return named.length>1?named[1].i+1:1;
+}
 // A region (lon/lat box) the map shows seeing too little everywhere it was computed; unknown anywhere keeps it.
 function regionHidden(m,target,bbox,need){
  for(let a=0;a<6;a++)for(let b=0;b<6;b++){const r=lookup(m,target,bbox[1]+(bbox[3]-bbox[1])*(b+.5)/6,bbox[0]+(bbox[2]-bbox[0])*(a+.5)/6);if(!r.known||r.count>=need)return false;}
@@ -905,6 +1074,10 @@ function obstacle(row){
  if(['wood','tree_row','tree'].includes(k.natural))return {kind:'tree',capM:25,halfWidthM:k.natural==='tree'?6:k.natural==='tree_row'?5:0};
  if(k.man_made==='bridge')return {kind:'bridge',capM:30,halfWidthM:0};
  if(k.railway&&(k.bridge&&k.bridge!=='no'||Number(k.layer)>=1))return {kind:'railway',capM:15,halfWidthM:8};
+ // Layer orders overlapping features; it is not a height or proof of an outdoor road.
+ // Indoor paths and building elevators belong to the building model. Explicit bridges remain obstacles.
+ const indoor=['yes','area','room','corridor'].includes(k.indoor);
+ if(k.highway&&!(k.bridge&&k.bridge!=='no')&&(indoor||k.highway==='elevator'&&k.building==='yes'))return null;
  if(k.highway&&(k.bridge&&k.bridge!=='no'||Number(k.layer)>=1))return {kind:'road',capM:20,halfWidthM:12};
  return null;
 }
@@ -1280,6 +1453,7 @@ function valid(c,target){
 function windowValid(w){return !w||w.kind==='none'||(['rise','set','both'].includes(w.kind)&&[w.beforeMin,w.afterMin].every(n=>Number.isFinite(n)&&n>=0&&n<=1440));}
 function day(at){return Math.floor((at+32400000)/DAY)*DAY-32400000;}
 function limb(st,kind){return kind==='upper'?(st.upperAltitude??st.apparentAltitude+st.angularRadius):kind==='lower'?(st.lowerAltitude??st.apparentAltitude-st.angularRadius):st.apparentAltitude;}
+function directionAt(bodies,...args){return (typeof bodies.direction==='function'?bodies.direction:bodies.state).apply(bodies,args);}
 const limbKind=kind=>kind==='onTop'?'lower':kind==='behind'?'upper':['lower','upper'].includes(kind)?kind:'center';
 function anchorAt(obs,target,c){if(c.basis==='scene-surface')return Surface.anchor(target,c);const bearing=Geo().inverse(target.latitude,target.longitude,obs.latitude,obs.longitude).azimuth;
 return {...(c.xM?Geo().destination(target.latitude,target.longitude,bearing+(c.xM<0?90:-90),Math.abs(c.xM)/1000):target),heightM:c.heightM};}
@@ -1649,7 +1823,9 @@ function standingDomain(point,sidewalks){
  const s=point.surfaceGeometry;
  if(s){
   const polygons=(s.polygons||[]).filter(p=>p?.[0]?.length>=3),lines=(s.lines||[]).filter(p=>p?.length>=2);
-  return {polygons,lines,contains:p=>polygons.some(r=>inside(r[0],p)&&!r.slice(1).some(h=>inside(h,p))),metadata:{}};
+  const inPolygons=(rows,p)=>rows.some(r=>inside(r[0],p)&&!r.slice(1).some(h=>inside(h,p)));
+  const within=s.within&&(Array.isArray(s.within)?s.within:[]).filter(p=>p?.[0]?.length>=3),allows=p=>!within||inPolygons(within,p);
+  return {polygons,lines,contains:p=>inPolygons(polygons,p)&&allows(p),allows,metadata:{}};
  }
  const road=sidewalks&&roadAt(sidewalks,point);
  if(!sidewalks)return null;
@@ -1660,6 +1836,24 @@ function standingDomain(point,sidewalks){
  // above always retain their individual surface instead of this legacy union.
  return {polygons:roads.features.map(f=>[f.coordinatesLonLatHeight,...(f.interiorRingsLonLatHeight||[])]),lines:[],contains:p=>!!roadAt(roads,p),metadata:{},metadataAt:p=>{const f=roadAt(roads,p);
  return f?{sourceId:f.sourceId,polygonId:f.polygonId,structureClassificationKnown:true,nonTerrainStructure:false}:{};}};
+}
+// Fair scheduling groups samples on the same mapped surface, not adjacent
+// coordinates. This key does not certify that a solve or visibility is reusable.
+function surfaceDomainKey(point){
+ const shape=point?.surfaceGeometry;if(!shape)return null;
+ const polygons=shape.polygons||[],lines=shape.lines||[],within=shape.within;
+ if(!Array.isArray(polygons)||!Array.isArray(lines)||!polygons.length&&!lines.length)return null;
+ const coordinate=p=>Array.isArray(p)&&p.length>=2&&p.every(Number.isFinite)&&Math.abs(p[0])<=180&&Math.abs(p[1])<=90;
+ if(lines.some(line=>!Array.isArray(line)||line.length<2||!line.every(coordinate)))return null;
+ if(polygons.some(poly=>!Array.isArray(poly)||!poly.length||poly.some(ring=>!Array.isArray(ring)||ring.length<3||!ring.every(coordinate))))return null;
+ if(within&&(!Array.isArray(within)||within.some(poly=>!Array.isArray(poly)||!poly.length||poly.some(ring=>!Array.isArray(ring)||ring.length<3||!ring.every(coordinate)))))return null;
+ const eye=point.eyeM??point.eyeHeightAGL??1.5;if(!Number.isFinite(eye)||eye<0)return null;
+ const absolute=point.heightBasis==='constant-absolute-floor'||point.sourceEvidence?.heightBasis==='constant-absolute-floor';
+ const floor=absolute?(point.standingElevationM??point.surfaceElevationM):Number.isFinite(point.surfaceAglM)?point.surfaceAglM:point.surfaceHeightM;
+ if(!Number.isFinite(floor))return null;
+ const source=[point.sourceId??null,point.surfaceId??null,point.polygonId??null];
+ if(source.some(id=>id!==null&&typeof id!=='string')||!source.some(id=>typeof id==='string'&&id))return null;
+ return JSON.stringify([source,polygons,lines,absolute,floor,eye,...(within?[within]:[])],(_key,value)=>Object.is(value,-0)?'-0':value);
 }
 // This is a constrained local inverse, not an exhaustive surface search. A
 // line has no invented width; every trial position is parameterized on it.
@@ -1680,7 +1874,7 @@ async function surfaceInverse(plan,seed,range,timeSeeds,deps){
   if(!Number.isFinite(floor)){unknown=true;return null;}
   const observer={...seed,...pos,...domain.metadata,groundM:ground,groundKnown:true,elevation:floor,surfaceElevationM:floor,standingElevationM:floor,eyeM};
   try{
-   const st=bodies.state(plan.body,time,{...observer,elevation:floor+eyeM});let g=c?geometry(observer,target,c,align):align.geometryFrom(observer,target,{partId:plan.partId==='__whole'?null:plan.partId,eyeM});
+   const st=directionAt(bodies,plan.body,time,{...observer,elevation:floor+eyeM});let g=c?geometry(observer,target,c,align):align.geometryFrom(observer,target,{partId:plan.partId==='__whole'?null:plan.partId,eyeM});
    if(!c&&target.rim){let rim=ridgeCache.get(key);if(!rim){rim=ridgeGeometry(observer,target,align,ridgePrepared);if(rim)ridgeCache.set(key,rim);}const hit=rim?.at(st.azimuth);if(!hit){unknown=true;return null;}g={...hit.geometry,anchor:hit.anchor};}
    const selected=limbKind(c?.limb||((bodies.definition?.(plan.body)?.limbs??['sun','moon'].includes(plan.body))?plan.limb:'center')),residual=g&&align.viewProjector(g.azimuth,g.angle)(st.azimuth,limb(st,selected));
    return residual?.every(Number.isFinite)?{observer,at:time,geometry:g,residual,loss:Math.hypot(...residual)}:null;
@@ -1690,6 +1884,7 @@ async function surfaceInverse(plan,seed,range,timeSeeds,deps){
  const bounded=(n,a,b)=>Math.max(a,Math.min(b,n));
  async function accept(q,inDomain){
   if(!q||q.loss>.002||!inDomain(q.observer)||q.at<range.start||q.at>range.end)return;
+  if(domain.allows&&!domain.allows(q.observer))return;
   if(standingAt){let standing;try{standing=await standingAt(q.observer);}catch{unknown=true;return;}if(!standing)return;if(typeof standing==='object')Object.assign(q.observer,standing);}
   Object.assign(q.observer,domain.metadataAt?.(q.observer)||{});
   if(solutions.some(s=>Math.abs(s.at-q.at)<1000&&Geo().distanceKm(s.observer.latitude,s.observer.longitude,q.observer.latitude,q.observer.longitude)<.001))return;
@@ -1830,7 +2025,7 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
   at=Math.max(range.start,Math.min(range.end,at));if(samples.has(at))return samples.get(at);
   if(!isCurrent()){cancelled=true;return null;}if(calls>=limit){exhausted=true;return null;}
   if(calls%96===0){await yieldTask();if(!isCurrent()){cancelled=true;return null;}}
-  calls++;let st;try{st=bodies.state(plan.body,at,eye);}catch{unknown=true;return null;}
+  calls++;let st;try{st=directionAt(bodies,plan.body,at,eye);}catch{unknown=true;return null;}
   const policy=nearPolicy(plan,bodies,st);if(![st.azimuth,st.apparentAltitude,policy.radius,policy.tolerance].every(Number.isFinite)||policy.radius<0){unknown=true;return null;}
   const selectedRidge=ridge?.at(st.azimuth),activeGeometry=selectedRidge?.geometry||g,activeAnchor=selectedRidge?.anchor||anchor,activeProject=selectedRidge?align.viewProjector(activeGeometry.azimuth,activeGeometry.angle):project;
   const chosen=limbKind(c?.limb||(policy.disc?plan.limb:'center')),height=limb(st,chosen),xy=activeProject(st.azimuth,strict?height:st.apparentAltitude);
@@ -1901,6 +2096,14 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
  const solutions=[];
  for(const cluster of clusters){
   const best=cluster.reduce((a,b)=>b.gap<a.gap||passage&&b.gap===a.gap&&b.centerDistance<a.centerDistance?b:a),interval=[cluster[0].at,cluster.at(-1).at];let sunAltitude=null,side=null;
+  // Return an event only after the full provider agrees at this exact time.
+  // A late atmosphere/provider change must not turn an old trial into a hit.
+  if(typeof bodies.direction==='function'){
+   let full;try{full=bodies.state(plan.body,best.at,eye);}catch{unknown=true;continue;}
+   const fields=['azimuth','geometricAltitude','apparentAltitude','angularRadius','upperAltitude','lowerAltitude','upperLimbAltitude','lowerLimbAltitude'];
+   if(fields.some(key=>!Object.is(full?.[key],best.state[key]))){unknown=true;continue;}
+   best.state=full;
+  }
   try{sunAltitude=bodies.state('sun',best.at,eye).apparentAltitude;side=bodies.state(plan.body,best.at+1000,eye).apparentAltitude<best.state.apparentAltitude?'set':'rise';}catch{unknown=true;}
   const contactLimb=limbKind(c?.limb||plan.limb),event={at:range.kind==='instant'?range.start:best.at,intersects:strict||best.overlaps,nearTarget:!strict,
   relation:strict?(contactLimb!=='center'?'edge-contact':'anchor-hit'):best.overlaps?(geometryKind==='silhouette'?'silhouette-overlap':'anchor-hit'):'near',matchMode:strict?'limb':passage?'overlap':'near',partId:plan.partId||'tip',contactLimb,gapAngleDeg:best.gap,gapAngleRad:best.gap*rad,
@@ -1969,7 +2172,7 @@ async function inverseSeeds(plan,{bodies,isCurrent=()=>true,yieldTask=typeof Ast
  seeds.sort((a,b)=>a.priority-b.priority||a.at-b.at||a.distanceM-b.distanceM);
  return {seeds,partial:true,reason:exhausted?'seed-budget-exhausted':unknown?'some-ephemeris-unknown':'approximate-terrain-hypotheses'};
 }
-return {valid,windowValid,limb,anchorAt,geometry,roadAt,riseSet,inWindow,windowEvents,screenAnchor,make,timeRange,opportunities,localGuides,inverseSeeds,closestPoint,definiteAngularMiss,createRidgeContext};
+return {valid,windowValid,limb,anchorAt,geometry,roadAt,riseSet,inWindow,windowEvents,screenAnchor,make,timeRange,opportunities,localGuides,inverseSeeds,closestPoint,definiteAngularMiss,createRidgeContext,surfaceDomainKey};
 });
 
 /* Terrain/building MODEL LOS. Missing model range or standing height never becomes model-visible. */
@@ -2121,6 +2324,210 @@ function create({align,shooting,bodies,index,surfaceAt,terrain=null,prefilter=tr
 return {faceHit,trace,targetGeometry,covers,classifyRay,sceneExposure,create};
 });
 
+/* New-place quality gate. A lower envelope over the upper tower's width is
+   checked against represented raster cells; this is not a real-world warranty. */
+(function(root){
+'use strict';
+const Model=root.AstroNotesCandidateModel||(typeof require==='function'?require('./model-evaluator.js'):null);
+const R=6371008.8,RAD=Math.PI/180,N=256*2**15;
+function requiredPart(target){
+ if(!target||target.rim)return null;
+ const id=target.id==='skytree'?'deck':target.id==='tokyotower'?'main':null;
+ if(id)return {id,m:target.parts?.find(p=>p.id===id)?.m};
+ const named=(target.parts||[]).filter(p=>['main','deck'].includes(p.id)&&Number.isFinite(p.m)).sort((a,b)=>a.m-b.m)[0];
+ return named?{id:named.id,m:named.m}:null;
+}
+function inverse(a,b){
+ const p=a.latitude*RAD,q=b.latitude*RAD,l=(b.longitude-a.longitude)*RAD;
+ const h=Math.sin((q-p)/2)**2+Math.cos(p)*Math.cos(q)*Math.sin(l/2)**2;
+ return {d:2*R*Math.asin(Math.min(1,Math.sqrt(h))),az:Math.atan2(Math.sin(l)*Math.cos(q),Math.cos(p)*Math.sin(q)-Math.sin(p)*Math.cos(q)*Math.cos(l))/RAD};
+}
+const mul=(a,b)=>{const v=[a[0]*b[0],a[0]*b[1],a[1]*b[0],a[1]*b[1]];return [Math.min(...v),Math.max(...v)];};
+const intersection=(a,b)=>({west:Math.max(a.west,b.west),east:Math.min(a.east,b.east),south:Math.max(a.south,b.south),north:Math.min(a.north,b.north)});
+function cellDistances(observer,box){
+ if(box.west>box.east||box.south>box.north)return null;
+ const longitude=Math.max(box.west,Math.min(box.east,observer.longitude)),p=observer.latitude*RAD,dl=(longitude-observer.longitude)*RAD;
+ const latitude=Math.max(box.south,Math.min(box.north,Math.atan2(Math.sin(p),Math.cos(p)*Math.cos(dl))/RAD));
+ const near=inverse(observer,{latitude,longitude}).d;let far=0;
+ for(const latitude of [box.south,box.north])for(const longitude of [box.west,box.east])far=Math.max(far,inverse(observer,{latitude,longitude}).d);
+ return [Math.max(0,near-.001),far+.001];
+}
+function sinRange(lo,hi){
+ const values=[Math.sin(lo),Math.sin(hi)];
+ for(let n=Math.ceil((lo-Math.PI/2)/Math.PI);Math.PI/2+n*Math.PI<=hi;n++)values.push(n%2===0?1:-1);
+ return [Math.min(...values),Math.max(...values)];
+}
+// The patch rectangle is only a broad bound. Reject a cell only when interval
+// east/north bearing components prove its whole rectangle outside the fan.
+// This keeps angle wrap and cells containing the observer out of atan2 tests.
+function outsideFan(observer,az,half){
+ const p=observer.latitude*RAD,sp=Math.sin(p),cp=Math.cos(p),sa=Math.sin(az*RAD),ca=Math.cos(az*RAD),t=Math.tan(half*RAD),pad=1e-10;
+ const add=(a,b)=>[a[0]+b[0],a[1]+b[1]],neg=a=>[-a[1],-a[0]],scale=(a,b)=>mul(a,[b,b]);
+ return box=>{
+  if(box.west>box.east||box.south>box.north)return true;
+  if(observer.latitude>=box.south&&observer.latitude<=box.north&&observer.longitude>=box.west&&observer.longitude<=box.east)return false;
+  const lo=box.south*RAD,hi=box.north*RAD,dl=(box.west-observer.longitude)*RAD,dh=(box.east-observer.longitude)*RAD;
+  const cosLat=sinRange(lo+Math.PI/2,hi+Math.PI/2),east=mul(cosLat,sinRange(dl,dh));
+  const north=add(scale(sinRange(lo,hi),cp),neg(scale(mul(cosLat,sinRange(dl+Math.PI/2,dh+Math.PI/2)),sp)));
+  const forward=add(scale(east,sa),scale(north,ca)),side=add(scale(east,ca),neg(scale(north,sa))),edge=t*Math.max(0,forward[1]);
+  return forward[1]<-pad||side[0]>edge+pad||side[1]<-edge-pad;
+ };
+}
+// Interval evaluation of the spherical destination formula, over every
+// bearing and distance in the patch. No centre/edge sampling is used to
+// infer the absence of an interior obstacle. The restricted domain keeps
+// the longitude denominator positive and avoids poles/antimeridian wraps.
+function patchBounds(observer,az,half,lo,hi){
+ const a=observer.latitude*RAD,s=Math.sin(a),c=Math.cos(a),sd=[Math.sin(lo/R),Math.sin(hi/R)],cd=[Math.cos(hi/R),Math.cos(lo/R)];
+ const ca=sinRange((az-half)*RAD+Math.PI/2,(az+half)*RAD+Math.PI/2),sa=sinRange((az-half)*RAD,(az+half)*RAD);
+ const v=mul([s,s],cd),w=mul([c,c],mul(sd,ca)),z=[v[0]+w[0],v[1]+w[1]],sz=mul([s,s],z),x=[cd[0]-sz[1],cd[1]-sz[0]],y=mul([c,c],mul(sd,sa));
+ if(!(x[0]>0))return null;
+ const q=mul(y,[1/x[1],1/x[0]]),pad=1e-8;
+ return {south:Math.asin(Math.max(-1,z[0]))/RAD-pad,north:Math.asin(Math.min(1,z[1]))/RAD+pad,
+  west:observer.longitude+Math.atan(q[0])/RAD-pad,east:observer.longitude+Math.atan(q[1])/RAD+pad};
+}
+// At fixed ground distance, height increases with target height and with the
+// ray's launch angle. Over target distances [near,far], the minimum launch
+// angle is at an endpoint (its only possible interior extremum is a maximum).
+function lowerProfile(observer,height,near,far,k){
+ const E=observer.elevation+(observer.eyeM??1.5),r=R*k;
+ const alpha=d=>Math.atan2((r+height)*Math.cos(d/r)-(r+E),(r+height)*Math.sin(d/r));
+ const a=Math.min(alpha(near),alpha(far)),h=s=>(r+E)/(Math.cos(s/r)-Math.tan(a)*Math.sin(s/r))-r;
+ const bottom=-a*r;
+ return {h,min:(lo,hi)=>Math.min(h(lo),h(hi),bottom>lo&&bottom<hi?h(bottom):Infinity)};
+}
+function upperRadius(target,model,part){
+ const vertices=model.vertices;let radius=0;
+ for(const p of vertices)if(!Array.isArray(p)||p.length<3||!p.every(Number.isFinite))return null;
+ const faces=model.faces||model.triangles,ground=target.groundM,tip=target.parts?.find(p=>p.id==='tip')?.m;
+ if(!Array.isArray(faces)||!Number.isFinite(ground)||!(model.heightM>0)||!(tip>part.m)||model.heightMode){
+  for(const p of vertices)radius=Math.max(radius,Math.hypot(p[0],p[1]));return radius;
+ }
+ const cut=(part.m-ground)*model.heightM/(tip-ground);let found=false;
+ for(const face of faces){
+  if(!Array.isArray(face)||face.some(i=>!Number.isInteger(i)||!vertices[i]))return null;
+  const points=face.map(i=>vertices[i]);
+  for(let i=0;i<points.length;i++){
+   const a=points[i];if(a[2]>=cut){radius=Math.max(radius,Math.hypot(a[0],a[1]));found=true;}
+   // Built-in faces include convex solids as well as triangles. All pairs
+   // contain every real edge; extra chords remain inside the convex hull.
+   for(let j=i+1;j<points.length;j++){
+    const b=points[j];if((a[2]<cut)===(b[2]<cut)||a[2]===b[2])continue;
+    const f=(cut-a[2])/(b[2]-a[2]);radius=Math.max(radius,Math.hypot(a[0]+f*(b[0]-a[0]),a[1]+f*(b[1]-a[1])));found=true;
+   }
+  }
+ }
+ return found?radius:null;
+}
+function corridor(observer,target,model,k){
+ const part=requiredPart(target),vertices=model?.vertices;
+ if(!part||!Number.isFinite(part.m)||!Array.isArray(vertices)||!vertices.length||model.geoVertices||!Number.isFinite(k)||k<1||k>2)return null;
+ if(![observer.latitude,observer.longitude,observer.elevation,observer.eyeM??1.5,target.latitude,target.longitude].every(Number.isFinite))return null;
+ if(Math.abs(observer.elevation+(observer.eyeM??1.5))>10000||Math.abs(part.m)>10000)return null;
+ if(Math.abs(observer.latitude)>60||Math.abs(target.latitude)>60)return null;
+ let radius=upperRadius(target,model,part);if(!Number.isFinite(radius))return null;
+ // Clip at the named lower deck, including crossing edges rather than just
+ // upper vertices. 1% covers local WGS84/spherical distance; 1 m rounds outward.
+ radius=radius*1.01+1;
+ const {d,az}=inverse(observer,target);if(!(d>radius+5&&d+radius<=50000))return null;
+ // Spherical tangent triangle: sin(half angle)=sin(radius/R)/sin(distance/R).
+ const near=d-radius,far=d+radius,half=Math.asin(Math.min(1,Math.sin(radius/R)/Math.sin(d/R)))/RAD;
+ // Existing terrain paths use spherical coordinates but their endpoint
+ // distance comes from WGS84 inverse. Its metric radii (6335439..6399594 m)
+ // differ from R by less than 1%; enclose both distance conventions explicitly.
+ const profile=lowerProfile(observer,part.m,.99*near,1.01*far,k),outside=outsideFan(observer,az,half);
+ return {part,radius,near,far,az,half,profile,*patches(){
+  // Closed 25 m interval patches enclose the entire spherical wedge.
+  // Raster cells touching each rectangle are included in full.
+  for(let lo=0;lo<far;lo+=25){
+   const hi=Math.min(far,lo+25),bounds=patchBounds(observer,az,half,lo,hi);
+   if(!bounds)throw Error('upper-corridor-unavailable');
+   const lowAt=box=>{
+    const clipped=intersection(box,bounds);if(outside(clipped))return Infinity;
+    const range=cellDistances(observer,clipped);if(!range)return Infinity;
+    const a=Math.max(lo,range[0]),b=Math.min(hi,range[1]);
+    return a>b?Infinity:profile.min(.99*a,1.01*b)-.001;
+   };
+   yield {...bounds,lowM:profile.min(.99*lo,1.01*hi)-.001,lowAt,fromM:lo,toM:hi};
+  }
+ }};
+}
+const pixel=p=>[(p.longitude+180)/360*N,(1-Math.asinh(Math.tan(p.latitude*RAD))/Math.PI)/2*N];
+const point=(x,y)=>({longitude:(x+.5)/N*360-180,latitude:Math.atan(Math.sinh(Math.PI*(1-2*(y+.5)/N)))/RAD});
+const pixelBox=(x,y)=>({west:x/N*360-180,east:(x+1)/N*360-180,north:Math.atan(Math.sinh(Math.PI*(1-2*y/N)))/RAD,south:Math.atan(Math.sinh(Math.PI*(1-2*(y+1)/N)))/RAD});
+async function terrainPatch(terrain,patch,options){
+ const a=pixel({longitude:patch.west,latitude:patch.north}),b=pixel({longitude:patch.east,latitude:patch.south});
+ const x0=Math.floor(a[0]),y0=Math.floor(a[1]),x1=Math.floor(b[0]),y1=Math.floor(b[1]),width=x1-x0+1,values=new Float64Array(width*(y1-y0+1)).fill(NaN);
+ let top=-Infinity,cells=0;
+ for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
+  options.check();const low=patch.lowAt?.(pixelBox(x,y))??patch.lowM;
+  if(low===Infinity)continue;
+  const p=point(x,y),s=await terrain.sample(p,options);options.check();
+  if(!Number.isFinite(s?.height))return {status:'unknown',reason:s?.reason||'terrain-unavailable'};
+  top=Math.max(top,s.height);values[(y-y0)*width+x-x0]=s.height;cells++;
+  if(low<=s.height+.25)return {status:low<s.height-.25?'blocked':'unknown',reason:'upper-terrain',topM:s.height,rayM:low,cells};
+ }
+ const groundMax=box=>{
+  const bound=intersection(box,patch);if(bound.west>bound.east||bound.south>bound.north)return null;
+  const a=pixel({longitude:bound.west,latitude:bound.north}),b=pixel({longitude:bound.east,latitude:bound.south});let high=-Infinity;
+  for(let y=Math.max(y0,Math.floor(a[1]));y<=Math.min(y1,Math.floor(b[1]));y++)for(let x=Math.max(x0,Math.floor(a[0]));x<=Math.min(x1,Math.floor(b[0]));x++){
+   const value=values[(y-y0)*width+x-x0];if(Number.isFinite(value))high=Math.max(high,value);
+  }
+  return Number.isFinite(high)?high:null;
+ };
+ return {status:'clear',topM:top,cells,groundMax};
+}
+async function check(observer,target,{align,terrain,heights,trees,refractionK=7/6,yieldTask=()=>Promise.resolve(),...options}={}){
+ const part=requiredPart(target);if(!part)return {status:'not-applicable'};
+ const current=()=>options.isCurrent?.()!==false&&!options.signal?.aborted;
+ const checkpoint=()=>{if(Date.now()>=options.deadline)throw Error('candidate-time-budget');if(!current())throw Error('candidate-cancelled');};
+ let timer,abort;
+ const run=async()=>{
+  checkpoint();
+  const model=align?.outlineModel?.(target),shape=corridor(observer,target,model,refractionK);
+  if(!shape||!terrain?.sample||!heights?.upperPatch||!trees?.upperPatch)return {status:'unknown',reason:'upper-model-unavailable',partId:part.id};
+  const identity=[target.latitude,target.longitude,target.groundM,part.m,model.vertices,model.vertices.length];
+  const keyOf=radius=>JSON.stringify([observer.latitude,observer.longitude,observer.elevation,observer.eyeM??1.5,target.id,target.latitude,target.longitude,requiredPart(target),radius,refractionK]);
+  const key=keyOf(shape.radius),providers=[model,terrain,terrain.sample,heights,heights.upperPatch,trees,trees.upperPatch],memo=options.upperReads,cached=memo?.get(key);
+  if(cached&&providers.every((p,i)=>p===cached.providers[i]))return {...cached.result};
+  const opts={...options,isCurrent:()=>current()&&!(Date.now()>=options.deadline),check:checkpoint};
+  let patches=0,terrainCells=0,buildingCells=0,treeCells=0,until=performance.now()+6;
+  for(const patch of shape.patches()){
+   checkpoint();
+   const building=await heights.upperPatch(patch,target.id,opts);checkpoint();
+   if(building.status!=='clear')return {...building,status:'unknown',layer:'buildings',partId:part.id};
+   const land=await terrainPatch(terrain,patch,opts);checkpoint();
+   if(land.status!=='clear')return {...land,status:'unknown',layer:'terrain',partId:part.id};
+   const crown=await trees.upperPatch(patch,{...opts,groundMaxM:land.topM,groundMax:land.groundMax});checkpoint();
+   if(crown.status!=='clear')return {...crown,status:'unknown',layer:'trees',partId:part.id};
+   patches++;terrainCells+=land.cells;buildingCells+=building.cells;treeCells+=crown.cells;
+   if(performance.now()>=until){await yieldTask();checkpoint();until=performance.now()+6;}
+  }
+  if(align.outlineModel(target)!==model||[target.latitude,target.longitude,target.groundM,requiredPart(target)?.m,model.vertices,model.vertices.length].some((v,i)=>!Object.is(v,identity[i])))return {status:'unknown',reason:'upper-model-changed',partId:part.id};
+  const finalShape=corridor(observer,target,model,refractionK);
+  if(!finalShape||keyOf(finalShape.radius)!==key||[model,terrain,terrain.sample,heights,heights.upperPatch,trees,trees.upperPatch].some((p,i)=>p!==providers[i]))return {status:'unknown',reason:'upper-model-changed',partId:part.id};
+  const result={status:'model-clear',partId:part.id,fromM:part.m,scope:'upper-model-corridor',widthCovered:true,patches,terrainCells,buildingCells,treeCells,actualVisibilityGuaranteed:false};
+  // Only complete results live for this evaluate call. No shared search cache,
+  // pending request or mutable row is retained; changed providers cannot hit.
+  if(memo){memo.set(key,{providers,result:{...result}});while(memo.size>16)memo.delete(memo.keys().next().value);}
+  return result;
+ };
+ try{
+  const jobs=[run()];
+  if(Number.isFinite(options.deadline))jobs.push(new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('candidate-time-budget')),Math.max(0,options.deadline-Date.now()));}));
+  if(options.signal)jobs.push(new Promise((_,reject)=>{abort=()=>reject(Error('candidate-cancelled'));options.signal.addEventListener('abort',abort,{once:true});if(options.signal.aborted)abort();}));
+  return await Promise.race(jobs);
+ }catch(e){
+  if(Date.now()>=options.deadline||e?.message==='candidate-time-budget')return {status:'deferred',reason:'time-budget',partId:part.id};
+  if(e?.message==='candidate-cancelled')throw e;
+  return {status:'unknown',reason:'upper-data-unavailable',partId:part.id};
+ }finally{clearTimeout(timer);options.signal?.removeEventListener('abort',abort);}
+}
+const api={requiredPart,lowerProfile,corridor,terrainPatch,patchBounds,check};
+Model.towerQuality=api;
+if(typeof module==='object'&&module.exports)module.exports=api;
+})(globalThis);
+
 /* Trial-only discovery. Existing registered-place search is not modified. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AstroNotesCandidateDiscovery=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
 'use strict';
@@ -2235,6 +2642,8 @@ function hash(s){let x=2166136261;for(let i=0;i<s.length;i++){x^=s.charCodeAt(i)
 function distance(a,b){return Math.hypot((a[0]-b[0])*Math.cos((a[1]+b[1])*RAD/2),a[1]-b[1])*M;}
 function inside(r,p){let yes=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>p.latitude)!==(r[j][1]>p.latitude)&&p.longitude<(r[j][0]-r[i][0])*(p.latitude-r[i][1])/(r[j][1]-r[i][1])+r[i][0])yes=!yes;return yes;}
 const contains=(f,p)=>(!f.bbox||bboxPoint(p,f.bbox))&&f.polygons.some(poly=>inside(poly[0],p)&&!poly.slice(1).some(r=>inside(r,p)));
+const boxesMeet=(a,b)=>!a||!b||a[0]<=b[2]&&b[0]<=a[2]&&a[1]<=b[3]&&b[1]<=a[3];
+const walkingSquare=f=>f.tags.highway==='pedestrian'&&(f.tags.area==='yes'||f.tags['area:highway']);
 function edgeDistance(line,p,c,closest=null){let d=Infinity;for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],x=(b[0]-a[0])*c,y=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*c*x+(p.latitude-a[1])*y)/(x*x+y*y||1)));
  const m=Math.hypot((p.longitude-a[0])*c-u*x,p.latitude-a[1]-u*y)*M;
  if(m<d){d=m;if(closest){closest.longitude=a[0]+(b[0]-a[0])*u;closest.latitude=a[1]+y*u;closest.axis=[a,b];}}
@@ -2377,42 +2786,43 @@ function* tileQueue(regions){const seen=new Set();for(const r of regions){const 
 function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0,pointKinds}={}){
  const generationBudget=maxPoints+skipPoints;
  const areas=features.filter(f=>f.kind&&f.polygons.length),waters=features.filter(f=>f.water),rivers=features.filter(f=>['river','canal'].includes(f.tags.waterway)),buildings=features.filter(f=>f.building),groups=[],unknownGeometry=features.filter(f=>f.geometryIncomplete).map(f=>f.id);
- let generationLimited=false;
+ let generationLimited=false,excludedPoints=0,excludedFeatures=0;
+ const surfaces=new Map(),excluded=features.filter(f=>(f.water||f.building||forbidden(f.tags)||nonGround(f.tags))&&f.polygons.length);
+ const surfaceFor=(f,area,p)=>{
+  const direct={polygons:f.walking&&(f.tags.area==='yes'||f.tags['area:highway'])?f.polygons:[],lines:f.walking&&f.tags.area!=='yes'&&!f.tags['area:highway']?f.lines:[],...(f.position?{position:f.position}:{})};
+  if(!f.walking||!area||!area.polygons.length||area===f)return direct;
+  const id=f.id+'/'+area.id;if(surfaces.has(id))return surfaces.get(id);
+  // Reuse the movement boundary intersections, on this source only. Never
+  // extend a park seed onto connected roads outside its actual place.
+  const constraints=[area,...excluded.filter(x=>x!==f&&x!==area)].map(x=>({...x,walking:false}));
+  const domain=movementDomain({...p,placeId:area.sourceId,surfaceId:f.sourceId},[f,...constraints],{radiusM:Infinity,allComponents:true});
+  const shape=domain?.geometry||{polygons:[],lines:[]};surfaces.set(id,shape);return shape;
+ };
  const inRegion=p=>regions.some(r=>bboxPoint(p,r.bbox));
  for(const f of features){
   if(forbidden(f.tags)||(!f.walking&&f.kind!=='viewpoint'))continue;
   if(f.geometryIncomplete)continue;
+  const intrinsic=f.kind==='viewpoint'?'viewpoint':walkingSquare(f)?'plaza':null;
+  if(pointKinds&&!pointKinds.has('sidewalk')&&!pointKinds.has('riverbank')&&!pointKinds.has(intrinsic)&&
+   !areas.some(a=>pointKinds.has(a.kind)&&boxesMeet(a.bbox,f.bbox))){excludedFeatures++;continue;}
   const candidates=[];
-  if(f.kind==='viewpoint'&&f.position)candidates.push(f.position);
-  // A viewpoint polygon provides no known camera location; walkable geometry
-  // inside it is handled below, but its arbitrary centroid is never a deck.
-  if(f.walking){
-   const filled=f.tags.area==='yes'||!!f.tags['area:highway'];
-   if(filled){for(const poly of f.polygons){const r=poly[0],xs=r.map(p=>p[0]),ys=r.map(p=>p[1]),a=Math.min(...ys),b=Math.max(...ys),lo=Math.min(...xs),hi=Math.max(...xs),dy=spacingM/M,dx=dy/Math.max(.01,Math.cos((a+b)*RAD/2));let count=0;
-    for(const region of regions){const box=region.bbox,fromLat=Math.max(a,box[1]),toLat=Math.min(b,box[3]),fromLon=Math.max(lo,box[0]),toLon=Math.min(hi,box[2]);for(let lat=fromLat+dy/2;lat<toLat&&count<generationBudget*4;lat+=dy)for(let lon=fromLon+dx/2;lon<toLon&&count<generationBudget*4;
-    lon+=dx){const p={latitude:lat,longitude:lon};if(inside(r,p)&&!poly.slice(1).some(h=>inside(h,p))){candidates.push(p);count++;}}}if(count>=generationBudget*4)generationLimited=true;
-    // Small pedestrian squares may be smaller than one grid cell.
-    const p={latitude:(a+b)/2,longitude:(lo+hi)/2};if(inside(r,p)&&!poly.slice(1).some(h=>inside(h,p)))candidates.push(p);
-   }}else for(const line of f.lines){for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],n=Math.max(1,Math.ceil(distance(a,b)/spacingM));for(let j=0;j<n;j++){const p={longitude:a[0]+(b[0]-a[0])*j/n,latitude:a[1]+(b[1]-a[1])*j/n};if(!inRegion(p))continue;
-   if(candidates.length>=generationBudget*8){generationLimited=true;break;}candidates.push(p);}}const last=line[line.length-1];if(last)candidates.push({longitude:last[0],latitude:last[1]});}
-  }
-  const points=[];
-  for(const p of candidates){
-   if(!inRegion(p))continue;
-   const containers=areas.filter(a=>contains(a,p));if(containers.some(a=>forbidden(a.tags)))continue;
-   const water=waters.find(a=>contains(a,p));if(water&&!nonGround(f.tags))continue;
+  const addCandidate=p=>{
+   if(!inRegion(p))return;
+   const containers=areas.filter(a=>contains(a,p));if(containers.some(a=>forbidden(a.tags)))return;
+   const water=waters.find(a=>contains(a,p));if(water&&!nonGround(f.tags))return;
    const roofArea=containers.find(a=>nonGround(a.tags)),building=buildings.find(a=>contains(a,p)),viewpoint=containers.find(a=>a.kind==='viewpoint');
    const square=containers.find(a=>a.kind==='plaza'),park=containers.find(a=>a.kind==='park');
    const longitudeScale=Math.cos(p.latitude*RAD);
-   const river=rivers.find(a=>nearEdges(a,p,80,longitudeScale));
-   const riverArea=containers.find(a=>/河川敷|川テラス|川緑道|riverbank|riverside/i.test(a.name));
-   const riverPath=/河川敷|川.*テラス|riverside|riverbank/i.test(f.name)&&waters.some(a=>nearEdges(a,p,80,longitudeScale));
+   const river=!viewpoint&&!square&&!park&&rivers.find(a=>nearEdges(a,p,80,longitudeScale));
+   const riverArea=!park&&containers.find(a=>/河川敷|川テラス|川緑道|riverbank|riverside/i.test(a.name));
+   const riverPath=!park&&/河川敷|川.*テラス|riverside|riverbank/i.test(f.name)&&waters.some(a=>nearEdges(a,p,80,longitudeScale));
    // A levee-top path stands well back from a wide river's centre line: within 150 m of its water and
    // 300 m of the centre line it is the riverbank, while streets behind the levee are not.
-   const wideRiver=rivers.find(a=>a.tags.waterway==='river'&&nearEdges(a,p,300,longitudeScale))&&waters.some(a=>nearEdges(a,p,150,longitudeScale));
+   const wideRiver=!park&&rivers.find(a=>a.tags.waterway==='river'&&nearEdges(a,p,300,longitudeScale))&&waters.some(a=>nearEdges(a,p,150,longitudeScale));
    const riverside=riverArea||riverPath||river&&waters.some(a=>nearEdges(a,p,80,longitudeScale))||wideRiver;
-   const area=viewpoint||square||riverArea||park;
-   const placeKind=f.kind==='viewpoint'||viewpoint?'viewpoint':square||f.tags.highway==='pedestrian'&&(f.tags.area==='yes'||f.tags['area:highway'])?'plaza':riverside?'riverbank':park?'park':'sidewalk';
+   const area=viewpoint||square||(walkingSquare(f)?f:park)||riverArea;
+   const placeKind=f.kind==='viewpoint'||viewpoint?'viewpoint':square||walkingSquare(f)?'plaza':park?'park':riverside?'riverbank':'sidewalk';
+   if(pointKinds&&!pointKinds.has(placeKind)){excludedPoints++;return;}
    const elevated=nonGround(f.tags)||!!roofArea||!!building;
    const surface=area&&nonGround(area.tags)?area:f;
    // ele = absolute feature elevation, height = structure top, level = floor
@@ -2421,16 +2831,30 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
    const knownFloor=surface.tags['floor:height']!=null&&finite(floor)&&floor>=0&&floorSource;
    const accessKnown=!![f,...containers].find(a=>['yes','public','permissive','designated'].includes(a.tags.foot)||['yes','public','permissive'].includes(a.tags.access));
    const structuralUnknown=f.kind==='viewpoint'||!!viewpoint||elevated;
-   points.push({...p,lat:p.latitude,lon:p.longitude,placeId:'osm/'+(area||f).id,name:(area||f).name||f.name||({park:'公園の園路',plaza:'歩行広場',riverbank:'河川沿いの歩道',sidewalk:'歩道',viewpoint:'展望地点'}[placeKind]),placeKind,
+   candidates.push({...p,lat:p.latitude,lon:p.longitude,placeId:'osm/'+(area||f).id,name:(area||f).name||f.name||({park:'公園の園路',plaza:'歩行広場',riverbank:'河川沿いの歩道',sidewalk:'歩道',viewpoint:'展望地点'}[placeKind]),placeKind,
     sourceId:f.sourceId,surfaceId:f.sourceId,polygonId:f.id,region:regions.find(r=>bboxPoint(p,r.bbox))?.id,
-    surfaceGeometry:{polygons:f.walking&&(f.tags.area==='yes'||f.tags['area:highway'])?f.polygons:[],lines:f.walking&&f.tags.area!=='yes'&&!f.tags['area:highway']?f.lines:[],...(f.position?{position:f.position}:{})},
+    surfaceGeometry:surfaceFor(f,area,p),
     groundM:null,groundKnown:false,surfaceAglM:knownFloor?floor:structuralUnknown?null:0,surfaceHeightM:knownFloor?floor:structuralUnknown?null:0,surfaceElevationM:null,eyeM:1.5,
     standingSurfaceKnown:false,accessKnown,structureClassificationKnown:!structuralUnknown||!!knownFloor,nonTerrainStructure:!!elevated||!!knownFloor&&floor>0,
     sourceEvidence:{kind:'osm-mapped-walking-surface',heightBasis:'surfaceAglM/surfaceHeightM:height-above-local-ground; surfaceElevationM:groundM+surfaceAglM; eyeM:height-above-surface',osmId:f.id,placeOsmId:(area||f).id,tags:{...f.tags},areaTags:area?{...area.tags}:null,
     classification:riverArea?'named-riverside-area':riverPath?'named-riverside-walkway':riverside?'mapped-river-proximity':'mapped-feature',floor:knownFloor?{heightM:floor,source:floorSource}:null,buildingContaining:building?.id||null,access:'mapped-only',vegetation:'unknown',
     actualVisibilityGuaranteed:false}
    });
+  };
+  if(f.kind==='viewpoint'&&f.position)addCandidate(f.position);
+  // A viewpoint polygon provides no known camera location; walkable geometry
+  // inside it is handled below, but its arbitrary centroid is never a deck.
+  if(f.walking){
+   const filled=f.tags.area==='yes'||!!f.tags['area:highway'];
+   if(filled){for(const poly of f.polygons){const r=poly[0],xs=r.map(p=>p[0]),ys=r.map(p=>p[1]),a=Math.min(...ys),b=Math.max(...ys),lo=Math.min(...xs),hi=Math.max(...xs),dy=spacingM/M,dx=dy/Math.max(.01,Math.cos((a+b)*RAD/2));let count=0;
+    for(const region of regions){const box=region.bbox,fromLat=Math.max(a,box[1]),toLat=Math.min(b,box[3]),fromLon=Math.max(lo,box[0]),toLon=Math.min(hi,box[2]);for(let lat=fromLat+dy/2;lat<toLat&&count<generationBudget*4;lat+=dy)for(let lon=fromLon+dx/2;lon<toLon&&count<generationBudget*4;
+    lon+=dx){const p={latitude:lat,longitude:lon};if(inside(r,p)&&!poly.slice(1).some(h=>inside(h,p))){const before=candidates.length;addCandidate(p);count+=candidates.length-before;}}}if(count>=generationBudget*4)generationLimited=true;
+    // Small pedestrian squares may be smaller than one grid cell.
+    const p={latitude:(a+b)/2,longitude:(lo+hi)/2};if(inside(r,p)&&!poly.slice(1).some(h=>inside(h,p)))addCandidate(p);
+   }}else for(const line of f.lines){for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],n=Math.max(1,Math.ceil(distance(a,b)/spacingM));for(let j=0;j<n;j++){const p={longitude:a[0]+(b[0]-a[0])*j/n,latitude:a[1]+(b[1]-a[1])*j/n};if(!inRegion(p))continue;
+   if(candidates.length>=generationBudget*8){generationLimited=true;break;}addCandidate(p);}}const last=line[line.length-1];if(last)addCandidate({longitude:last[0],latitude:last[1]});}
   }
+  const points=candidates;
   if(points.length){const preferred=points.filter(p=>p.placeKind!=='sidewalk'),support=points.filter(p=>p.placeKind==='sidewalk');if(preferred.length)groups.push(preferred);if(support.length)groups.push(support);}
  }
  // Round-robin surfaces within each priority group; one long path cannot consume
@@ -2438,17 +2862,17 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
  groups.sort((a,b)=>(a[0].placeKind==='sidewalk')-(b[0].placeKind==='sidewalk'));
  const rows=[],seen=new Set();let remaining=0,remainingWanted=0,visited=0;
  for(const priority of [false,true]){const g=groups.filter(a=>(a[0].placeKind==='sidewalk')===priority);for(let i=0;g.some(a=>i<a.length);i++)for(const a of g)if(i<a.length){const p=a[i],k=key(p)+'/'+p.surfaceId;if(seen.has(k))continue;seen.add(k);if(visited++<skipPoints)continue;
- if(rows.length<maxPoints)rows.push(p);else{remaining++;if(pointKinds?.has(p.placeKind))remainingWanted++;}}}
+ if(rows.length<maxPoints)rows.push(p);else{remaining++;remainingWanted++;}}}
  // Enrich only the rows returned by this page. Classification, ordering and
  // height/visibility checks stay driven by the same original walking points.
  for(const p of rows)if(p.placeKind==='riverbank'&&(!pointKinds||pointKinds.has('riverbank'))){
   const name=riverNameAt(p,waters,rivers);if(name){p.sourceEvidence.riverName=name;const bank=riverBankAt(p,waters,rivers,name);if(bank)p.sourceEvidence.riverBank=bank;}
  }
- return {rows,limited:remaining>0||generationLimited,omittedPoints:remaining,remainingWanted,generationLimited,unknownGeometry};
+ return {rows,limited:remaining>0||generationLimited,omittedPoints:remaining,remainingWanted,generationLimited,unknownGeometry,excludedPoints,excludedFeatures};
 }
 // Keep movement on the selected walking place. A bridge or a nearby opposite
 // bank is not a continuation merely because its coordinates are close.
-function movementDomain(seed,features,{radiusM=600}={}){
+function movementDomain(seed,features,{radiusM=600,allComponents=false}={}){
  const origin={latitude:seed.latitude,longitude:seed.longitude},c=Math.cos(origin.latitude*RAD);
  const usable=f=>f.walking&&!f.geometryIncomplete&&!forbidden(f.tags)&&!nonGround(f.tags);
  const area=features.find(f=>f.sourceId===seed.placeId&&f.polygons.length&&(f.kind||f.tags.area==='yes'||f.tags['area:highway']))||features.find(f=>f.kind==='park'&&contains(f,origin));
@@ -2464,7 +2888,8 @@ function movementDomain(seed,features,{radiusM=600}={}){
  if(!source||!area&&best>12&&source.sourceId!==seed.surfaceId&&source.sourceId!==seed.sourceId)return null;
  if(source.tags.area==='yes'||source.tags['area:highway']){
   const polygons=source.polygons.map(poly=>[...poly,...excluded.filter(f=>!source.bbox||!f.bbox||f.bbox[0]<=source.bbox[2]&&f.bbox[2]>=source.bbox[0]&&f.bbox[1]<=source.bbox[3]&&f.bbox[3]>=source.bbox[1]).flatMap(f=>f.polygons.map(p=>p[0]))]);
-  return {origin,radiusM,label:area?.name||seed.name||'この付近の広場',kind:'plaza',sourceIds:[source.sourceId],boundary:source.polygons,geometry:{polygons,lines:[]}};
+  return {origin,radiusM,label:area?.name||seed.name||'この付近の広場',kind:'plaza',sourceIds:[source.sourceId],boundary:area?.polygons||source.polygons,
+   geometry:{polygons,lines:[],...(area&&area!==source?{within:area.polygons}:{})}};
  }
  const vertices=f=>f.lines.flat().filter(([lon,lat])=>distance([origin.longitude,origin.latitude],[lon,lat])<=radiusM+10);
  const key=([lon,lat])=>lon.toFixed(7)+','+lat.toFixed(7),byVertex=new Map();
@@ -2495,7 +2920,7 @@ function movementDomain(seed,features,{radiusM=600}={}){
  const vertex=p=>p[0].toFixed(7)+','+p[1].toFixed(7),touching=new Map();let first=0,nearestDistance=Infinity;
  lines.forEach((line,i)=>{const d=edgeDistance(line,origin,c);if(d<nearestDistance){first=i;nearestDistance=d;}for(const p of line){const k=vertex(p);if(!touching.has(k))touching.set(k,[]);touching.get(k).push(i);}});
  const reached=new Set([first]),pending=[first];while(pending.length){const i=pending.shift();for(const p of lines[i])for(const j of touching.get(vertex(p))||[])if(!reached.has(j)){reached.add(j);pending.push(j);}}
- const retained=lines.filter((_,i)=>reached.has(i));lines.splice(0,lines.length,...retained);
+ if(!allComponents){const retained=lines.filter((_,i)=>reached.has(i));lines.splice(0,lines.length,...retained);}
  const ends=new Map(),used=new Set(),joined=[];
  lines.forEach((line,i)=>{for(const p of line){const k=vertex(p);if(!ends.has(k))ends.set(k,[]);ends.get(k).push(i);}});
  function chain(i,start){const path=[start];let at=start;
@@ -2506,12 +2931,14 @@ function movementDomain(seed,features,{radiusM=600}={}){
  lines.forEach((line,i)=>{if(!used.has(i))chain(i,line[0]);});lines.splice(0,lines.length,...joined);
  lines.sort((a,b)=>edgeDistance(a,origin,c)-edgeDistance(b,origin,c));
  return {origin,radiusM,label:area?.name||seed.name||'この付近の歩道',kind:area?.kind||seed.placeKind||'sidewalk',
-  sourceIds:[...connected].map(f=>f.sourceId),boundary:area?.polygons||[],geometry:{lines,polygons:[]}};
+  sourceIds:[...connected].map(f=>f.sourceId),boundary:area?.polygons||[],geometry:{lines,polygons:[],...(area?{within:area.polygons}:{})}};
 }
 function movementPoint(domain,p,maxDistanceM=20){
  if(!domain||!p||![p.latitude,p.longitude].every(finite))return null;
  if(distance([domain.origin.longitude,domain.origin.latitude],[p.longitude,p.latitude])>domain.radiusM+maxDistanceM)return null;
- if(distance([domain.origin.longitude,domain.origin.latitude],[p.longitude,p.latitude])<=domain.radiusM&&(domain.geometry.polygons||[]).some(poly=>inside(poly[0],p)&&!poly.slice(1).some(r=>inside(r,p))))return {...p,distanceM:0};
+ const within=domain.geometry.within;
+ if(distance([domain.origin.longitude,domain.origin.latitude],[p.longitude,p.latitude])<=domain.radiusM&&(!within||within.some(poly=>inside(poly[0],p)&&!poly.slice(1).some(r=>inside(r,p))))&&
+  (domain.geometry.polygons||[]).some(poly=>inside(poly[0],p)&&!poly.slice(1).some(r=>inside(r,p))))return {...p,distanceM:0};
  const nearest={},c=Math.cos(p.latitude*RAD);let best=Infinity,point=null;
  for(const line of domain.geometry.lines){const d=edgeDistance(line,p,c,nearest);if(d<best){best=d;point={...nearest};}}
  return best<=maxDistanceM?{...point,distanceM:best}:null;
@@ -2541,14 +2968,17 @@ function surveyedViewpoints(data,targetId){
  for(const p of data?.places||[]){
   if(!targetId||!p.targets?.includes(targetId)||![p.latitude,p.longitude,p.groundM,p.eyeM].every(finite)||p.eyeM<0)continue;
   const id='surveyed/'+p.id;
-  points.push({latitude:p.latitude,longitude:p.longitude,lat:p.latitude,lon:p.longitude,placeId:id,name:p.name,placeKind:'viewpoint',sourceId:id,surfaceId:id,polygonId:p.id,
+  const placeKind=['viewpoint','park','plaza','sidewalk','riverbank','road','unknown'].includes(p.placeKind)?p.placeKind:'unknown',e=p.categoryEvidence;
+  const categoryEvidence=e&&['research-kind','research-description','mapped-category','official-description','unclassified'].includes(e.basis)&&typeof e.detail==='string'&&Array.isArray(e.sourceUrls)&&e.sourceUrls.every(u=>typeof u==='string')?
+   {...e,sourceUrls:e.sourceUrls.slice()}:null;
+  points.push({latitude:p.latitude,longitude:p.longitude,lat:p.latitude,lon:p.longitude,placeId:id,name:p.name,placeKind,sourceId:id,surfaceId:id,polygonId:p.id,
    surfaceGeometry:{polygons:[],lines:[],position:{latitude:p.latitude,longitude:p.longitude}},
    // The surveyed height is the lens above the stated ground or floor, so the floor is that ground itself (surfaceAglM 0):
    // a place off the terrain without a floor height is refused as standing-height-unknown (generic-evaluator.js).
    groundM:p.groundM,groundKnown:true,surfaceAglM:0,eyeM:p.eyeM,standingSurfaceKnown:true,accessKnown:false,structureClassificationKnown:true,nonTerrainStructure:p.eyeM>3||!!p.groundManual,surveyedTargets:p.targets.slice(),
    quality:'surveyed-viewpoint',
    sourceEvidence:{kind:'surveyed-viewpoint',sourceId:p.id,heightM:p.eyeM,reference:p.groundManual?'height-above-stated-floor':'height-above-local-ground',positionBasis:'representative-point',shape:p.shape,
-   targetVisibility:'surveyed',actualVisibilityGuaranteed:false}
+   ...(categoryEvidence?{categoryEvidence}:{}),targetVisibility:'surveyed',actualVisibilityGuaranteed:false}
   });
  }return points;
 }
@@ -2556,9 +2986,11 @@ function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,
  if(!terrain)throw Error('terrain provider is required');
  const servers=endpoints||terrain.OVERPASS||[],cache=new Map(),heightCache=new Map(),nearbyCache=new Map();
  let endpointCursor=0,overpassRetryAfter=0,overpassNextRequest=0;
- async function load(plan,{regions=plan?.regions||plan?.searchRegions||[],isCurrent=()=>true,onProgress=()=>{},signal,maxTiles:tileBudget=maxTiles,maxPoints:pointBudget=maxPoints,pointKinds,cursor,offset=0,retryFailed=true}={}){
+ async function load(plan,{regions=plan?.regions||plan?.searchRegions||[],isCurrent=()=>true,onProgress=()=>{},signal,deadline=Infinity,maxTiles:tileBudget=maxTiles,maxPoints:pointBudget=maxPoints,pointKinds,cursor,offset=0,retryFailed=true}={}){
+  const wanted=pointKinds==null?null:new Set(pointKinds),pointKindsKey=wanted?JSON.stringify([...wanted].sort()):null;
+  if(cursor&&typeof cursor==='object'&&'pointKindsKey'in cursor&&cursor.pointKindsKey!==pointKindsKey){cursor=null;offset=0;}
   offset=Math.max(0,Number(cursor?.offset??cursor??offset)||0);const retryTiles=Array.isArray(cursor?.retryTiles)?cursor.retryTiles:[],batchTiles=Array.isArray(cursor?.batchTiles)?cursor.batchTiles:null,pointOffset=Math.max(0,Number(cursor?.pointOffset)||0);
-  const requested=regionsFor(regions),started=Date.now(),current=()=>!signal?.aborted&&providerCurrent()&&isCurrent(),controller=new AbortController();
+  const requested=regionsFor(regions),started=Date.now(),current=()=>!signal?.aborted&&Date.now()<deadline&&providerCurrent()&&isCurrent(),controller=new AbortController();
   let timedOut=false;const cancel=()=>controller.abort(),timer=setInterval(()=>{if(!current())cancel();if(Date.now()-started>maxDurationMs){timedOut=true;cancel();}},100);signal?.addEventListener('abort',cancel,{once:true});
   const coverage={status:'partial',requestedRegions:requested,fetchedRegions:[],failedRegions:[],pendingRegions:[],missing:[],osmComplete:false,samplingComplete:false,heightComplete:false,visibilityAssessed:false,actualVisibilityGuaranteed:false,queryTileDegrees:TILE};
   const merged=new Map();let nextOffset=offset,hasPending=false;
@@ -2575,7 +3007,8 @@ function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,
    // regions. out geom without an output bbox preserves full returned rings.
    const b=tile.bbox.map((v,i)=>v+(i<2?-.0003:.0003));b[0]=Math.max(-180,b[0]);b[1]=Math.max(-90,b[1]);b[2]=Math.min(180,b[2]);b[3]=Math.min(90,b[3]);
    // Bundled OSM places first (no Overpass round trip); Overpass only if they cannot be read.
-   if(places)try{const value={features:parseElements(await places.elementsIn(b)),at:Date.now(),timestamp:null,endpoint:'bundled-osm',version:'bundled',local:true};cache.set(tile.id,value);while(cache.size>120)cache.delete(cache.keys().next().value);return value;}catch{/* Overpass below. */}
+   if(places)try{const value={features:parseElements(await bounded(places.elementsIn(b),timeoutMs)),at:Date.now(),timestamp:null,endpoint:'bundled-osm',version:'bundled',local:true};
+    cache.set(tile.id,value);while(cache.size>120)cache.delete(cache.keys().next().value);return value;}catch{/* Overpass below. */}
    let reason=Date.now()<overpassRetryAfter?'overpass-cooldown':'no-overpass-endpoint',overpassAttempted=false;
    for(let attempt=0;attempt<Math.min(2,servers.length)&&current()&&!controller.signal.aborted&&(tile.retry||Date.now()>=overpassRetryAfter);attempt++){
     overpassAttempted=true;
@@ -2615,30 +3048,30 @@ function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,
    coverage.evaluatedRegionIds=coverage.fetchedRegions.map(r=>r.id);coverage.nextCursor=batchTiles?cursor.afterCursor||null:hasPending||retryFailed&&coverage.failedRegions.length?{offset:nextOffset,retryTiles:retryFailed?[...deferredRetries,...coverage.failedRegions]:[]}:null;
    coverage.osmComplete=requested.length>0&&!hasPending&&!coverage.failedRegions.length&&offset===0&&current()&&!timedOut;
    const selectionRegions=[];for(const r of requested)for(const tile of coverage.fetchedRegions){const b=[Math.max(r.bbox[0],tile.bbox[0]),Math.max(r.bbox[1],tile.bbox[1]),Math.min(r.bbox[2],tile.bbox[2]),Math.min(r.bbox[3],tile.bbox[3])];if(b[0]<b[2]&&b[1]<b[3])selectionRegions.push({...r,bbox:b});}
-   const wanted=pointKinds==null?null:new Set(pointKinds);
    const features=[...merged.values()],sampled=batchTiles&&coverage.failedRegions.length
     // A point offset is only valid for the same complete set of tiles.
     ?{rows:[],limited:true,omittedPoints:0,unknownGeometry:[]}
     :sampleFeatures(features,selectionRegions,{spacingM,maxPoints:Math.max(1,pointBudget),skipPoints:pointOffset,pointKinds:wanted});
    let points=sampled.rows;
-   // Move past this batch only when the full sample proves all remaining points are excluded.
-   const skipRemaining=wanted&&sampled.omittedPoints>0&&sampled.remainingWanted===0&&!sampled.generationLimited&&!coverage.failedRegions.length;
-   const limited=sampled.limited&&!skipRemaining;
+   // Both the generation and page budgets count only eligible place kinds.
+   const limited=sampled.limited;
    if(limited&&points.length)coverage.nextCursor={offset,pointOffset:pointOffset+points.length,batchTiles:coverage.fetchedRegions.map(r=>({id:r.id,bbox:r.bbox,regionId:r.regionId})),afterCursor:coverage.nextCursor};
    else if(batchTiles&&retryFailed&&coverage.failedRegions.length)coverage.nextCursor={...cursor};
-   coverage.samplingComplete=!limited;coverage.omittedPoints=skipRemaining?0:sampled.omittedPoints;coverage.incompleteGeometry=sampled.unknownGeometry;
-   if(skipRemaining)coverage.pointsSkippedByKind=sampled.omittedPoints;
+   if(coverage.nextCursor)coverage.nextCursor={...coverage.nextCursor,pointKindsKey};
+   coverage.samplingComplete=!limited;coverage.omittedPoints=sampled.omittedPoints;coverage.incompleteGeometry=sampled.unknownGeometry;
+   coverage.pointsExcludedByKind=sampled.excludedPoints||0;coverage.featuresExcludedByKind=sampled.excludedFeatures||0;
    if(limited)coverage.missing.push('point-budget');if(hasPending)coverage.missing.push('tile-budget-or-timeout');if(sampled.unknownGeometry.length)coverage.missing.push('incomplete-osm-geometry');
    // A small documented viewpoint supplement is independent of OSM availability.
    // Add once at the beginning; continuation pages only advance dynamic geometry.
    coverage.documentedViewpoints=0;
    if(!cursor&&offset===0&&typeof loadViewpoints==='function'&&current()&&!controller.signal.aborted)try{const supplement=publishedViewpoints(await bounded(loadViewpoints(plan,{signal:controller.signal,isCurrent:current}),timeoutMs),requested);points.unshift(...supplement);
    coverage.documentedViewpoints=supplement.length;}catch{coverage.missing.push('documented-viewpoints-unavailable');}
-   // The point cursor counts every sampled surface. Filter only the points sent for height and water checks.
+   // Supplements are independent of the dynamic point cursor. Apply the same
+   // requested kinds before their height/water reads too.
    if(wanted){
     const sampleCount=points.length;
     points=points.filter(p=>wanted.has(p.placeKind));
-    coverage.pointsExcludedByKind=sampleCount-points.length;
+    coverage.pointsExcludedByKind+=sampleCount-points.length;
    }
    // Query ground only for the sampled surfaces. GSI failures and sea sentinels
    // stay null; tileElevations() is deliberately not used (it maps failures to 0).
@@ -2711,6 +3144,7 @@ return createPlaceProvider;
 'use strict';
 const Model=root.AstroNotesCandidateModel||(typeof require==='function'?require('./model-evaluator.js'):null);
 const Composition=root.AstroNotesCandidateComposition||(typeof require==='function'?require('./composition.js'):null);
+const TowerQuality=Model.towerQuality||(typeof require==='function'?require('./tower-quality.js'):null);
 const R=6371008.8,D=Math.PI/180;
 function inside(r,p){let on=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>p[1])!==(r[j][1]>p[1])&&p[0]<(r[j][0]-r[i][0])*(p[1]-r[i][1])/(r[j][1]-r[i][1])+r[i][0])on=!on;return on;}
 function angularDistance(a,b){const alt1=a[1]*D,alt2=b[1]*D,daz=(a[0]-b[0])*D;return Math.atan2(Math.hypot(Math.cos(alt2)*Math.sin(daz),Math.cos(alt1)*Math.sin(alt2)-Math.sin(alt1)*Math.cos(alt2)*Math.cos(daz)),Math.sin(alt1)*Math.sin(alt2)+Math.cos(alt1)*Math.cos(alt2)*Math.cos(daz))/D;}
@@ -2790,7 +3224,7 @@ function standingMetadata(position,data,seed){
  const viewpoint=areas.find(f=>f.kind==='viewpoint'),square=areas.find(f=>f.kind==='plaza'),river=areas.find(f=>/河川敷|川.*テラス|川緑道|riverbank|riverside/i.test(f.name)),park=areas.find(f=>f.kind==='park');
  if(viewpoint&&!knownRaised)return false;
  const walkSquare=source?.walking&&(source.tags?.area==='yes'||source.tags?.['area:highway']);
- const area=viewpoint||square||river||park,placeKind=viewpoint?'viewpoint':square||walkSquare?'plaza':river?'riverbank':park?'park':'road';
+ const area=viewpoint||square||park||river,placeKind=viewpoint?'viewpoint':square||walkSquare?'plaza':park?'park':river?'riverbank':'road';
  const name=area?.name||source?.name||({viewpoint:'展望地点',plaza:'歩行広場',riverbank:'河川沿いの歩道',park:'公園の園路',road:'歩道の撮影候補'}[placeKind]);
  return {placeKind,name,placeId:area?.sourceId||source?.sourceId||seed.placeId,accessKnown:!![source,...areas].find(f=>['yes','public','permissive','designated'].includes(f?.tags?.foot)||['yes','public','permissive'].includes(f?.tags?.access)),
   sourceEvidence:{...seed.sourceEvidence,placeOsmId:area?.id||source?.id||null,areaTags:area?.tags||null,classification:area?'mapped-area-at-resolved-position':'walkway-at-resolved-position',resolvedPositionAreaChecked:true,actualVisibilityGuaranteed:false}};
@@ -2814,6 +3248,12 @@ function memoOutlines(align){
 function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,trees=null,staticTerrain=null,sidewalks=null,angularPrefilter=false,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
  const align=memoOutlines(rawAlign);
  const visibilityCache=new Map(),targetLines=new Map();
+ const upperQuality=async(observer,target,options)=>{
+  const k=root.AstroNotesAtmosphere?.targetK?.()??7/6,weather=weatherKey();
+  const result=await (TowerQuality?.check(observer,target,{...options,align,terrain,heights,trees,yieldTask,refractionK:k})
+   ||Promise.resolve({status:['skytree','tokyotower'].includes(target?.id)?'unknown':'not-applicable',reason:'upper-model-unavailable'}));
+  return result.status==='model-clear'&&(k!==(root.AstroNotesAtmosphere?.targetK?.()??7/6)||weather!==weatherKey())?{status:'unknown',reason:'upper-atmosphere-changed'}:result;
+ };
  let ridgeScope=null;
  const ridgeContextFor=(key,current)=>{
   if(typeof Composition.createRidgeContext!=='function'||typeof key!=='string'||!key)return null;
@@ -2998,7 +3438,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   return result;
  }
  async function evaluate(plan,point,data,options={}){
-  options={...options,targetReads:new Map()};
+  options={...options,targetReads:new Map(),upperReads:new Map()};
   const ridgeContext=options.isCurrent?.()===false?null:ridgeContextFor(plan.requestKey,options.isCurrent);
   if(point.access==='no'||point.access==='private')return {status:'excluded',recommend:false,reason:'access-restricted'};
   if(point.standingSurfaceKnown!==true||point.nonTerrainStructure&&![point.surfaceElevationM,point.surfaceAglM,point.surfaceHeightM].some(Number.isFinite))return {status:'unknown',recommend:false,reason:'standing-height-unknown'};
@@ -3011,6 +3451,12 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   if(angularPrefilter&&fixedStanding){
    if(options.isCurrent?.()===false||options.signal?.aborted)throw Error('candidate-cancelled');
    if(Composition.definiteAngularMiss(plan,obs,{align,bodies}))return {status:'no-overlap',recommend:false,reason:'angular-prefilter'};
+  }
+  // Only an immovable observer can be rejected before solving. The final
+  // solved position is checked again below, including surveyed viewpoints.
+  if(fixedStanding&&!plan.strict&&!plan.composition&&plan.profile!=='summit-contact'){
+   const upper=await upperQuality(obs,plan.target,options);
+   if(!['model-clear','not-applicable'].includes(upper.status))return {status:upper.status==='blocked'?'model-blocked':'unverified',recommend:false,reason:'upper-tower-unverified',upperQuality:upper,partial:true};
   }
   const missingHeights=b=>['building-height-unknown','height-data-unavailable','footprints-unavailable','footprint-ground-unknown'].includes(b?.reason);
   // Where the observer cannot move (no composition, not a mountain), every event's line ends on the
@@ -3058,6 +3504,11 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    const weather=weatherKey(),state=bodies.state(plan.body,solution.event.at,{...solution.observer,elevation:solution.observer.elevation+solution.observer.eyeM}),eventSky={weather,state};
    const frame=plan.overlapAnchor?lensCheck({...plan,target:plan.overlapAnchor.target,partId:plan.overlapAnchor.partId},solution.observer,state,align.geometryFrom(solution.observer,plan.overlapAnchor.target,{eyeM:solution.observer.eyeM})||solution.geometry,align):lensCheck(plan,solution.observer,
    state,solution.geometry,align);if(!frame.fits){outside++;continue;}
+   const upper=await upperQuality(solution.observer,plan.target,options);
+   if(!['model-clear','not-applicable'].includes(upper.status)){
+    if(upper.status==='blocked')blocked++;else{unverified++;lastUnverified={upperQuality:upper};}
+    continue;
+   }
    const los=await visibility(plan,solution,options,eventSky);if(los.status==='blocked'){blocked++;continue;}
    if(!los.surveyed&&partsHidden(plan.target,hiddenTop(los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline))){blocked++;continue;}
    const at=solution.event.at,position=solution.observer,finalGround=Number.isFinite(position.groundM)?position.groundM:ground;
@@ -3070,6 +3521,10 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
     if(!geometry||![geometry.azimuth,geometry.angle,geometry.topM,geometry.distanceKm].every(Number.isFinite)){extras.push({id:other.id,frame:{status:'unknown',fits:false},visibility:'unknown',reason:'target-geometry-unavailable'});continue;}
     const extraPlan={...plan,target:other,partId:null,composition:null,lens:plan.lens?{...plan.lens,...(frame.axis?{axis:frame.axis}:{})}:null};
     const otherFrame=lensCheck(extraPlan,position,state,geometry,align);
+    const upperOther=plan.requireAllTargets?await upperQuality(position,other,options):null;
+    if(upperOther&&!['model-clear','not-applicable'].includes(upperOther.status)){
+     extras.push({id:other.id,frame:otherFrame,visibility:'unknown',reason:'upper-tower-unverified',upperQuality:upperOther,at,observer:{...position}});continue;
+    }
     // Retain the main event's (p,t); do not search a different time for an extra.
     const extraSolution={observer:position,event:{at},geometry,anchor:other},extraLos=await visibility(extraPlan,extraSolution,options,eventSky);
     extras.push({id:other.id,frame:otherFrame,visibility:extraLos.status,evidence:extraLos,at,observer:{latitude:position.latitude,longitude:position.longitude,elevation:position.elevation,eyeM:position.eyeM}});
@@ -3094,7 +3549,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
     surfaceId:point.surfaceId},
     assumedObserver:{...position},event:{...solution.event,sunAltitude:sun.apparentAltitude},quality:{visibility:los.status,extraTargets:visibilityQuality,buildingHeights,targetAngleDeg:solution.geometry.angle,frame:frame.status,photographyClass:photo,
     geometry:solution.event.targetGeometryKind||'anchor',datum:'source-epoch-unverified',...(los.surveyed?{surveyed:true}:{}),hiddenBelow,
-    trees:los.surveyed?'surveyed':trees?(treesRead?'checked':'unread'):'not-modeled',composition},rank:[Math.round(solution.geometry.angle*10)/10,solution.event.gapAngleDeg??0],
+    trees:los.surveyed?'surveyed':trees?(treesRead?'checked':'unread'):'not-modeled',composition,...(upper.status==='model-clear'?{upperTower:upper}:{})},rank:[Math.round(solution.geometry.angle*10)/10,solution.event.gapAngleDeg??0],
     frame,extraTargets:extras,visibility:los,sourceEvidence:position.sourceEvidence||point.sourceEvidence,modelEvidence:{kind:combinedClear?'terrain-and-building-model-los':'geometry-with-partial-los',scope:'target-and-celestial-rays',actualVisibilityGuaranteed:false,treesModeled:false,
     terrainNumericComplete:!!los.rays?.every(r=>r.intentionalTarget||r.terrain?.status==='model-clear'),buildingRangeComplete:!!los.rays?.every(r=>r.intentionalTarget||r.buildings?.complete&&r.buildings?.evaluated),
     targetSelfGeometryComplete:los.shapeKnown&&los.target?.buildings?.evaluated&&!los.target?.buildings?.unresolvedTargetContacts,extraTargetsAssessed:extras.length,datumUncertainty:true}});
@@ -3117,7 +3572,7 @@ const api=root.AstroNotesCandidateDiscovery||(typeof require==='function'?requir
 const Composition=root.AstroNotesCandidateComposition||(typeof require==='function'?require('./composition.js'):null);
 const allowedPoint=p=>p&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&Math.abs(p.latitude)<85&&Math.abs(p.longitude)<=180;
 function requestKey(p){return JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode,p.profile,p.strict,p.composition,!!p.compositionInvalid,p.timeWindow,p.timeSpec||{kind:'day',at:api.day(p.at)},p.atmosphere,p.lens?.mode==='unspecified'?{mode:'unspecified'}:p.lens,p.extraTargets,
-p.requireAllTargets,...(p.overlapMembers?[p.overlapMembers]:[])]);}
+p.requireAllTargets,p.includeRoads===true,...(p.overlapMembers?[p.overlapMembers]:[])]);}
 function regionsFor(seeds){
  const map=new Map(),size=.005;
  for(const seed of seeds||[]){
@@ -3139,77 +3594,126 @@ function regionsFor(seeds){
  }
  return [...map.values()].sort((a,b)=>a.priority-b.priority||a.id.localeCompare(b.id));
 }
-const placeKinds=new Set(['viewpoint','plaza','park','riverbank']);
-function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsPerBatch=40,inverseOptions={},yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
+const placeKindsFor=plan=>new Set(['viewpoint','plaza','park','riverbank',...(plan.includeRoads===true?['sidewalk','road']:[])]);
+function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsPerBatch=40,maxDeferredPoints=384,inverseOptions={},now=()=>Date.now(),yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
  const sessions=new Map();
- const fresh=(key,inverse,lastResult=null)=>({key,regions:regionsFor(inverse.seeds),inverse,lastResult,rows:[],queue:[],seen:new Set(),seenRows:new Set(),cursor:0,started:false,
+ const fresh=(key,inverse,lastResult=null)=>({key,regions:regionsFor(inverse?.seeds),inverse,lastResult,rows:[],queue:[],pointData:new Map(),pointDomains:new Map(),visitedDomains:new Set(),timeDeferred:new Set(),seen:new Set(),seenRows:new Set(),cursor:0,started:false,
  counts:{checked:0,unknown:0,blocked:0,noOverlap:0,unverified:0,heightUnknown:0,nearBuilding:0,obstacle:0,outsideFrame:0,mapRegions:0,mapPoints:0,
  deferred:0},coverage:[],busy:false});
  // Rechecking the same conditions replaces only working progress. The last
  // complete result remains available when a recheck fails or is cancelled.
  function restart(plan){const key=requestKey(plan),previous=sessions.get(key);if(previous?.busy&&previous.current?.()!==false)return false;if(previous)sessions.set(key,fresh(key,previous.inverse,previous.lastResult));return true;}
- async function search(plan,{onProgress=()=>{},onFirstResult,isCurrent=()=>true,signal,more=false,retryFailed=true}={}){
+ async function search(plan,{onProgress=()=>{},onFirstResult,onRows,isCurrent=()=>true,signal,more=false,retryFailed=true,deadline=Infinity,pointLimit=maxPointsPerBatch,
+  shouldPause=()=>false,providerOptions={},prioritizeKnown=false,diverse=false,deferTimedOut=()=>false,deprioritizePoints=()=>()=>false}={}){
   if(plan.compositionInvalid)throw Error('invalid-composition');
-  const key=requestKey(plan);let session=sessions.get(key);
-  const wanted=()=>!signal?.aborted&&isCurrent();
+  const key=requestKey(plan),placeKinds=placeKindsFor(plan);let session=sessions.get(key);
+  const kindAllowed=(row,fallback)=>{
+   const kind=row.placeKind??fallback;if(placeKinds.has(kind))return true;
+   if(plan.includeRoads!==true)return false;
+   const source=row.sourceEvidence,evidence=source?.categoryEvidence;
+   return kind==='unknown'&&source?.kind==='surveyed-viewpoint'&&!!evidence&&['research-kind','research-description','mapped-category','official-description','unclassified'].includes(evidence.basis)
+    &&typeof evidence.detail==='string'&&Array.isArray(evidence.sourceUrls)&&evidence.sourceUrls.every(url=>typeof url==='string');
+  };
+  const wanted=()=>!signal?.aborted&&now()<deadline&&isCurrent();
+  // Shared loaders may finish after this action. Stop waiting without granting
+  // their late response ownership of the queue or any displayed result.
+  const wait=promise=>{
+   if(!signal)return promise;
+   let abort;return Promise.race([promise,new Promise((_,reject)=>{abort=()=>reject(Error('candidate-cancelled'));if(signal.aborted)abort();else signal.addEventListener('abort',abort,{once:true});})])
+    .finally(()=>signal.removeEventListener('abort',abort));
+  };
+  try{
   if(!wanted())return {cancelled:true};
   // A cancelled A job may still await shared IO when the user returns A→B→A.
   // Retire only the obsolete owner; an active same-key job still owns its queue.
   if(session?.busy&&session.current?.()===false){
    // Detach mutable progress from the obsolete owner. Completed batches and
    // the pending point/cursor survive even if its IO never acknowledges abort.
-   session={...session,rows:session.rows.slice(),queue:session.queue.slice(),seen:new Set(session.seen),seenRows:new Set(session.seenRows),counts:{...session.counts},coverage:session.coverage.slice(),busy:false,current:null};sessions.set(key,session);
+   session={...session,rows:session.rows.slice(),queue:session.queue.slice(),pointData:new Map(session.pointData),pointDomains:new Map(session.pointDomains),visitedDomains:new Set(session.visitedDomains),
+    timeDeferred:new Set(session.timeDeferred),seen:new Set(session.seen),seenRows:new Set(session.seenRows),counts:{...session.counts},coverage:session.coverage.slice(),busy:false,current:null};sessions.set(key,session);
   }
   if(session?.busy)return {cancelled:true,reason:'busy'};
-  if(!session){
-   await bodies.ensure(plan.body);if(!wanted())return {cancelled:true};
+  if(!session?.inverse){
+   await wait(bodies.ensure(plan.body));if(!wanted())return {cancelled:true};
    onProgress({stage:'inverse',checked:0});
-   const inverse=await (root.AstroNotesTrialOverlap?.inverse?.(plan,p=>Composition.inverseSeeds(p,{bodies,isCurrent:wanted,yieldTask,...inverseOptions}))??Composition.inverseSeeds(plan,{bodies,isCurrent:wanted,yieldTask,...inverseOptions}));
+   const inverse=await wait(root.AstroNotesTrialOverlap?.inverse?.(plan,p=>Composition.inverseSeeds(p,{bodies,isCurrent:wanted,yieldTask,...inverseOptions}))??Composition.inverseSeeds(plan,{bodies,isCurrent:wanted,yieldTask,...inverseOptions}));
    if(!wanted())return {cancelled:true};
    session=fresh(key,inverse);
    sessions.set(key,session);while(sessions.size>4)sessions.delete(sessions.keys().next().value);
   }
   if(!more&&session.started)return {...result(session),cached:true};
-  session.busy=true;session.current=wanted;
+  session.busy=true;session.current=wanted;let pendingPoint=null;
   try{
-   // The target's visibility map (visibility-map.js) drops the regions and places it shows seeing none of the target's
-   // named parts before any place is loaded or checked; what it keeps is still checked exactly. Once per session.
-   if(prefilter&&!session.mapChecked&&!session.started){
-    try{const f=await prefilter.regions(plan,session.regions,{isCurrent:wanted});if(!wanted())return {cancelled:true};session.mapChecked=true;
-     if(f){session.counts.mapRegions=session.regions.length-f.regions.length;session.regions=f.regions;session.mapContext=f.context||null;}}
-    catch(e){if(e?.message==='candidate-cancelled')return {cancelled:true};session.mapChecked=true;globalThis.AstroNotesErrors?.note('candidates.visibility-map',e);}}
-   if(!session.queue.length&&(session.cursor!==null||!session.started)){
+   const enqueue=(points,data)=>{for(const p of points){if(!allowedPoint(p)||!kindAllowed(p))continue;
+    const id=[p.surfaceId||p.sourceId,p.latitude.toFixed(7),p.longitude.toFixed(7),p.surfaceHeightM??p.groundM].join(':');if(session.seen.has(id))continue;
+    session.seen.add(id);session.queue.push(p);session.pointData.set(p,data);if(diverse)session.pointDomains.set(p,Composition.surfaceDomainKey(p));}};
+   const visited=p=>{const domain=session.pointDomains.get(p);return domain!=null&&session.visitedDomains.has(domain);};
+   const deferred=p=>session.timeDeferred.has(p);
+   // Known fixed viewpoints need no OSM page or hundreds of ground samples.
+   // They still pass the same exact geometry and visibility evaluation.
+   if(prioritizeKnown&&!session.surveyedChecked&&typeof provider.surveyed==='function'){
+    const known=await wait(provider.surveyed(plan));if(!wanted())return {cancelled:true};
+    enqueue(known,{features:[]});session.surveyedChecked=true;
+   }
+   // Read the current records once per scheduling decision, not once for each
+   // point inspected by find/every. Priority changes never remove queued work.
+   const lowerPriority=deprioritizePoints();
+   if((!session.queue.length||diverse&&session.queue.length<maxDeferredPoints&&session.queue.every(p=>deferred(p)||visited(p)||lowerPriority(p)))&&(session.cursor!==null||!session.started)){
+    // The optional map must not hold known fixed viewpoints. Compute it once,
+    // just before the first ordinary provider page, within the same deadline.
+    if(prefilter&&!session.mapChecked){
+     try{const f=await wait(prefilter.regions(plan,session.regions,{isCurrent:wanted,signal,deadline}));if(!wanted())return {cancelled:true};session.mapChecked=true;
+      if(f){session.counts.mapRegions=session.regions.length-f.regions.length;session.regions=f.regions;session.mapContext=f.context||null;}}
+     catch(e){if(e?.message==='candidate-cancelled')return {cancelled:true};session.mapChecked=true;globalThis.AstroNotesErrors?.note('candidates.visibility-map',e);}}
     onProgress({stage:'places',...session.counts});
-    const data=await provider.load(plan,{regions:session.regions,cursor:session.cursor??0,isCurrent:wanted,onProgress,signal,retryFailed,pointKinds:placeKinds});
+    const data=await wait(provider.load(plan,{...providerOptions,regions:session.regions,cursor:session.cursor??0,isCurrent:wanted,onProgress,signal,deadline,retryFailed,pointKinds:placeKinds}));
     if(!wanted()||data.cancelled)return {cancelled:true};
     const points=[...(data.points||[])];
     // Surveyed places of this target go in once, wherever the regions lie (place-provider.js surveyedViewpoints).
-    if(!session.started&&typeof provider.surveyed==='function'){const known=await provider.surveyed(plan);if(!wanted())return {cancelled:true};points.unshift(...known);}
+    if(!session.started&&!session.surveyedChecked&&typeof provider.surveyed==='function'){const known=await wait(provider.surveyed(plan));if(!wanted())return {cancelled:true};points.unshift(...known);session.surveyedChecked=true;}
     // Commit a provider page only after all awaited preparation is current.
     if(!wanted())return {cancelled:true};
     session.coverage.push(data.coverage||{});session.cursor=data.coverage?.nextCursor??null;session.providerPartial=!!data.partial;
     session.retryAt=data.coverage?.retryAfterMs>0?Date.now()+data.coverage.retryAfterMs:0;
-    // New places are squares, viewpoints and observation decks, parks and riverbanks; plain walkways are not offered.
-    for(const p of points){if(!allowedPoint(p)||!placeKinds.has(p.placeKind))continue;const id=[p.surfaceId||p.sourceId,p.latitude.toFixed(7),p.longitude.toFixed(7),p.surfaceHeightM??p.groundM].join(':');if(session.seen.has(id))continue;session.seen.add(id);session.queue.push(p);}
-    const order=['viewpoint','riverbank','plaza','park'];session.queue.sort((a,b)=>order.indexOf(a.placeKind)-order.indexOf(b.placeKind));
+    // Public places are the default; independent roads need an explicit opt-in.
+    enqueue(points,data);
+    const order=['viewpoint','plaza','park','riverbank','sidewalk'];session.queue.sort((a,b)=>order.indexOf(a.placeKind)-order.indexOf(b.placeKind));
     session.data=data;
    }
    session.started=true;let count=0;
    let publishFirst=onFirstResult&&!session.rows.length;
-   while(session.queue.length&&count<maxPointsPerBatch){
+   while(session.queue.length&&count<Math.min(maxPointsPerBatch,pointLimit)){
     if(!wanted())return {cancelled:true};
-    const point=session.queue[0];
-    if(session.mapContext&&!point.surveyedTargets?.includes(plan.target?.id)&&prefilter.point(plan,point,session.mapContext)===false){session.queue.shift();session.counts.checked++;session.counts.blocked++;session.counts.mapPoints++;continue;}
+    if(shouldPause())break;
+    // Try one seed of each proven surface domain before revisiting the same
+    // walkable surface. Keep every other seed and its own page's geometry.
+    if(diverse){
+     const lower=deprioritizePoints();
+     let index=session.queue.findIndex(p=>!lower(p)&&!deferred(p)&&!visited(p));
+     if(index<0&&session.cursor!==null&&session.queue.length<maxDeferredPoints)break;
+     if(index<0)index=session.queue.findIndex(p=>!lower(p)&&!deferred(p));
+     if(index<0)index=session.queue.findIndex(p=>!lower(p));
+     if(index<0)index=session.queue.findIndex(p=>!deferred(p));
+     if(index>0)session.queue.unshift(...session.queue.splice(index,1));
+    }
+    const point=session.queue[0],data=session.pointData.get(point)||session.data;
+    const consume=()=>{session.queue.shift();session.pointData.delete(point);session.timeDeferred.delete(point);pendingPoint=null;
+     const domain=session.pointDomains.get(point);if(domain!=null)session.visitedDomains.add(domain);session.pointDomains.delete(point);};
+    if(session.mapContext&&!point.surveyedTargets?.includes(plan.target?.id)&&prefilter.point(plan,point,session.mapContext)===false){consume();session.counts.checked++;session.counts.blocked++;session.counts.mapPoints++;continue;}
     onProgress({stage:'evaluate',...session.counts,pending:session.queue.length});
-    const tested=await (root.AstroNotesTrialOverlap?.evaluate?.(plan,p=>evaluate({...p,requestKey:key},point,session.data,{isCurrent:wanted,signal}))??evaluate({...plan,requestKey:key},point,session.data,{isCurrent:wanted,signal}));
+    pendingPoint=point;
+    const tested=await wait(root.AstroNotesTrialOverlap?.evaluate?.(plan,p=>evaluate({...p,requestKey:key},point,data,{isCurrent:wanted,signal,deadline}))??evaluate({...plan,requestKey:key},point,data,{isCurrent:wanted,signal,deadline}));
     if(!wanted())return {cancelled:true};
-    session.queue.shift();count++;session.counts.checked++;
+    consume();count++;session.counts.checked++;
     if(tested.partial)session.counts.deferred++;
     if(tested.status==='model-blocked')session.counts.blocked++;else if(tested.status==='no-overlap')session.counts.noOverlap++;
     else if(tested.status==='unverified'){session.counts.unverified++;if(tested.heightUnknown)session.counts.heightUnknown++;if(tested.nearBuilding)session.counts.nearBuilding++;if(tested.obstacle)session.counts.obstacle++;}
     else if(tested.status==='outside-frame')session.counts.outsideFrame++;else if(!tested.recommend)session.counts.unknown++;
+    const beforeRows=session.rows.length;
     for(const row of [tested,...tested.additionalCandidates||[]]){
      if(!row.recommend||!allowedPoint(row.place)||!Number.isFinite(row.event?.at))continue;
+     // Solving may move a park seed onto a road. Check the solved kind too.
+     if(!kindAllowed(row,point.placeKind))continue;
      const range=Composition.timeRange(plan);if(!range||row.event.at<range.start||row.event.at>range.end)continue;
      const id=row.id||[row.surfaceId,row.place.latitude,row.place.longitude,row.event.at].join(',');
      if(!session.seenRows.has(id)){session.seenRows.add(id);session.rows.push({...row,id,requestKey:key});}
@@ -3221,10 +3725,64 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
      session.lastResult=result(session);
      onFirstResult(session.lastResult);
     }
+    if(onRows&&session.rows.length>beforeRows){session.lastResult=result(session);onRows(session.lastResult);}
     await yieldTask();
    }
    session.lastResult=result(session);return session.lastResult;
-  }finally{session.busy=false;}
+  }finally{
+   // A slow location must not starve every other location on each Continue.
+   // Retain its exact source data and retry it after untried work; cancellation
+   // by the user keeps the original pending position instead.
+   if(pendingPoint&&deferTimedOut()){
+    const index=session.queue.indexOf(pendingPoint);
+    if(index>=0){session.queue.push(...session.queue.splice(index,1));session.timeDeferred.add(pendingPoint);}
+   }
+   session.busy=false;
+  }
+  }catch(error){if(!wanted())return {cancelled:true};throw error;}
+ }
+ // One foreground action. Keep exhaustive searchAll for diagnostics; a user
+ // explicitly requests each next round. A deadline never discards the pending
+ // point or an uncommitted provider page, even if its IO ignores cancellation.
+ async function searchRecommended(plan,{budgetMs=12000,targetPlaces=8,maxEvaluations=160,countPlaces=rows=>rows.length,onPage=()=>{},onBatchStart=()=>{},...options}={}){
+  if(plan.compositionInvalid)throw Error('invalid-composition');
+  const active=sessions.get(requestKey(plan));if(active?.busy&&active.current?.()!==false)return {cancelled:true,reason:'busy'};
+  const key=requestKey(plan),started=now(),deadline=started+Math.max(1,budgetMs),own=new AbortController(),external=()=>!options.signal?.aborted&&(options.isCurrent?.()??true);
+  const cancel=()=>own.abort();options.signal?.addEventListener('abort',cancel,{once:true});
+  if(options.signal?.aborted)cancel();const timer=setTimeout(cancel,Math.max(1,budgetMs));
+  let page=sessions.get(key)?.lastResult,more=!!options.more,places=countPlaces(page?.rows||[]),reason=null;
+  const initialChecked=sessions.get(key)?.counts.checked||0,cursors=new Set();
+  const publish=p=>{page=p;places=countPlaces(p.rows);onPage(p);};
+  // Continue means more new choices, not an immediate stop at the old quota.
+  const goal=places+targetPlaces;
+  try{
+   while(external()&&!own.signal.aborted&&now()<deadline){
+    const checked=(sessions.get(key)?.counts.checked||0)-initialChecked;
+    if(checked>=maxEvaluations){reason='point-budget';break;}
+    onBatchStart();
+    const next=await search(plan,{...options,signal:own.signal,deadline,more,retryFailed:false,onRows:publish,prioritizeKnown:true,diverse:true,
+     deferTimedOut:()=>external()&&(own.signal.aborted||now()>=deadline),
+     pointLimit:Math.min(maxPointsPerBatch,maxEvaluations-checked),shouldPause:()=>places>=goal||(sessions.get(key)?.counts.checked||0)-initialChecked>=maxEvaluations,providerOptions:{maxTiles:2,maxPoints:48}});
+    if(!external())return {cancelled:true};
+    if(next.cancelled){if(next.reason==='busy')return next;break;}
+    page=next;places=countPlaces(page.rows);
+    if(!page.canContinue)return page;
+    if(places>=goal){reason='enough-places';break;}
+    onPage(page);
+    // Cooling sources resume on a later user action; never wait a minute here.
+    if(page.retryAt>now()){reason='source-wait';break;}
+    const cursor=JSON.stringify([page.coverage.nextCursor,page.counts.checked]);
+    if(cursors.has(cursor)){reason='source-stalled';break;}cursors.add(cursor);
+    more=true;await yieldTask();
+   }
+  }catch(error){if(external()&&!own.signal.aborted&&now()<deadline)throw error;}
+  finally{clearTimeout(timer);options.signal?.removeEventListener('abort',cancel);own.abort();}
+  if(!external())return {cancelled:true};
+  let session=sessions.get(key);if(!session){session=fresh(key,null);sessions.set(key,session);while(sessions.size>4)sessions.delete(sessions.keys().next().value);}
+  page=result(session);if(session.started&&!page.canContinue)return page;
+  const paused={...page,paused:true,pauseReason:reason||'time-budget',stalled:reason==='source-stalled',jobStatus:'paused',canContinue:true,elapsedMs:Math.max(0,now()-started)};
+  session.lastResult=paused;
+  return paused;
  }
  // Drain scheduled pages and point batches as one cancellable foreground search.
  // onPage(page): each finished page with every row found so far, so a long search can show its rows as it goes.
@@ -3252,8 +3810,8 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
   return {cancelled:true};
  }
  function result(s){return {rows:s.rows.slice(),counts:{...s.counts},retryAt:s.retryAt||0,requestKey:s.key,cached:false,limited:true,coverageStatus:'partial',jobStatus:'complete',canContinue:s.queue.length>0||s.cursor!==null,coverage:{regions:s.regions.length,loaded:s.coverage,
- pendingPoints:s.queue.length,nextCursor:s.cursor,approximateInverse:true},dataVersion:'generic-v1'};}
- return {search,searchAll,restart,cached:plan=>{const s=sessions.get(requestKey(plan));return s?.lastResult?{...s.lastResult,rows:s.lastResult.rows.slice(),cached:true}:null;},clear:()=>sessions.clear()};
+ pendingPoints:s.queue.length,timeDeferredPoints:s.timeDeferred.size,nextCursor:s.cursor,approximateInverse:true},dataVersion:'generic-v1'};}
+ return {search,searchAll,searchRecommended,restart,cached:plan=>{const s=sessions.get(requestKey(plan));return s?.lastResult?{...s.lastResult,rows:s.lastResult.rows.slice(),cached:true}:null;},clear:()=>sessions.clear()};
 }
 api.requestKey=requestKey;api.regionsFor=regionsFor;api.createGenericSearch=createGenericSearch;
 if(typeof module==='object'&&module.exports)module.exports={requestKey,regionsFor,createGenericSearch};
@@ -3664,12 +4222,30 @@ function areaText(area){
 // 2026-11-14 ユーザー「重複しないような何かを考えて」: 新しい撮影地点には自分の記録に無い場所だけを出す。記録の撮影地点から
 // RECORD_M以内で、立つ高さ（足元＋その上の高さ）の差がRECORD_RISE_M以内の行は、記録の撮影地点の側に出るので出さない。
 const RECORD_M=100,RECORD_RISE_M=10;
+// The foreground quota counts new places, not several times at one place.
+// Reuse the list's height, opposite-bank and area rules without changing any
+// real event or the entries that the list presents.
+function countNewPlaces(rows,places,facilities){
+ const entries=rows.filter(row=>!inRecords(row,places)).map((row,index)=>({row:{...row,event:{...row.event,at:0}},types:kinds(row,facilities),show:true,index}));
+ return mergeEntries(entries,'recommended').length;
+}
 function inRecords(row,places){
  const p=row?.place,o=row?.assumedObserver||{};if(!p||!Array.isArray(places)||!places.length)return false;
  const ground=p.groundManualM??p.elevation??o.elevation,up=p.standAglM??p.eyeHeightAGL??o.eyeM,stand=Number.isFinite(ground)&&Number.isFinite(up)?ground+up:null;
  return places.some(f=>{if(!(metres(f,p)<=RECORD_M))return false;const g=f.groundManualM??f.elevation,h=f.standAglM??f.eyeHeightAGL;
   if(stand===null||!Number.isFinite(g)||!Number.isFinite(h))return !Number.isFinite(up)||!Number.isFinite(h)||Math.abs(up-h)<=RECORD_RISE_M;
   return Math.abs(stand-(g+h))<=RECORD_RISE_M;});
+}
+// Only this provider's fixed surveyed wrapper has the same (position, height)
+// before and after solving. A surface seed may move and must never use this.
+function fixedSurveyedInRecords(point,targetId,places){
+ const shape=point?.surfaceGeometry,source=point?.sourceEvidence,id='surveyed/'+source?.sourceId;
+ if(source?.kind!=='surveyed-viewpoint'||point.quality!=='surveyed-viewpoint'||point.sourceId!==id||point.surfaceId!==id||point.standingSurfaceKnown!==true
+  ||!targetId||!Array.isArray(point.surveyedTargets)||!point.surveyedTargets.includes(targetId)||!shape||!Array.isArray(shape.lines)||!Array.isArray(shape.polygons)||shape.lines.length||shape.polygons.length
+  ||shape.position?.latitude!==point.latitude||shape.position?.longitude!==point.longitude||point.surfaceAglM!==0
+  ||point.surfaceElevationM!=null||point.standingElevationM!=null||point.surfaceHeightM!=null&&point.surfaceHeightM!==0||point.heightBasis==='constant-absolute-floor'
+  ||![point.latitude,point.longitude,point.groundM,point.eyeM].every(Number.isFinite)||point.eyeM<0)return false;
+ return inRecords({place:{latitude:point.latitude,longitude:point.longitude,elevation:point.groundM,groundManualM:point.groundM,standAglM:point.eyeM,eyeHeightAGL:point.eyeM}},places);
 }
 function metres(a,b){
  if(![a?.latitude,a?.longitude,b?.latitude,b?.longitude].every(Number.isFinite))return Infinity;
@@ -4143,9 +4719,9 @@ function reset(){
  control?.remove();control=null;list=null;scope='';filterScope='';refinementOpen=false;mapScroll=null;suspendedView=null;
 }
 const api={mount,configure,renderRecorded,previewFor,positionChoices,positionKey,positionPlace,candidateKey,registerRegistered:register,registerAdditional:register,unregister,apply,kinds,accepts,compare,inRecords,showMap,suspend,reset,
- visibleRows:()=>visibleEntries.filter(currentEntry).map(e=>e.row)};
+ countNewPlaces,fixedSurveyedInRecords,visibleRows:()=>visibleEntries.filter(currentEntry).map(e=>e.row)};
 globalThis.AstroNotesCandidatePicker=api;
-if(typeof module!=='undefined')module.exports={recordedEntries,recordedPlan,recordedRow,passageOf,uncertainty,candidateTimeText,positionChoices,membersOf,kinds,accepts,compare,candidateKey,mergeEntries,placePriority,areaOf,areaText,inRecords};
+if(typeof module!=='undefined')module.exports={recordedEntries,recordedPlan,recordedRow,passageOf,uncertainty,candidateTimeText,positionChoices,membersOf,kinds,accepts,compare,candidateKey,mergeEntries,placePriority,areaOf,areaText,inRecords,countNewPlaces,fixedSurveyedInRecords};
 })();
 
 // Trial adapter. Existing session owns selection; discovery owns search jobs.
@@ -4156,9 +4732,9 @@ const mainWorkspace=()=>globalThis.TrialExplore?.candidateWorkspace?.();
 const dateSelection=()=>{const s=SkyMapUI.selectionState();return Number.isFinite(s?.at)?s:SkyMapUI.workspaceHost()?.session;};
 const contextActive=()=>{const main=mainWorkspace();return main?main.active():document.getElementById('placeSheet')?.open&&typeof placeSheetFor!=='undefined'&&placeSheetFor==='skymap'&&!document.getElementById('recentCandidates')?.hidden;};
 let dateNavigation=null,dateCalendar=null,autoSearchTimer=null,dateRefreshPending=false,hasSearched=false,returnSearch=null,returnedSearchFrame=null;
-let timeChoice='day',windowStart='00:00',windowEnd='23:59';
+let timeChoice='day',windowStart='00:00',windowEnd='23:59',includeRoads=false;
 const dataTag=new URL(document.currentScript.src,location.href).searchParams.get('v')||'0';
-const dataHashes={"candidate-viewpoints.json":"f9496da00f09be194ea770c3c7e851afd84f388fe5fa388922635e53c86950c5","candidate-surveyed-viewpoints.json":"01f8c9352dafae2dca533e727b5952e8fcca0dec8c69cad67cbf3091c004cbaf","candidate-terrain.json":"5c78165203510383eab45feb0e2195a06c6f4d8ec5f3e682db941ca705279779","candidate-buildings.json":"e4ec51ed732be60108959a7854cdd5ae8aab46a94aaa026f0d5094101e1f4c8a","building-heights/index.json":"6c50fb9f8e0792f34d99cefb9b5aeb300a5a43f722bd0b0aa4ba8572c2676e19","building-shapes/index.json":"0298fc54cd928ed403b637b456b0871fe984d3978a02961a40e89e07c7d6c10c","osm-places/index.json":"101f0c969fcfdf205b775f6dad761b00b99264fd4c6905a751da38de859a4bdc","candidate-surfaces.json":"de16ae6e56aa05a1d4a7d6d0fa8974a4373183f35e8282f412f7fbd7c637751f","candidate-sidewalks.json":"efc42ec01902232f52ec36e84808dc3400892d91c5ddf663d91ef34bb123e48a","candidate-label-addresses.json":"3919fc5e919863ba593174cdd805f860d41882938667055ab456b9abe33d869b","candidate-label-facilities.json":"ca92359defa9b765fe86db8bf5053cd5921182a39af1975b9324274615efdf53","candidate-towns/index.json":"5ef17e0a21bd0dbad7d4b7244b157cafa0205a07d0e088d1f1876c06435df1b1","visibility/tokyotower.json":"c84ac9ff18a62aa3441c6a7a099f94de7873e7a4c49e86c39cec7dd52d65fdc6","visibility/skytree.json":"014ae6629d51233b56fb73f8dcafdfd7df45a632070e08c030defeae75cb7630","visibility/tocho-building.json":"9d953e2b62591e2b67fafd7f841cfc8d4643ab945309bb2eb89f495e88c40458","visibility/shibuya-sky.json":"fb4c4990b1fcd55dac45d92a96cffc0062c0fb5dbaaedc14b31c466f2e3b6bc5","visibility/azabudai-hills.json":"ac28e1b2ec05a20d5e98159e19961428e2e137e70a33e1ad644c1f2c2a907a64","visibility/kabukicho-tower.json":"f237c33491c5643248c5a8e5acd40671b604b5cc559fe1f05440d4df7903c298","visibility/tower-terror.json":"8c7c0e667c8ee8699cfe44db094b40668a8596f36edd9e9558554451f07c037f","visibility/cinderella.json":"d8df5afa0b15b14d1ccfb448c4a035c3821f9f0b63f34895d6ac112dc9902201","visibility/tinkerbell.json":"4f8936733b89e0816c1146e71b1dd20f57f79e99020a1202f31fd52e005b50ac"};
+const dataHashes={"candidate-viewpoints.json":"f9496da00f09be194ea770c3c7e851afd84f388fe5fa388922635e53c86950c5","candidate-surveyed-viewpoints.json":"04cdbec2b777e9e2725cca737e194efb8cfcab94544cedaa62f16ed9873187ff","candidate-terrain.json":"5c78165203510383eab45feb0e2195a06c6f4d8ec5f3e682db941ca705279779","candidate-buildings.json":"e4ec51ed732be60108959a7854cdd5ae8aab46a94aaa026f0d5094101e1f4c8a","building-heights/index.json":"77a390e9e8a76264d0aad3e53b60a8ed1f7efc4243abc39c1dd65e9d5994fb12","building-shapes/index.json":"0298fc54cd928ed403b637b456b0871fe984d3978a02961a40e89e07c7d6c10c","osm-places/index.json":"101f0c969fcfdf205b775f6dad761b00b99264fd4c6905a751da38de859a4bdc","candidate-surfaces.json":"de16ae6e56aa05a1d4a7d6d0fa8974a4373183f35e8282f412f7fbd7c637751f","candidate-sidewalks.json":"efc42ec01902232f52ec36e84808dc3400892d91c5ddf663d91ef34bb123e48a","candidate-label-addresses.json":"3919fc5e919863ba593174cdd805f860d41882938667055ab456b9abe33d869b","candidate-label-facilities.json":"ca92359defa9b765fe86db8bf5053cd5921182a39af1975b9324274615efdf53","candidate-towns/index.json":"5ef17e0a21bd0dbad7d4b7244b157cafa0205a07d0e088d1f1876c06435df1b1","visibility/tokyotower.json":"c84ac9ff18a62aa3441c6a7a099f94de7873e7a4c49e86c39cec7dd52d65fdc6","visibility/skytree.json":"014ae6629d51233b56fb73f8dcafdfd7df45a632070e08c030defeae75cb7630","visibility/tocho-building.json":"9d953e2b62591e2b67fafd7f841cfc8d4643ab945309bb2eb89f495e88c40458","visibility/shibuya-sky.json":"fb4c4990b1fcd55dac45d92a96cffc0062c0fb5dbaaedc14b31c466f2e3b6bc5","visibility/azabudai-hills.json":"ac28e1b2ec05a20d5e98159e19961428e2e137e70a33e1ad644c1f2c2a907a64","visibility/kabukicho-tower.json":"f237c33491c5643248c5a8e5acd40671b604b5cc559fe1f05440d4df7903c298","visibility/tower-terror.json":"8c7c0e667c8ee8699cfe44db094b40668a8596f36edd9e9558554451f07c037f","visibility/cinderella.json":"d8df5afa0b15b14d1ccfb448c4a035c3821f9f0b63f34895d6ac112dc9902201","visibility/tinkerbell.json":"4f8936733b89e0816c1146e71b1dd20f57f79e99020a1202f31fd52e005b50ac"};
 // The trial keeps no copy of this data: its page points at the production folder (build-preview.py).
 const dataBase=document.querySelector('meta[name="astronotes-data-base"]')?.content||'data/';
 async function readData(name,{signal,expectedHash=dataHashes[name],priority}={}){
@@ -4218,7 +4794,7 @@ async function fillTownAddresses(rows,isCurrent){
  }
  return changed;
 }
-const filterKey=p=>JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode]);
+const filterKey=p=>JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode,p.includeRoads===true]);
 // Shared, bounded tile cache for recorded rows. Road edges classify a location;
 // they never make it a new candidate or change its visibility evidence.
 const recordedPlaceContext=AstroNotesCandidateLabels.createRoadContext({fetchImpl:fetch.bind(globalThis),decodeAreas:(...args)=>AstroNotesTerrain.decodeWaterLayer(...args),
@@ -4265,10 +4841,10 @@ const visibilityMap=globalThis.AstroNotesVisibilityMap?.create({ground:mapGround
  builtIn:target=>builtInMaps.has(target.id)?loaded('visibility/'+target.id+'.json'):null})||null;
 const mapEligible=plan=>!!plan?.target&&!(plan.composition||plan.strict||plan.profile==='summit-contact'||plan.target.rim)&&(plan.target.parts||[]).some(p=>Number.isFinite(p.m));
 const prefilter=visibilityMap&&{
- async regions(plan,regions,{isCurrent}){
+ async regions(plan,regions,{isCurrent,deadline=Infinity}){
   if(!mapEligible(plan))return null;const t=plan.target,inv=(lat,lon)=>AstroNotesTerrain.inverse(t.latitude,t.longitude,lat,lon).azimuth;
   const bearings=regions.flatMap(r=>{const [w,s,e,n]=r.bbox;return [inv((s+n)/2,(w+e)/2),inv(s,w),inv(s,e),inv(n,w),inv(n,e)];});
-  const m=await visibilityMap.ensure(t,bearings,{isCurrent,deadline:Date.now()+MAP_BUDGET_MS});if(!m?.levels?.length||!m.sectors.size)return null;
+  const m=await visibilityMap.ensure(t,bearings,{isCurrent,deadline:Math.min(deadline,Date.now()+MAP_BUDGET_MS)});if(!m?.levels?.length||!m.sectors.size)return null;
   const need=AstroNotesVisibilityMap.needFor(m);
   return {regions:regions.filter(r=>!AstroNotesVisibilityMap.regionHidden(m,t,r.bbox,need)),context:{map:m,need}};
  },
@@ -4377,7 +4953,8 @@ function snapshot(){
  // だけ確認」): no lens drops a place then, so the lens stays out of the search. Choosing a place sets the focal length and the
  // frame for its view; leaving the lens in the key would drop the found places on the way back.
  const searchLens=s.partId==='__whole'&&!extraTargets.length?{mode:'unspecified'}:lens;
- const selected={...s,authGeneration:mainWorkspace()?.epoch(),owner:auth.loginId,expected:context(s),atmosphere:air(),lens:searchLens,extraTargets,timeSpec:timeSpec(s.at),profile:typeof aimIsMountain==='function'&&aimIsMountain(s.target)?'summit-contact':'building-near',...(globalThis.AstroNotesTrialComposition?.plan(s)||{}),...(globalThis.AstroNotesTrialOverlap?.searchPlan?.(s)||{})};
+ const selected={...s,authGeneration:mainWorkspace()?.epoch(),owner:auth.loginId,expected:context(s),atmosphere:air(),lens:searchLens,extraTargets,timeSpec:timeSpec(s.at),profile:typeof aimIsMountain==='function'&&aimIsMountain(s.target)?'summit-contact':'building-near',
+  ...(globalThis.AstroNotesTrialComposition?.plan(s)||{}),...(globalThis.AstroNotesTrialOverlap?.searchPlan?.(s)||{}),includeRoads};
  // A next-day event in an overnight window does not change the search day.
  const overnight=returnSearch&&s.candidateOpportunity?.id===returnSearch.rowId&&s.at===returnSearch.viewAt?
   {...selected,at:returnSearch.plan.at,timeSpec:returnSearch.plan.timeSpec}:null;
@@ -4541,9 +5118,11 @@ function mount(){
  if(main){
   const range=document.createElement('span');range.className='candidate-query-range';
   range.textContent=timeChoice==='instant'?'選択した時刻':timeChoice==='window'?windowStart&&windowEnd?windowStart+'〜'+windowEnd:'時間帯を指定':'この日全体';
+  if(includeRoads)range.textContent+='・道路含む';
   summary.append(range);
  }
- const description=document.createElement('p');description.className='tiny';description.textContent=(p?.overlapMembers?'全ての対象を合わせた輪郭に重なる地点を探します。':p?.extraTargets?.length?'重ねる対象で探します。ほかの対象は見え方で一緒に確認できます。 ':'')+'選択した天体と登録対象の位置・高さから撮影する地域を逆算し、展望台・公園・広場・河川敷を優先して探します。建物は近くを通る構図も含みます。見え方で確認できます。';
+ const description=document.createElement('p');description.className='tiny';description.textContent=(p?.overlapMembers?'全ての対象を合わせた輪郭に重なる地点を探します。':p?.extraTargets?.length?'重ねる対象で探します。ほかの対象は見え方で一緒に確認できます。 ':'')
+  +'選択した天体と登録対象の位置・高さから撮影する地域を逆算し、展望台・展望スペース・公園・高台・広場・河川敷を探します。'+(includeRoads?'道路などの地点も含めます。':'')+'建物は近くを通る構図も含みます。見え方で確認できます。';
  if(!main)evidence.append(description);
  const timeLabel=document.createElement('label');timeLabel.className='tiny';timeLabel.textContent='探索する日時 ';const mode=document.createElement('select');mode.id='candidateSearchMode';mode.setAttribute('aria-label','探索する日時');
  for(const [value,label]of [['day','この日全体'],['instant','選択した時刻'],['window','時間帯を指定']])mode.add(new Option(label,value));mode.value=timeChoice;timeLabel.append(mode);evidence.append(timeLabel);
@@ -4551,6 +5130,9 @@ function mount(){
  input.type='time';input.required=true;input.id=id;input.value=value;input.style.minHeight='44px';
  input.onchange=()=>{returnSearch=null;if(id.endsWith('Start'))windowStart=input.value;else windowEnd=input.value;mount();};l.append(input);times.append(l);}evidence.append(times);mode.onchange=()=>{returnSearch=null;
  timeChoice=mode.value;mount();};
+ const roads=document.createElement('label');roads.className='remember';const roadCheck=document.createElement('input');roadCheck.type='checkbox';roadCheck.id='candidateIncludeRoads';roadCheck.checked=includeRoads;
+ const roadLabel=document.createElement('span');roadLabel.textContent='道路などの地点も含める';roads.append(roadCheck,roadLabel);evidence.append(roads);
+ roadCheck.onchange=()=>{includeRoads=roadCheck.checked;returnSearch=null;mount();};
  const notes=document.createElement('p');notes.className='tiny';notes.textContent='地形・建物の収録範囲や高さの精度に限界があります。未確認の見通しを撮影可能と保証しません。樹木・現地の変化・営業時間等は現地条件も確認してください。取得できない情報がある場合は、結果に表示します。';
  const resultNotes=document.createElement('p');resultNotes.className='tiny';
  const credits=document.createElement('p');credits.className='tiny';
@@ -4577,7 +5159,7 @@ function mount(){
   evidence.append(credits);section.append(button,status,visibleCredits,resultList,evidence);
  }
  panel.append(section);syncWorkspaceSection(panel);
- if(editing&&['candidateSearchMode','candidateSearchStart','candidateSearchEnd'].includes(editing))section.querySelector('#'+editing)?.focus({preventScroll:true});
+ if(editing&&['candidateSearchMode','candidateSearchStart','candidateSearchEnd','candidateIncludeRoads'].includes(editing))section.querySelector('#'+editing)?.focus({preventScroll:true});
  const missingField=missingSearchTime();
  const valid=p&&AstroNotesBodies.definition(p.body)&&!p.compositionInvalid&&!missingField&&AstroNotesCandidateComposition.timeRange(p);
  button.disabled=!valid;
@@ -4649,15 +5231,17 @@ function mount(){
    if(partial){visibleCredits.hidden=!hasResults;main?.reveal();return;}
    const incomplete=!!result.stalled||interrupted||result.coverage.loaded?.some(c=>c.failedRegions?.length||c.missing?.includes('time-budget'));
    continuation=cancelled||interrupted||!!result.canContinue;failed=!cancelled&&incomplete;
-   renderAction();visibleCredits.hidden=!rows.length;
+   renderAction();visibleCredits.hidden=!rows.length&&!result.paused;
    const unknown=rows.some(r=>r.quality?.buildingHeights==='estimated'),unknownFrame=rows.some(r=>r.frame?.status==='unknown');
-   const summaryText=rows.length?`${rows.length}件の新たな撮影地点の候補があります。${unknown?'建物の高さを推定した候補を含みます。':''}${unknownFrame?'全体の画角を確認できない候補を含みます。':''}`
-    :incomplete?'確認できた範囲には候補がありません。':'今回確認した範囲では候補がありません。';
-   const next=incomplete?'取得できなかった範囲があります。':result.canContinue?'探索を再開できます。':'';
+   const placeCount=AstroNotesCandidatePicker.countNewPlaces(result.rows,recorded,labels.facilities);
+   const summaryText=rows.length?`${placeCount}か所の新たな撮影地点の候補があります。${unknown?'建物の高さを推定した候補を含みます。':''}${unknownFrame?'全体の画角を確認できない候補を含みます。':''}`
+    :result.paused?'まだ新たな撮影地点は見つかっていません。':incomplete?'確認できた範囲には候補がありません。':'今回確認した範囲では候補がありません。';
+   const next=incomplete?'取得できなかった範囲があります。':result.paused?'今回はここまで確認しました。続きを探せます。':result.canContinue?'探索を再開できます。':'';
    setStatus(cancelled?'探索をキャンセルしました。続きから探せます。':summaryText+next,!!main&&!!rows.length&&!cancelled&&!next);
    const c=result.counts,unverifiedWhy=[c.nearBuilding?`立つ点のすぐ脇に建物${c.nearBuilding}`:'',c.heightUnknown?`建物の高さが分からない${c.heightUnknown}`:'',c.obstacle?`木・橋・高架${c.obstacle}`:''].filter(Boolean).join('・');
    resultNotes.textContent=`見通しを地形と建物で確かめられた地点だけを候補にしています。${c.checked}地点を確認：遮られる${c.blocked}、`
     +`見通しを確かめられない${c.unverified||0}${unverifiedWhy?`（うち${unverifiedWhy}）`:''}、構図に合わない${c.outsideFrame||0}、立つ高さが分からない${c.unknown}。`
+    +(result.coverage.timeDeferredPoints?`時間内に確認できなかった${result.coverage.timeDeferredPoints}地点は、ほかの地点の後に再確認します。`:'')
     +(c.mapRegions||c.mapPoints?`見える場所の地図で、対象の名前のある部分が見えない区画${c.mapRegions||0}を探す前に外し、地点${c.mapPoints||0}を確かめる前に外しました（遮られるに含む）。`:'')
     +'建物の高さはPLATEAUを整備した都市はその高さ、ほかは国土地理院の建物の形と種類から見積もります。木はMeta・WRIの樹高地図（衛星写真からの推定、約2.4m刻み）の高さで判定し、読めないときはOpenStreetMapにある木だけを高さが分からないものとして扱います。橋・高架はOpenStreetMapにあるものだけ、高さが分からないものとして判定します。'
     +`探索地域 ${result.coverage.regions}区画。全地域・全時刻の網羅や実写成功は保証していません。`;
@@ -4691,7 +5275,9 @@ function mount(){
    // every 250 ms (a change of conditions also restarts the search through mount()).
    let checkedAt=-Infinity,stillCurrent=true,offeredRows=publishedRows;
    const searchCurrent=()=>{if(token!==run||!node.isConnected)return false;const now=performance.now();if(now-checkedAt>=250){checkedAt=now;stillCurrent=current(token,selected,node);}return stillCurrent;};
-   const result=await engine.searchAll(selected,{more:resuming,signal,isCurrent:searchCurrent,onPage:page=>{
+   const result=await engine.searchRecommended(selected,{more:resuming,signal,isCurrent:searchCurrent,
+   deprioritizePoints:()=>{const recorded=globalThis.MyPlacesUI?.savedPlaces?.()||[];return point=>AstroNotesCandidatePicker.fixedSurveyedInRecords?.(point,selected.target?.id,recorded)??false;},
+   countPlaces:rows=>AstroNotesCandidatePicker.countNewPlaces(rows,globalThis.MyPlacesUI?.savedPlaces?.()||[],availableLabels?.facilities),onPage:page=>{
     if(page.rows?.length>offeredRows&&searchCurrent()){offeredRows=page.rows.length;present(page,selected,node,token,{partial:true}).catch(()=>{});}
    },onBatchStart:()=>{live.resetBudget();
    footprintGround.resetBudget();treeGround.resetBudget();evaluationBudgetStarted=false;},
@@ -4976,4 +5562,4 @@ sync();
 })();
 
 
-// data-release f9cd25876ae7170c3d0e9a2eb639f63f41731dd1c25650a52336746e1a3ba6fc
+// data-release 91c6ccb66fe3777bdd84e834f0ba896f60068bb799f0f4af347955be8590c27d

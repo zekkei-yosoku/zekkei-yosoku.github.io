@@ -19,7 +19,10 @@ function exact(actual,expected,path='result'){
 const baseline=load(source),current=load(patched);
 
 test('trial patch preserves the public API and every original calculation body',()=>{
- assert.deepEqual(Object.keys(current),Object.keys(baseline));
+ // G2 adds only the optional solver direction capability; every pre-existing
+ // export and all full Sun/Moon numerical contracts below stay unchanged.
+ assert.deepEqual(Object.keys(current).filter(name=>name!=='moonDirection'),Object.keys(baseline));
+ assert.equal(typeof current.moonDirection,'function');
  for(const name of ['sunPosition','moonGeocentric']){
   assert.equal(current[name].name,name);assert.equal(current[name].length,baseline[name].length);
   assert(Object.values(baseline[name](Date.UTC(2026,10,25))).every(value=>typeof value==='number'),'shallow-copy contract: ephemerides contain scalar numbers only');

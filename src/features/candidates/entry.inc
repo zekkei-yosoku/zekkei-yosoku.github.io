@@ -9,6 +9,7 @@
 @@include:src/features/candidates/scene-surface.js@@
 @@include:src/features/candidates/composition.js@@
 @@include:src/features/candidates/model-evaluator.js@@
+@@include:src/features/candidates/tower-quality.js@@
 @@include:src/features/candidates/search.js@@
 @@include:src/features/candidates/place-provider.js@@
 @@include:src/features/candidates/generic-evaluator.js@@

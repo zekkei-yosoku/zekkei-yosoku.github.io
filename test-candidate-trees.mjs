@@ -31,6 +31,35 @@ function world(paint,{fail=false}={}){
 const north=(altitude,maxM=1500)=>({azimuth:0,altitude,maxM,refractionK:7/6});
 const grove=put=>{for(let n=100;n<=130;n+=2)for(let e=-12;e<=12;e+=2)put(n,e,20);};
 
+test('upper tower patches include endpoint and near crowns, with complete width and unknown missing files',async()=>{
+ const patch={west:observer.longitude-.00015,east:observer.longitude+.00015,south:observer.latitude,north:observer.latitude+20/110540,lowM:10};
+ const near=world(put=>{for(let n=0;n<20;n+=2)put(n,5,25);}).trees;
+ assert.equal((await near.upperPatch(patch,{groundMaxM:5})).status,'blocked');
+ assert.equal((await world(()=>{}).trees.upperPatch(patch,{groundMaxM:5})).status,'clear');
+ assert.equal((await world(()=>{}).trees.upperPatch(patch,{groundMaxM:null})).status,'unknown');
+ const absent=T.create({fetchImpl:async()=>new Response('',{status:404})});
+ assert.equal((await absent.upperPatch(patch,{groundMaxM:5})).status,'unknown');
+ await assert.rejects(near.upperPatch(patch,{groundMaxM:5,isCurrent:()=>false}),/candidate-cancelled/);
+});
+
+test('upper patches cross quadkey boundaries without treating their shared edges as missing columns',async()=>{
+ const tx=900,ty=400,span=2*Math.PI*RM/1024,origin=Math.PI*RM,files=new Map();
+ for(const x of [tx,tx+1])for(const y of [ty,ty+1]){
+  const file=cog(()=>{}),ifd=file.readUInt32LE(4),n=file.readUInt16LE(ifd);
+  for(let i=0;i<n;i++){
+   const e=ifd+2+12*i,tag=file.readUInt16LE(e),at=file.readUInt32LE(e+8);
+   if(tag===33550){file.writeDoubleLE(span/1024,at);file.writeDoubleLE(span/1024,at+8);}
+   if(tag===33922){file.writeDoubleLE(x*span-origin,at+24);file.writeDoubleLE(origin-y*span,at+32);}
+  }
+  files.set(T.quadkey(x,y)+'.tif',file);
+ }
+ const reader=T.create({fetchImpl:async(url,{headers})=>{
+  const file=files.get(url.split('/').at(-1));if(!file)return new Response('',{status:404});const [,a,b]=headers.Range.match(/bytes=(\d+)-(\d+)/);return new Response(file.subarray(+a,Math.min(file.length,+b+1)),{status:206});
+ }});
+ const lon=((tx+1)*span-origin)/RM/RAD,lat=(2*Math.atan(Math.exp((origin-(ty+1)*span)/RM))-Math.PI/2)/RAD;
+ assert.equal((await reader.upperPatch({west:lon-.00001,east:lon+.00001,south:lat-.00001,north:lat+.00001,lowM:20},{groundMaxM:5})).status,'clear');
+});
+
 test('木の先端（地面＋樹高＋2m）より下を通る線は木に遮られ、上を通る線は通る',async()=>{
  const {trees}=world(grove);
  assert.equal(await trees.canopy(observer.latitude+115/110540,observer.longitude),20);

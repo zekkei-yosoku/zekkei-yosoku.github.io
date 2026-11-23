@@ -15,7 +15,7 @@
 <meta name="shape-tower" content="astronotes-tower-models.js?v=18096173220502742430">
 <meta name="shape-surface-integrity" content="sha256-KIoZP+4Nov6SYNEncGT6DRAzPZrVahtxa7scLtTCLcM=">
 <meta name="shape-surface" content="astronotes-scene-hulls.js?v=2921175070670693118">
-<meta name="app-version" content="9414598987477448229">
+<meta name="app-version" content="4155507816221962853">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-56jmg3BuQK9ZbzaCr6EG5R+se0UIaJmcbxe0qnaV8D0=' 'sha256-XnkxL+31Hx09oZeO9sriA/FwZyogJfEg5OgDo5tTME0=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-Hw8P3STO2KsLgadNXdAPVRqpy65HIEdXsyAG964P+3o=' 'sha256-o8qxPJ2Rfhldd8+nmFPf9eYEPcQKKO5R3Z8LbO3wDfA=' 'sha256-6v19k+3xEUvgWhnv8RFjCg6ceV74vHZTvmBpSDtlPvg=' 'sha256-9g72QbUO9OBEGMml0JT2y80Bv2ZDARdRMBY5xUI1M04=' 'sha256-OJlkVP9hufrghSR3MJ27wX9WVke/fnQnW0IaBWJlsM8=' 'sha256-PXfRim6e5oUuXkRxfWkVR4w8BPzm/BAMc94/yPcXf0M=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://data.source.coop https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787 https://api.openstreetmap.org; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=17512682572335991690">
@@ -29,7 +29,7 @@
 <link data-script-preload rel="preload" as="script" href="astronotes-shooting.js?v=6403422429445384573">
 <link data-script-preload rel="preload" as="script" href="astronotes-timelapse.js?v=10492539977496612272">
 <link data-script-preload rel="preload" as="script" href="astronotes-camera-ui.js?v=10698999686164442263">
-<link data-script-preload rel="preload" as="script" href="astronotes-astro.js?v=5299646122782534839">
+<link data-script-preload rel="preload" as="script" href="astronotes-astro.js?v=14057735567534093628">
 <link data-script-preload rel="preload" as="script" href="astronotes-exif.js?v=18155756275751526788">
 <link data-script-preload rel="preload" as="script" href="astronotes-photo-analysis.js?v=15053854291153919246">
 <link data-script-preload rel="preload" as="script" href="astronotes-capcloud.js?v=7269848785621699607">
@@ -45,7 +45,7 @@
 <link data-script-preload rel="preload" as="script" href="astronotes-plane.js?v=14343538792931089644">
 <link data-script-preload rel="preload" as="script" href="astronotes-refraction.js?v=17029132041672327408">
 <link data-script-preload rel="preload" as="script" href="astronotes-atmosphere.js?v=4622983263882403670">
-<link data-script-preload rel="preload" as="script" href="astronotes-bodies.js?v=9793295992819467372">
+<link data-script-preload rel="preload" as="script" href="astronotes-bodies.js?v=3340856051250094525">
 <link data-script-preload rel="preload" as="script" href="astronotes-sky-map.js?v=4840341865992252092">
 <link data-script-preload rel="preload" as="script" href="astronotes-assets.js?v=10240873554214314701">
 <link data-script-preload rel="preload" as="script" href="astronotes-home-time.js?v=11162963835129974910">
@@ -66,7 +66,7 @@
 <link data-script-preload rel="preload" as="script" href="astronotes-myplaces.js?v=14803717597273154964">
 <link data-script-preload rel="preload" as="script" href="astronotes-journey.js?v=16939141503050492443">
 <link data-script-preload rel="preload" as="script" href="astronotes-map-workspace.js?v=6067444248806182713">
-<link data-script-preload rel="preload" as="script" href="astronotes-candidate-search.js?v=1988634140203277410">
+<link data-script-preload rel="preload" as="script" href="astronotes-candidate-search.js?v=3205122445286942444">
 <style id="startupPaintStyle">
 #startupStatus{display:none}
 html[data-startup-pending] main > :not(.masthead):not(#startupStatus){visibility:hidden!important}
@@ -2680,7 +2680,7 @@ button.ui-icon-button::after { content: none; }
 <script src="astronotes-camera-ui.js?v=10698999686164442263"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="astronotes-astro.js?v=5299646122782534839"></script>
+<script src="astronotes-astro.js?v=14057735567534093628"></script>
 <script src="astronotes-exif.js?v=18155756275751526788"></script>
 <script src="astronotes-photo-analysis.js?v=15053854291153919246"></script>
 <script src="astronotes-capcloud.js?v=7269848785621699607"></script>
@@ -2697,7 +2697,7 @@ button.ui-icon-button::after { content: none; }
 <script src="astronotes-plane.js?v=14343538792931089644"></script>
 <script src="astronotes-refraction.js?v=17029132041672327408"></script>
 <script src="astronotes-atmosphere.js?v=4622983263882403670"></script>
-<script src="astronotes-bodies.js?v=9793295992819467372"></script>
+<script src="astronotes-bodies.js?v=3340856051250094525"></script>
 <script src="astronotes-sky-map.js?v=4840341865992252092"></script>
 
 
@@ -16600,6 +16600,6 @@ ctx.lineWidth=1;
 <script src="astronotes-myplaces.js?v=14803717597273154964"></script>
 <script src="astronotes-journey.js?v=16939141503050492443"></script>
 <script src="astronotes-map-workspace.js?v=6067444248806182713"></script>
-<script src="astronotes-candidate-search.js?v=1988634140203277410"></script>
+<script src="astronotes-candidate-search.js?v=3205122445286942444"></script>
 </body>
 </html>

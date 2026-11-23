@@ -6,8 +6,8 @@ function fixture(tools){
   discovery=api;let factory;Object.defineProperty(api,'createGenericSearch',{configurable:true,get:()=>factory,set:original=>{factory=options=>{
    AstroNotesCandidateComposition.inverseSeeds=async plan=>({seeds:[{latitude:35.69,longitude:139.73,at:plan.at,radiusM:500}],partial:true});
    AstroNotesCandidateComposition.windowEvents=plan=>[{at:AstroNotesCandidateDiscovery.day(plan.at)+12*3600000,kind:'rise'}];
-   // 2026-11-10 New places are parks, squares, viewpoints and riverbanks only (no plain sidewalks).
-   const points=[{id:'park',placeKind:'park',latitude:35.6903,longitude:139.7304},{id:'river',placeKind:'riverbank',latitude:35.6900,longitude:139.7300}].map(p=>({...p,surfaceId:p.id,standingSurfaceKnown:true}));
+   // Date and UI journeys use two standard places. Road opt-in has its own scope regression.
+   const points=[{id:'park',placeKind:'park',latitude:35.6903,longitude:139.7304},{id:'river',placeKind:'plaza',latitude:35.6900,longitude:139.7300}].map(p=>({...p,surfaceId:p.id,standingSurfaceKnown:true}));
    // The synthetic places stand anywhere; the real visibility map (2026-11-13) would drop them, so it is left out here.
    const engine=original({...options,prefilter:null,provider:{load:async(plan,options)=>{
     const day=new Date(plan.at+32400000).toISOString().slice(0,10),nextCursor=!dateFixture.autoPages||options.cursor===0||dateFixture.repeatCursor?dateFixture.nextCursor:null;dateFixture.lastPlan=structuredClone(plan);dateFixture.loads.push({day,at:plan.at,cursor:options.cursor,timeSpec:structuredClone(plan.timeSpec)});options.signal?.addEventListener('abort',()=>dateFixture.aborted.push(day),{once:true});
@@ -25,7 +25,7 @@ function fixture(tools){
     // Whole-object solver events use the target's reference part, not the body
     // position's nearest named part, as targetAltitude.
     const reference=dateFixture.positionDemo?AstroNotesAlign.geometryFrom(obs,plan.target,{partId:plan.partId,eyeM:4}):null;
-    return {id:day+'-'+point.id,requestKey:plan.requestKey,recommend:true,placeKind:point.placeKind,rank:point.id==='park'?1:0,quality:{photographyClass:'normal',visibility:'model-clear',...(targetAngleDeg===undefined?{}:{targetAngleDeg})},place:{name:day+(point.placeKind==='park'?' 公園':' 河川敷'),latitude:point.latitude,longitude:point.longitude,elevation:25,groundManualM:25,standAglM:4,decks:[]},assumedObserver:obs,event:{at:at+(dateFixture.positionDemo?['tip','gallery','deck'].indexOf(point.id)*600000:0),targetPosition:{x:.5,y:point.id==='park'?.8:.2},radius:.25,azimuth:g?.azimuth??180+(point.id==='park'?-.18:.18),targetAzimuth:reference?.azimuth??180,targetAltitude:reference?.angle??10,altitude:g?.angle??10+(point.id==='park'?.18:-.18),partId:plan.partId,side:'rise',relation:point.id==='park'?'near':'exact'}};
+    return {id:day+'-'+point.id,requestKey:plan.requestKey,recommend:true,placeKind:point.placeKind,rank:point.id==='park'?1:0,quality:{photographyClass:'normal',visibility:'model-clear',...(targetAngleDeg===undefined?{}:{targetAngleDeg})},place:{name:day+(point.placeKind==='park'?' 公園':' 河川沿いの広場'),latitude:point.latitude,longitude:point.longitude,elevation:25,groundManualM:25,standAglM:4,decks:[]},assumedObserver:obs,event:{at:at+(dateFixture.positionDemo?['tip','gallery','deck'].indexOf(point.id)*600000:0),targetPosition:{x:.5,y:point.id==='park'?.8:.2},radius:.25,azimuth:g?.azimuth??180+(point.id==='park'?-.18:.18),targetAzimuth:reference?.azimuth??180,targetAltitude:reference?.angle??10,altitude:g?.angle??10+(point.id==='park'?.18:-.18),partId:plan.partId,side:'rise',relation:point.id==='park'?'near':'exact'}};
    }});
    const cached=engine.cached.bind(engine);engine.cached=plan=>{const result=cached(plan);if(result&&dateFixture.startDuringRestore){dateFixture.startDuringRestore=false;queueMicrotask(()=>document.getElementById('candidateSearchAction')?.click());}return result;};
    return engine;

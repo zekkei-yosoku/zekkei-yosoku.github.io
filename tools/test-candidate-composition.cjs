@@ -7,15 +7,37 @@ const browsers=[];
 // Keep celestial, surface, opportunity and model calculations real. Only the
 // provider/terrain IO is fixed to the repository's surveyed Skytree fixture,
 // also exercised in test-candidate-opportunities.mjs. Live OSM/DEM availability
-// is independent of this composition and selected-state regression.
+// is independent of this composition and selected-state regression. The upper
+// corridor has synthetic empty canopy and elevated-structure coverage. This is
+// not evidence of the real place's upper visibility: the actual railway has no
+// confirmed height. Keep the real tower gate, terrain and PLATEAU cell checks.
 function installCompositionFixture(tools){
  sessionStorage.setItem('sorami.token',JSON.stringify({token:'synthetic-composition',loginId:'composition-test',tools}));
- window.compositionFixture={loads:0,plans:[],tested:[]};
+ window.compositionFixture={loads:0,plans:[],tested:[],upperCanopyPatches:[],upperBuildingPatches:[]};
  let terrain,discovery,terrainData;
  const recordedTerrain=()=>terrainData||(terrainData=fetch((document.querySelector('meta[name="astronotes-data-base"]')?.content||'data/')+'candidate-terrain.json').then(r=>r.json()).then(data=>terrain.decode(data)));
  Object.defineProperty(window,'AstroNotesCandidateTerrain',{configurable:true,get:()=>terrain,set:api=>{
   terrain=api;let factory;
   Object.defineProperty(api,'createLive',{configurable:true,get:()=>factory,set:()=>{factory=()=>({resetBudget(){},at:async p=>(await recordedTerrain()).at(p),sample:async p=>(await recordedTerrain()).sample(p),trace:async(p,ray)=>(await recordedTerrain()).trace(p,ray)});}});
+ }});
+ // Only the upper-width path has a synthetic absence of elevated structures.
+ // Its native PLATEAU checks and all existing single-ray obstacle IO stay real.
+ let heights;Object.defineProperty(window,'AstroNotesCandidateHeights',{configurable:true,get:()=>heights,set:api=>{
+  heights=api;const create=api.create;api.create=options=>{
+   const rays=create(options),upper=create({...options,obstacles:async()=>[]});
+   return {...rays,upperPatch:async(...args)=>{
+    const result=await upper.upperPatch(...args);compositionFixture.upperBuildingPatches.push(result);return result;
+   }};
+  };
+ }});
+ // CHM is external IO and deliberately blocked by this browser fixture. Its
+ // upper-width port describes a complete empty canopy model, not an unread
+ // map converted into visibility. Existing single-ray tree checks stay real.
+ let trees;Object.defineProperty(window,'AstroNotesTreeHeights',{configurable:true,get:()=>trees,set:api=>{
+  trees=api;const create=api.create;api.create=options=>({...create(options),upperPatch:async(patch,options)=>{
+   options.check();compositionFixture.upperCanopyPatches.push({fromM:patch.fromM,toM:patch.toM});
+   return {status:'clear',cells:1,source:'synthetic-empty-canopy'};
+  }});
  }});
  // GSI building footprints are network IO too: none along these recorded lines (PLATEAU heights stay real).
  let geo;Object.defineProperty(window,'AstroNotesTerrain',{configurable:true,get:()=>geo,set:api=>{geo=api;api.gsiBuildingsAlong=async()=>[];}});
@@ -27,14 +49,32 @@ function installCompositionFixture(tools){
     compositionFixture.loads++;compositionFixture.plans.push(structuredClone(plan));
     // 2026-11-11 新しい地点は広場・展望施設・公園・河川敷だけで、建物のセルの上の地点は確かめられない。構図の検証なので、
     // 種類を広場にし、収録した歩道の37m北の建物の無いセル（先端への線がPLATEAUで通り、11/29 2:21頃に月の下端が先端に来る）へ移す。
-    // 構図は立つ位置を面の上で解くので、そのセルを囲む8m四方の広場の形を持たせる。
+    // 構図は立つ位置を面の上で解くので、そのセルを囲む8m四方の人工広場を面と分類の両方へ渡す。
     const lat=35.7115447,lon=139.8083335,dy=4/110540,dx=4/90390;
-    const point={latitude:lat,longitude:lon,surfaceGeometry:{polygons:[[[[lon-dx,lat-dy],[lon+dx,lat-dy],[lon+dx,lat+dy],[lon-dx,lat+dy],[lon-dx,lat-dy]]]],lines:[]},placeKind:'plaza',name:'収録歩道の構図候補',standingSurfaceKnown:true,structureClassificationKnown:true,sourceEvidence:{kind:'PLATEAU-pedestrian-surface'},eyeM:1.5};
+    const surfaceGeometry={polygons:[[[[lon-dx,lat-dy],[lon+dx,lat-dy],[lon+dx,lat+dy],[lon-dx,lat+dy],[lon-dx,lat-dy]]]],lines:[]},sourceId='synthetic/composition-plaza';
+    const point={latitude:lat,longitude:lon,surfaceGeometry,sourceId,polygonId:sourceId,placeKind:'plaza',name:'収録歩道の構図候補',standingSurfaceKnown:true,structureClassificationKnown:true,sourceEvidence:{kind:'PLATEAU-pedestrian-surface'},eyeM:1.5};
     point.groundM=(await recordedTerrain()).at(point);
-    return {points:[point],features:[],coverage:{nextCursor:null},partial:false};
+    const area={...surfaceGeometry,id:sourceId,sourceId,kind:'plaza',name:point.name,walking:true,tags:{area:'yes',highway:'pedestrian',foot:'yes'}};
+    return {points:[point],features:[area],coverage:{nextCursor:null},partial:false};
    }}
   });}});
  }});
+}
+
+async function assertUpperCoverage(page,row){
+ const upper=row.quality?.upperTower;
+ assert.equal(upper?.status,'model-clear');assert.equal(upper.partId,'deck');assert.equal(upper.fromM,352);
+ assert.equal(upper.widthCovered,true);assert.equal(upper.actualVisibilityGuaranteed,false);
+ assert(upper.patches>0&&upper.terrainCells>0&&upper.buildingCells>0&&upper.treeCells>0);
+ const fixture=await page.evaluate(()=>({canopy:compositionFixture.upperCanopyPatches,buildings:compositionFixture.upperBuildingPatches}));
+ assert.equal(fixture.canopy.length,upper.patches);assert.equal(fixture.buildings.length,upper.patches);
+ assert.equal(fixture.canopy[0].fromM,0);
+ for(const [i,p] of fixture.canopy.entries()){
+  assert(p.toM>p.fromM);if(i)assert.equal(p.fromM,fixture.canopy[i-1].toM);
+ }
+ assert(fixture.buildings.every(p=>p.status==='clear'&&p.source==='plateau-grid'&&p.estimated===false));
+ return {upper,canopyPatches:fixture.canopy.length,buildingPatches:fixture.buildings.length,
+  syntheticInputs:['empty-upper-canopy','no-upper-elevated-structures'],realInputs:['recorded-DEM','native-PLATEAU']};
 }
 
 async function readyPreview(page){await page.waitForFunction(()=>{const h=document.getElementById('aimLook'),s=SkyMapUI.selectionState();return h&&!h.hidden&&!document.getElementById('exploreScenePanel').hasAttribute('data-loading')&&h._trialCompositionView&&Math.abs(h._lookAt-s.at)<1000;});}
@@ -77,7 +117,7 @@ async function checkInheritedLimbs(page){
  // Pinch intentionally changes the frame. Remove that filter through the UI
  // before the independent exact-composition candidate selection assertion.
  if(process.env.COMPOSITION_GESTURES==='1'){await p.locator('[data-camera-settings]').click();await p.getByLabel('画角枠の表示',{exact:true}).selectOption('hide');await p.locator('[data-camera-close]').click();await p.locator('#previewCameraPanel').waitFor({state:'hidden'});}
- await p.getByRole('button',{name:'確定して撮影地点を探す',exact:true}).click();await p.locator('#candidateSearchAction').waitFor({state:'visible'});await p.waitForFunction(()=>compositionFixture.loads>0);assert.equal(await p.locator('#exploreDiscovery-new').getAttribute('aria-selected'),'true');assert.equal(await p.evaluate(()=>JSON.stringify(SkyMapUI.selectionState())),actualBefore);await p.waitForFunction(()=>document.getElementById('candidateSearchAction')?.dataset.state==='idle',null,{timeout:120000});const searchState=await p.evaluate(()=>({status:document.getElementById('candidateSearchFeedback')?.innerText,rows:AstroNotesCandidatePicker.visibleRows().length,tested:compositionFixture.tested}));console.log(name,'search completed',JSON.stringify(searchState));await p.screenshot({path:out+'/'+name+'-search-state.png'});const row=p.locator('#candidateUnifiedResults button.list-item:visible').first(),count=await p.locator('#candidateUnifiedResults button.list-item:visible').count();assert(count>0);await p.screenshot({path:out+'/'+name+'-results.png'});const expectedCandidate=await p.evaluate(()=>structuredClone(AstroNotesCandidatePicker.visibleRows()[0]));const expectedCandidateName=expectedCandidate.place.name;await row.click();await p.waitForFunction(()=>!document.querySelector('#exploreScenePanel').hasAttribute('data-loading')&&!document.getElementById('aimLook').hidden&&Math.abs(document.getElementById('aimLook')._lookAt-SkyMapUI.selectionState().at)<1000);const residual=await p.evaluate(()=>{const s=SkyMapUI.selectionState(),c=AstroNotesTrialComposition.plan().composition,o={...s.observer,elevation:s.observer.groundManualM??0,eyeM:1.5},g=AstroNotesCandidateComposition.geometry(o,s.target,c,AstroNotesAlign),body=AstroNotesBodies.state(s.body,s.at,{...o,elevation:o.elevation+1.5});return Math.hypot(...AstroNotesAlign.viewProjector(g.azimuth,g.angle)(body.azimuth,AstroNotesCandidateComposition.limb(body,c.limb)));});assert(residual<=.002,'selected actual state reproduces requested composition');console.log(name,'selected composition residual',residual);const selected=await p.evaluate(()=>SkyMapUI.selectionState());assert.equal(selected.observer.name,expectedCandidateName);assert.equal(await p.evaluate(()=>JSON.stringify({favorites,records:MyPlacesUI.load(),schedule:schedule().list()})),before);await p.screenshot({path:out+'/'+name+'-selected.png'});
+ await p.getByRole('button',{name:'確定して撮影地点を探す',exact:true}).click();await p.locator('#candidateSearchAction').waitFor({state:'visible'});await p.waitForFunction(()=>compositionFixture.loads>0);assert.equal(await p.locator('#exploreDiscovery-new').getAttribute('aria-selected'),'true');assert.equal(await p.evaluate(()=>JSON.stringify(SkyMapUI.selectionState())),actualBefore);await p.waitForFunction(()=>document.getElementById('candidateSearchAction')?.dataset.state==='idle',null,{timeout:120000});const searchState=await p.evaluate(()=>({status:document.getElementById('candidateSearchFeedback')?.innerText,rows:AstroNotesCandidatePicker.visibleRows().length,tested:compositionFixture.tested}));console.log(name,'search completed',JSON.stringify(searchState));await p.screenshot({path:out+'/'+name+'-search-state.png'});const row=p.locator('#candidateUnifiedResults button.list-item:visible').first(),count=await p.locator('#candidateUnifiedResults button.list-item:visible').count();assert(count>0);await p.screenshot({path:out+'/'+name+'-results.png'});const expectedCandidate=await p.evaluate(()=>structuredClone(AstroNotesCandidatePicker.visibleRows()[0]));const upperFixture=await assertUpperCoverage(p,expectedCandidate);const expectedCandidateName=expectedCandidate.place.name;await row.click();await p.waitForFunction(()=>!document.querySelector('#exploreScenePanel').hasAttribute('data-loading')&&!document.getElementById('aimLook').hidden&&Math.abs(document.getElementById('aimLook')._lookAt-SkyMapUI.selectionState().at)<1000);const residual=await p.evaluate(()=>{const s=SkyMapUI.selectionState(),c=AstroNotesTrialComposition.plan().composition,o={...s.observer,elevation:s.observer.groundManualM??0,eyeM:1.5},g=AstroNotesCandidateComposition.geometry(o,s.target,c,AstroNotesAlign),body=AstroNotesBodies.state(s.body,s.at,{...o,elevation:o.elevation+1.5});return Math.hypot(...AstroNotesAlign.viewProjector(g.azimuth,g.angle)(body.azimuth,AstroNotesCandidateComposition.limb(body,c.limb)));});assert(residual<=.002,'selected actual state reproduces requested composition');console.log(name,'selected composition residual',residual);const selected=await p.evaluate(()=>SkyMapUI.selectionState());assert.equal(selected.observer.name,expectedCandidateName);assert.equal(await p.evaluate(()=>JSON.stringify({favorites,records:MyPlacesUI.load(),schedule:schedule().list()})),before);await p.screenshot({path:out+'/'+name+'-selected.png'});
  // R06: outside picks preserve the exact visible point and remain confirmable; cancel still restores the entry draft.
  const retained=await p.evaluate(()=>AstroNotesTrialComposition.plan());
  await p.getByRole('button',{name:'重ねる位置を選ぶ',exact:true}).click();await chooseEmptySky(p);
@@ -85,4 +125,4 @@ async function checkInheritedLimbs(page){
  await p.locator('#trialCompositionCancel').click();assert.deepEqual(await p.evaluate(()=>AstroNotesTrialComposition.plan()),retained);assert(await p.locator('#trialCompositionStatus').isHidden());
  await p.getByRole('button',{name:'重ねる位置を選ぶ',exact:true}).click();await chooseEmptySky(p);await canvas.press('Escape');assert.deepEqual(await p.evaluate(()=>AstroNotesTrialComposition.plan()),retained);
  const inheritedLimbs=await checkInheritedLimbs(p);
- assert.equal(writes,0);assert.deepEqual(errors,[]);results.push({engine:name,count,residual,selected,pickError,selectionMetrics,inheritedLimbs,version:await p.locator('meta[name=app-version]').getAttribute('content'),fixture:await p.evaluate(()=>({loads:compositionFixture.loads,plans:compositionFixture.plans.length,tested:compositionFixture.tested})),errors,writes,externalBlocked});await b.close();}fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));})().catch(async e=>{console.error(e);await Promise.allSettled(browsers.map(browser=>browser.close()));process.exitCode=1;});
+ assert.equal(writes,0);assert.deepEqual(errors,[]);results.push({engine:name,count,residual,selected,pickError,selectionMetrics,inheritedLimbs,upperFixture,version:await p.locator('meta[name=app-version]').getAttribute('content'),fixture:await p.evaluate(()=>({loads:compositionFixture.loads,plans:compositionFixture.plans.length,tested:compositionFixture.tested})),errors,writes,externalBlocked});await b.close();}fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));})().catch(async e=>{console.error(e);await Promise.allSettled(browsers.map(browser=>browser.close()));process.exitCode=1;});

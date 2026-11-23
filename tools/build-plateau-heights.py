@@ -10,7 +10,7 @@ LOD1だけの建物は外形全体を「地表+計測高さ」とし、LOD2/3の
 使う。位置の誤差の分として外形を1m広げてから5mマスへまとめる。対象として扱う建物（スカイツリーなど）は別に持ち、
 探す側でその対象を狙うときだけ外す。CityGMLはディスクへ保存せず、受け取りながら読む。
 """
-import sys,os,io,json,gzip,math,time,hashlib,urllib.request,concurrent.futures as cf
+import sys,os,io,json,gzip,math,time,hashlib,urllib.request,importlib.util,concurrent.futures as cf
 import xml.etree.ElementTree as ET
 import numpy as np
 from PIL import Image,ImageDraw
@@ -23,6 +23,13 @@ TARGETS={'skytree':(35.710063,139.8107),'tokyotower':(35.65859131567304,139.7454
  'shibuya-sky':(35.65838377760082,139.70226592899252),'azabudai-hills':(35.6608543555483,139.7406558121773),
  'kabukicho-tower':(35.69610448807164,139.70068955167807)}
 B='{http://www.opengis.net/citygml/building/2.0}';G='{http://www.opengis.net/gml}'
+_spec=importlib.util.spec_from_file_location('plateau_structure_models',os.path.join(os.path.dirname(__file__),'plateau-structure-models.py'))
+STRUCTURES=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(STRUCTURES)
+
+class SourceHashReader:
+ def __init__(self,stream):self.stream=stream;self.digest=hashlib.sha256()
+ def read(self,size=-1):
+  data=self.stream.read(size);self.digest.update(data);return data
 
 def fetch(url,tries=5):
  if url.startswith('zip:'):return zip_read(url,tries),False
@@ -168,9 +175,9 @@ def encode(grid):
 def build_mesh(job):
  code,urls=job;gy0,gx0=mesh_origin(code);s,w=gy0/22200,gx0/18000;n,e=(gy0+ROWS)/22200,(gx0+COLS)/18000
  local={k:v for k,v in TARGETS.items() if s<=v[0]<n and w<=v[1]<e}
- items=[];targets={k:[] for k in local};near={k:(1e9,None) for k in local};stats={'buildings':0,'faces':0,'measured':0,'lod-top+3':0,'no-height':0,'sources':len(urls)}
+ items=[];targets={k:[] for k in local};near={k:(1e9,None) for k in local};stats={'buildings':0,'faces':0,'measured':0,'lod-top+3':0,'no-height':0,'sources':len(urls),'sourceHashes':[]}
  for url in urls:
-  body,gz=fetch(url);stream=gzip.GzipFile(fileobj=io.BytesIO(body)) if gz else io.BytesIO(body);stats['wireBytes']=stats.get('wireBytes',0)+len(body)
+  body,gz=fetch(url);stream=SourceHashReader(gzip.GzipFile(fileobj=io.BytesIO(body)) if gz else io.BytesIO(body));stats['wireBytes']=stats.get('wireBytes',0)+len(body)
   for ev,el in ET.iterparse(stream,events=('end',)):
    if el.tag!=B+'Building':
     if el.tag.endswith('}cityObjectMember') or el.tag.endswith('}appearanceMember'):el.clear()
@@ -186,6 +193,7 @@ def build_mesh(job):
     if hit:targets[hit].append((bid,drawn))
     else:items+=drawn
    el.clear()
+  stats['sourceHashes'].append(stream.digest.hexdigest())
  for k in local:
   if not targets[k] and near[k][0]<30:
    bid,drawn=near[k][1];targets[k].append((bid,drawn))
@@ -247,11 +255,12 @@ def main():
   'layout':'<first 4 digits of the mesh code>/<mesh code>.bin; each part lists its meshes in <part>/index.json as code: [first 16 hex of the file sha256, highest top m]',
   'excludes':'bridges, elevated roads and railways, trees and other non-building structures are not in the grid',
   'cities':sorted(cities,key=lambda c:c['cityCode']),'parts':{},'partValue':'[first 16 hex of the part index sha256, meshes, highest top m]','targets':{}}
- t0=time.time();done=0;parts={};report={};failed=[]
+ t0=time.time();done=0;parts={};report={};failed=[];source_hashes={}
  with cf.ProcessPoolExecutor(max_workers=jobs) as ex:
   for code,body,meta,tg in ex.map(safe_mesh,todo,chunksize=4):
    done+=1
    if body is None:failed.append([code,meta['error']]);continue
+   source_hashes[code]=meta['sourceHashes']
    part=code[:4];os.makedirs(os.path.join(out,part),exist_ok=True)
    with open(os.path.join(out,part,code+'.bin'),'wb') as f:f.write(body)
    parts.setdefault(part,{})[code]=[meta['sha256'][:16],meta['maxTopM']]
@@ -263,6 +272,8 @@ def main():
   data=json.dumps({'meshes':dict(sorted(ms.items()))},separators=(',',':')).encode()
   with open(os.path.join(out,part,'index.json'),'wb') as f:f.write(data)
   index['parts'][part]=[hashlib.sha256(data).hexdigest()[:16],len(ms),max((v[1] or 0) for v in ms.values())]
+ sidecar=a[a.index('--structure-models')+1] if '--structure-models' in a else STRUCTURES.DEFAULT
+ index['structureModels']=STRUCTURES.compile_models(index,STRUCTURES.load_specs(sidecar),source_hashes)
  with open(os.path.join(out,'index.json'),'w') as f:json.dump(index,f,ensure_ascii=False,separators=(',',':'))
  # Build totals for audit; the app reads only the indexes and the mesh files.
  with open(os.path.join(out,'build-report.json'),'w') as f:json.dump({'parts':report,'failed':failed,'seconds':round(time.time()-t0)},f,ensure_ascii=False,separators=(',',':'))
@@ -271,8 +282,10 @@ def main():
 def merge_into(full,add):
  """Add the meshes of a --zip-cities build (add) to a full build (full): mesh files, part indexes, cities, report."""
  F=json.load(open(os.path.join(full,'index.json')));A=json.load(open(os.path.join(add,'index.json')))
+ refreshed=set()
  for part in A['parts']:
   ms=json.load(open(os.path.join(add,part,'index.json')))['meshes'];os.makedirs(os.path.join(full,part),exist_ok=True)
+  refreshed.update(ms)
   p=os.path.join(full,part,'index.json');cur=json.load(open(p))['meshes'] if os.path.exists(p) else {}
   for code,v in ms.items():
    with open(os.path.join(add,part,code+'.bin'),'rb') as src,open(os.path.join(full,part,code+'.bin'),'wb') as dst:dst.write(src.read())
@@ -283,6 +296,9 @@ def merge_into(full,add):
  F['parts']=dict(sorted(F['parts'].items()))
  have={c['cityCode'] for c in F['cities']};F['cities']=sorted(F['cities']+[c for c in A['cities'] if c['cityCode'] not in have],key=lambda c:c['cityCode'])
  for k,v in A['targets'].items():F['targets'].setdefault(k,{}).update(v)
+ # A rebuilt mesh without a validated correspondence must not inherit a stale
+ # one, even if raster quantisation happens to leave its old cells unchanged.
+ specs=STRUCTURES.load_specs();F['structureModels']=STRUCTURES.compile_merged_models(F,specs,refreshed,A.get('structureModels',{}))
  F['built']=time.strftime('%Y-%m-%d')
  with open(os.path.join(full,'index.json'),'w') as f:json.dump(F,f,ensure_ascii=False,separators=(',',':'))
  R=json.load(open(os.path.join(full,'build-report.json')));AR=json.load(open(os.path.join(add,'build-report.json')))
@@ -292,4 +308,13 @@ def merge_into(full,add):
 
 if __name__=='__main__':
  if sys.argv[1]=='--merge':merge_into(sys.argv[2],sys.argv[3])
+ elif sys.argv[1]=='--sync-structure-models':
+  # Metadata-only rebuild with a locally saved, hash-checked original GML.
+  # No catalog lookup, source download, or mesh rewrite is performed.
+  path=os.path.join(sys.argv[2],'index.json');data=json.load(open(path));specs=STRUCTURES.load_specs();hashes={}
+  for spec in specs:
+   digest=STRUCTURES.verify_source(spec,sys.argv[sys.argv.index('--source-gml')+1]);hashes.setdefault(spec['overlay']['mesh'],[]).append(digest)
+  data['structureModels']=STRUCTURES.compile_models(data,specs,hashes)
+  with open(path,'w') as f:json.dump(data,f,ensure_ascii=False,separators=(',',':'))
+  print('validated structure models',sorted(data['structureModels']))
  else:main()

@@ -60,7 +60,7 @@ async function search(p,visibleCount=3,checkFirst=false,releaseLabels=null){
   if(releaseLabels)releaseLabels();
   await p.evaluate(()=>{candidateFixture.holdSecond=false;candidateFixture.releaseSecond();candidateFixture.releaseSecond=null;});
  }
- await p.waitForFunction(n=>document.querySelector('#candidateSearchFeedback [role=status]')?.textContent.includes(n+'件の新たな撮影地点の候補があります'),visibleCount);
+ await p.waitForFunction(n=>document.querySelector('#candidateSearchFeedback [role=status]')?.textContent.includes(n+'か所の新たな撮影地点の候補があります'),visibleCount);
  await p.waitForFunction(n=>AstroNotesCandidatePicker.visibleRows().length===n&&document.getElementById('candidateSearchAction')?.dataset.state==='idle'&&document.getElementById('additionalCandidateResults')?.getAttribute('aria-busy')==='false',visibleCount);
 }
 async function prepare(p,body){
@@ -111,8 +111,8 @@ async function assertSelected(p,row,before,body,target='custom'){
      const beforeLoads=await p.evaluate(()=>candidateFixture.loads);await search(p,3,index===0,index===0?releaseLabels:null);assert.equal(await p.evaluate(()=>candidateFixture.loads),beforeLoads+1);
      if(index===0)await labelsFailed;
      if(index===1){await labelsRecovered;assert.equal(recoveredLabels.size,2,'next search retries both missing optional label files');}
-     const names=await p.locator('#candidateUnifiedResults .list-item').evaluateAll(ns=>ns.map(n=>n.firstElementChild.textContent));// The list opens in time order (all three at 12:00 here); the new places are only parks, plazas, viewpoints and riverbanks.
-     assert.deepEqual([...names].sort(),['任意対象の公園','同じ展望地点 下層','同じ展望地点 上層'].sort(),'only parks, plazas, viewpoints and riverbanks are new places');
+     const names=await p.locator('#candidateUnifiedResults .list-item').evaluateAll(ns=>ns.map(n=>n.firstElementChild.textContent));// The list opens in time order (all three at 12:00 here); standard scope excludes independent roads.
+     assert.deepEqual([...names].sort(),['任意対象の公園','同じ展望地点 下層','同じ展望地点 上層'].sort(),'standard scope excludes independent roads');
      assert.equal(await p.evaluate(()=>AstroNotesCandidatePicker.visibleRows().filter(r=>r.place.latitude===35.6906).length),2,'same point different height preserved');
      const metrics=await p.locator('#candidateListControls').evaluate(n=>({overflow:n.scrollWidth>n.clientWidth+1,bodyOverflow:document.documentElement.scrollWidth>innerWidth+1}));assert(!metrics.overflow&&!metrics.bodyOverflow,JSON.stringify(metrics));
      if(index===0)await p.screenshot({path:out+'/'+engine+'-'+width+'-'+theme+'-list.png'});
@@ -145,6 +145,8 @@ async function assertSelected(p,row,before,body,target='custom'){
     await context.route(townShard,async route=>{await heldTown;await route.continue().catch(()=>{});},{times:1});
     await p.evaluate(()=>{candidateFixture.riverRows=true;SkyMapUI.setTime(Date.parse('2026-11-06T12:00:00+09:00'));});
     await openCandidates(p);
+    // Riverbanks remain in standard scope, including their asynchronous town labels.
+    assert.equal(await p.locator('#candidateIncludeRoads').isChecked(),false,'riverbank candidates do not require road opt-in');
     const namedRiver='新中川沿いの歩道',town='東京都葛飾区奥戸九丁目',riverCoords='35.73522, 139.87078',unnamedCoords='35.59000, 140.02000';
     const rows=p.locator('#candidateUnifiedResults .list-item');
     const named=rows.filter({hasText:namedRiver}),unnamed=rows.filter({hasText:'河川沿いの歩道'});

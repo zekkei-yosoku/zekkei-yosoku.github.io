@@ -10,6 +10,14 @@ const wall={topNow:(lat,lon)=>{const d=dist(lat,lon),az=G.inverse(target.latitud
 const none={canopyNow:()=>0,canopy:async()=>0};
 const at=(az,m)=>G.destination(target.latitude,target.longitude,az,m/1000);
 
+test('new tower policy requires its lower named deck without changing saved ray data',async()=>{
+ const tower={...target,id:'skytree',parts:[{id:'tip',m:636},{id:'gallery',m:452},{id:'deck',m:352}]};
+ const m=await VM.create({ground:flat,capM:2000,yieldTask:async()=>{}}).ensure(tower,[]);
+ assert.equal(m.levels[VM.needFor(m)-1].m,352);
+ const unknown=await VM.create({ground:flat}).ensure({...tower,parts:[{id:'tip',m:636}]},[]);
+ assert.equal(VM.needFor(unknown),0,'missing mandatory deck cannot reject a region based on an invented threshold');
+});
+
 test('対象の名前のある部分と高さの5分の1ごとが、上から順に段になる',()=>{
  assert.deepEqual(VM.levelsFor(target).map(l=>[Math.round(l.m),l.name]),[[300,'先端'],[240,null],[200,'展望台'],[180,null],[120,null],[60,null]]);
  assert.deepEqual(VM.levelsFor({...target,parts:[]}),[]);

@@ -1,0 +1,64 @@
+{
+  "format": "AstroNotes explicit structure models v1",
+  "attribution": "3D都市モデル（Project PLATEAU）国土交通省 を加工して作成（都市と年度は cities）",
+  "license": "PDL1.0 https://www.digital.go.jp/resources/open_data/public_data_license_v1.0",
+  "structures": [
+    {
+      "id": "way/480651052",
+      "geometry": {
+        "kind": "road",
+        "halfWidthM": 12,
+        "lines": [
+          [
+            [
+              35.7101927,
+              139.8116456
+            ],
+            [
+              35.7101466,
+              139.81117
+            ],
+            [
+              35.7101311,
+              139.811009
+            ]
+          ]
+        ],
+        "rings": [],
+        "points": []
+      },
+      "source": {
+        "url": "https://assets.cms.plateau.reearth.io/assets/af/d16ede-837d-458a-af51-16771bbb96d8/13107_sumida-ku_pref_2025_citygml_1_op/udx/bldg/53394654_bldg_6697_op.gml",
+        "sha256": "ca0d97fb6178ca0ed5af5db1a80c21bef632d31f9c929470b66cb0a34458e142",
+        "bytes": 59765303,
+        "buildingId": "bldg_58ab8c46-8369-49c4-86cf-6912bbc4efe1",
+        "surfaces": [
+          "roof_TK32216_p6109_1",
+          "wall_TK32216_p6109_2",
+          "wall_TK32216_p6109_0"
+        ],
+        "lod": "2.1",
+        "surveyYear": 2021,
+        "creationDate": "2024-03-15",
+        "checkedAt": "2026-11-23"
+      },
+      "overlay": {
+        "targetKey": "skytree",
+        "mesh": "53394654",
+        "sha256": "b7becbb5851cbe8b2c8168cc541a620798bfd0ef047551ed8c11a029839dd6ac"
+      },
+      "surfacesXml": [
+        "<ns0:RoofSurface xmlns:ns0=\"http://www.opengis.net/citygml/building/2.0\" xmlns:ns1=\"http://www.opengis.net/gml\" ns1:id=\"roof_TK32216_p6109_1\">\n\t\t\t\t\t<ns0:lod2MultiSurface>\n\t\t\t\t\t\t<ns1:MultiSurface>\n\t\t\t\t\t\t\t<ns1:surfaceMember>\n\t\t\t\t\t\t\t\t<ns1:Polygon ns1:id=\"poly_TK32216_p6109_1\">\n\t\t\t\t\t\t\t\t\t<ns1:exterior>\n\t\t\t\t\t\t\t\t\t\t<ns1:LinearRing ns1:id=\"line_TK32216_p6109_1\">\n\t\t\t\t\t\t\t\t\t\t\t<ns1:posList>35.710164664455064 139.81165287507963 27.72094068 35.71016576066957 139.8116519982136 27.72094008 35.71020615199439 139.8116464039864 27.72093281 35.71014185074535 139.81095046635542 27.72091403 35.710097378123386 139.8109265111749 27.72093485 35.710158001891784 139.81164035343392 27.72093566 35.710164664455064 139.81165287507963 27.72094068</ns1:posList>\n\t\t\t\t\t\t\t\t\t\t</ns1:LinearRing>\n\t\t\t\t\t\t\t\t\t</ns1:exterior>\n\t\t\t\t\t\t\t\t</ns1:Polygon>\n\t\t\t\t\t\t\t</ns1:surfaceMember>\n\t\t\t\t\t\t</ns1:MultiSurface>\n\t\t\t\t\t</ns0:lod2MultiSurface>\n\t\t\t\t</ns0:RoofSurface>\n\t\t\t",
+        "<ns0:WallSurface xmlns:ns0=\"http://www.opengis.net/citygml/building/2.0\" xmlns:ns1=\"http://www.opengis.net/gml\" ns1:id=\"wall_TK32216_p6109_2\">\n\t\t\t\t\t<ns0:lod2MultiSurface>\n\t\t\t\t\t\t<ns1:MultiSurface>\n\t\t\t\t\t\t\t<ns1:surfaceMember>\n\t\t\t\t\t\t\t\t<ns1:Polygon ns1:id=\"poly_TK32216_p6109_2\">\n\t\t\t\t\t\t\t\t\t<ns1:exterior>\n\t\t\t\t\t\t\t\t\t\t<ns1:LinearRing ns1:id=\"line_TK32216_p6109_2\">\n\t\t\t\t\t\t\t\t\t\t\t<ns1:posList>35.71015800178892 139.8116403538778 20.11593566 35.710158001891784 139.81164035343392 27.72093566 35.710097378123386 139.8109265111749 27.72093485 35.710097378033026 139.81092651096552 23.80093485 35.71011965485892 139.81118881370983 23.80085838 35.7101196547869 139.8111888136643 20.11585838 35.71015800178892 139.8116403538778 20.11593566</ns1:posList>\n\t\t\t\t\t\t\t\t\t\t</ns1:LinearRing>\n\t\t\t\t\t\t\t\t\t</ns1:exterior>\n\t\t\t\t\t\t\t\t</ns1:Polygon>\n\t\t\t\t\t\t\t</ns1:surfaceMember>\n\t\t\t\t\t\t</ns1:MultiSurface>\n\t\t\t\t\t</ns0:lod2MultiSurface>\n\t\t\t\t</ns0:WallSurface>\n\t\t\t",
+        "<ns0:WallSurface xmlns:ns0=\"http://www.opengis.net/citygml/building/2.0\" xmlns:ns1=\"http://www.opengis.net/gml\" ns1:id=\"wall_TK32216_p6109_0\">\n\t\t\t\t\t<ns0:lod2MultiSurface>\n\t\t\t\t\t\t<ns1:MultiSurface>\n\t\t\t\t\t\t\t<ns1:surfaceMember>\n\t\t\t\t\t\t\t\t<ns1:Polygon ns1:id=\"poly_TK32216_p6109_0\">\n\t\t\t\t\t\t\t\t\t<ns1:exterior>\n\t\t\t\t\t\t\t\t\t\t<ns1:LinearRing ns1:id=\"line_TK32216_p6109_0\">\n\t\t\t\t\t\t\t\t\t\t\t<ns1:posList>35.71016044979591 139.8111517617377 20.1158548 35.710160449844324 139.81115176180455 23.8008548 35.7101418506824 139.8109504661607 23.80091403 35.71014185074535 139.81095046635542 27.72091403 35.71020615199439 139.8116464039864 27.72093281 35.71020615194922 139.81164640443743 20.11593281 35.71016044979591 139.8111517617377 20.1158548</ns1:posList>\n\t\t\t\t\t\t\t\t\t\t</ns1:LinearRing>\n\t\t\t\t\t\t\t\t\t</ns1:exterior>\n\t\t\t\t\t\t\t\t</ns1:Polygon>\n\t\t\t\t\t\t\t</ns1:surfaceMember>\n\t\t\t\t\t\t</ns1:MultiSurface>\n\t\t\t\t\t</ns0:lod2MultiSurface>\n\t\t\t\t</ns0:WallSurface>\n\t\t\t"
+      ],
+      "surfacesSha256": "cf3438f354b1bc5cdc1f532be1106d5b34be2341cdedcf7ac45483aad197bb21",
+      "correspondenceEvidence": {
+        "method": "Both complete OSM polyline segments lie within the explicit bridge roof. Its roof and both side walls are preserved; the old 12 m half-width stays conservative.",
+        "officialFloorPlan": "https://www.tokyo-solamachi.jp/pdf/floorguide/floorguide_ja.pdf",
+        "floorPlanLocation": "5F connecting bridge from Skytree exit to East Yard; checked 2026-11-23",
+        "modelLimit": "LOD2.1, surveyed in 2021. Unmodelled present-day details are not certified."
+      }
+    }
+  ]
+}

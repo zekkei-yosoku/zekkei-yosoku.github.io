@@ -53,7 +53,7 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
    for(const tag of [324,325])if(typeof pick[tag]==='number')pick[tag]=[pick[tag]];else if(!Array.isArray(pick[tag])){const p=pick[tag],more=await range(url,p.at,p.at+p.count*p.size-1),dv=new DataView(more),le=new DataView(buf).getUint16(0)===0x4949;
     pick[tag]=Array.from({length:p.count},(_,k)=>p.size===2?dv.getUint16(2*k,le):dv.getUint32(4*k,le));}
    const scale=full[33550][0]*full[256]/pick[256];
-   const info={url,x0:full[33922][3],y0:full[33922][4],scale,across:Math.ceil(pick[256]/512),offsets:pick[324],counts:pick[325]};infos.set(q,info);return info;
+   const info={url,x0:full[33922][3],y0:full[33922][4],scale,width:pick[256],height:pick[257]??pick[256],across:Math.ceil(pick[256]/512),offsets:pick[324],counts:pick[325]};infos.set(q,info);return info;
   })().catch(e=>{heads.delete(q);throw e;}));
   return heads.get(q);
  }
@@ -107,7 +107,39 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   }catch(e){if(e?.message==='candidate-cancelled')throw e;return {status:'unread',reason:'canopy-unavailable'};}
   return {status,hit,skyline:sky,source:'meta-wri-chm-v2'};
  }
- return {sight,canopy,canopyNow};
+ // Complete native-overview coverage for an upper-tower width patch. Unlike
+ // the legacy point ray, this includes near, far and endpoint crowns; absent
+ // files and no-data values stay unknown. The supplied ground is the maximum
+ // over all DEM cells in the same patch, not a single ground sample.
+ async function upperPatch(patch,{groundMaxM,groundMax,isCurrent=()=>true,check=()=>{if(!isCurrent())throw Error('candidate-cancelled');}}={}){
+  if(!Number.isFinite(groundMaxM))return {status:'unknown',reason:'tree-ground-unavailable'};
+  const nw=tileOf(patch.north,patch.west),se=tileOf(patch.south,patch.east),[west,south]=merc(patch.south,patch.west),[east,north]=merc(patch.north,patch.east);
+  const span=2*Math.PI*RM/2**ZOOM,origin=Math.PI*RM;let cells=0;
+  for(let ty=nw.y;ty<=se.y;ty++)for(let tx=nw.x;tx<=se.x;tx++){
+   check();const info=await head(quadkey(tx,ty));check();if(!info)return {status:'unknown',reason:'canopy-coverage-unavailable'};
+   const l=Math.max(west,tx*span-origin),r=Math.min(east,(tx+1)*span-origin),t=Math.min(north,origin-ty*span),b=Math.max(south,origin-(ty+1)*span);
+   if(l<info.x0-1e-6||r>info.x0+info.width*info.scale+1e-6||t>info.y0+1e-6||b<info.y0-info.height*info.scale-1e-6)return {status:'unknown',reason:'canopy-coverage-unavailable'};
+   // Each quadkey owns a half-open extent. The neighbour checks its own
+   // boundary cell; an exactly touching edge is not a missing TIFF column.
+   const x0=Math.max(0,Math.floor((l-info.x0)/info.scale)),x1=Math.min(info.width-1,Math.floor((r-info.x0)/info.scale));
+   const y0=Math.max(0,Math.floor((info.y0-t)/info.scale)),y1=Math.min(info.height-1,Math.floor((info.y0-b)/info.scale));
+   let lastKey=null,bytes;
+   for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
+    check();const bx=x>>9,by=y>>9,key=bx+','+by;if(key!==lastKey){bytes=await block(info,bx,by);check();lastKey=key;}
+    const crown=bytes[(y&511)*512+(x&511)];cells++;if(crown===255)return {status:'unknown',reason:'canopy-no-data'};
+    if(!crown)continue;
+    const lon=X=>X/RM/RAD,lat=Y=>(2*Math.atan(Math.exp(Y/RM))-Math.PI/2)/RAD;
+    const bounds={west:lon(info.x0+x*info.scale),east:lon(info.x0+(x+1)*info.scale),north:lat(info.y0-y*info.scale),south:lat(info.y0-(y+1)*info.scale)};
+    const low=patch.lowAt?.(bounds)??patch.lowM;if(low===Infinity)continue;
+    const ground=groundMax?groundMax(bounds):groundMaxM;if(!Number.isFinite(ground))return {status:'unknown',reason:'tree-ground-unavailable'};
+    const top=ground+crown+CROWN_ADD_M;
+    if(low<=top+MARGIN_M)return {status:low<top-MARGIN_M?'blocked':'unknown',reason:'upper-trees',cells,topM:top,rayM:low,source:'meta-wri-chm-v2'};
+   }
+  }
+  if(!cells)return {status:'unknown',reason:'canopy-coverage-unavailable'};
+  return {status:'clear',cells,source:'meta-wri-chm-v2'};
+ }
+ return {sight,canopy,canopyNow,upperPatch};
 }
 return {create,directories,quadkey,tileOf,NEAR_M,RANGE_M,END_M,MARGIN_M,CROWN_ADD_M};
 });

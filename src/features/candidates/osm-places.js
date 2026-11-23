@@ -30,6 +30,10 @@ function obstacle(row){
  if(['wood','tree_row','tree'].includes(k.natural))return {kind:'tree',capM:25,halfWidthM:k.natural==='tree'?6:k.natural==='tree_row'?5:0};
  if(k.man_made==='bridge')return {kind:'bridge',capM:30,halfWidthM:0};
  if(k.railway&&(k.bridge&&k.bridge!=='no'||Number(k.layer)>=1))return {kind:'railway',capM:15,halfWidthM:8};
+ // Layer orders overlapping features; it is not a height or proof of an outdoor road.
+ // Indoor paths and building elevators belong to the building model. Explicit bridges remain obstacles.
+ const indoor=['yes','area','room','corridor'].includes(k.indoor);
+ if(k.highway&&!(k.bridge&&k.bridge!=='no')&&(indoor||k.highway==='elevator'&&k.building==='yes'))return null;
  if(k.highway&&(k.bridge&&k.bridge!=='no'||Number(k.layer)>=1))return {kind:'road',capM:20,halfWidthM:12};
  return null;
 }

@@ -15,7 +15,7 @@ function fixture(grants){
  Object.defineProperty(window,'AstroNotesCandidateDiscovery',{configurable:true,get:()=>discovery,set:api=>{
   discovery=api;let factory;
   Object.defineProperty(api,'createGenericSearch',{configurable:true,get:()=>factory,set:original=>{factory=options=>{
-   const engine=original(options);return {...engine,cached:()=>null,restart:()=>true,searchAll:async(plan,options)=>{
+   const engine=original(options);return {...engine,cached:()=>null,restart:()=>true,searchRecommended:async(plan,options)=>{
     f.searches.push(structuredClone(plan));options.onProgress?.({stage:'evaluate',checked:3});
     return new Promise((resolve,reject)=>{const task={resolve,reject,done:false};f.pending.push(task);
      options.signal?.addEventListener('abort',()=>{if(!task.done){task.done=true;f.aborts++;resolve({...empty(),cancelled:true});}},{once:true});

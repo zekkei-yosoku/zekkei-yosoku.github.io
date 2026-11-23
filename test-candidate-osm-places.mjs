@@ -61,6 +61,39 @@ test('a part is read once and its hash is checked',async()=>{
  await assert.rejects(bad.elementsIn([lon,lat,lon+.001,lat+.001]),/osm-part-version/);
 });
 
+test('indoor paths and building elevators are not outdoor roads; explicit bridges and neighbouring features remain',async()=>{
+ const tags=[
+  {building:'yes',height:'250',highway:'elevator',layer:'14'},
+  {covered:'yes',highway:'footway',indoor:'yes',layer:'1'},
+  {highway:'footway',indoor:'yes',layer:'1',bridge:'yes'},
+  {building:'yes',highway:'elevator',layer:'14',bridge:'yes'},
+  {highway:'footway',indoor:'yes',layer:'1',bridge:'viaduct'},
+  {highway:'footway',layer:'1',bridge:'yes'},
+  {railway:'rail',layer:'1',bridge:'yes'},
+  {highway:'primary',layer:'1'},
+  {building:'yes',height:'200'},
+  {highway:'footway',indoor:'yes',layer:'1',bridge:'no'},
+  {man_made:'bridge',indoor:'yes'},
+  {highway:'elevator',layer:'1'}
+ ];
+ const rows=tags.map((k,i)=>({t:'w',i:100+i,k,g:line([[lat,lon],[lat+.001,lon+.001]])}));
+ const {places}=source({[code]:rows}),a={latitude:lat,longitude:lon},b={latitude:lat+.001,longitude:lon+.001};
+ const got=await places.obstaclesAlong(a,b);
+ assert.deepEqual(got.map(o=>o.id),[102,103,104,105,106,107,110,111].map(i=>'way/'+i));
+ assert.equal(got.find(o=>o.id==='way/106').kind,'railway');
+ assert.equal(got.find(o=>o.id==='way/110').kind,'bridge');
+ assert.equal(got.find(o=>o.id==='way/105').capM,20,'the existing estimate is unchanged; strict quality does not use it');
+ const elements=await places.elementsIn([lon-.001,lat-.001,lon+.002,lat+.002]);
+ assert.equal(elements.length,rows.length,'classification does not remove source elements or neighbouring buildings');
+ assert.deepEqual(elements.find(e=>e.id===108).tags,{building:'yes',height:'200'});
+ for(const indoor of ['yes','area','room','corridor']){
+  const k={highway:'pedestrian',layer:'1',indoor};
+  assert.equal(O.obstacle({k}),null,indoor);
+  assert.equal(O.obstacle({k:{...k,bridge:'yes'}}).kind,'road','an explicit bridge remains: '+indoor);
+ }
+ for(const indoor of ['no','unknown','unrecognised',undefined])assert.equal(O.obstacle({k:{highway:'footway',layer:'1',indoor}}).kind,'road','not proven indoor: '+indoor);
+});
+
 test('a long diagonal track reads the cells it passes through: a tree off the track inside its box is not an obstacle',async()=>{
  const near={t:'n',i:21,k:{natural:'tree'},a:E7(lat+.03),o:E7(lon+.03)},off={t:'n',i:22,k:{natural:'tree'},a:E7(lat+.05),o:E7(lon+.005)};
  const {places}=source({[code]:[near,off]});

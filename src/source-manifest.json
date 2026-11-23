@@ -363,6 +363,7 @@
         "src/features/candidates/scene-surface.js",
         "src/features/candidates/composition.js",
         "src/features/candidates/model-evaluator.js",
+        "src/features/candidates/tower-quality.js",
         "src/features/candidates/search.js",
         "src/features/candidates/place-provider.js",
         "src/features/candidates/generic-evaluator.js",
@@ -1142,6 +1143,13 @@
       },
       {
         "path": "src/features/candidates/model-evaluator.js",
+        "layer": "presentation",
+        "scope": "isolated-script",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/candidates/tower-quality.js",
         "layer": "presentation",
         "scope": "isolated-script",
         "provides": [],

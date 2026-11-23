@@ -92,6 +92,12 @@ function create({ground,buildings=null,trees=null,store=null,builtIn=null,capM=I
  async function ensure(target,bearings,{isCurrent=()=>true,deadline=Infinity}={}){
   const key=mapKey(target);let m=maps.get(key);
   if(!m){m=await shipped(target,key)||await restore(key)||{levels:levelsFor(target),maxM:null,steps:null,sectors:new Map()};maps.set(key,m);while(maps.size>8)maps.delete(maps.keys().next().value);}
+  // The persisted ray counts do not change; the new-place acceptance policy
+  // requires the lower named deck, using the target's existing height datum.
+  const named=(target.parts||[]).filter(p=>['main','deck'].includes(p.id)&&Number.isFinite(p.m)).sort((a,b)=>a.m-b.m)[0];
+  const partId=target.id==='skytree'?'deck':target.id==='tokyotower'?'main':named?.id;
+  m.requiredUpperM=partId?target.parts?.find(p=>p.id===partId)?.m:undefined;
+  m.requiredUpperPart=partId;
   if(!m.levels.length)return m;
   const want=new Set();for(const a of bearings)if(Number.isFinite(a)){const i=Math.floor(((a%360)+360)%360/SECTOR_DEG);for(const d of [0,-1,1])want.add((i+d+360)%360);}
   let added=0;for(const i of want){if(m.sectors.has(i))continue;if(Date.now()>deadline)break;const s=await sector(target,i,{isCurrent});if(!s)continue;m.sectors.set(i,s.rays);m.maxM=s.maxM;m.steps=s.steps;added++;}
@@ -112,7 +118,10 @@ function lookup(m,target,lat,lon){
 }
 // How many levels from the top a place must see to keep it: down to the second named part (the user's choice of
 // 2026-11-13, generic-evaluator.js partsHidden), or the top alone for a target named by its tip only.
-function needFor(m){const named=(m?.levels||[]).map((l,i)=>({...l,i})).filter(l=>l.name);return named.length>1?named[1].i+1:1;}
+function needFor(m){
+ if(m?.requiredUpperPart){const i=m.levels?.findIndex(l=>l.m===m.requiredUpperM);return i>=0?i+1:0;}
+ const named=(m?.levels||[]).map((l,i)=>({...l,i})).filter(l=>l.name);return named.length>1?named[1].i+1:1;
+}
 // A region (lon/lat box) the map shows seeing too little everywhere it was computed; unknown anywhere keeps it.
 function regionHidden(m,target,bbox,need){
  for(let a=0;a<6;a++)for(let b=0;b<6;b++){const r=lookup(m,target,bbox[1]+(bbox[3]-bbox[1])*(b+.5)/6,bbox[0]+(bbox[2]-bbox[0])*(a+.5)/6);if(!r.known||r.count>=need)return false;}

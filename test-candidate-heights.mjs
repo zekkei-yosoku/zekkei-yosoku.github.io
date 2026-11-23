@@ -15,7 +15,7 @@ function pack(grid){
 }
 const cell=(lat,lon)=>[Math.floor(lat*22200)-MY*ROWS,Math.floor(lon*18000)-MX*COLS];
 const observer={latitude:35.71,longitude:139.805,elevation:5,eyeM:1.5};
-function world({buildings=[],target=[],gsi=[],ownFootprint,ownFootprintVersion}={}){
+function world({buildings=[],target=[],gsi=[],ownFootprint,ownFootprintVersion,obstacles=async()=>[],structureModels}={}){
  const grid=new Uint16Array(ROWS*COLS),put=(list,into)=>{for(const {north,top,width=2,depth=3} of list){const [r,c]=cell(observer.latitude+north/110540,observer.longitude);for(let y=r;y<r+depth;y++)for(let x=c-width;x<=c+width;x++)into(y*COLS+x,top+20);}};
  put(buildings,(i,v)=>{grid[i]=Math.max(grid[i],v);});
  const own=[];put(target,(i,v)=>own.push([i,v]));
@@ -23,10 +23,140 @@ function world({buildings=[],target=[],gsi=[],ownFootprint,ownFootprintVersion}=
  // Layout v2: <first 4 digits>/index.json lists the part's meshes; the main index lists parts by the SHA-256 of that list.
  const part=Buffer.from(JSON.stringify({meshes:{[CODE]:[sha.slice(0,16),top]}})),partSha=createHash('sha256').update(part).digest('hex');
  const index={grid:{offsetM:20},parts:{[CODE.slice(0,4)]:[partSha.slice(0,16),1,top]},targets:own.length?{tower:{[CODE]:{cells:own,topM:Math.max(...target.map(t=>t.top))}}}:{}};
+ if(structureModels)index.structureModels=structureModels;
  const fetchImpl=async url=>url.includes(CODE.slice(0,4)+'/'+CODE+'.bin')?new Response(body):url.includes(CODE.slice(0,4)+'/index.json')?new Response(part):new Response('missing',{status:404});
- return H.create({fetchImpl,loadIndex:async()=>index,gsiAlong:async()=>gsi,groundAt:async()=>5,ownFootprint,ownFootprintVersion});
+ return H.create({fetchImpl,loadIndex:async()=>index,gsiAlong:async()=>gsi,groundAt:async()=>5,ownFootprint,ownFootprintVersion,obstacles});
 }
 const north=altitude=>({azimuth:0,altitude,maxM:1500,refractionK:7/6});
+
+test('upper tower patch covers interior cells and never estimates missing height coverage',async()=>{
+ const patch={west:observer.longitude-.0002,east:observer.longitude+.0002,south:observer.latitude+80/110540,north:observer.latitude+130/110540,lowM:20};
+ assert.equal((await world({buildings:[{north:100,top:30,width:0}]}).upperPatch(patch,'tower')).status,'blocked');
+ assert.equal((await world({buildings:[{north:100,top:10,width:0}]}).upperPatch(patch,'tower')).status,'clear');
+ const absent=H.create({loadIndex:async()=>({grid:{offsetM:20},parts:{},targets:{}}),gsiAlong:async()=>[{code:3101}]});
+ assert.equal((await absent.upperPatch({...patch,lowM:1000},'tower')).status,'unknown','22 m class percentile is not used');
+ await assert.rejects(world().upperPatch(patch,'tower',{isCurrent:()=>false}),/candidate-cancelled/);
+ const attached=[[[patch.south,patch.west],[patch.north,patch.west],[patch.north,patch.east],[patch.south,patch.east]]];
+ assert.equal((await world({buildings:[{north:100,top:30}],ownFootprint:()=>attached}).upperPatch(patch,'tower')).status,'blocked','padded arbitrary footprint does not erase neighbours');
+ assert.equal((await world({target:[{north:100,top:600}]}).upperPatch(patch,'tower')).status,'clear','separate target overlay does not obstruct itself');
+ const bridge={kind:'road',halfWidthM:5,lines:[[[patch.south,patch.west],[patch.north,patch.east]]],capM:20};
+ assert.equal((await world({obstacles:async()=>[bridge]}).upperPatch({...patch,lowM:1000},'tower')).reason,'upper-structure-height-unknown','an estimated 20 m cap cannot prove this wider corridor clear');
+});
+
+test('an indoor road exclusion leaves neighbouring building heights and missing coverage effective',async()=>{
+ const O=require('./src/features/candidates/osm-places.js');
+ const patch={west:observer.longitude-.0002,east:observer.longitude+.0002,south:observer.latitude+80/110540,north:observer.latitude+130/110540,lowM:20};
+ const rows=[{k:{building:'yes',highway:'elevator',layer:'14'}},{k:{highway:'footway',indoor:'yes',layer:'1'}}];
+ const obstacles=async()=>rows.map(O.obstacle).filter(Boolean);
+ assert.equal((await world({buildings:[{north:100,top:30}],obstacles}).upperPatch(patch,'tower')).status,'blocked');
+ const missing=H.create({loadIndex:async()=>({grid:{offsetM:20},parts:{},targets:{}}),obstacles});
+ assert.equal((await missing.upperPatch(patch,'tower')).status,'unknown','an indoor tag cannot replace missing building data');
+});
+
+test('an actual out-of-range railway contact does not stop the upper corridor at its broad rectangle',async()=>{
+ const Q=require('./src/features/candidates/tower-quality.js'),A=require('./astronotes-align.js');
+ const eye={latitude:35.71211,longitude:139.803558,elevation:.8,eyeM:1.5},target=A.targetById('skytree');
+ const shape=Q.corridor(eye,target,require('./astronotes-tower-models.js').skytree,7/6);
+ const patch=[...shape.patches()].find(p=>p.fromM===600);
+ // Actual intersecting segment of bundled OSM way/54680184; its 8 m half
+ // width touches the broad rectangle but lies before its 600–625 m range.
+ const railway={kind:'railway',id:'way/54680184',halfWidthM:8,lines:[[[35.7104871,139.8096546],[35.7103581,139.809182]]]};
+ const h=world({obstacles:async()=>[railway]});
+ assert.equal((await h.upperPatch({...patch,lowAt:undefined},'skytree')).reason,'upper-structure-height-unknown','the old rectangle-only test really intersects');
+ assert.equal((await h.upperPatch(patch,'skytree')).status,'clear');
+});
+
+test('upper structure exclusion requires exact positive infinity, keeps width and never replaces missing coverage',async()=>{
+ const middle=observer.longitude,patch={west:middle-.0002,east:middle+.0002,south:observer.latitude,north:observer.latitude+.0002,lowM:1000};
+ const p=[observer.latitude+.0001,middle+.00003],line={kind:'road',lines:[[p,[p[0]+.00005,p[1]]]],halfWidthM:0};
+ for(const value of [undefined,null,NaN,-Infinity,0,10000]){
+  assert.equal((await world({obstacles:async()=>[line]}).upperPatch({...patch,lowAt:()=>value},'tower')).reason,'upper-structure-height-unknown');
+ }
+ const outside=b=>b.west>middle?Infinity:1000,fan={...patch,lowAt:outside};
+ assert.equal((await world({obstacles:async()=>[line]}).upperPatch(fan,'tower')).status,'clear');
+ assert.equal((await world({obstacles:async()=>[{...line,halfWidthM:8}]}).upperPatch(fan,'tower')).reason,'upper-structure-height-unknown','full width reaches the fan');
+ for(const halfWidthM of [NaN,Infinity,-1])assert.equal((await world({obstacles:async()=>[{...line,halfWidthM}]}).upperPatch({...patch,lowAt:()=>{throw Error('invalid width must not request a certificate');}},'tower')).reason,'upper-structure-height-unknown');
+ const touching={kind:'road',points:[[p[0],middle]],halfWidthM:0};
+ assert.equal((await world({obstacles:async()=>[touching]}).upperPatch(fan,'tower')).reason,'upper-structure-height-unknown','an exact boundary contact is retained');
+ assert.equal((await world({obstacles:async()=>[{...touching,points:[p]}]}).upperPatch(fan,'tower')).status,'clear');
+ const missing=H.create({loadIndex:async()=>({grid:{offsetM:20},parts:{},targets:{}}),obstacles:async()=>[line]});
+ assert.equal((await missing.upperPatch(fan,'tower')).reason,'height-coverage-unavailable');
+ await assert.rejects(world({obstacles:async()=>[line]}).upperPatch(fan,'tower',{isCurrent:()=>false}),/candidate-cancelled/);
+});
+
+test('filled obstacle rings keep their edge and interior coverage when line fan pruning is available',async()=>{
+ const patch={west:139.8048,east:139.8052,south:35.71,north:35.7102,lowM:1000,lowAt:()=>Infinity};
+ const rings=[[[35.7099,139.8047],[35.7103,139.8047],[35.7103,139.8053],[35.7099,139.8053]],
+  [[35.7099,139.8047],[35.7099,139.8053],[35.7103,139.8053]]];
+ for(const ring of rings)assert.equal((await world({obstacles:async()=>[{kind:'bridge',rings:[ring]}]}).upperPatch(patch,'tower')).reason,'upper-structure-height-unknown','filled interiors/implicit closing edges are not erased by edge-only pruning');
+});
+
+test('upper structure contacts on fan edges, wrapped bearings and the observer remain unknown',async()=>{
+ const Q=require('./src/features/candidates/tower-quality.js'),rad=Math.PI/180,R=6371008.8;
+ const at=(p,az,d)=>{const a=p.latitude*rad,t=az*rad,s=d/R,b=Math.asin(Math.sin(a)*Math.cos(s)+Math.cos(a)*Math.sin(s)*Math.cos(t));
+  return {latitude:b/rad,longitude:p.longitude+Math.atan2(Math.sin(t)*Math.sin(s)*Math.cos(a),Math.cos(s)-Math.sin(a)*Math.sin(b))/rad};};
+ for(const latitude of [-59,0,35,59])for(const az of [-180,-179.99,-90,0,90,179.99]){
+  const eye={latitude,longitude:179.999,elevation:5,eyeM:1.5},target={id:'skytree',...at(eye,az,600),parts:[{id:'deck',m:352}]};
+  const shape=Q.corridor(eye,target,{vertices:[[-30,-30,0],[30,30,634]]},7/6),patches=[...shape.patches()];
+  for(const index of [0,1,12])for(const fraction of [-1,0,1]){
+   const patch=patches[index],p=index===0?eye:at(eye,shape.az+shape.half*fraction,(patch.fromM+patch.toM)/2);
+   const h=H.create({loadIndex:async()=>({grid:{offsetM:20},parts:{}}),obstacles:async()=>[{kind:'railway',points:[[p.latitude,p.longitude]],halfWidthM:0}]});
+   assert.equal((await h.upperPatch(patch,'skytree')).reason,'upper-structure-height-unknown',`${latitude}/${az}/${index}/${fraction}`);
+  }
+ }
+});
+
+function associatedBridge(){
+ const lat=observer.latitude,lon=observer.longitude,line=[[lat+.0008,lon],[lat+.0012,lon]];
+ const obstacle={id:'way/fixture-bridge',kind:'road',halfWidthM:12,lines:[line]};
+ const entry={geometry:{kind:'road',halfWidthM:12,lines:[line],rings:[],points:[]},topM:28,
+  source:{url:'https://example.test/source.gml',sha256:'a'.repeat(64),buildingId:'bldg-fixture',surfaces:['roof','wall-left','wall-right'],topRangeM:[27.7,27.72],lod:'2.1',surveyYear:2021},
+  coverage:{basis:'explicit roof and side walls',polygons:[{outer:[[lat+.0007,lon-.0001],[lat+.0013,lon-.0001],[lat+.0013,lon+.0001],[lat+.0007,lon+.0001],[lat+.0007,lon-.0001]],holes:[]}]}};
+ return {obstacle,entry,patch:{west:lon-.0002,east:lon+.0002,south:lat+.0008,north:lat+.0012,lowM:1000,lowAt:()=>1000}};
+}
+
+test('a complete associated bridge model uses its measured top and existing margin for every observer and target',async()=>{
+ const {obstacle,entry,patch}=associatedBridge(),h=world({obstacles:async()=>[obstacle],structureModels:{[obstacle.id]:entry}});
+ for(const targetKey of ['tower','another-target',null])assert.equal((await h.upperPatch(patch,targetKey)).status,'clear');
+ for(const low of [28,29,NaN,null,-Infinity])assert.equal((await h.upperPatch({...patch,lowAt:()=>low},'tower')).reason,'upper-structure-height-unknown');
+ assert.equal((await h.upperPatch({...patch,lowAt:()=>29.01},'tower')).status,'clear');
+ assert.equal((await h.upperPatch({...patch,lowAt:undefined,lowM:29.01},'tower')).status,'clear','the whole-patch lower bound is conservative too');
+ const blocked=world({buildings:[{north:100,top:40}],obstacles:async()=>[obstacle],structureModels:{[obstacle.id]:entry}});
+ assert.equal((await blocked.upperPatch({...patch,lowAt:()=>35},'tower')).reason,'upper-building','associated bridge coverage does not erase a different building');
+});
+
+test('an associated model refuses changed geometry, incomplete coverage and missing or invalid provenance',async()=>{
+ const {obstacle,entry,patch}=associatedBridge();
+ const changes=[m=>delete m.source,m=>delete m.coverage,m=>m.topM=NaN,m=>m.topM=27,m=>m.source.url='',m=>m.source.url='https://',m=>m.source.sha256='bad',
+  m=>m.source.surfaces.pop(),m=>m.source.buildingId='',m=>m.geometry.kind='railway',m=>m.geometry.halfWidthM=11,
+  m=>m.geometry.lines[0][0][0]+=1e-10,m=>m.geometry.lines[0].reverse(),m=>m.geometry.points=[[35,139]],m=>m.coverage.polygons=[],
+  m=>m.coverage.polygons[0].outer[1][0]=NaN,m=>m.coverage.polygons[0].outer.pop(),m=>m.coverage.polygons[0].outer.forEach(p=>p[1]+=.001)];
+ for(const change of changes){
+  const model=structuredClone(entry);change(model);
+  const h=world({obstacles:async()=>[obstacle],structureModels:{[obstacle.id]:model}});
+  assert.equal((await h.upperPatch(patch,'tower')).reason,'upper-structure-height-unknown');
+ }
+ const hole=structuredClone(entry),lat=observer.latitude,lon=observer.longitude;
+ hole.coverage.polygons[0].holes=[[[lat+.00095,lon-.00005],[lat+.00105,lon-.00005],[lat+.00105,lon+.00005],[lat+.00095,lon+.00005],[lat+.00095,lon-.00005]]];
+ assert.equal((await world({obstacles:async()=>[obstacle],structureModels:{[obstacle.id]:hole}}).upperPatch(patch,'tower')).reason,'upper-structure-height-unknown','the gap between covered endpoints is not skipped');
+ assert.equal((await world({obstacles:async()=>[obstacle]}).upperPatch(patch,'tower')).reason,'upper-structure-height-unknown','old indexes have no exemption');
+});
+
+test('associated structures retain the entire OSM width, other structures, missing cells and cancellation',async()=>{
+ const {obstacle,entry,patch}=associatedBridge(),models={[obstacle.id]:entry};let widest=0;
+ const widthPatch={...patch,lowAt:b=>{widest=Math.max(widest,b.east-b.west);return b.east>observer.longitude+.00008?20:1000;}};
+ assert.equal((await world({obstacles:async()=>[obstacle],structureModels:models}).upperPatch(widthPatch,'tower')).reason,'upper-structure-height-unknown');
+ assert(widest>24/111320,'the measured narrow roof never shrinks the conservative 12 m half-width');
+ const other={...obstacle,id:'way/unknown'};
+ assert.equal((await world({obstacles:async()=>[obstacle,other],structureModels:models}).upperPatch(patch,'tower')).obstacleId,other.id);
+ const missing=H.create({loadIndex:async()=>({grid:{offsetM:20},parts:{},structureModels:models}),obstacles:async()=>[obstacle]});
+ assert.equal((await missing.upperPatch(patch,'tower')).reason,'height-coverage-unavailable');
+ let release,current=true;
+ const delayed=H.create({loadIndex:()=>new Promise(r=>{release=r;}),obstacles:async()=>[obstacle]});
+ const pending=delayed.upperPatch(patch,'tower',{isCurrent:()=>current});
+ await new Promise(r=>setImmediate(r));current=false;release({grid:{offsetM:20},parts:{},structureModels:models});
+ await assert.rejects(pending,/candidate-cancelled/);
+});
 
 test('mesh codes and cells follow the 3rd-order mesh grid the builder writes',()=>{
  assert.equal(H.meshCode(MY,MX),CODE);

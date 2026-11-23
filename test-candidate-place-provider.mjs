@@ -61,12 +61,13 @@ test('river proximity keeps the latitude-dependent cutoff for a shore far away i
  assert.deepEqual(kindsFor(13),new Set(['riverbank']));
  assert.deepEqual(kindsFor(14),new Set(['sidewalk']));
 });
-test('広場・河川敷・展望地点を独立geometryから作り、歩道より先に選ぶ',async()=>{
+test('広場・川沿いの公園・展望地点を独立geometryから作り、歩道より先に選ぶ',async()=>{
  const square=way(2,{highway:'pedestrian',area:'yes',place:'square',name:'広場'},ring(139.0011,35.0011,139.0018,35.0018));
  const riverPark=way(3,{leisure:'park',name:'川テラス'},ring(139.0021,35.0021,139.0028,35.0028));
  const view={type:'node',id:7,lat:35.0032,lon:139.0032,tags:{tourism:'viewpoint',name:'展望台',ele:'300',height:'90',level:'20'}};
  const result=await provider([line(1,{},35.0012,35.0038,139.0039),square,riverPark,line(4,{},35.0022,35.0027,139.0025),view]).load({}, {regions:[region]});
- assert.deepEqual(new Set(result.points.map(p=>p.placeKind)),new Set(['plaza','riverbank','viewpoint','sidewalk']));
+ assert.deepEqual(new Set(result.points.map(p=>p.placeKind)),new Set(['plaza','park','viewpoint','sidewalk']));
+ assert(result.points.filter(p=>p.sourceId==='osm/way/4').every(p=>p.placeKind==='park'&&p.placeId==='osm/way/3'));
  const deck=result.points.find(p=>p.placeKind==='viewpoint');assert.equal(deck.standingSurfaceKnown,false);assert.equal(deck.surfaceHeightM,null);assert.equal(deck.groundM,12);
  const firstSidewalk=result.points.findIndex(p=>p.placeKind==='sidewalk');assert(result.points.slice(firstSidewalk).every(p=>p.placeKind==='sidewalk'));
 });
@@ -120,7 +121,9 @@ test('pointKinds skips unused height, water and point pages while keeping the re
  }
  const all=await readPages(),filtered=await readPages(wanted);
  assert(filtered.pages.length<all.pages.length);
- assert.deepEqual(filtered.pages[0].continuation,all.pages[0].continuation,'the point cursor stays while eligible points remain');
+ const cursorScope=cursor=>({...cursor,pointKindsKey:null});
+ assert.deepEqual(cursorScope(filtered.pages[0].continuation),cursorScope(all.pages[0].continuation),'same prefix advances equally, with the requested scope recorded separately');
+ assert.equal(filtered.pages[0].continuation.pointKindsKey,'["plaza","viewpoint"]');
  const allPoints=all.pages.flatMap(p=>p.points),retained=filtered.pages.flatMap(p=>p.points);
  assert.deepEqual(retained,allPoints.filter(p=>wanted.has(p.placeKind)));
  const tileIds=run=>new Set(run.pages.flatMap(p=>p.coverage.evaluatedRegionIds));
@@ -129,17 +132,93 @@ test('pointKinds skips unused height, water and point pages while keeping the re
  assert.deepEqual(features(filtered),features(all));
  assert.deepEqual(filtered.pages.flatMap(p=>p.coverage.failedRegions),all.pages.flatMap(p=>p.coverage.failedRegions));
  assert(retained.some(row=>row.placeKind==='viewpoint'&&!row.groundKnown));
- const skipped=filtered.pages.reduce((sum,p)=>sum+(p.coverage.pointsSkippedByKind||0),0);
- assert(skipped>0);
- const excluded=skipped+filtered.pages.reduce((sum,p)=>sum+p.coverage.pointsExcludedByKind,0);
- assert(excluded>0);
- assert.equal(all.calls.height-filtered.calls.height,excluded);
- assert.equal(all.calls.waterPoints-filtered.calls.waterPoints,excluded);
+ assert(filtered.pages.some(p=>p.coverage.featuresExcludedByKind>0),'unrelated ways are skipped before sampling');
+ assert(all.calls.height>filtered.calls.height);assert(all.calls.waterPoints>filtered.calls.waterPoints);
+ assert.equal(filtered.calls.height,retained.length);assert.equal(filtered.calls.waterPoints,retained.length);
  const saturated=await provider(items,{maxPoints:1,spacingM:5}).load({}, {regions:[region],pointKinds:new Set(['park'])});
  assert.equal(saturated.points.length,0);
- assert.equal(saturated.coverage.samplingComplete,false);
- assert(saturated.continuation?.batchTiles?.length,'point generation hit its cap, so later eligible points are still possible');
+ assert.equal(saturated.coverage.samplingComplete,true);
+ assert.equal(saturated.continuation,null,'ineligible geometry cannot consume a generation budget or create a useless point page');
 });
+test('an explicit park-only subset spends point budgets on places, not excluded riverside paths',async()=>{
+ const river=way(1000,{waterway:'river',name:'甲川'},[[139.001,35],[139.001,35.005]]);
+ const water=way(1001,{natural:'water',water:'river'},ring(139.0009,35,139.0011,35.005));
+ const roads=Array.from({length:20},(_,i)=>line(1100+i,{},35.0011,35.0039,139.0013+i*.00002));
+ const park=way(2000,{leisure:'park',name:'川沿いの公園'},ring(139.0025,35.0025,139.0035,35.0038));
+ const path=line(2001,{},35.0011,35.0039,139.003),items=[river,water,...roads,park,path],pointKinds=new Set(['park','plaza','viewpoint']);
+ const p=provider(items,{maxPoints:2,spacingM:15});let cursor=null;const pages=[];
+ do{const result=await p.load({}, {regions:[region],pointKinds,cursor});pages.push(result);cursor=result.continuation;assert(pages.length<30);}while(cursor);
+ const points=pages.flatMap(r=>r.points),whole=await provider(items,{maxPoints:1000,spacingM:15}).load({}, {regions:[region],pointKinds});
+ assert(points.length>5);assert.equal(pages[0].points.length,2);assert.deepEqual(points,whole.points);
+ assert(points.every(p=>p.placeKind==='park'&&p.placeId==='osm/way/2000'&&p.latitude>=35.0025));
+ assert(pages[0].coverage.featuresExcludedByKind>=20,'standalone roads do not reach their sampling loop');
+ const expanded=await provider(items,{maxPoints:1000,spacingM:15}).load({}, {regions:[region],pointKinds:new Set([...pointKinds,'sidewalk','riverbank'])});
+ assert(expanded.points.some(p=>p.placeKind==='riverbank'));assert(expanded.points.some(p=>p.placeKind==='sidewalk'));
+ assert(expanded.points.filter(p=>p.placeId==='osm/way/2000').every(p=>p.placeKind==='park'),'park identity wins even near water');
+});
+
+test('standard riverbank scope includes mapped riverside paths but never promotes nearby vehicle roads',async()=>{
+ const river=way(2200,{waterway:'river',name:'江戸川'},[[139.001,35],[139.001,35.005]]);
+ const water=way(2201,{natural:'water',water:'river'},ring(139.0009,35,139.0011,35.005));
+ const bank=line(2202,{},35.0012,35.0038,139.0014),park=way(2203,{leisure:'park',name:'川沿い公園'},ring(139.00125,35.0025,139.00155,35.0035));
+ const traffic=['primary','residential','service'].map((highway,i)=>line(2210+i,{highway,foot:'yes'},35.0012,35.0038,139.00145+i*.00002));
+ const ordinary=line(2220,{},35.0012,35.0038,139.0055),regions=[{bbox:[139.001,35.001,139.006,35.004]}];
+ const items=[river,water,bank,park,...traffic,ordinary],kinds=['viewpoint','plaza','park','riverbank'];
+ const standard=await provider(items,{maxPoints:1000}).load({}, {regions,pointKinds:kinds});
+ assert(standard.points.some(p=>p.placeKind==='riverbank'&&p.sourceId==='osm/way/2202'));
+ assert(standard.points.some(p=>p.placeKind==='park'&&p.placeId==='osm/way/2203'));
+ assert(standard.points.every(p=>p.sourceId==='osm/way/2202'),'neither nearby car roads nor remote sidewalks enter the default scope');
+ const expanded=await provider(items,{maxPoints:1000}).load({}, {regions,pointKinds:[...kinds,'sidewalk']});
+ assert(expanded.points.some(p=>p.sourceId==='osm/way/2220'&&p.placeKind==='sidewalk'));
+ assert(expanded.points.every(p=>!traffic.some(f=>p.sourceId==='osm/way/'+f.id)),'even explicit road scope samples walking surfaces, not a vehicle road centreline');
+});
+
+test('kind cursor scope is order independent and a changed scope restarts instead of skipping new places',async()=>{
+ const park=way(2100,{leisure:'park'},ring(139.001,35.001,139.003,35.003));
+ const p=provider([park,line(2101,{},35.0011,35.0038),line(2102,{},35.0011,35.0038,139.0035)],{maxPoints:2});
+ const kinds=['park','viewpoint','plaza','riverbank'],first=await p.load({}, {regions:[region],pointKinds:kinds});assert(first.continuation);
+ const a=await p.load({}, {regions:[region],pointKinds:kinds,cursor:first.continuation});
+ const b=await p.load({}, {regions:[region],pointKinds:kinds.toReversed(),cursor:first.continuation});assert.deepEqual(a.points,b.points);assert.deepEqual(a.continuation,b.continuation);
+ assert.notDeepEqual(a.points,first.points);
+ const expanded=[...kinds,'sidewalk'];
+ const changed=await p.load({}, {regions:[region],pointKinds:expanded,cursor:first.continuation});
+ const fresh=await p.load({}, {regions:[region],pointKinds:expanded});assert.deepEqual(changed.points,fresh.points);assert.deepEqual(changed.continuation,fresh.continuation);
+});
+
+test('park path surfaces are clipped to the same source and preserve holes and disconnected sections',async()=>{
+ const outer=ring(139.0015,35.0015,139.0035,35.0035),hole=ring(139.0018,35.002,139.0022,35.0025);
+ const park={type:'relation',id:2200,tags:{type:'multipolygon',leisure:'park',name:'穴のある公園'},members:[
+  {type:'way',role:'outer',geometry:outer.map(([lon,lat])=>({lon,lat}))},{type:'way',role:'inner',geometry:hole.map(([lon,lat])=>({lon,lat}))}]};
+ const path=line(2201,{},35.001,35.004),connected=way(2202,{highway:'footway'},[[139.002,35.001],[139.003,35.003]]);
+ const data=await provider([park,path,connected]).load({}, {regions:[region],pointKinds:['park']});
+ const points=data.points.filter(p=>p.sourceId==='osm/way/2201');assert(points.length>2);
+ const geometry=points[0].surfaceGeometry;assert.equal(geometry.polygons.length,0);assert.equal(geometry.lines.length,2);
+ assert(geometry.lines.flat().every(([lon,lat])=>lon===139.002&&lat>=35.0015&&lat<=35.0035));
+ for(const line of geometry.lines)for(let i=1;i<line.length;i++){const mid=(line[i-1][1]+line[i][1])/2;assert(mid<=35.002||mid>=35.0025);}
+ assert(points.every(p=>JSON.stringify(p.surfaceGeometry)===JSON.stringify(geometry)),'one place/source domain is shared without dropping a later component');
+});
+
+test('a walkable plaza used as a boundary cannot add its ring to the sampled source path',async()=>{
+ const square=way(2250,{highway:'pedestrian',area:'yes',place:'square'},ring(139.0015,35.0015,139.0035,35.0035));
+ const path=way(2251,{highway:'footway'},[[139.0015,35.0015],[139.0025,35.0025]]);
+ const data=await provider([square,path]).load({}, {regions:[region],pointKinds:['plaza']});
+ const rows=data.points.filter(p=>p.sourceId==='osm/way/2251');assert(rows.length);
+ for(const row of rows){
+  assert.equal(row.surfaceGeometry.polygons.length,0);assert.equal(row.surfaceGeometry.lines.length,1);
+  assert.deepEqual(row.surfaceGeometry.lines[0],[[139.0015,35.0015],[139.0025,35.0025]]);
+ }
+});
+
+test('filled footway retains its actual face intersected with the containing park',async()=>{
+ const park=way(2300,{leisure:'park'},ring(139.0015,35.0015,139.0025,35.0025));
+ const face=way(2301,{highway:'footway',area:'yes'},ring(139.001,35.001,139.003,35.003));
+ const data=await provider([park,face]).load({}, {regions:[region],pointKinds:['park']});assert(data.points.length);
+ const shape=data.points[0].surfaceGeometry;assert.deepEqual(shape.polygons,D.createPlaceProvider.parseElements([face])[0].polygons);assert.deepEqual(shape.within,D.createPlaceProvider.parseElements([park])[0].polygons);
+ const domain=D.createPlaceProvider.movementDomain(data.points[0],data.features);
+ assert(D.createPlaceProvider.movementPoint(domain,{latitude:35.002,longitude:139.002}));
+ assert.equal(D.createPlaceProvider.movementPoint(domain,{latitude:35.0028,longitude:139.002}),null);
+});
+
 test('一部失敗tileは成功cacheを汚さず次回cursorで再試行できる',async()=>{
  let fail=true,calls=0;const p=provider([],{maxTiles:1,fetchImpl:async()=>{calls++;if(fail)throw Error('unavailable');return response([]);}});
  const a=await p.load({}, {regions:[region]});assert(a.partial);assert.equal(a.coverage.failedRegions.length,1);assert(a.coverage.nextCursor.retryTiles.length);
@@ -184,12 +263,33 @@ test('調査済みの地点は調べた対象にだけ出し、足元の高さ�
  const data=JSON.parse(readFileSync(new URL('./data/candidate-surveyed-viewpoints.json',import.meta.url))),p=provider([],{loadSurveyed:async()=>data});
  assert.equal(data.places.length,159);assert.equal(new Set(data.places.map(x=>x.id)).size,159);
  const sky=await p.surveyed({target:{id:'skytree'}}),tower=await p.surveyed({target:{id:'tokyotower'}}),fuji=await p.surveyed({target:{id:'fuji'}});
- assert.deepEqual([sky.length,tower.length,fuji.length],[50,36,122]);assert.deepEqual(await p.surveyed({target:{id:'custom'}}),[]);
+ assert.deepEqual([sky.length,tower.length,fuji.length],[50,35,122]);assert.deepEqual(await p.surveyed({target:{id:'custom'}}),[]);
+ assert(!tower.some(x=>x.id==='AN20261107-072'),'the manager-confirmed loss of the Tokyo Tower view is excluded');
+ assert.deepEqual(data.places.find(x=>x.id==='AN20261107-072').targets,[],'the historical place remains without a false target association');
  const room=sky.find(x=>x.name==='東京都庁 南展望室');assert.equal(room.groundM,41.2);assert.equal(room.eyeM,202);assert.equal(room.surfaceAglM,0,'a room is not refused for lacking a floor height');assert.equal(room.nonTerrainStructure,true);assert.equal(room.standingSurfaceKnown,true);assert.equal(room.placeKind,'viewpoint');
  assert.deepEqual(room.surveyedTargets.slice().sort(),['fuji','skytree','tokyotower']);assert.equal(room.sourceEvidence.kind,'surveyed-viewpoint');
  const park=tower.find(x=>x.name==='港区立芝公園 芝生広場');assert.equal(park.eyeM,1.5);assert.equal(park.nonTerrainStructure,false);
  const bridge=sky.find(x=>x.name==='晴海大橋 中央部東側歩道');assert.equal(bridge.groundM,24.2);assert.equal(bridge.nonTerrainStructure,true,'a stated floor is not the terrain');
  assert.deepEqual(await provider([],{loadSurveyed:async()=>{throw Error('data');}}).surveyed({target:{id:'skytree'}}),[],'unreadable data leaves the search going');
+});
+
+test('surveyed category evidence is copied without guessing from a name, shape or target visibility',async()=>{
+ const base={latitude:35.002,longitude:139.002,groundM:12,eyeM:1.5,targets:['skytree'],shape:'area',name:'公園の展望台という名称'};
+ const evidence={basis:'mapped-category',detail:'同梱公園ポリゴン内の代表点を確認',sourceUrls:['https://example.test/research']};
+ const data={places:[{...base,id:'park',placeKind:'park',categoryEvidence:evidence},
+  {...base,id:'unknown',placeKind:'unknown',categoryEvidence:{basis:'unclassified',detail:'カテゴリを裏付ける記述なし',sourceUrls:[]}},
+  {...base,id:'missing'}, {...base,id:'road',placeKind:'road',categoryEvidence:evidence}]};
+ const result=await provider([],{loadSurveyed:async()=>data}).surveyed({target:{id:'skytree'}});
+ assert.deepEqual(result.map(p=>p.placeKind),['park','unknown','unknown','road']);
+ assert.deepEqual(result[0].sourceEvidence.categoryEvidence,evidence);assert.notEqual(result[0].sourceEvidence.categoryEvidence,evidence);
+ result[0].sourceEvidence.categoryEvidence.sourceUrls.push('fixture-change');assert.equal(evidence.sourceUrls.length,1);
+ assert.equal(result[2].sourceEvidence.categoryEvidence,undefined,'missing evidence is not invented');
+ assert(result.every(p=>p.groundM===12&&p.eyeM===1.5&&p.surveyedTargets[0]==='skytree'));
+ for(const basis of ['research-kind','research-description','mapped-category','official-description','unclassified']){
+  const input={places:[{...base,id:basis,placeKind:'unknown',categoryEvidence:{basis,detail:'fixture',sourceUrls:[]}}]};
+  const rows=await provider([],{loadSurveyed:async()=>input}).surveyed({target:{id:'skytree'}});
+  assert.equal(rows[0].sourceEvidence.categoryEvidence.basis,basis);
+ }
 });
 
 test('近隣移動は同じ岸の接続した歩道だけ。橋と水面を横切って対岸へつながない',async()=>{
@@ -224,4 +324,19 @@ test('広場の内部は実歩行面として移動でき、輪の道を面と�
  const result=await provider([square]).load({}, {regions:[region]}),seed={latitude:35.002,longitude:139.002,placeId:'osm/way/950',surfaceId:'osm/way/950'};
  const domain=D.createPlaceProvider.movementDomain(seed,result.features);assert(domain.geometry.polygons.length);assert(D.createPlaceProvider.movementPoint(domain,{latitude:35.0025,longitude:139.0025}));
  const loop={...square,tags:{highway:'footway'}},other=await provider([loop]).load({}, {regions:[region]});const lineDomain=D.createPlaceProvider.movementDomain({...seed,latitude:35.001},other.features);assert(lineDomain);assert.equal(lineDomain.geometry.polygons.length,0);assert.equal(D.createPlaceProvider.movementPoint(lineDomain,{latitude:35.0025,longitude:139.0025},10),null);
+});
+
+test('foreground abort releases a bundled loader and cannot commit its late page over the next load',async()=>{
+ let release,first=true,reads=0;const square=way(2,{highway:'pedestrian',area:'yes',place:'square'},ring(139.0011,35.0011,139.0018,35.0018));
+ const p=provider([],{places:{elementsIn:async()=>{reads++;if(first){first=false;return new Promise(r=>release=r);}return [square];}},fetchImpl:async()=>{throw Error('must not fetch Overpass');}});
+ const controller=new AbortController(),old=p.load({}, {regions:[region],signal:controller.signal,deadline:Date.now()+500});
+ await Promise.resolve();controller.abort();const cancelled=await old;assert(cancelled.cancelled);assert.equal(cancelled.coverage.evaluatedRegionIds.length,0);
+ const current=await p.load({}, {regions:[region]});assert(current.points.length>0);assert.equal(reads,2);
+ release([]);await Promise.resolve();const cached=await p.load({}, {regions:[region]});assert.deepEqual(cached.points,current.points);assert.equal(reads,2);
+});
+test('provider deadline bounds pending ground preparation without promoting unread surfaces to known',async()=>{
+ const square=way(2,{highway:'pedestrian',area:'yes',place:'square'},ring(139.0011,35.0011,139.0018,35.0018));
+ let release;const p=provider([square],{terrain:{...terrain,groundElevation:()=>new Promise(r=>release=r)}}),start=Date.now();
+ const result=await p.load({}, {regions:[region],deadline:start+5});assert(result.cancelled);assert(Date.now()-start<1000);assert(result.points.every(p=>!p.groundKnown&&!p.standingSurfaceKnown));
+ release?.({elevation:12,source:'dem'});await Promise.resolve();
 });

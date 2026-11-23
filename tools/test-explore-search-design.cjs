@@ -160,7 +160,7 @@ async function assertFooterClearance(page,selector='#candidateUnifiedResults>.li
     assert(await page.locator('#exploreResultsHeading').isVisible());
     assert(await page.evaluate(()=>document.getElementById('candidateSearchAction')===window.searchDesignAction));
     assert.equal(await page.locator('#candidateSearchFeedback [role=status][data-announcement]').count(),1,'success remains an accessible announcement without a duplicate visual summary');
-    assert((await page.locator('#candidateSearchFeedback [role=status]').innerText()).includes('2件の新たな撮影地点の候補があります'));
+    assert((await page.locator('#candidateSearchFeedback [role=status]').innerText()).includes('2か所の新たな撮影地点の候補があります'));
     const registeredText=await page.locator('#recentCandidates .my-picker').innerText();
     assert(!registeredText.includes('登録した地点に候補がありません')&&!registeredText.includes('絞り込み前'),registeredText);
     await assertFooterClearance(page);await captureState(page,out+'/'+tag+'-results');

@@ -144,6 +144,22 @@ test('published point surfaces cannot move and inverse never guesses missing ter
  const unknown=await C.opportunities({...plan,composition:f.c},f.seed,{align:A,bodies,groundAt:async()=>null,yieldTask:async()=>{}});assert.equal(unknown.solutions.length,0);assert(unknown.partial);assert.equal(unknown.reason,'some-calculations-unknown');
 });
 
+test('a mapped walking surface remains inside its place boundary and outside its holes',async()=>{
+ for(const line of [false,true]){
+  const f=surfaceFixture({line}),bodies=fakeBodies(()=>({azimuth:f.g.azimuth,apparentAltitude:f.g.angle})),deps={align:A,bodies,groundAt:f.groundAt,yieldTask:async()=>{}};
+  const p={...plan,composition:f.c},original=await C.opportunities(p,f.seed,deps);assert(original.solutions.length);
+  const outer=[[138.9995,34.9995],[139.0005,34.9995],[139.0005,35.0005],[138.9995,35.0005],[138.9995,34.9995]];
+  const withBoundary=within=>({...f.seed,surfaceGeometry:{...f.seed.surfaceGeometry,within}});
+  const retained=await C.opportunities(p,withBoundary([[outer]]),deps);
+  assert.deepEqual(retained.solutions.map(s=>s.event),original.solutions.map(s=>s.event),'interior solutions keep the same exact calculation');
+  const hole=[[138.9998,34.9998],[139.0002,34.9998],[139.0002,35.0002],[138.9998,35.0002],[138.9998,34.9998]];
+  assert.equal((await C.opportunities(p,withBoundary([[outer,hole]]),deps)).solutions.length,0,'the inverse cannot accept a place hole');
+  const outside=outer.map(([lon,lat])=>[lon,lat+.002]);
+  assert.equal((await C.opportunities(p,withBoundary([[outside]]),deps)).solutions.length,0,'a solve on the original path outside the park is rejected');
+  assert.equal((await C.opportunities(p,withBoundary([]),deps)).solutions.length,0,'an empty allowed boundary is not unrestricted');
+ }
+});
+
 test('strict rim alignment can solve on a mapped line and exhausted location work stays partial',async()=>{
  const f=surfaceFixture({line:true}),mountain={...target,rim:{latitude:target.latitude,longitude:target.longitude,points:[{latitude:target.latitude,longitude:target.longitude,m:100},{latitude:target.latitude-.001,longitude:target.longitude,m:50}]}},bodies=fakeBodies(()=>({azimuth:f.g.azimuth,apparentAltitude:f.g.angle+.25})),deps={align:A,bodies,groundAt:f.groundAt,yieldTask:async()=>{}},r=await C.opportunities({...plan,target:mountain,limb:'onTop'},f.seed,deps),s=r.solutions.find(s=>s.event.inverseSurfaceSolved);
  assert(s,r.reason);assert.equal(s.event.at,0);assert.equal(s.event.contactLimb,'lower');assert.equal(s.event.targetGeometryKind,'ridge');assert.equal(s.anchor.heightM,100);assert(s.event.alignmentResidualDeg<.002);assert.equal(s.event.composition,undefined);

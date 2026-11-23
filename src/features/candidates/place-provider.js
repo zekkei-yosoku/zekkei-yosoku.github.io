@@ -21,6 +21,8 @@ function hash(s){let x=2166136261;for(let i=0;i<s.length;i++){x^=s.charCodeAt(i)
 function distance(a,b){return Math.hypot((a[0]-b[0])*Math.cos((a[1]+b[1])*RAD/2),a[1]-b[1])*M;}
 function inside(r,p){let yes=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>p.latitude)!==(r[j][1]>p.latitude)&&p.longitude<(r[j][0]-r[i][0])*(p.latitude-r[i][1])/(r[j][1]-r[i][1])+r[i][0])yes=!yes;return yes;}
 const contains=(f,p)=>(!f.bbox||bboxPoint(p,f.bbox))&&f.polygons.some(poly=>inside(poly[0],p)&&!poly.slice(1).some(r=>inside(r,p)));
+const boxesMeet=(a,b)=>!a||!b||a[0]<=b[2]&&b[0]<=a[2]&&a[1]<=b[3]&&b[1]<=a[3];
+const walkingSquare=f=>f.tags.highway==='pedestrian'&&(f.tags.area==='yes'||f.tags['area:highway']);
 function edgeDistance(line,p,c,closest=null){let d=Infinity;for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],x=(b[0]-a[0])*c,y=b[1]-a[1],u=Math.max(0,Math.min(1,((p.longitude-a[0])*c*x+(p.latitude-a[1])*y)/(x*x+y*y||1)));
  const m=Math.hypot((p.longitude-a[0])*c-u*x,p.latitude-a[1]-u*y)*M;
  if(m<d){d=m;if(closest){closest.longitude=a[0]+(b[0]-a[0])*u;closest.latitude=a[1]+y*u;closest.axis=[a,b];}}
@@ -163,42 +165,43 @@ function* tileQueue(regions){const seen=new Set();for(const r of regions){const 
 function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0,pointKinds}={}){
  const generationBudget=maxPoints+skipPoints;
  const areas=features.filter(f=>f.kind&&f.polygons.length),waters=features.filter(f=>f.water),rivers=features.filter(f=>['river','canal'].includes(f.tags.waterway)),buildings=features.filter(f=>f.building),groups=[],unknownGeometry=features.filter(f=>f.geometryIncomplete).map(f=>f.id);
- let generationLimited=false;
+ let generationLimited=false,excludedPoints=0,excludedFeatures=0;
+ const surfaces=new Map(),excluded=features.filter(f=>(f.water||f.building||forbidden(f.tags)||nonGround(f.tags))&&f.polygons.length);
+ const surfaceFor=(f,area,p)=>{
+  const direct={polygons:f.walking&&(f.tags.area==='yes'||f.tags['area:highway'])?f.polygons:[],lines:f.walking&&f.tags.area!=='yes'&&!f.tags['area:highway']?f.lines:[],...(f.position?{position:f.position}:{})};
+  if(!f.walking||!area||!area.polygons.length||area===f)return direct;
+  const id=f.id+'/'+area.id;if(surfaces.has(id))return surfaces.get(id);
+  // Reuse the movement boundary intersections, on this source only. Never
+  // extend a park seed onto connected roads outside its actual place.
+  const constraints=[area,...excluded.filter(x=>x!==f&&x!==area)].map(x=>({...x,walking:false}));
+  const domain=movementDomain({...p,placeId:area.sourceId,surfaceId:f.sourceId},[f,...constraints],{radiusM:Infinity,allComponents:true});
+  const shape=domain?.geometry||{polygons:[],lines:[]};surfaces.set(id,shape);return shape;
+ };
  const inRegion=p=>regions.some(r=>bboxPoint(p,r.bbox));
  for(const f of features){
   if(forbidden(f.tags)||(!f.walking&&f.kind!=='viewpoint'))continue;
   if(f.geometryIncomplete)continue;
+  const intrinsic=f.kind==='viewpoint'?'viewpoint':walkingSquare(f)?'plaza':null;
+  if(pointKinds&&!pointKinds.has('sidewalk')&&!pointKinds.has('riverbank')&&!pointKinds.has(intrinsic)&&
+   !areas.some(a=>pointKinds.has(a.kind)&&boxesMeet(a.bbox,f.bbox))){excludedFeatures++;continue;}
   const candidates=[];
-  if(f.kind==='viewpoint'&&f.position)candidates.push(f.position);
-  // A viewpoint polygon provides no known camera location; walkable geometry
-  // inside it is handled below, but its arbitrary centroid is never a deck.
-  if(f.walking){
-   const filled=f.tags.area==='yes'||!!f.tags['area:highway'];
-   if(filled){for(const poly of f.polygons){const r=poly[0],xs=r.map(p=>p[0]),ys=r.map(p=>p[1]),a=Math.min(...ys),b=Math.max(...ys),lo=Math.min(...xs),hi=Math.max(...xs),dy=spacingM/M,dx=dy/Math.max(.01,Math.cos((a+b)*RAD/2));let count=0;
-    for(const region of regions){const box=region.bbox,fromLat=Math.max(a,box[1]),toLat=Math.min(b,box[3]),fromLon=Math.max(lo,box[0]),toLon=Math.min(hi,box[2]);for(let lat=fromLat+dy/2;lat<toLat&&count<generationBudget*4;lat+=dy)for(let lon=fromLon+dx/2;lon<toLon&&count<generationBudget*4;
-    lon+=dx){const p={latitude:lat,longitude:lon};if(inside(r,p)&&!poly.slice(1).some(h=>inside(h,p))){candidates.push(p);count++;}}}if(count>=generationBudget*4)generationLimited=true;
-    // Small pedestrian squares may be smaller than one grid cell.
-    const p={latitude:(a+b)/2,longitude:(lo+hi)/2};if(inside(r,p)&&!poly.slice(1).some(h=>inside(h,p)))candidates.push(p);
-   }}else for(const line of f.lines){for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],n=Math.max(1,Math.ceil(distance(a,b)/spacingM));for(let j=0;j<n;j++){const p={longitude:a[0]+(b[0]-a[0])*j/n,latitude:a[1]+(b[1]-a[1])*j/n};if(!inRegion(p))continue;
-   if(candidates.length>=generationBudget*8){generationLimited=true;break;}candidates.push(p);}}const last=line[line.length-1];if(last)candidates.push({longitude:last[0],latitude:last[1]});}
-  }
-  const points=[];
-  for(const p of candidates){
-   if(!inRegion(p))continue;
-   const containers=areas.filter(a=>contains(a,p));if(containers.some(a=>forbidden(a.tags)))continue;
-   const water=waters.find(a=>contains(a,p));if(water&&!nonGround(f.tags))continue;
+  const addCandidate=p=>{
+   if(!inRegion(p))return;
+   const containers=areas.filter(a=>contains(a,p));if(containers.some(a=>forbidden(a.tags)))return;
+   const water=waters.find(a=>contains(a,p));if(water&&!nonGround(f.tags))return;
    const roofArea=containers.find(a=>nonGround(a.tags)),building=buildings.find(a=>contains(a,p)),viewpoint=containers.find(a=>a.kind==='viewpoint');
    const square=containers.find(a=>a.kind==='plaza'),park=containers.find(a=>a.kind==='park');
    const longitudeScale=Math.cos(p.latitude*RAD);
-   const river=rivers.find(a=>nearEdges(a,p,80,longitudeScale));
-   const riverArea=containers.find(a=>/河川敷|川テラス|川緑道|riverbank|riverside/i.test(a.name));
-   const riverPath=/河川敷|川.*テラス|riverside|riverbank/i.test(f.name)&&waters.some(a=>nearEdges(a,p,80,longitudeScale));
+   const river=!viewpoint&&!square&&!park&&rivers.find(a=>nearEdges(a,p,80,longitudeScale));
+   const riverArea=!park&&containers.find(a=>/河川敷|川テラス|川緑道|riverbank|riverside/i.test(a.name));
+   const riverPath=!park&&/河川敷|川.*テラス|riverside|riverbank/i.test(f.name)&&waters.some(a=>nearEdges(a,p,80,longitudeScale));
    // A levee-top path stands well back from a wide river's centre line: within 150 m of its water and
    // 300 m of the centre line it is the riverbank, while streets behind the levee are not.
-   const wideRiver=rivers.find(a=>a.tags.waterway==='river'&&nearEdges(a,p,300,longitudeScale))&&waters.some(a=>nearEdges(a,p,150,longitudeScale));
+   const wideRiver=!park&&rivers.find(a=>a.tags.waterway==='river'&&nearEdges(a,p,300,longitudeScale))&&waters.some(a=>nearEdges(a,p,150,longitudeScale));
    const riverside=riverArea||riverPath||river&&waters.some(a=>nearEdges(a,p,80,longitudeScale))||wideRiver;
-   const area=viewpoint||square||riverArea||park;
-   const placeKind=f.kind==='viewpoint'||viewpoint?'viewpoint':square||f.tags.highway==='pedestrian'&&(f.tags.area==='yes'||f.tags['area:highway'])?'plaza':riverside?'riverbank':park?'park':'sidewalk';
+   const area=viewpoint||square||(walkingSquare(f)?f:park)||riverArea;
+   const placeKind=f.kind==='viewpoint'||viewpoint?'viewpoint':square||walkingSquare(f)?'plaza':park?'park':riverside?'riverbank':'sidewalk';
+   if(pointKinds&&!pointKinds.has(placeKind)){excludedPoints++;return;}
    const elevated=nonGround(f.tags)||!!roofArea||!!building;
    const surface=area&&nonGround(area.tags)?area:f;
    // ele = absolute feature elevation, height = structure top, level = floor
@@ -207,16 +210,30 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
    const knownFloor=surface.tags['floor:height']!=null&&finite(floor)&&floor>=0&&floorSource;
    const accessKnown=!![f,...containers].find(a=>['yes','public','permissive','designated'].includes(a.tags.foot)||['yes','public','permissive'].includes(a.tags.access));
    const structuralUnknown=f.kind==='viewpoint'||!!viewpoint||elevated;
-   points.push({...p,lat:p.latitude,lon:p.longitude,placeId:'osm/'+(area||f).id,name:(area||f).name||f.name||({park:'公園の園路',plaza:'歩行広場',riverbank:'河川沿いの歩道',sidewalk:'歩道',viewpoint:'展望地点'}[placeKind]),placeKind,
+   candidates.push({...p,lat:p.latitude,lon:p.longitude,placeId:'osm/'+(area||f).id,name:(area||f).name||f.name||({park:'公園の園路',plaza:'歩行広場',riverbank:'河川沿いの歩道',sidewalk:'歩道',viewpoint:'展望地点'}[placeKind]),placeKind,
     sourceId:f.sourceId,surfaceId:f.sourceId,polygonId:f.id,region:regions.find(r=>bboxPoint(p,r.bbox))?.id,
-    surfaceGeometry:{polygons:f.walking&&(f.tags.area==='yes'||f.tags['area:highway'])?f.polygons:[],lines:f.walking&&f.tags.area!=='yes'&&!f.tags['area:highway']?f.lines:[],...(f.position?{position:f.position}:{})},
+    surfaceGeometry:surfaceFor(f,area,p),
     groundM:null,groundKnown:false,surfaceAglM:knownFloor?floor:structuralUnknown?null:0,surfaceHeightM:knownFloor?floor:structuralUnknown?null:0,surfaceElevationM:null,eyeM:1.5,
     standingSurfaceKnown:false,accessKnown,structureClassificationKnown:!structuralUnknown||!!knownFloor,nonTerrainStructure:!!elevated||!!knownFloor&&floor>0,
     sourceEvidence:{kind:'osm-mapped-walking-surface',heightBasis:'surfaceAglM/surfaceHeightM:height-above-local-ground; surfaceElevationM:groundM+surfaceAglM; eyeM:height-above-surface',osmId:f.id,placeOsmId:(area||f).id,tags:{...f.tags},areaTags:area?{...area.tags}:null,
     classification:riverArea?'named-riverside-area':riverPath?'named-riverside-walkway':riverside?'mapped-river-proximity':'mapped-feature',floor:knownFloor?{heightM:floor,source:floorSource}:null,buildingContaining:building?.id||null,access:'mapped-only',vegetation:'unknown',
     actualVisibilityGuaranteed:false}
    });
+  };
+  if(f.kind==='viewpoint'&&f.position)addCandidate(f.position);
+  // A viewpoint polygon provides no known camera location; walkable geometry
+  // inside it is handled below, but its arbitrary centroid is never a deck.
+  if(f.walking){
+   const filled=f.tags.area==='yes'||!!f.tags['area:highway'];
+   if(filled){for(const poly of f.polygons){const r=poly[0],xs=r.map(p=>p[0]),ys=r.map(p=>p[1]),a=Math.min(...ys),b=Math.max(...ys),lo=Math.min(...xs),hi=Math.max(...xs),dy=spacingM/M,dx=dy/Math.max(.01,Math.cos((a+b)*RAD/2));let count=0;
+    for(const region of regions){const box=region.bbox,fromLat=Math.max(a,box[1]),toLat=Math.min(b,box[3]),fromLon=Math.max(lo,box[0]),toLon=Math.min(hi,box[2]);for(let lat=fromLat+dy/2;lat<toLat&&count<generationBudget*4;lat+=dy)for(let lon=fromLon+dx/2;lon<toLon&&count<generationBudget*4;
+    lon+=dx){const p={latitude:lat,longitude:lon};if(inside(r,p)&&!poly.slice(1).some(h=>inside(h,p))){const before=candidates.length;addCandidate(p);count+=candidates.length-before;}}}if(count>=generationBudget*4)generationLimited=true;
+    // Small pedestrian squares may be smaller than one grid cell.
+    const p={latitude:(a+b)/2,longitude:(lo+hi)/2};if(inside(r,p)&&!poly.slice(1).some(h=>inside(h,p)))addCandidate(p);
+   }}else for(const line of f.lines){for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],n=Math.max(1,Math.ceil(distance(a,b)/spacingM));for(let j=0;j<n;j++){const p={longitude:a[0]+(b[0]-a[0])*j/n,latitude:a[1]+(b[1]-a[1])*j/n};if(!inRegion(p))continue;
+   if(candidates.length>=generationBudget*8){generationLimited=true;break;}addCandidate(p);}}const last=line[line.length-1];if(last)addCandidate({longitude:last[0],latitude:last[1]});}
   }
+  const points=candidates;
   if(points.length){const preferred=points.filter(p=>p.placeKind!=='sidewalk'),support=points.filter(p=>p.placeKind==='sidewalk');if(preferred.length)groups.push(preferred);if(support.length)groups.push(support);}
  }
  // Round-robin surfaces within each priority group; one long path cannot consume
@@ -224,17 +241,17 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
  groups.sort((a,b)=>(a[0].placeKind==='sidewalk')-(b[0].placeKind==='sidewalk'));
  const rows=[],seen=new Set();let remaining=0,remainingWanted=0,visited=0;
  for(const priority of [false,true]){const g=groups.filter(a=>(a[0].placeKind==='sidewalk')===priority);for(let i=0;g.some(a=>i<a.length);i++)for(const a of g)if(i<a.length){const p=a[i],k=key(p)+'/'+p.surfaceId;if(seen.has(k))continue;seen.add(k);if(visited++<skipPoints)continue;
- if(rows.length<maxPoints)rows.push(p);else{remaining++;if(pointKinds?.has(p.placeKind))remainingWanted++;}}}
+ if(rows.length<maxPoints)rows.push(p);else{remaining++;remainingWanted++;}}}
  // Enrich only the rows returned by this page. Classification, ordering and
  // height/visibility checks stay driven by the same original walking points.
  for(const p of rows)if(p.placeKind==='riverbank'&&(!pointKinds||pointKinds.has('riverbank'))){
   const name=riverNameAt(p,waters,rivers);if(name){p.sourceEvidence.riverName=name;const bank=riverBankAt(p,waters,rivers,name);if(bank)p.sourceEvidence.riverBank=bank;}
  }
- return {rows,limited:remaining>0||generationLimited,omittedPoints:remaining,remainingWanted,generationLimited,unknownGeometry};
+ return {rows,limited:remaining>0||generationLimited,omittedPoints:remaining,remainingWanted,generationLimited,unknownGeometry,excludedPoints,excludedFeatures};
 }
 // Keep movement on the selected walking place. A bridge or a nearby opposite
 // bank is not a continuation merely because its coordinates are close.
-function movementDomain(seed,features,{radiusM=600}={}){
+function movementDomain(seed,features,{radiusM=600,allComponents=false}={}){
  const origin={latitude:seed.latitude,longitude:seed.longitude},c=Math.cos(origin.latitude*RAD);
  const usable=f=>f.walking&&!f.geometryIncomplete&&!forbidden(f.tags)&&!nonGround(f.tags);
  const area=features.find(f=>f.sourceId===seed.placeId&&f.polygons.length&&(f.kind||f.tags.area==='yes'||f.tags['area:highway']))||features.find(f=>f.kind==='park'&&contains(f,origin));
@@ -250,7 +267,8 @@ function movementDomain(seed,features,{radiusM=600}={}){
  if(!source||!area&&best>12&&source.sourceId!==seed.surfaceId&&source.sourceId!==seed.sourceId)return null;
  if(source.tags.area==='yes'||source.tags['area:highway']){
   const polygons=source.polygons.map(poly=>[...poly,...excluded.filter(f=>!source.bbox||!f.bbox||f.bbox[0]<=source.bbox[2]&&f.bbox[2]>=source.bbox[0]&&f.bbox[1]<=source.bbox[3]&&f.bbox[3]>=source.bbox[1]).flatMap(f=>f.polygons.map(p=>p[0]))]);
-  return {origin,radiusM,label:area?.name||seed.name||'この付近の広場',kind:'plaza',sourceIds:[source.sourceId],boundary:source.polygons,geometry:{polygons,lines:[]}};
+  return {origin,radiusM,label:area?.name||seed.name||'この付近の広場',kind:'plaza',sourceIds:[source.sourceId],boundary:area?.polygons||source.polygons,
+   geometry:{polygons,lines:[],...(area&&area!==source?{within:area.polygons}:{})}};
  }
  const vertices=f=>f.lines.flat().filter(([lon,lat])=>distance([origin.longitude,origin.latitude],[lon,lat])<=radiusM+10);
  const key=([lon,lat])=>lon.toFixed(7)+','+lat.toFixed(7),byVertex=new Map();
@@ -281,7 +299,7 @@ function movementDomain(seed,features,{radiusM=600}={}){
  const vertex=p=>p[0].toFixed(7)+','+p[1].toFixed(7),touching=new Map();let first=0,nearestDistance=Infinity;
  lines.forEach((line,i)=>{const d=edgeDistance(line,origin,c);if(d<nearestDistance){first=i;nearestDistance=d;}for(const p of line){const k=vertex(p);if(!touching.has(k))touching.set(k,[]);touching.get(k).push(i);}});
  const reached=new Set([first]),pending=[first];while(pending.length){const i=pending.shift();for(const p of lines[i])for(const j of touching.get(vertex(p))||[])if(!reached.has(j)){reached.add(j);pending.push(j);}}
- const retained=lines.filter((_,i)=>reached.has(i));lines.splice(0,lines.length,...retained);
+ if(!allComponents){const retained=lines.filter((_,i)=>reached.has(i));lines.splice(0,lines.length,...retained);}
  const ends=new Map(),used=new Set(),joined=[];
  lines.forEach((line,i)=>{for(const p of line){const k=vertex(p);if(!ends.has(k))ends.set(k,[]);ends.get(k).push(i);}});
  function chain(i,start){const path=[start];let at=start;
@@ -292,12 +310,14 @@ function movementDomain(seed,features,{radiusM=600}={}){
  lines.forEach((line,i)=>{if(!used.has(i))chain(i,line[0]);});lines.splice(0,lines.length,...joined);
  lines.sort((a,b)=>edgeDistance(a,origin,c)-edgeDistance(b,origin,c));
  return {origin,radiusM,label:area?.name||seed.name||'この付近の歩道',kind:area?.kind||seed.placeKind||'sidewalk',
-  sourceIds:[...connected].map(f=>f.sourceId),boundary:area?.polygons||[],geometry:{lines,polygons:[]}};
+  sourceIds:[...connected].map(f=>f.sourceId),boundary:area?.polygons||[],geometry:{lines,polygons:[],...(area?{within:area.polygons}:{})}};
 }
 function movementPoint(domain,p,maxDistanceM=20){
  if(!domain||!p||![p.latitude,p.longitude].every(finite))return null;
  if(distance([domain.origin.longitude,domain.origin.latitude],[p.longitude,p.latitude])>domain.radiusM+maxDistanceM)return null;
- if(distance([domain.origin.longitude,domain.origin.latitude],[p.longitude,p.latitude])<=domain.radiusM&&(domain.geometry.polygons||[]).some(poly=>inside(poly[0],p)&&!poly.slice(1).some(r=>inside(r,p))))return {...p,distanceM:0};
+ const within=domain.geometry.within;
+ if(distance([domain.origin.longitude,domain.origin.latitude],[p.longitude,p.latitude])<=domain.radiusM&&(!within||within.some(poly=>inside(poly[0],p)&&!poly.slice(1).some(r=>inside(r,p))))&&
+  (domain.geometry.polygons||[]).some(poly=>inside(poly[0],p)&&!poly.slice(1).some(r=>inside(r,p))))return {...p,distanceM:0};
  const nearest={},c=Math.cos(p.latitude*RAD);let best=Infinity,point=null;
  for(const line of domain.geometry.lines){const d=edgeDistance(line,p,c,nearest);if(d<best){best=d;point={...nearest};}}
  return best<=maxDistanceM?{...point,distanceM:best}:null;
@@ -327,14 +347,17 @@ function surveyedViewpoints(data,targetId){
  for(const p of data?.places||[]){
   if(!targetId||!p.targets?.includes(targetId)||![p.latitude,p.longitude,p.groundM,p.eyeM].every(finite)||p.eyeM<0)continue;
   const id='surveyed/'+p.id;
-  points.push({latitude:p.latitude,longitude:p.longitude,lat:p.latitude,lon:p.longitude,placeId:id,name:p.name,placeKind:'viewpoint',sourceId:id,surfaceId:id,polygonId:p.id,
+  const placeKind=['viewpoint','park','plaza','sidewalk','riverbank','road','unknown'].includes(p.placeKind)?p.placeKind:'unknown',e=p.categoryEvidence;
+  const categoryEvidence=e&&['research-kind','research-description','mapped-category','official-description','unclassified'].includes(e.basis)&&typeof e.detail==='string'&&Array.isArray(e.sourceUrls)&&e.sourceUrls.every(u=>typeof u==='string')?
+   {...e,sourceUrls:e.sourceUrls.slice()}:null;
+  points.push({latitude:p.latitude,longitude:p.longitude,lat:p.latitude,lon:p.longitude,placeId:id,name:p.name,placeKind,sourceId:id,surfaceId:id,polygonId:p.id,
    surfaceGeometry:{polygons:[],lines:[],position:{latitude:p.latitude,longitude:p.longitude}},
    // The surveyed height is the lens above the stated ground or floor, so the floor is that ground itself (surfaceAglM 0):
    // a place off the terrain without a floor height is refused as standing-height-unknown (generic-evaluator.js).
    groundM:p.groundM,groundKnown:true,surfaceAglM:0,eyeM:p.eyeM,standingSurfaceKnown:true,accessKnown:false,structureClassificationKnown:true,nonTerrainStructure:p.eyeM>3||!!p.groundManual,surveyedTargets:p.targets.slice(),
    quality:'surveyed-viewpoint',
    sourceEvidence:{kind:'surveyed-viewpoint',sourceId:p.id,heightM:p.eyeM,reference:p.groundManual?'height-above-stated-floor':'height-above-local-ground',positionBasis:'representative-point',shape:p.shape,
-   targetVisibility:'surveyed',actualVisibilityGuaranteed:false}
+   ...(categoryEvidence?{categoryEvidence}:{}),targetVisibility:'surveyed',actualVisibilityGuaranteed:false}
   });
  }return points;
 }
@@ -342,9 +365,11 @@ function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,
  if(!terrain)throw Error('terrain provider is required');
  const servers=endpoints||terrain.OVERPASS||[],cache=new Map(),heightCache=new Map(),nearbyCache=new Map();
  let endpointCursor=0,overpassRetryAfter=0,overpassNextRequest=0;
- async function load(plan,{regions=plan?.regions||plan?.searchRegions||[],isCurrent=()=>true,onProgress=()=>{},signal,maxTiles:tileBudget=maxTiles,maxPoints:pointBudget=maxPoints,pointKinds,cursor,offset=0,retryFailed=true}={}){
+ async function load(plan,{regions=plan?.regions||plan?.searchRegions||[],isCurrent=()=>true,onProgress=()=>{},signal,deadline=Infinity,maxTiles:tileBudget=maxTiles,maxPoints:pointBudget=maxPoints,pointKinds,cursor,offset=0,retryFailed=true}={}){
+  const wanted=pointKinds==null?null:new Set(pointKinds),pointKindsKey=wanted?JSON.stringify([...wanted].sort()):null;
+  if(cursor&&typeof cursor==='object'&&'pointKindsKey'in cursor&&cursor.pointKindsKey!==pointKindsKey){cursor=null;offset=0;}
   offset=Math.max(0,Number(cursor?.offset??cursor??offset)||0);const retryTiles=Array.isArray(cursor?.retryTiles)?cursor.retryTiles:[],batchTiles=Array.isArray(cursor?.batchTiles)?cursor.batchTiles:null,pointOffset=Math.max(0,Number(cursor?.pointOffset)||0);
-  const requested=regionsFor(regions),started=Date.now(),current=()=>!signal?.aborted&&providerCurrent()&&isCurrent(),controller=new AbortController();
+  const requested=regionsFor(regions),started=Date.now(),current=()=>!signal?.aborted&&Date.now()<deadline&&providerCurrent()&&isCurrent(),controller=new AbortController();
   let timedOut=false;const cancel=()=>controller.abort(),timer=setInterval(()=>{if(!current())cancel();if(Date.now()-started>maxDurationMs){timedOut=true;cancel();}},100);signal?.addEventListener('abort',cancel,{once:true});
   const coverage={status:'partial',requestedRegions:requested,fetchedRegions:[],failedRegions:[],pendingRegions:[],missing:[],osmComplete:false,samplingComplete:false,heightComplete:false,visibilityAssessed:false,actualVisibilityGuaranteed:false,queryTileDegrees:TILE};
   const merged=new Map();let nextOffset=offset,hasPending=false;
@@ -361,7 +386,8 @@ function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,
    // regions. out geom without an output bbox preserves full returned rings.
    const b=tile.bbox.map((v,i)=>v+(i<2?-.0003:.0003));b[0]=Math.max(-180,b[0]);b[1]=Math.max(-90,b[1]);b[2]=Math.min(180,b[2]);b[3]=Math.min(90,b[3]);
    // Bundled OSM places first (no Overpass round trip); Overpass only if they cannot be read.
-   if(places)try{const value={features:parseElements(await places.elementsIn(b)),at:Date.now(),timestamp:null,endpoint:'bundled-osm',version:'bundled',local:true};cache.set(tile.id,value);while(cache.size>120)cache.delete(cache.keys().next().value);return value;}catch{/* Overpass below. */}
+   if(places)try{const value={features:parseElements(await bounded(places.elementsIn(b),timeoutMs)),at:Date.now(),timestamp:null,endpoint:'bundled-osm',version:'bundled',local:true};
+    cache.set(tile.id,value);while(cache.size>120)cache.delete(cache.keys().next().value);return value;}catch{/* Overpass below. */}
    let reason=Date.now()<overpassRetryAfter?'overpass-cooldown':'no-overpass-endpoint',overpassAttempted=false;
    for(let attempt=0;attempt<Math.min(2,servers.length)&&current()&&!controller.signal.aborted&&(tile.retry||Date.now()>=overpassRetryAfter);attempt++){
     overpassAttempted=true;
@@ -401,30 +427,30 @@ function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,
    coverage.evaluatedRegionIds=coverage.fetchedRegions.map(r=>r.id);coverage.nextCursor=batchTiles?cursor.afterCursor||null:hasPending||retryFailed&&coverage.failedRegions.length?{offset:nextOffset,retryTiles:retryFailed?[...deferredRetries,...coverage.failedRegions]:[]}:null;
    coverage.osmComplete=requested.length>0&&!hasPending&&!coverage.failedRegions.length&&offset===0&&current()&&!timedOut;
    const selectionRegions=[];for(const r of requested)for(const tile of coverage.fetchedRegions){const b=[Math.max(r.bbox[0],tile.bbox[0]),Math.max(r.bbox[1],tile.bbox[1]),Math.min(r.bbox[2],tile.bbox[2]),Math.min(r.bbox[3],tile.bbox[3])];if(b[0]<b[2]&&b[1]<b[3])selectionRegions.push({...r,bbox:b});}
-   const wanted=pointKinds==null?null:new Set(pointKinds);
    const features=[...merged.values()],sampled=batchTiles&&coverage.failedRegions.length
     // A point offset is only valid for the same complete set of tiles.
     ?{rows:[],limited:true,omittedPoints:0,unknownGeometry:[]}
     :sampleFeatures(features,selectionRegions,{spacingM,maxPoints:Math.max(1,pointBudget),skipPoints:pointOffset,pointKinds:wanted});
    let points=sampled.rows;
-   // Move past this batch only when the full sample proves all remaining points are excluded.
-   const skipRemaining=wanted&&sampled.omittedPoints>0&&sampled.remainingWanted===0&&!sampled.generationLimited&&!coverage.failedRegions.length;
-   const limited=sampled.limited&&!skipRemaining;
+   // Both the generation and page budgets count only eligible place kinds.
+   const limited=sampled.limited;
    if(limited&&points.length)coverage.nextCursor={offset,pointOffset:pointOffset+points.length,batchTiles:coverage.fetchedRegions.map(r=>({id:r.id,bbox:r.bbox,regionId:r.regionId})),afterCursor:coverage.nextCursor};
    else if(batchTiles&&retryFailed&&coverage.failedRegions.length)coverage.nextCursor={...cursor};
-   coverage.samplingComplete=!limited;coverage.omittedPoints=skipRemaining?0:sampled.omittedPoints;coverage.incompleteGeometry=sampled.unknownGeometry;
-   if(skipRemaining)coverage.pointsSkippedByKind=sampled.omittedPoints;
+   if(coverage.nextCursor)coverage.nextCursor={...coverage.nextCursor,pointKindsKey};
+   coverage.samplingComplete=!limited;coverage.omittedPoints=sampled.omittedPoints;coverage.incompleteGeometry=sampled.unknownGeometry;
+   coverage.pointsExcludedByKind=sampled.excludedPoints||0;coverage.featuresExcludedByKind=sampled.excludedFeatures||0;
    if(limited)coverage.missing.push('point-budget');if(hasPending)coverage.missing.push('tile-budget-or-timeout');if(sampled.unknownGeometry.length)coverage.missing.push('incomplete-osm-geometry');
    // A small documented viewpoint supplement is independent of OSM availability.
    // Add once at the beginning; continuation pages only advance dynamic geometry.
    coverage.documentedViewpoints=0;
    if(!cursor&&offset===0&&typeof loadViewpoints==='function'&&current()&&!controller.signal.aborted)try{const supplement=publishedViewpoints(await bounded(loadViewpoints(plan,{signal:controller.signal,isCurrent:current}),timeoutMs),requested);points.unshift(...supplement);
    coverage.documentedViewpoints=supplement.length;}catch{coverage.missing.push('documented-viewpoints-unavailable');}
-   // The point cursor counts every sampled surface. Filter only the points sent for height and water checks.
+   // Supplements are independent of the dynamic point cursor. Apply the same
+   // requested kinds before their height/water reads too.
    if(wanted){
     const sampleCount=points.length;
     points=points.filter(p=>wanted.has(p.placeKind));
-    coverage.pointsExcludedByKind=sampleCount-points.length;
+    coverage.pointsExcludedByKind+=sampleCount-points.length;
    }
    // Query ground only for the sampled surfaces. GSI failures and sea sentinels
    // stay null; tileElevations() is deliberately not used (it maps failures to 0).

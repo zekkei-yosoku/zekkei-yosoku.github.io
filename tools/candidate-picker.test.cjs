@@ -100,6 +100,23 @@ test('a place already among the saved shooting places is left to the records sid
  assert(F.inRecords(row(35.7400,20,1.5),[{latitude:35.7400,longitude:139.74,eyeHeightAGL:1.5}]),'a saved place without its ground compares the height above ground');
  assert(!F.inRecords(row(35.7400,20,202),[{latitude:35.7400,longitude:139.74,eyeHeightAGL:1.5}]));
 });
+test('only immovable surveyed wrappers can reuse the final record test before evaluation',()=>{
+ const fixed={latitude:35,longitude:139,groundM:20,eyeM:1.5,surfaceAglM:0,standingSurfaceKnown:true,sourceId:'surveyed/a',surfaceId:'surveyed/a',quality:'surveyed-viewpoint',surveyedTargets:['tower'],
+  sourceEvidence:{kind:'surveyed-viewpoint',sourceId:'a'},surfaceGeometry:{position:{latitude:35,longitude:139},lines:[],polygons:[]}};
+ const saved=[{latitude:35,longitude:139,elevation:20,eyeHeightAGL:1.5}];
+ assert(F.fixedSurveyedInRecords(fixed,'tower',saved));
+ for(const p of [{...fixed,surveyedTargets:['other']},{...fixed,quality:'public-point-model'},{...fixed,sourceId:'other/a'},
+  {...fixed,surfaceGeometry:{...fixed.surfaceGeometry,lines:[[[139,35],[139,36]]]}},
+  {...fixed,surfaceGeometry:{...fixed.surfaceGeometry,polygons:[[[[139,35],[140,35],[140,36],[139,35]]]]}},
+  {...fixed,surfaceGeometry:{...fixed.surfaceGeometry,position:{latitude:35.1,longitude:139}}},
+  {...fixed,standingSurfaceKnown:false},{...fixed,surfaceAglM:1},{...fixed,surfaceElevationM:20},{...fixed,standingElevationM:20},{...fixed,groundM:NaN},{...fixed,eyeM:NaN}])assert.equal(F.fixedSurveyedInRecords(p,'tower',saved),false);
+ assert.equal(F.fixedSurveyedInRecords(fixed,'tower',[]),false);
+ assert.equal(F.fixedSurveyedInRecords(fixed,'tower',[{...saved[0],eyeHeightAGL:31.5}]),false);
+ for(const delta of [0,.0008,.001])for(const ground of [20,undefined])for(const up of [1.5,11.5,11.6,undefined]){
+  const records=[{...saved[0],latitude:35+delta,elevation:ground,eyeHeightAGL:up}],row={place:{latitude:35,longitude:139,elevation:20,groundManualM:20,standAglM:1.5,eyeHeightAGL:1.5}};
+  assert.equal(F.fixedSurveyedInRecords(fixed,'tower',records),F.inRecords(row,records),'distance, height and missing-height policy is unchanged');
+ }
+});
 test('a surveyed place stands for its area, whatever the kind and rank of the found rows around it',()=>{
  const at=Date.parse('2026-11-20T15:38:20+09:00'),row=(lat,extra={})=>({place:{name:'公園の園路',latitude:lat,longitude:139.74,elevation:20},event:{at},quality:{photographyClass:'normal'},...extra});
  const found={row:row(35.7400,{rank:[1]}),types:['park'],index:0},known={row:row(35.7403,{rank:[9],place:{name:'調べた展望地',latitude:35.7403,longitude:139.74,elevation:21},quality:{photographyClass:'normal',surveyed:true}}),types:['viewpoint'],index:1};
@@ -223,4 +240,12 @@ test('ordinary buildings, custom targets, mountains, old modes and missing geome
  assert.equal(F.positionChoices([row(.9)],mountain).shortcuts.length,0);
  assert.equal(F.passageOf(row(.5),{...plan,matchMode:undefined}),AstroNotesShooting.passageText(row(.5).event,{...plan,matchMode:undefined}));
  assert.equal(F.passageOf({place:{},event:{}},plan),'全体に重なる候補');
+});
+
+test('foreground quota counts different new areas, not recorded places, adjacent samples or morning/evening of one place',()=>{
+ const make=(i,at=0,up=1.5)=>({id:'q'+i+'-'+at+'-'+up,placeKind:'park',place:{latitude:35+i*.0001,longitude:139,elevation:10,standAglM:up},event:{at},quality:{visibility:'model-clear'}});
+ const rows=[make(0),make(1),make(0,12*3600000),make(0,0,50),make(100),make(200)],snapshot=structuredClone(rows);
+ assert.equal(F.countNewPlaces(rows,[]),4);assert.equal(F.countNewPlaces(rows,[rows[0].place]),3);
+ assert.deepEqual(rows,snapshot,'counting must not change exact event, evidence, coordinates or height');
+ const many=Array.from({length:100},(_,i)=>make(i*.01));assert.equal(F.countNewPlaces(many,[]),1);
 });

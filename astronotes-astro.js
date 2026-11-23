@@ -240,6 +240,27 @@
   /// 月の見かけ半径。距離で変わる（指示書 §6「見かけ半径は固定値にしない」）
   const moonAngularRadius = (distanceKm) => Math.asin(MOON_RADIUS_KM / distanceKm) / DEG;
 
+  // A search needs the direction, not the illuminated lunar surface. Prepare
+  // observer-independent terms once at each exact time; keep parallax and air
+  // correction at the actual observer. No interpolation or time rounding.
+  const moonDirectionContext = memoExactTime(ms => {
+    const g = moonGeocentric(ms + DELTA_T_MS);
+    const { dPsi, dEps } = nutation(g.T), eps = meanObliquity(g.T) + dEps;
+    const eq = toEquatorial(g.longitude + dPsi, g.latitude, eps);
+    return {ra:eq.ra, dec:eq.dec, gast:apparentSiderealTime(ms,dPsi,eps),
+      distanceKm:g.distanceKm, longitude:g.longitude, latitude:g.latitude, semi:moonAngularRadius(g.distanceKm)};
+  });
+  function moonDirection(ms, obs, air = {}) {
+    const {latitude:lat, longitude:lon, elevation=0} = obs, p = moonDirectionContext(ms);
+    const topo = topocentric(p.ra,p.dec,p.distanceKm,lat,lon,elevation,p.gast);
+    const hor = toHorizontal(topo.hourAngle,topo.dec,lat), refr = refraction(hor.altitude,air), semi = p.semi;
+    return {azimuth:hor.azimuth, geometricAltitude:hor.altitude, apparentAltitude:hor.altitude+refr,
+      refraction:refr, distanceKm:p.distanceKm, angularRadius:semi, angularDiameter:semi*2,
+      horizontalParallax:topo.horizontalParallax, upperLimbAltitude:hor.altitude+refr+semi,
+      lowerLimbAltitude:hor.altitude+refr-semi, rightAscension:topo.ra, declination:topo.dec,
+      hourAngle:topo.hourAngle, eclipticLongitude:p.longitude, eclipticLatitude:p.latitude};
+  }
+
   /// 太陽の見かけの半径[度]。距離で変わる（近日点 0.271 / 遠日点 0.262）。
   /// ダイヤモンド富士は「山頂に太陽が重なるか」なので、この幅が判定そのものになる。
   const sunAngularRadius = (distanceKm) => 0.266563 / (distanceKm / 149597870.7);
@@ -594,7 +615,7 @@
   const AstroNotesAstro = {
     // 天文
     julianDay, centuries, nutation, meanObliquity,
-    sunPosition, sun, sunAngularRadius, moonGeocentric, moon,
+    sunPosition, sun, sunAngularRadius, moonGeocentric, moon, moonDirection,
     toEquatorial, toHorizontal, topocentric, apparentSiderealTime,
     refraction, moonAngularRadius, bodyEcef, DELTA_T_MS,
     findCrossing, moonCrossings, moonEvents, nearestRiseSet,

@@ -52,6 +52,64 @@ function endpointKey(observer,ray){
  const values=[observer.latitude,observer.longitude,observer.elevation,observer.eyeM??1.5,endpoint.latitude,endpoint.longitude,endpoint.elevation,ray.maxM,ray.refractionK||1];
  return values.every(Number.isFinite)?JSON.stringify([ray.targetKey,...values]):null;
 }
+// An associated structure is still checked over its full OSM width. This only
+// replaces unknown height when its complete polyline has a verified model.
+function structureModelTop(o,data){
+ const m=data.structureModels?.[o.id],g=m?.geometry,s=m?.source,polygons=m?.coverage?.polygons;
+ if(!m||!g||!s||!['road','railway','bridge'].includes(o.kind)||o.kind!==g.kind||!Object.is(o.halfWidthM??0,g.halfWidthM))return null;
+ if(!Number.isFinite(g.halfWidthM)||g.halfWidthM<0||!Number.isFinite(m.topM))return null;
+ if(typeof s.url!=='string'||!/^[a-f0-9]{64}$/.test(s.sha256)||typeof s.buildingId!=='string'||!s.buildingId)return null;
+ try{const url=new URL(s.url);if(url.protocol!=='https:'||!url.hostname||url.username||url.password)return null;}catch{return null;}
+ if(!Array.isArray(s.surfaces)||s.surfaces.length<3||s.surfaces.some(id=>typeof id!=='string'||!id)||new Set(s.surfaces).size!==s.surfaces.length)return null;
+ if(!Array.isArray(s.topRangeM)||s.topRangeM.length!==2||!s.topRangeM.every(Number.isFinite)||s.topRangeM[0]>s.topRangeM[1]||m.topM<Math.ceil(s.topRangeM[1]))return null;
+ if(typeof s.lod!=='string'||!s.lod||!Number.isInteger(s.surveyYear)||typeof m.coverage?.basis!=='string'||!m.coverage.basis)return null;
+ // This data contract describes complete line structures. Area/point models
+ // need their own coverage proof and fall back to unknown in this version.
+ if(!Array.isArray(g.rings)||!Array.isArray(g.points)||g.rings.length||g.points.length||(o.rings||[]).length||(o.points||[]).length)return null;
+ const point=p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&Math.abs(p[0])<=85&&Math.abs(p[1])<=180;
+ if(!Array.isArray(o.lines)||!Array.isArray(g.lines)||!g.lines.length||o.lines.length!==g.lines.length)return null;
+ for(let i=0;i<g.lines.length;i++){
+  const a=o.lines[i],b=g.lines[i];if(!Array.isArray(a)||!Array.isArray(b)||b.length<2||a.length!==b.length)return null;
+  for(let j=0;j<b.length;j++)if(!point(a[j])||!point(b[j])||!a[j].every((v,k)=>Object.is(v,b[j][k])))return null;
+ }
+ const cross=(a,b)=>a[0]*b[1]-a[1]*b[0],sub=(a,b)=>[a[0]-b[0],a[1]-b[1]];
+ const crossing=(a,b,c,d)=>{
+  const v=sub(b,a),w=sub(d,c),den=cross(v,w);if(!den)return null;
+  const t=cross(sub(c,a),w)/den,u=cross(sub(c,a),v)/den;return u>=0&&u<=1&&t>=0&&t<=1?t:null;
+ };
+ const ringValid=ring=>{
+  if(!Array.isArray(ring)||ring.length<4||ring.length>128||!ring.every(point)||!ring[0].every((v,k)=>v===ring.at(-1)[k]))return false;
+  let area=0;for(let i=1;i<ring.length;i++)area+=cross(sub(ring[i-1],ring[0]),sub(ring[i],ring[0]));
+  if(!Number.isFinite(area)||!area)return false;
+  for(let i=1;i<ring.length;i++)for(let j=i+2;j<ring.length;j++)if(!(i===1&&j===ring.length-1)&&crossing(ring[i-1],ring[i],ring[j-1],ring[j])!==null)return false;
+  return true;
+ };
+ if(!Array.isArray(polygons)||!polygons.length||polygons.length>16)return null;
+ for(const p of polygons)if(!p||!ringValid(p.outer)||!Array.isArray(p.holes)||p.holes.length>16||!p.holes.every(ringValid))return null;
+ const inside=(p,ring)=>{
+  let found=false;
+  for(let i=1;i<ring.length;i++){
+   const a=ring[i-1],b=ring[i],v=sub(b,a),w=sub(p,a);
+   // Refuse boundary-scale rounding instead of filling a microscopic gap.
+   const vv=v[0]*v[0]+v[1]*v[1],t=vv?Math.max(0,Math.min(1,(w[0]*v[0]+w[1]*v[1])/vv)):0;
+   if(Math.hypot(w[0]-t*v[0],w[1]-t*v[1])<=1e-10)return null;
+   if((a[0]>p[0])!==(b[0]>p[0])&&p[1]<(b[1]-a[1])*(p[0]-a[0])/(b[0]-a[0])+a[1])found=!found;
+  }
+  return found;
+ };
+ const covered=p=>polygons.some(poly=>inside(p,poly.outer)===true&&poly.holes.every(h=>inside(p,h)===false));
+ for(const line of g.lines)for(let i=1;i<line.length;i++){
+  const a=line[i-1],b=line[i];if(!covered(a)||!covered(b))return null;
+  const cuts=[0,1];for(const p of polygons)for(const ring of [p.outer,...p.holes])for(let j=1;j<ring.length;j++){
+   const t=crossing(a,b,ring[j-1],ring[j]);if(t!==null)cuts.push(t);
+  }
+  cuts.sort((a,b)=>a-b);
+  for(let j=1;j<cuts.length;j++)if(cuts[j]>cuts[j-1]){
+   const t=(cuts[j]+cuts[j-1])/2;if(!covered([a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1])]))return null;
+  }
+ }
+ return m.topM;
+}
 function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):null),base='data/building-heights/',loadIndex=null,gsiAlong=null,groundAt=null,ownFootprint=null,ownFootprintVersion=null,obstacles=null}={}){
  let indexPromise=null;const meshes=new Map(),ready=new Map(),overlays=new Map(),partLoads=new Map(),parts=new Map(),ownCells=new Map();
  const blockedEndpoints=new Map(),BLOCKED_ENDPOINT_LIMIT=1024;
@@ -415,6 +473,76 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   if(!data.parts?.[p4])return;
   await queueHeightRead(async()=>{const list=parts.get(p4)||await part(p4,data);requireCurrent(isCurrent);if(list[code])await mesh(code,list[code]);},{current:isCurrent,kind:'demand'});
  }
+ // New-place tower quality uses every cell of a conservative width patch.
+ // Missing PLATEAU coverage is unknown: GSI class percentiles are not height
+ // upper bounds. This path never uses the padded target footprint exclusion.
+ async function upperPatch(patch,targetKey,{isCurrent=()=>true,check=()=>requireCurrent(isCurrent)}={}){
+  check();
+  // obstaclesAlong returns all rows in its padded bbox, using the crossed
+  // 0.01-degree cells and neighbours. A patch narrower than half a cell has
+  // every bbox cell in that neighbourhood; larger/custom envelopes stay unknown.
+  if(!obstacles||patch.east-patch.west>.005||patch.north-patch.south>.005)return {status:'unknown',reason:'upper-obstacles-unavailable'};
+  const extra=await obstacles({latitude:patch.south,longitude:patch.west},{latitude:patch.north,longitude:patch.east});check();
+  if(!Array.isArray(extra))return {status:'unknown',reason:'upper-obstacles-unavailable'};
+  const data=await index();check();
+  const overlaps=(a,b,width=0,refine=true,modelTop=null)=>{
+   if(!Number.isFinite(width)||width<0)return true;
+   const py=width/110000,px=py/Math.cos(Math.max(Math.abs(a[0]),Math.abs(b[0]))*RAD);
+   let lo=0,hi=1;
+   for(const [v,d,min,max]of [[a[0],b[0]-a[0],patch.south-py,patch.north+py],[a[1],b[1]-a[1],patch.west-px,patch.east+px]]){
+    if(Math.abs(d)<1e-15){if(v<min||v>max)return false;continue;}
+    const t0=(min-v)/d,t1=(max-v)/d;lo=Math.max(lo,Math.min(t0,t1));hi=Math.min(hi,Math.max(t0,t1));if(lo>hi)return false;
+   }
+   if(!refine)return true;
+   // The clipped centre segment plus its full width encloses every contact.
+   // +Infinity alone means outside the tower fan/range; missing/NaN heights
+   // cannot prove absence. Outward padding preserves touching endpoints.
+   const ay=a[0]+lo*(b[0]-a[0]),ax=a[1]+lo*(b[1]-a[1]),by=a[0]+hi*(b[0]-a[0]),bx=a[1]+hi*(b[1]-a[1]),pad=1e-10;
+   const box={south:Math.min(ay,by)-py-pad,north:Math.max(ay,by)+py+pad,west:Math.min(ax,bx)-px-pad,east:Math.max(ax,bx)+px+pad};
+   const low=typeof patch.lowAt==='function'?patch.lowAt(box):patch.lowM;
+   if(typeof patch.lowAt==='function'&&low===Infinity)return false;
+   return !(modelTop!==null&&Number.isFinite(low)&&low>modelTop+MARGIN_M);
+  };
+  for(const o of extra){
+   if(o.kind==='tree')continue; // Native canopy cells are checked independently.
+   const geometry=[...(o.lines||[]),...(o.rings||[]),o.points||[]].flat();
+   if(!geometry.length||geometry.some(p=>!Array.isArray(p)||p.length<2||!p.slice(0,2).every(Number.isFinite)))return {status:'unknown',reason:'upper-obstacle-geometry-unavailable'};
+   const modelTop=structureModelTop(o,data);
+   let touch=(o.points||[]).some(p=>overlaps(p,p,o.halfWidthM??0,true,modelTop));
+   for(const line of [...(o.lines||[]),...(o.rings||[])]){
+    const ring=(o.rings||[]).includes(line);
+    // Filled rings keep their broad intersection: filtering only their edges
+    // would not prove the enclosed interior outside the fan.
+    for(let i=1;i<line.length&&!touch;i++)touch=overlaps(line[i-1],line[i],o.halfWidthM??0,!ring,modelTop);
+    if(!touch&&ring&&line.length>1)touch=overlaps(line.at(-1),line[0],o.halfWidthM??0,false);
+    // A large closed ring may contain the entire patch without an edge touch.
+    if(!touch&&(o.rings||[]).includes(line)){
+     const x=(patch.west+patch.east)/2,y=(patch.south+patch.north)/2;let inside=false;
+     for(let i=0,j=line.length-1;i<line.length;j=i++)if((line[i][0]>y)!==(line[j][0]>y)&&x<(line[j][1]-line[i][1])*(y-line[i][0])/(line[j][0]-line[i][0])+line[i][1])inside=!inside;
+     touch=inside;
+    }
+   }
+   if(touch)return {status:'unknown',reason:'upper-structure-height-unknown',kind:o.kind,obstacleId:o.id,fromM:patch.fromM,toM:patch.toM};
+  }
+  let count=0,lastCode=null,grid,other;
+  for(let gy=Math.floor(patch.south*LAT);gy<=Math.floor(patch.north*LAT);gy++)for(let gx=Math.floor(patch.west*LON);gx<=Math.floor(patch.east*LON);gx++){
+   check();const my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS),code=meshCode(my,mx),p4=code.slice(0,4);
+   if(code!==lastCode){
+    if(!data.parts?.[p4])return {status:'unknown',reason:'height-coverage-unavailable'};
+    await queueHeightRead(async()=>{const list=parts.get(p4)||await part(p4,data);check();if(list[code])await mesh(code,list[code]);},{current:isCurrent,kind:'demand'});check();
+    if(!parts.get(p4)?.[code]||!ready.has(code))return {status:'unknown',reason:'height-coverage-unavailable'};
+    lastCode=code;grid=ready.get(code);other=overlay(code,data,targetKey);
+   }
+   const i=(gy-my*ROWS)*COLS+(gx-mx*COLS),v=Math.max(grid[i],other.get(i)||0);count++;
+   const low=patch.lowAt?.({west:gx/LON,east:(gx+1)/LON,south:gy/LAT,north:(gy+1)/LAT})??patch.lowM;
+   if(!v||low>v-data.grid.offsetM+MARGIN_M)continue;
+   // Target-only overlay cells are absent from the base grid. A base height
+   // at the same cell cannot be separated from an associated/adjacent building.
+   if(other.own.has(i))return {status:'unknown',reason:'target-building-contact'};
+   return {status:low<v-data.grid.offsetM-2?'blocked':'unknown',reason:'upper-building',topM:v-data.grid.offsetM,rayM:low,cells:count};
+  }
+  return {status:'clear',cells:count,source:'plateau-grid',estimated:false};
+ }
  // The highest a building top rises above the eye along each bearing (deg, with the earth's curve), up to maxM: whether
  // other buildings stand into the sky beside the target in the photograph (generic-evaluator.js compositionOf). PLATEAU
  // tops only; the aimed target's own cells are left out.
@@ -483,7 +611,7 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   }
   requireCurrent(isCurrent);return rows;
  }
- return {trace,skyline,index,topNow,loadAt,angles,frontage};
+ return {trace,skyline,index,topNow,loadAt,angles,frontage,upperPatch};
 }
 return {create,decode,meshCode,profile,cells,GSI_MAX_M,MARGIN_M};
 });

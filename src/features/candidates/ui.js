@@ -6,7 +6,7 @@ const mainWorkspace=()=>globalThis.TrialExplore?.candidateWorkspace?.();
 const dateSelection=()=>{const s=SkyMapUI.selectionState();return Number.isFinite(s?.at)?s:SkyMapUI.workspaceHost()?.session;};
 const contextActive=()=>{const main=mainWorkspace();return main?main.active():document.getElementById('placeSheet')?.open&&typeof placeSheetFor!=='undefined'&&placeSheetFor==='skymap'&&!document.getElementById('recentCandidates')?.hidden;};
 let dateNavigation=null,dateCalendar=null,autoSearchTimer=null,dateRefreshPending=false,hasSearched=false,returnSearch=null,returnedSearchFrame=null;
-let timeChoice='day',windowStart='00:00',windowEnd='23:59';
+let timeChoice='day',windowStart='00:00',windowEnd='23:59',includeRoads=false;
 const dataTag=new URL(document.currentScript.src,location.href).searchParams.get('v')||'0';
 const dataHashes=/* BUILD_DATA_HASHES */{};
 // The trial keeps no copy of this data: its page points at the production folder (build-preview.py).
@@ -68,7 +68,7 @@ async function fillTownAddresses(rows,isCurrent){
  }
  return changed;
 }
-const filterKey=p=>JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode]);
+const filterKey=p=>JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode,p.includeRoads===true]);
 // Shared, bounded tile cache for recorded rows. Road edges classify a location;
 // they never make it a new candidate or change its visibility evidence.
 const recordedPlaceContext=AstroNotesCandidateLabels.createRoadContext({fetchImpl:fetch.bind(globalThis),decodeAreas:(...args)=>AstroNotesTerrain.decodeWaterLayer(...args),
@@ -115,10 +115,10 @@ const visibilityMap=globalThis.AstroNotesVisibilityMap?.create({ground:mapGround
  builtIn:target=>builtInMaps.has(target.id)?loaded('visibility/'+target.id+'.json'):null})||null;
 const mapEligible=plan=>!!plan?.target&&!(plan.composition||plan.strict||plan.profile==='summit-contact'||plan.target.rim)&&(plan.target.parts||[]).some(p=>Number.isFinite(p.m));
 const prefilter=visibilityMap&&{
- async regions(plan,regions,{isCurrent}){
+ async regions(plan,regions,{isCurrent,deadline=Infinity}){
   if(!mapEligible(plan))return null;const t=plan.target,inv=(lat,lon)=>AstroNotesTerrain.inverse(t.latitude,t.longitude,lat,lon).azimuth;
   const bearings=regions.flatMap(r=>{const [w,s,e,n]=r.bbox;return [inv((s+n)/2,(w+e)/2),inv(s,w),inv(s,e),inv(n,w),inv(n,e)];});
-  const m=await visibilityMap.ensure(t,bearings,{isCurrent,deadline:Date.now()+MAP_BUDGET_MS});if(!m?.levels?.length||!m.sectors.size)return null;
+  const m=await visibilityMap.ensure(t,bearings,{isCurrent,deadline:Math.min(deadline,Date.now()+MAP_BUDGET_MS)});if(!m?.levels?.length||!m.sectors.size)return null;
   const need=AstroNotesVisibilityMap.needFor(m);
   return {regions:regions.filter(r=>!AstroNotesVisibilityMap.regionHidden(m,t,r.bbox,need)),context:{map:m,need}};
  },
@@ -227,7 +227,8 @@ function snapshot(){
  // だけ確認」): no lens drops a place then, so the lens stays out of the search. Choosing a place sets the focal length and the
  // frame for its view; leaving the lens in the key would drop the found places on the way back.
  const searchLens=s.partId==='__whole'&&!extraTargets.length?{mode:'unspecified'}:lens;
- const selected={...s,authGeneration:mainWorkspace()?.epoch(),owner:auth.loginId,expected:context(s),atmosphere:air(),lens:searchLens,extraTargets,timeSpec:timeSpec(s.at),profile:typeof aimIsMountain==='function'&&aimIsMountain(s.target)?'summit-contact':'building-near',...(globalThis.AstroNotesTrialComposition?.plan(s)||{}),...(globalThis.AstroNotesTrialOverlap?.searchPlan?.(s)||{})};
+ const selected={...s,authGeneration:mainWorkspace()?.epoch(),owner:auth.loginId,expected:context(s),atmosphere:air(),lens:searchLens,extraTargets,timeSpec:timeSpec(s.at),profile:typeof aimIsMountain==='function'&&aimIsMountain(s.target)?'summit-contact':'building-near',
+  ...(globalThis.AstroNotesTrialComposition?.plan(s)||{}),...(globalThis.AstroNotesTrialOverlap?.searchPlan?.(s)||{}),includeRoads};
  // A next-day event in an overnight window does not change the search day.
  const overnight=returnSearch&&s.candidateOpportunity?.id===returnSearch.rowId&&s.at===returnSearch.viewAt?
   {...selected,at:returnSearch.plan.at,timeSpec:returnSearch.plan.timeSpec}:null;
@@ -391,9 +392,11 @@ function mount(){
  if(main){
   const range=document.createElement('span');range.className='candidate-query-range';
   range.textContent=timeChoice==='instant'?'選択した時刻':timeChoice==='window'?windowStart&&windowEnd?windowStart+'〜'+windowEnd:'時間帯を指定':'この日全体';
+  if(includeRoads)range.textContent+='・道路含む';
   summary.append(range);
  }
- const description=document.createElement('p');description.className='tiny';description.textContent=(p?.overlapMembers?'全ての対象を合わせた輪郭に重なる地点を探します。':p?.extraTargets?.length?'重ねる対象で探します。ほかの対象は見え方で一緒に確認できます。 ':'')+'選択した天体と登録対象の位置・高さから撮影する地域を逆算し、展望台・公園・広場・河川敷を優先して探します。建物は近くを通る構図も含みます。見え方で確認できます。';
+ const description=document.createElement('p');description.className='tiny';description.textContent=(p?.overlapMembers?'全ての対象を合わせた輪郭に重なる地点を探します。':p?.extraTargets?.length?'重ねる対象で探します。ほかの対象は見え方で一緒に確認できます。 ':'')
+  +'選択した天体と登録対象の位置・高さから撮影する地域を逆算し、展望台・展望スペース・公園・高台・広場・河川敷を探します。'+(includeRoads?'道路などの地点も含めます。':'')+'建物は近くを通る構図も含みます。見え方で確認できます。';
  if(!main)evidence.append(description);
  const timeLabel=document.createElement('label');timeLabel.className='tiny';timeLabel.textContent='探索する日時 ';const mode=document.createElement('select');mode.id='candidateSearchMode';mode.setAttribute('aria-label','探索する日時');
  for(const [value,label]of [['day','この日全体'],['instant','選択した時刻'],['window','時間帯を指定']])mode.add(new Option(label,value));mode.value=timeChoice;timeLabel.append(mode);evidence.append(timeLabel);
@@ -401,6 +404,9 @@ function mount(){
  input.type='time';input.required=true;input.id=id;input.value=value;input.style.minHeight='44px';
  input.onchange=()=>{returnSearch=null;if(id.endsWith('Start'))windowStart=input.value;else windowEnd=input.value;mount();};l.append(input);times.append(l);}evidence.append(times);mode.onchange=()=>{returnSearch=null;
  timeChoice=mode.value;mount();};
+ const roads=document.createElement('label');roads.className='remember';const roadCheck=document.createElement('input');roadCheck.type='checkbox';roadCheck.id='candidateIncludeRoads';roadCheck.checked=includeRoads;
+ const roadLabel=document.createElement('span');roadLabel.textContent='道路などの地点も含める';roads.append(roadCheck,roadLabel);evidence.append(roads);
+ roadCheck.onchange=()=>{includeRoads=roadCheck.checked;returnSearch=null;mount();};
  const notes=document.createElement('p');notes.className='tiny';notes.textContent='地形・建物の収録範囲や高さの精度に限界があります。未確認の見通しを撮影可能と保証しません。樹木・現地の変化・営業時間等は現地条件も確認してください。取得できない情報がある場合は、結果に表示します。';
  const resultNotes=document.createElement('p');resultNotes.className='tiny';
  const credits=document.createElement('p');credits.className='tiny';
@@ -427,7 +433,7 @@ function mount(){
   evidence.append(credits);section.append(button,status,visibleCredits,resultList,evidence);
  }
  panel.append(section);syncWorkspaceSection(panel);
- if(editing&&['candidateSearchMode','candidateSearchStart','candidateSearchEnd'].includes(editing))section.querySelector('#'+editing)?.focus({preventScroll:true});
+ if(editing&&['candidateSearchMode','candidateSearchStart','candidateSearchEnd','candidateIncludeRoads'].includes(editing))section.querySelector('#'+editing)?.focus({preventScroll:true});
  const missingField=missingSearchTime();
  const valid=p&&AstroNotesBodies.definition(p.body)&&!p.compositionInvalid&&!missingField&&AstroNotesCandidateComposition.timeRange(p);
  button.disabled=!valid;
@@ -499,15 +505,17 @@ function mount(){
    if(partial){visibleCredits.hidden=!hasResults;main?.reveal();return;}
    const incomplete=!!result.stalled||interrupted||result.coverage.loaded?.some(c=>c.failedRegions?.length||c.missing?.includes('time-budget'));
    continuation=cancelled||interrupted||!!result.canContinue;failed=!cancelled&&incomplete;
-   renderAction();visibleCredits.hidden=!rows.length;
+   renderAction();visibleCredits.hidden=!rows.length&&!result.paused;
    const unknown=rows.some(r=>r.quality?.buildingHeights==='estimated'),unknownFrame=rows.some(r=>r.frame?.status==='unknown');
-   const summaryText=rows.length?`${rows.length}件の新たな撮影地点の候補があります。${unknown?'建物の高さを推定した候補を含みます。':''}${unknownFrame?'全体の画角を確認できない候補を含みます。':''}`
-    :incomplete?'確認できた範囲には候補がありません。':'今回確認した範囲では候補がありません。';
-   const next=incomplete?'取得できなかった範囲があります。':result.canContinue?'探索を再開できます。':'';
+   const placeCount=AstroNotesCandidatePicker.countNewPlaces(result.rows,recorded,labels.facilities);
+   const summaryText=rows.length?`${placeCount}か所の新たな撮影地点の候補があります。${unknown?'建物の高さを推定した候補を含みます。':''}${unknownFrame?'全体の画角を確認できない候補を含みます。':''}`
+    :result.paused?'まだ新たな撮影地点は見つかっていません。':incomplete?'確認できた範囲には候補がありません。':'今回確認した範囲では候補がありません。';
+   const next=incomplete?'取得できなかった範囲があります。':result.paused?'今回はここまで確認しました。続きを探せます。':result.canContinue?'探索を再開できます。':'';
    setStatus(cancelled?'探索をキャンセルしました。続きから探せます。':summaryText+next,!!main&&!!rows.length&&!cancelled&&!next);
    const c=result.counts,unverifiedWhy=[c.nearBuilding?`立つ点のすぐ脇に建物${c.nearBuilding}`:'',c.heightUnknown?`建物の高さが分からない${c.heightUnknown}`:'',c.obstacle?`木・橋・高架${c.obstacle}`:''].filter(Boolean).join('・');
    resultNotes.textContent=`見通しを地形と建物で確かめられた地点だけを候補にしています。${c.checked}地点を確認：遮られる${c.blocked}、`
     +`見通しを確かめられない${c.unverified||0}${unverifiedWhy?`（うち${unverifiedWhy}）`:''}、構図に合わない${c.outsideFrame||0}、立つ高さが分からない${c.unknown}。`
+    +(result.coverage.timeDeferredPoints?`時間内に確認できなかった${result.coverage.timeDeferredPoints}地点は、ほかの地点の後に再確認します。`:'')
     +(c.mapRegions||c.mapPoints?`見える場所の地図で、対象の名前のある部分が見えない区画${c.mapRegions||0}を探す前に外し、地点${c.mapPoints||0}を確かめる前に外しました（遮られるに含む）。`:'')
     +'建物の高さはPLATEAUを整備した都市はその高さ、ほかは国土地理院の建物の形と種類から見積もります。木はMeta・WRIの樹高地図（衛星写真からの推定、約2.4m刻み）の高さで判定し、読めないときはOpenStreetMapにある木だけを高さが分からないものとして扱います。橋・高架はOpenStreetMapにあるものだけ、高さが分からないものとして判定します。'
     +`探索地域 ${result.coverage.regions}区画。全地域・全時刻の網羅や実写成功は保証していません。`;
@@ -541,7 +549,9 @@ function mount(){
    // every 250 ms (a change of conditions also restarts the search through mount()).
    let checkedAt=-Infinity,stillCurrent=true,offeredRows=publishedRows;
    const searchCurrent=()=>{if(token!==run||!node.isConnected)return false;const now=performance.now();if(now-checkedAt>=250){checkedAt=now;stillCurrent=current(token,selected,node);}return stillCurrent;};
-   const result=await engine.searchAll(selected,{more:resuming,signal,isCurrent:searchCurrent,onPage:page=>{
+   const result=await engine.searchRecommended(selected,{more:resuming,signal,isCurrent:searchCurrent,
+   deprioritizePoints:()=>{const recorded=globalThis.MyPlacesUI?.savedPlaces?.()||[];return point=>AstroNotesCandidatePicker.fixedSurveyedInRecords?.(point,selected.target?.id,recorded)??false;},
+   countPlaces:rows=>AstroNotesCandidatePicker.countNewPlaces(rows,globalThis.MyPlacesUI?.savedPlaces?.()||[],availableLabels?.facilities),onPage:page=>{
     if(page.rows?.length>offeredRows&&searchCurrent()){offeredRows=page.rows.length;present(page,selected,node,token,{partial:true}).catch(()=>{});}
    },onBatchStart:()=>{live.resetBudget();
    footprintGround.resetBudget();treeGround.resetBudget();evaluationBudgetStarted=false;},
