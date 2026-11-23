@@ -3,7 +3,7 @@ export function createServerOpportunityScan({api,start,end,bodies,placeIds,targe
  const dayMs=86400000,date=at=>new Date(at+32400000).toISOString().slice(0,10),at=value=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(value||''))throw Error('invalid overlap day');const n=Date.parse(value+'T00:00:00+09:00');if(!Number.isFinite(n)||date(n)!==value)throw Error('invalid overlap day');return n;};
  const model='geometric-candidate-v1',state={model,day:start,end,through:start,rows:[],pending:[],failures:[],checked:0,total:0,done:false,running:false,cancelled:false,error:null,status:'preparing',viewId:null,nextCursor:null};
  let controller=new AbortController(),cursor=date(start),action='ensure',initial=initialView,generation=null,completedChecked=0;
- const seen=new Set(),settled=new Set();
+ const seen=new Set(),settled=new Set();let buffered=[];
  const current=()=>!state.cancelled&&!controller.signal.aborted&&isCurrent();
  const request=(method,path,body)=>api(method,path,body,controller.signal);
  function cancel(){state.cancelled=true;controller.abort();}
@@ -26,16 +26,23 @@ export function createServerOpportunityScan({api,start,end,bodies,placeIds,targe
   let page;try{page=JSON.parse(raw);}catch{throw invalid();}
   if(page?.transport||page?.viewId!==anchor.viewId||page?.generation!==anchor.generation||page?.status!==anchor.status)throw invalid();return page;
  }
+ function publishBuffered(){
+  let through=state.through;const accepted=[];
+  for(const entry of buffered){if(entry.stamp>=end)break;if(entry.stamp!==through)throw Error('overlap days are not contiguous');accepted.push(entry);through=entry.stamp+dayMs;}
+  if(!accepted.length)throw Error('invalid overlap cursor');
+  for(const {day,stamp,rows}of accepted){for(const row of rows){if(seen.has(row.id))continue;seen.add(row.id);state.rows.push(row);}if(day.unknownPairs)state.failures.push({day:stamp,count:day.unknownPairs});settled.add(day.day);}
+  buffered=buffered.slice(accepted.length);completedChecked+=accepted.reduce((n,d)=>n+d.day.checkedPairs,0);state.checked=completedChecked;state.through=state.day=through;
+  state.done=true;state.end=through;state.total=state.checked;onDay(state);
+ }
  function ingest(response){
   if(!response||!['preparing','ready','partial','failed'].includes(response.status)||typeof response.viewId!=='string'||!Array.isArray(response.days)||response.days.length>7)throw Error('invalid overlap response');
   if(response.model!==model)throw Object.assign(Error('一覧の計算条件が更新されました。再試行してください。'),{code:'overlap_model_mismatch'});
   if(generation!==null&&generation!==response.generation)throw Object.assign(Error('結果の条件が変わりました。再試行してください。'),{code:'overlap_stale'});
   generation=response.generation;state.viewId=response.viewId;state.status=response.status;state.nextCursor=response.nextCursor??null;
   if(response.status==='failed')throw Object.assign(Error(response.error?.message||'計算の準備を完了できませんでした。再試行してください。'),{code:response.error?.code||'overlap_plan_failed'});
-  let through=state.through;const accepted=[];
+  let wireThrough=at(cursor);const validated=[];
   for(const day of response.days){
-   const stamp=at(day.day);if(stamp<start||stamp>=end||settled.has(day.day))continue;
-   if(stamp!==through)throw Error('overlap days are not contiguous');
+   const stamp=at(day.day);if(stamp!==wireThrough)throw Error('overlap days are not contiguous');wireThrough=stamp+dayMs;
    // The API exposes only settled days. complete=false means unknown pairs,
    // not an unfinished day; keep these visible with an explicit warning.
    if(!Array.isArray(day.rows)||!Number.isFinite(day.unknownPairs)||!Number.isFinite(day.checkedPairs))throw Error('invalid overlap coverage');
@@ -43,15 +50,16 @@ export function createServerOpportunityScan({api,start,end,bodies,placeIds,targe
    return {...row,id:row.id||JSON.stringify([row.pairId,row.event.at,row.place.latitude,row.place.longitude,row.place.groundManualM,row.place.eyeHeightAGL])};
    // The API filters by place only; the chosen targets are kept here.
    }).filter(row=>!targetIds||targetIds.includes(row.target.id)).sort((a,b)=>a.event.at-b.event.at||String(a.place.name).localeCompare(String(b.place.name),'ja')||String(a.target.name).localeCompare(String(b.target.name),'ja'));
-   accepted.push({day,stamp,rows});through=stamp+dayMs;
+   // A server page may include later days from its shared cache. Validate the
+   // whole wire page while publishing only the requested date range.
+   if(stamp>=start&&!settled.has(day.day))validated.push({day,stamp,rows});
   }
   if(response.days.length){
    const boundary=at(response.coverage?.attemptedThroughExclusive);
-   if(boundary!==through||response.nextCursor!==date(through))throw Error('invalid overlap cursor');
-   // Validate the entire page before publishing any of its rows.
-   for(const {day,stamp,rows}of accepted){for(const row of rows){if(seen.has(row.id))continue;seen.add(row.id);state.rows.push(row);}if(day.unknownPairs)state.failures.push({day:stamp,count:day.unknownPairs});settled.add(day.day);}
-   completedChecked+=accepted.reduce((n,d)=>n+d.day.checkedPairs,0);state.checked=completedChecked;state.through=state.day=through;
-   state.done=true;state.end=through;state.total=state.checked;onDay(state);
+   if(boundary!==wireThrough||response.nextCursor!==date(wireThrough)||!validated.length)throw Error('invalid overlap cursor');
+   // Cache validated later days too: the API accepts only frozen page cursors,
+   // so a future extension must consume this remainder before requesting more.
+   buffered.push(...validated);publishBuffered();
   }else{state.checked=completedChecked+(Number(response.coverage?.checkedPairs)||0);state.total=Math.max(state.checked,completedChecked+(Number(response.coverage?.totalPairs)||0));}
   onProgress(state);
  }
@@ -61,6 +69,7 @@ export function createServerOpportunityScan({api,start,end,bodies,placeIds,targe
   try{
    onStart(state);
    while(current()){
+    if(action==='buffered'){publishBuffered();onProgress(state);return state;}
     let response;
     if(initial){response=initial;initial=null;}
     else if(action==='ensure')response=await request('POST','/overlaps/ensure',{environment:'trial',startDay:date(start),bodies,placeIds,sourceRev});
@@ -77,8 +86,8 @@ export function createServerOpportunityScan({api,start,end,bodies,placeIds,targe
   finally{state.running=false;}
   return state;
  }
- function extend(nextEnd){if(!state.done||state.running||state.error||state.cancelled||!state.nextCursor||nextEnd<=state.through)return false;cursor=state.nextCursor;state.end=nextEnd;end=nextEnd;state.done=false;action='extend';return true;}
- function retry(){if(state.running||state.cancelled)return false;state.rows=[];state.failures=[];state.checked=0;completedChecked=0;state.through=state.day=start;state.end=end=Math.max(end,start+7*dayMs);state.error=null;state.done=false;seen.clear();settled.clear();cursor=date(start);
+ function extend(nextEnd){if(!state.done||state.running||state.error||state.cancelled||!state.nextCursor||nextEnd<=state.through)return false;cursor=state.nextCursor;state.end=nextEnd;end=nextEnd;state.done=false;action=buffered.length?'buffered':'extend';return true;}
+ function retry(){if(state.running||state.cancelled)return false;state.rows=[];state.failures=[];state.checked=0;completedChecked=0;state.through=state.day=start;state.end=end;state.error=null;state.done=false;seen.clear();settled.clear();buffered=[];cursor=date(start);
  generation=null;action=state.viewId?'retry':'ensure';return true;}
  return {state,advance,extend,retry,cancel};
 }

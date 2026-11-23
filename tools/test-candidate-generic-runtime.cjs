@@ -46,16 +46,18 @@ async function openCandidates(p){
  if(await p.locator('#exploreBackToCandidates').isVisible())await p.locator('#exploreBackToCandidates').click();
  await p.locator('#exploreDiscovery-new').click();await p.waitForFunction(()=>{const button=document.getElementById('candidateSearchAction');return button?.dataset.state==='idle'&&!button.disabled&&button.getBoundingClientRect().width>0;});
 }
-async function search(p,visibleCount=3,checkFirst=false){
+async function search(p,visibleCount=3,checkFirst=false,releaseLabels=null){
  if(checkFirst)await p.evaluate(()=>{candidateFixture.holdSecond=true;});
  await p.locator('#candidateSearchAction').click();
  if(checkFirst){
-  await p.waitForFunction(()=>candidateFixture.releaseSecond&&AstroNotesCandidatePicker.visibleRows().length===1&&document.getElementById('candidateSearchAction')?.dataset.state==='searching');
+  await p.waitForFunction(()=>candidateFixture.releaseSecond&&AstroNotesCandidatePicker.visibleRows().length===1&&document.getElementById('candidateSearchAction')?.dataset.state==='searching',null,{timeout:releaseLabels?3000:30000});
   assert(await p.locator('#candidateUnifiedResults .list-item').first().isVisible());
   const working=p.locator('.candidate-search-primary[data-candidate-searching]');
   assert(await working.getByRole('status').isVisible());
   assert(await working.getByRole('progressbar').isVisible());
   assert(await working.getByRole('button',{name:'キャンセル',exact:true}).isVisible());
+  assert(!(await working.innerText()).match(/\d+地点/),'progress does not present checked samples as candidate counts');
+  if(releaseLabels)releaseLabels();
   await p.evaluate(()=>{candidateFixture.holdSecond=false;candidateFixture.releaseSecond();candidateFixture.releaseSecond=null;});
  }
  await p.waitForFunction(n=>document.querySelector('#candidateSearchFeedback [role=status]')?.textContent.includes(n+'件の新たな撮影地点の候補があります'),visibleCount);
@@ -91,6 +93,14 @@ async function assertSelected(p,row,before,body,target='custom'){
    const context=await browser.newContext({viewport:{width,height:width===320?700:900},colorScheme:theme,reducedMotion:'reduce'});let writes=0,external=0;
    await context.addInitScript(installFixture,granted);
    await context.route('**/*',r=>{const u=new URL(r.request().url());if(u.origin===new URL(base).origin)return r.continue();if(/zekkei-api|localhost:8787/.test(u.origin)){if(!['GET','OPTIONS'].includes(r.request().method()))writes++;return r.fulfill({status:200,json:{allowed:true,tool:'skymap',loginId:'generic-runtime-test',tools:granted,credentials:[],hasPassword:true,recoveryCodes:10,favorites:[],sightings:[],records:[],rev:1}});}external++;return r.abort();});
+   let releaseLabels,labelsFailedResolve,labelsRecoveredResolve;const heldLabels=new Promise(resolve=>{releaseLabels=resolve;}),labelsFailed=new Promise(resolve=>{labelsFailedResolve=resolve;}),labelsRecovered=new Promise(resolve=>{labelsRecoveredResolve=resolve;});
+   const labelRequests=new Map(),failedLabels=new Set(),recoveredLabels=new Set();
+   await context.route(/\/candidate-label-(?:addresses|facilities)\.json(?:\?|$)/,async route=>{
+    const name=new URL(route.request().url()).pathname,count=(labelRequests.get(name)||0)+1;labelRequests.set(name,count);
+    await heldLabels;
+    if(count===1){await route.fulfill({status:503,body:'temporarily unavailable'});failedLabels.add(name);if(failedLabels.size===2)labelsFailedResolve();}
+    else{await route.continue().catch(()=>{});recoveredLabels.add(name);if(recoveredLabels.size===2)labelsRecoveredResolve();}
+   });
    const p=await context.newPage(),errors=[];p.setDefaultTimeout(30000);p.on('pageerror',e=>errors.push(e.message));
    try{
     await p.goto(base+'#/explore');await p.waitForFunction(()=>typeof AstroNotesCandidatePicker==='object'&&typeof SkyMapUI==='object');
@@ -98,7 +108,9 @@ async function assertSelected(p,row,before,body,target='custom'){
     const before=await saved(p),bodies=['sun','moon','sirius','mercury','venus','mars','jupiter','saturn'];
     for(const [index,body]of bodies.entries()){
      await prepare(p,body);await openCandidates(p);assert.equal(await p.evaluate(()=>SkyMapUI.selectionState().body),body);
-     const beforeLoads=await p.evaluate(()=>candidateFixture.loads);await search(p,3,index===0);assert.equal(await p.evaluate(()=>candidateFixture.loads),beforeLoads+1);
+     const beforeLoads=await p.evaluate(()=>candidateFixture.loads);await search(p,3,index===0,index===0?releaseLabels:null);assert.equal(await p.evaluate(()=>candidateFixture.loads),beforeLoads+1);
+     if(index===0)await labelsFailed;
+     if(index===1){await labelsRecovered;assert.equal(recoveredLabels.size,2,'next search retries both missing optional label files');}
      const names=await p.locator('#candidateUnifiedResults .list-item').evaluateAll(ns=>ns.map(n=>n.firstElementChild.textContent));// The list opens in time order (all three at 12:00 here); the new places are only parks, plazas, viewpoints and riverbanks.
      assert.deepEqual([...names].sort(),['任意対象の公園','同じ展望地点 下層','同じ展望地点 上層'].sort(),'only parks, plazas, viewpoints and riverbanks are new places');
      assert.equal(await p.evaluate(()=>AstroNotesCandidatePicker.visibleRows().filter(r=>r.place.latitude===35.6906).length),2,'same point different height preserved');
@@ -163,7 +175,7 @@ async function assertSelected(p,row,before,body,target='custom'){
     assert.equal(await saved(p),before);assert.equal(writes,0,'no API writes');assert.deepEqual(errors,[]);
     results.push({engine,width,theme,bodies:bodies.length,arbitraryTarget:true,distinctHeights:[2,4,101.5],exactMapToAppearance:true,placeKindsOnly:true,staleInstantRangeRefusedLensKept:true,riverAndTownLabels:true,personalDataUnchanged:true,writes,externalBlocked:external});console.log(engine,width,theme,'passed');
    }catch(e){await p.screenshot({path:out+'/'+engine+'-'+width+'-'+theme+'-failure.png'}).catch(()=>{});console.error('fixture failure',engine,width,theme,await p.evaluate(()=>({status:document.querySelector('#candidateSearchFeedback [role=status]')?.textContent,rows:globalThis.AstroNotesCandidatePicker?.visibleRows?.().length,fixture:globalThis.candidateFixture,selection:typeof SkyMapUI==='object'?SkyMapUI.selectionState():null})).catch(()=>null));throw e;}
-   finally{await context.close();}
+   finally{releaseLabels();await context.close();}
   }}finally{await browser.close();}
  }
  fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));

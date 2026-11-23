@@ -468,7 +468,9 @@ async function apply(){
  const token=revision.next(),selection={time,kind,sort},status=control?.querySelector('[data-filter-status]');if(!status||!list)return;
  // The count already shown stays while the list is placed again, so the line does not flicker.
  if(status.hidden||!status.textContent){status.hidden=false;status.textContent='候補の絞り込みを確認しています…';}
- let labels={};try{if([...groups.values()].some(g=>g.rows.length))labels=await loadLabels()||{};}catch(e){globalThis.AstroNotesErrors?.note('candidates.labels',e);}
+ // The discovery owner republishes rows when optional labels arrive. Keep its
+ // already verified rows selectable while those files are still loading.
+ let labels={};try{if([...groups.values()].some(g=>g.rows.length))labels=ports.labelsSnapshot?ports.labelsSnapshot()||{}:await loadLabels()||{};}catch(e){globalThis.AstroNotesErrors?.note('candidates.labels',e);}
  if(!revision.current(token)||!control?.isConnected)return;
  const entries=[];let unknownTime=0,index=0;
  for(const [box,g]of groups){

@@ -152,22 +152,32 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   if(meshes.size>160){const old=meshes.keys().next().value;meshes.delete(old);ready.delete(old);}
   return meshes.get(code);
  }
- // Keep the preview's fetch limit shared across overlapping renders. The existing search readers retain their order.
- const centerReads=[],frontageReads=[],PREVIEW_READ_LIMIT=6,PREVIEW_MESH_LIMIT=256,PREVIEW_WAIT_MS=8000,PREVIEW_RANGE_M=50000;
- let activePreviewReads=0;
+ // All height readers share six IO slots. A search uses at most three (current
+ // mesh + two ahead); preview margins still leave a slot for a central reader.
+ // Already-issued raw reads remain shared: cancelling one owner never aborts
+ // a mesh another owner needs. Cancelled queued work starts no request.
+ const heightReads=[],PREVIEW_READ_LIMIT=6,PREVIEW_MESH_LIMIT=256,PREVIEW_WAIT_MS=8000,PREVIEW_RANGE_M=50000;
+ let activePreviewReads=0,activeSearchReads=0;
  function runPreviewReads(){
   while(activePreviewReads<PREVIEW_READ_LIMIT){
-   // The scene margins leave one slot available for the central sightline.
-   const next=centerReads.shift()||(activePreviewReads<PREVIEW_READ_LIMIT-1&&frontageReads.shift());
-   if(!next)return;
-   const {load,isCurrent,resolve,reject}=next;
-   if(!isCurrent()){reject(Error('candidate-cancelled'));continue;}
+   for(let i=heightReads.length-1;i>=0;i--)if(!heightReads[i].owner.current()){heightReads.splice(i,1)[0].reject(Error('candidate-cancelled'));}
+   let chosen=-1;
+   for(let i=0;i<heightReads.length;i++){
+    const kind=heightReads[i].owner.kind,search=kind==='demand'||kind==='ahead';
+    if(search&&activeSearchReads>=3||kind==='frontage'&&activePreviewReads>=PREVIEW_READ_LIMIT-1)continue;
+    if(chosen<0||readPriority(kind)<readPriority(heightReads[chosen].owner.kind))chosen=i;
+   }
+   if(chosen<0)return;
+   const {load,owner,resolve,reject}=heightReads.splice(chosen,1)[0],search=owner.kind==='demand'||owner.kind==='ahead';
    activePreviewReads++;
-   Promise.resolve().then(()=>{requireCurrent(isCurrent);return load();}).then(resolve,reject).finally(()=>{activePreviewReads--;runPreviewReads();});
+   if(search)activeSearchReads++;
+   Promise.resolve().then(()=>{requireCurrent(owner.current);return load();}).then(resolve,reject).finally(()=>{activePreviewReads--;if(search)activeSearchReads--;runPreviewReads();});
   }
  }
+ const readPriority=kind=>({demand:0,center:1,ahead:2,frontage:3})[kind];
+ function queueHeightRead(load,owner){return new Promise((resolve,reject)=>{heightReads.push({load,owner,resolve,reject});runPreviewReads();});}
  function queuePreviewRead(load,isCurrent,center){
-  return new Promise((resolve,reject)=>{(center?centerReads:frontageReads).push({load,isCurrent,resolve,reject});runPreviewReads();});
+  return queueHeightRead(load,{current:isCurrent,kind:center?'center':'frontage'});
  }
  const requireCurrent=isCurrent=>{if(!isCurrent())throw Error('candidate-cancelled');};
  function* sightline(observer,azimuth,maxM,endpoint=null){
@@ -213,6 +223,51 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
    result.add(meshCode(Math.floor(gy/ROWS),Math.floor(gx/COLS)));
   }
   return result;
+ }
+ // Enumerate service meshes, not cells or verdicts. The original ordered cell
+ // walk below remains the only source of visibility evidence.
+ function* orderedMeshes(observer,az,maxM,endpoint,beyond){
+  const seen=new Set();
+  for(const {from,to,d,end}of sightline(observer,az,maxM,endpoint)){
+   if(beyond?.(d))return;
+   const codes=[];
+   walkGrid(from.longitude*LON/COLS,from.latitude*LAT/ROWS,to.longitude*LON/COLS,to.latitude*LAT/ROWS,d,end,(mx,my)=>{
+    const code=meshCode(my,mx);if(!seen.has(code)){seen.add(code);codes.push(code);}
+   });
+   yield* codes;
+  }
+ }
+ function orderedReader(data,observer,az,maxM,endpoint,isCurrent,beyond){
+  const sequence=orderedMeshes(observer,az,maxM,endpoint,beyond),staged=new Map(),order=new Map();let open=true,finished=false;
+  const current=()=>open&&isCurrent();
+  const nextCode=()=>{const next=sequence.next();if(next.done){finished=true;return null;}order.set(next.value,order.size);return next.value;};
+  function stage(code,kind){
+   const owner={current,kind},entry={owner,promise:null};
+   entry.promise=queueHeightRead(async()=>{
+    requireCurrent(current);
+    const p4=code.slice(0,4),list=data.parts?.[p4]?(parts.get(p4)||await part(p4,data)):null;
+    requireCurrent(current);
+    return list?.[code]?(ready.get(code)||await mesh(code,list[code])):null;
+   },owner).then(value=>(entry.result={value}),error=>(entry.result={error}));
+   staged.set(code,entry);return entry;
+  }
+  return {
+   async read(code){
+    requireCurrent(current);
+    while(!order.has(code)&&!finished)nextCode();
+    for(const key of staged.keys())if(order.get(key)<order.get(code))staged.delete(key);
+    const entry=staged.get(code)||stage(code,'demand');entry.owner.kind='demand';runPreviewReads();
+    if(entry.result?.error)throw entry.result.error;
+    while(staged.size<3&&!finished){const code=nextCode();if(code===null)break;if(staged.has(code)||ready.has(code)||!data.parts?.[code.slice(0,4)])continue;stage(code,'ahead');}
+    const result=await entry.promise;requireCurrent(current);staged.delete(code);
+    // Preserve the first failed read until its ordered consumer reaches it.
+    // Speculation must not silently retry malformed/missing data into success.
+    if(result.error)throw result.error;
+    return result.value;
+   },
+   close(){open=false;runPreviewReads();},
+   failed:code=>!!staged.get(code)?.result?.error,
+  };
  }
  async function readPreviewItems(keys,load,isCurrent,expires,center){
   const results=new Map();
@@ -271,8 +326,9 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   const visit=(gx,gy,a,z)=>{
    if(own?.has(gx+','+gy)){known.push([a,z]);return;}
    const my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS);if(my*1e5+mx!==lastKey){lastKey=my*1e5+mx;code=meshCode(my,mx);}
+   if(reads.failed(code)){pending={code};return false;}
    const p4=code.slice(0,4),list=data.parts?.[p4]?parts.get(p4):null;
-   if(data.parts?.[p4]&&!list){pending={part:p4};return false;}
+   if(data.parts?.[p4]&&!list){pending={part:p4,code};return false;}
    const entry=list?.[code];
    if(!entry){const last=uncovered[uncovered.length-1];if(last&&last[1]>=a-.01)last[1]=Math.max(last[1],z);else uncovered.push([a,z]);return;}
    const grid=ready.get(code);if(!grid){pending={code,entry};return false;}
@@ -286,7 +342,9 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
    if(status==='clear'){status='unknown';hit={distanceM:a,topM:top,rayM:low,code,reason:a<NEAR_M?'near-building':'within-margin'};}
   };
   // Resolve meshes as the walk reaches them; a missing mesh file is not evidence of open ground.
+  const reads=orderedReader(data,observer,az,ray.maxM,ray.endpoint,isCurrent,d=>pr.beyond(stopAt,d));
   let from={latitude:observer.latitude,longitude:observer.longitude},d=0;
+  try{
   while(d<ray.maxM&&status!=='blocked'){
    if(!isCurrent())throw Error('candidate-cancelled');
    if(pr.beyond(stopAt,d))break;
@@ -296,10 +354,11 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
     pending=null;const done=cells(from,to,d,e,visit);
     if(done!==false||!pending)break;
     known.length=mark[0];uncovered.length=mark[1];status=mark[2];hit=mark[3];cellsChecked=mark[4];
-    try{if(pending.part)await part(pending.part,data);else await mesh(pending.code,pending.entry);}catch{return {status:'unknown',reason:'height-data-unavailable',source:'plateau-grid'};}
+    try{await reads.read(pending.code);}catch(e){requireCurrent(isCurrent);return {status:'unknown',reason:'height-data-unavailable',source:'plateau-grid'};}
    }
    from=to;d=e;reach=e;
   }
+  }finally{reads.close();}
   if(status==='blocked'){
    requireCurrent(isCurrent);
    const result={status:'blocked',hit,cellsChecked,source:'plateau-grid'};
@@ -376,8 +435,9 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   const visit=(gx,gy,a,z)=>{
    if(a<NEAR_M||own?.has(gx+','+gy))return;
    const my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS);if(my*1e5+mx!==lastKey){lastKey=my*1e5+mx;code=meshCode(my,mx);}
+   if(reads.failed(code)){pending={code};return false;}
    const p4=code.slice(0,4),list=data.parts?.[p4]?parts.get(p4):null;
-   if(data.parts?.[p4]&&!list){pending={part:p4};return false;}
+   if(data.parts?.[p4]&&!list){pending={part:p4,code};return false;}
    const entry=list?.[code];if(!entry){uncovered++;return;}
    const grid=previewGrids?previewGrids.get(code):ready.get(code);if(!grid){pending={code,entry};return false;}
    const i=(gy-my*ROWS)*COLS+(gx-mx*COLS),others=overlay(code,data,ray.targetKey);if(others.own.has(i))return;
@@ -385,7 +445,9 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
    const top=v-offset,toM=Math.max(hide(top,a),hide(top,Math.max(z,a+.01)));
    if(!best||toM>best.toM)best={toM,distanceM:a,topM:top};
   };
+  const reads=orderedReader(data,observer,az,D,ray.endpoint,isCurrent);
   let from={latitude:observer.latitude,longitude:observer.longitude},d=0;
+  try{
   while(d<D){
    if(!isCurrent())throw Error('candidate-cancelled');
    const e=Math.min(D,d+NODE_M),to=e>=D?{latitude:ray.endpoint.latitude,longitude:ray.endpoint.longitude}:destination(observer.latitude,observer.longitude,az,e),mark=[best,uncovered];
@@ -394,10 +456,11 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
     if(done!==false||!pending)break;
     if(previewGrids)return {status:'unknown',reason:'height-data-unavailable'};
     [best,uncovered]=mark;
-    try{if(pending.part)await part(pending.part,data);else await mesh(pending.code,pending.entry);}catch{return {status:'unknown',reason:'height-data-unavailable'};}
+    try{await reads.read(pending.code);}catch(e){requireCurrent(isCurrent);return {status:'unknown',reason:'height-data-unavailable'};}
    }
    from=to;d=e;
   }
+  }finally{reads.close();}
   return {status:'ok',toM:best?.toM??-Infinity,distanceM:best?.distanceM??null,topM:best?.topM??null,complete:uncovered===0};
  }
  // The building top (sea-level metres) at a point without waiting: 0 for no building or the aimed target's own cells,
@@ -412,9 +475,11 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   }
   const i=(gy-my*ROWS)*COLS+(gx-mx*COLS);if(m.others.own.has(i))return 0;const v=Math.max(m.grid[i],m.others.get(i)||0);return v?v-data.grid.offsetM:0;
  }
- async function loadAt(lat,lon){
+ async function loadAt(lat,lon,{isCurrent=()=>true}={}){
+  requireCurrent(isCurrent);
   const data=await index(),gy=Math.floor(lat*LAT),gx=Math.floor(lon*LON),my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS),code=meshCode(my,mx),p4=code.slice(0,4);
-  if(!data.parts?.[p4])return;const list=parts.get(p4)||await part(p4,data);if(list[code])await mesh(code,list[code]);
+  if(!data.parts?.[p4])return;
+  await queueHeightRead(async()=>{const list=parts.get(p4)||await part(p4,data);requireCurrent(isCurrent);if(list[code])await mesh(code,list[code]);},{current:isCurrent,kind:'demand'});
  }
  // The highest a building top rises above the eye along each bearing (deg, with the earth's curve), up to maxM: whether
  // other buildings stand into the sky beside the target in the photograph (generic-evaluator.js compositionOf). PLATEAU
@@ -426,7 +491,7 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
    while(d<maxM){
     if(!isCurrent())throw Error('candidate-cancelled');
     const p=destination(observer.latitude,observer.longitude,az,d);let top=topNow(p.latitude,p.longitude,targetKey);
-    if(top===undefined){try{await loadAt(p.latitude,p.longitude);}catch{return null;}top=topNow(p.latitude,p.longitude,targetKey);}
+    if(top===undefined){try{await loadAt(p.latitude,p.longitude,{isCurrent});}catch{requireCurrent(isCurrent);return null;}top=topNow(p.latitude,p.longitude,targetKey);}
     if(Number.isFinite(top)&&top>0)best=Math.max(best,Math.atan2(top-eye-c*d*d,d)/RAD);
     d+=d<1000?5:d<5000?10:20;
    }
@@ -1437,17 +1502,34 @@ function closestPoint(p,polygons){
  visit(tree,gap(tree));
  return {point:[nx,ny],distance};
 }
+// The ridge is already sorted by relative bearing. Preserve the original
+// subtraction and tie order at its bin edges; rounded angular buckets would
+// change which summit point supplies the contact height.
+function ridgeAt(points,relative,bin,ordered=true){
+ if(!points.length)return null;
+ if(!ordered||!Number.isFinite(relative)||!Number.isFinite(bin)||bin<0){
+  let visible=null,closest=null;
+  for(const p of points){if(!closest||Math.abs(p.relative-relative)<Math.abs(closest.relative-relative))closest=p;if(Math.abs(p.relative-relative)<=bin&&(!visible||p.geometry.angle>visible.geometry.angle))visible=p;}
+  return visible||closest;
+ }
+ const lower=before=>{let lo=0,hi=points.length;while(lo<hi){const mid=(lo+hi)>>>1;if(before(points[mid].relative))lo=mid+1;else hi=mid;}return lo;};
+ const first=lower(value=>value<relative&&Math.abs(value-relative)>bin);let visible=null;
+ for(let i=first;i<points.length&&Math.abs(points[i].relative-relative)<=bin;i++){const p=points[i];if(!visible||p.geometry.angle>visible.geometry.angle)visible=p;}
+ if(visible)return visible;
+ const right=lower(value=>value<relative);if(!right)return points[0];
+ // For equal bearings, the old forward scan kept the first point, including
+ // when the nearest point lies just to the left of the query.
+ const left=points[lower(value=>value<points[right-1].relative)];
+ return right===points.length||Math.abs(left.relative-relative)<=Math.abs(points[right].relative-relative)?left:points[right];
+}
 function ridgeGeometry(observer,target,align){
  const raw=target.rim?.points||align.rimPoints?.(target.rim);if(!Array.isArray(raw)||!raw.length)return null;
  const center=Geo().inverse(observer.latitude,observer.longitude,target.rim.latitude??target.latitude,target.rim.longitude??target.longitude),difference=(a,b)=>((a-b+540)%360)-180;
  const points=raw.filter(p=>[p.latitude,p.longitude,p.m??p.heightM].every(Number.isFinite)).map(p=>{const anchor={latitude:p.latitude,longitude:p.longitude,heightM:p.m??p.heightM},geometry=align.geometryFrom(observer,{...target,...anchor,rim:null,parts:[{id:'ridge',m:anchor.heightM}]},{
  heightM:anchor.heightM,eyeM:observer.eyeM??1.5});return {anchor,geometry,relative:difference(geometry.azimuth,center.azimuth)};}).filter(p=>Number.isFinite(p.geometry?.angle)).sort((a,b)=>a.relative-b.relative);
  if(!points.length)return null;
- const bin=Math.atan(.015/Math.max(.001,center.km))/rad;
- return {points,at(azimuth){const relative=difference(azimuth,center.azimuth);let visible=null,closest=null;
-  for(const p of points){if(!closest||Math.abs(p.relative-relative)<Math.abs(closest.relative-relative))closest=p;if(Math.abs(p.relative-relative)<=bin&&(!visible||p.geometry.angle>visible.geometry.angle))visible=p;}
-  return visible||closest;
- }};
+ const bin=Math.atan(.015/Math.max(.001,center.km))/rad,ordered=points.every(p=>Number.isFinite(p.relative));
+ return {points,at:azimuth=>ridgeAt(points,difference(azimuth,center.azimuth),bin,ordered)};
 }
 function standingDomain(point,sidewalks){
  const s=point.surfaceGeometry;
@@ -3798,7 +3880,9 @@ async function apply(){
  const token=revision.next(),selection={time,kind,sort},status=control?.querySelector('[data-filter-status]');if(!status||!list)return;
  // The count already shown stays while the list is placed again, so the line does not flicker.
  if(status.hidden||!status.textContent){status.hidden=false;status.textContent='候補の絞り込みを確認しています…';}
- let labels={};try{if([...groups.values()].some(g=>g.rows.length))labels=await loadLabels()||{};}catch(e){globalThis.AstroNotesErrors?.note('candidates.labels',e);}
+ // The discovery owner republishes rows when optional labels arrive. Keep its
+ // already verified rows selectable while those files are still loading.
+ let labels={};try{if([...groups.values()].some(g=>g.rows.length))labels=ports.labelsSnapshot?ports.labelsSnapshot()||{}:await loadLabels()||{};}catch(e){globalThis.AstroNotesErrors?.note('candidates.labels',e);}
  if(!revision.current(token)||!control?.isConnected)return;
  const entries=[];let unknownTime=0,index=0;
  for(const [box,g]of groups){
@@ -3986,7 +4070,8 @@ async function refreshShapes(){
 document.addEventListener('astronotes-records-change',refreshShapes);
 let againForRecords=null;document.addEventListener('astronotes-records-change',()=>againForRecords?.());
 (globalThis.startupSessionReady||Promise.resolve()).then(refreshShapes,()=>{});
-const loadLabels=async()=>{const [addresses,facilities]=await Promise.all(['candidate-label-addresses.json','candidate-label-facilities.json'].map(n=>loaded(n).catch(()=>null)));return {addresses,facilities};};
+let availableLabels=null;
+const loadLabels=async()=>{const [addresses,facilities]=await Promise.all(['candidate-label-addresses.json','candidate-label-facilities.json'].map(n=>loaded(n).catch(()=>null)));return availableLabels={addresses,facilities};};
 const knownTownAddresses=new Map(),townKey=({latitude,longitude})=>latitude+','+longitude;
 function setTownAddress(row,{address,year}){
  row.place.subtitle=address.names[0];row.labels.address=address;row.labels.addressYear=year;
@@ -4017,7 +4102,7 @@ const filterKey=p=>JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.mat
 const recordedPlaceContext=AstroNotesCandidateLabels.createRoadContext({fetchImpl:fetch.bind(globalThis),decodeAreas:(...args)=>AstroNotesTerrain.decodeWaterLayer(...args),
  loadFacilities:async p=>{try{if(!osmPlaces)throw Error('facility-data-unavailable');return AstroNotesCandidateDiscovery.createPlaceProvider.parseElements(await osmPlaces.elementsIn([p.longitude,p.latitude,p.longitude,p.latitude]));}
   catch(e){globalThis.AstroNotesErrors?.note('candidates.facilities',e);throw e;}}});
-AstroNotesCandidatePicker.configure({loadLabels,createMapView,filterKey,alignmentText:(t,v)=>MyPlacesUI.alignmentText(t,v),bodyName:id=>AstroNotesBodies.definition(id)?.name||id,mapIcon:UI_ICONS.map,
+AstroNotesCandidatePicker.configure({loadLabels,labelsSnapshot:()=>availableLabels,createMapView,filterKey,alignmentText:(t,v)=>MyPlacesUI.alignmentText(t,v),bodyName:id=>AstroNotesBodies.definition(id)?.name||id,mapIcon:UI_ICONS.map,
  angleIcons:{up:UI_ICONS.angleUp,down:UI_ICONS.angleDown,level:UI_ICONS.angleLevel},
  geometryFrom:(...args)=>AstroNotesAlign.geometryFrom(...args),isMountain:t=>aimIsMountain(t),geometryKey:()=>AstroNotesAtmosphere.targetK(),
  placeContext:recordedPlaceContext,
@@ -4378,6 +4463,7 @@ function mount(){
   :!p?'天体・対象・日付を選んでください。':!valid?'指定した日時と構図を確認してください。':'';
  let continuation=false,hasRun=false,searching=false,failed=false,hasResults=false,items=new Map(),shown=null,publishedRows=0;
  const presentation=AstroNotesLibrary.gate();
+ let labelsAttempt=null;
  // A place saved to the records leaves this list at once, and one removed from them comes back.
  againForRecords=()=>{
   if(!shown||searching||!section?.isConnected)return;
@@ -4397,7 +4483,23 @@ function mount(){
  // partial: rows found so far while the search goes on; the list is replaced, the progress and the action stay.
  async function present(result,selected,node,token,{cancelled=false,interrupted=false,partial=false}={}){
    const ticket=presentation.next(),isPresented=()=>presentation.current(ticket)&&current(token,selected,node);
-   const labels=result.rows.length?await loadLabels():{};if(!isPresented()||partial&&!searching)return;
+   // Keep the async commit boundary: a new search queued during cache restore
+   // owns the action and rows before this old presentation may touch the DOM.
+   await Promise.resolve();
+   if(!isPresented()||partial&&!searching)return;
+   // Names and coordinates already belong to the verified row. Address/facility
+   // labels may arrive later; they must not hold the first selectable result.
+   const labels=availableLabels||{};
+   if(result.rows.length&&(!availableLabels?.addresses||!availableLabels?.facilities)){
+    // Retry missing labels once on the next search/return, not repeatedly for
+    // every progress page. Preserve any labels that did load successfully.
+    if(labelsAttempt?.token!==token)labelsAttempt={token,done:false,promise:loadLabels()};
+    const attempt=labelsAttempt;
+    if(!attempt.done)attempt.promise.then(()=>{
+     attempt.done=true;
+     if(isPresented()&&(!partial||searching))return present(result,selected,node,token,{cancelled,interrupted,partial});
+    }).catch(error=>globalThis.AstroNotesErrors?.note('candidates.labels',error));
+   }
    // Rows already shown keep their buttons and new ones wait hidden until the list places them: emptying and
    // refilling the list for every place found made the page jump while searching (2026-11-13, seen on the iPhone).
    // Places already among the user's saved shooting places are shown on the records side only (candidate-picker.js inRecords).
@@ -4419,7 +4521,7 @@ function mount(){
    // Published rows belong to the current selection. Starting another batch
    // for that selection only invalidates the previous search's async work.
    AstroNotesCandidatePicker.registerAdditional(resultList,rows,selected,()=>resultsCurrent(selected,node),nodes);
-   fillTownAddresses(rows,isPresented).then(changed=>{if(changed&&isPresented())AstroNotesCandidatePicker.apply();})
+   (availableLabels?fillTownAddresses(rows,isPresented):Promise.resolve(false)).then(changed=>{if(changed&&isPresented())AstroNotesCandidatePicker.apply();})
     .catch(error=>globalThis.AstroNotesErrors?.note('candidates.town-address',error));
    hasResults=!!rows.length;publishedRows=result.rows.length;
    if(partial){visibleCredits.hidden=!hasResults;main?.reveal();return;}
@@ -4471,8 +4573,8 @@ function mount(){
     if(page.rows?.length>offeredRows&&searchCurrent()){offeredRows=page.rows.length;present(page,selected,node,token,{partial:true}).catch(()=>{});}
    },onBatchStart:()=>{live.resetBudget();
    footprintGround.resetBudget();treeGround.resetBudget();evaluationBudgetStarted=false;},
-   onProgress:counts=>{if(!searchCurrent())return;const checked=counts.checked||0;
-    const message=counts.stage==='inverse'?label:counts.stage==='evaluate'?'構図と見通しを確認中'+(checked?' ・ '+checked+'地点':''):'撮影場所の情報を取得中'+(checked?' ・ '+checked+'地点確認済み':'');
+   onProgress:counts=>{if(!searchCurrent())return;
+    const message=counts.stage==='inverse'?label:counts.stage==='evaluate'?'構図と見通しを確認中':'撮影場所の情報を取得中';
     updateProgress(message);
    }});
    if(!current(token,selected,node))return;if(result.cancelled){failed=true;continuation=true;setStatus('候補の情報を取得できませんでした。');return;}

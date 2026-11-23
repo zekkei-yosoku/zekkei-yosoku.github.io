@@ -33,3 +33,15 @@ test('extends from the first unchecked day and keeps the full final day of each 
  assert.equal(new Set(scan.state.rows.map(r=>r.id)).size,6);
  assert.deepEqual(called,[0,1,2].flatMap(i=>pairs.map(p=>[p.id,day+i*DAY])));
 });
+
+test('a selected JST day publishes every match, including midnight and the final millisecond',async()=>{
+ const {readFileSync}=await import('node:fs'),{runInNewContext}=await import('node:vm'),source=readFileSync(new URL('./astronotes-myplaces.js',import.meta.url),'utf8');
+ const definitions=['opportunityDateAt','opportunityBounds'].map(name=>source.match(new RegExp('^const '+name+'=.*$','m'))[0]).join('\n');
+ const {dateAt,bounds}=runInNewContext(definitions+';({dateAt:opportunityDateAt,bounds:opportunityBounds})');
+ for(const date of ['2026-11-23','2026-11-24','2028-02-29','2026-12-31']){
+  const [start,end]=bounds(date),checked=[];assert.equal(start,Date.parse(date+'T00:00:00+09:00'));assert.equal(end-start,DAY);assert.equal(dateAt(start),date);assert.equal(dateAt(end-1),date);
+  const times=[start-1,start,...Array.from({length:10},(_,i)=>start+(i+1)*3600000),end-1,end];
+  const scan=createOpportunityScan({pairs,start,end,isCurrent:()=>true,solve:async(p,d)=>{checked.push(d);return {rows:times.map(at=>row(at))};},yieldTask:async()=>{}});
+  await scan.advance();assert.equal(scan.state.rows.length,24);assert(scan.state.rows.every(r=>r.event.at>=start&&r.event.at<end));assert.deepEqual(checked,[start,start]);assert.equal(scan.state.through,end);assert.equal(scan.state.done,true);
+ }
+});

@@ -86,22 +86,32 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   if(meshes.size>160){const old=meshes.keys().next().value;meshes.delete(old);ready.delete(old);}
   return meshes.get(code);
  }
- // Keep the preview's fetch limit shared across overlapping renders. The existing search readers retain their order.
- const centerReads=[],frontageReads=[],PREVIEW_READ_LIMIT=6,PREVIEW_MESH_LIMIT=256,PREVIEW_WAIT_MS=8000,PREVIEW_RANGE_M=50000;
- let activePreviewReads=0;
+ // All height readers share six IO slots. A search uses at most three (current
+ // mesh + two ahead); preview margins still leave a slot for a central reader.
+ // Already-issued raw reads remain shared: cancelling one owner never aborts
+ // a mesh another owner needs. Cancelled queued work starts no request.
+ const heightReads=[],PREVIEW_READ_LIMIT=6,PREVIEW_MESH_LIMIT=256,PREVIEW_WAIT_MS=8000,PREVIEW_RANGE_M=50000;
+ let activePreviewReads=0,activeSearchReads=0;
  function runPreviewReads(){
   while(activePreviewReads<PREVIEW_READ_LIMIT){
-   // The scene margins leave one slot available for the central sightline.
-   const next=centerReads.shift()||(activePreviewReads<PREVIEW_READ_LIMIT-1&&frontageReads.shift());
-   if(!next)return;
-   const {load,isCurrent,resolve,reject}=next;
-   if(!isCurrent()){reject(Error('candidate-cancelled'));continue;}
+   for(let i=heightReads.length-1;i>=0;i--)if(!heightReads[i].owner.current()){heightReads.splice(i,1)[0].reject(Error('candidate-cancelled'));}
+   let chosen=-1;
+   for(let i=0;i<heightReads.length;i++){
+    const kind=heightReads[i].owner.kind,search=kind==='demand'||kind==='ahead';
+    if(search&&activeSearchReads>=3||kind==='frontage'&&activePreviewReads>=PREVIEW_READ_LIMIT-1)continue;
+    if(chosen<0||readPriority(kind)<readPriority(heightReads[chosen].owner.kind))chosen=i;
+   }
+   if(chosen<0)return;
+   const {load,owner,resolve,reject}=heightReads.splice(chosen,1)[0],search=owner.kind==='demand'||owner.kind==='ahead';
    activePreviewReads++;
-   Promise.resolve().then(()=>{requireCurrent(isCurrent);return load();}).then(resolve,reject).finally(()=>{activePreviewReads--;runPreviewReads();});
+   if(search)activeSearchReads++;
+   Promise.resolve().then(()=>{requireCurrent(owner.current);return load();}).then(resolve,reject).finally(()=>{activePreviewReads--;if(search)activeSearchReads--;runPreviewReads();});
   }
  }
+ const readPriority=kind=>({demand:0,center:1,ahead:2,frontage:3})[kind];
+ function queueHeightRead(load,owner){return new Promise((resolve,reject)=>{heightReads.push({load,owner,resolve,reject});runPreviewReads();});}
  function queuePreviewRead(load,isCurrent,center){
-  return new Promise((resolve,reject)=>{(center?centerReads:frontageReads).push({load,isCurrent,resolve,reject});runPreviewReads();});
+  return queueHeightRead(load,{current:isCurrent,kind:center?'center':'frontage'});
  }
  const requireCurrent=isCurrent=>{if(!isCurrent())throw Error('candidate-cancelled');};
  function* sightline(observer,azimuth,maxM,endpoint=null){
@@ -147,6 +157,51 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
    result.add(meshCode(Math.floor(gy/ROWS),Math.floor(gx/COLS)));
   }
   return result;
+ }
+ // Enumerate service meshes, not cells or verdicts. The original ordered cell
+ // walk below remains the only source of visibility evidence.
+ function* orderedMeshes(observer,az,maxM,endpoint,beyond){
+  const seen=new Set();
+  for(const {from,to,d,end}of sightline(observer,az,maxM,endpoint)){
+   if(beyond?.(d))return;
+   const codes=[];
+   walkGrid(from.longitude*LON/COLS,from.latitude*LAT/ROWS,to.longitude*LON/COLS,to.latitude*LAT/ROWS,d,end,(mx,my)=>{
+    const code=meshCode(my,mx);if(!seen.has(code)){seen.add(code);codes.push(code);}
+   });
+   yield* codes;
+  }
+ }
+ function orderedReader(data,observer,az,maxM,endpoint,isCurrent,beyond){
+  const sequence=orderedMeshes(observer,az,maxM,endpoint,beyond),staged=new Map(),order=new Map();let open=true,finished=false;
+  const current=()=>open&&isCurrent();
+  const nextCode=()=>{const next=sequence.next();if(next.done){finished=true;return null;}order.set(next.value,order.size);return next.value;};
+  function stage(code,kind){
+   const owner={current,kind},entry={owner,promise:null};
+   entry.promise=queueHeightRead(async()=>{
+    requireCurrent(current);
+    const p4=code.slice(0,4),list=data.parts?.[p4]?(parts.get(p4)||await part(p4,data)):null;
+    requireCurrent(current);
+    return list?.[code]?(ready.get(code)||await mesh(code,list[code])):null;
+   },owner).then(value=>(entry.result={value}),error=>(entry.result={error}));
+   staged.set(code,entry);return entry;
+  }
+  return {
+   async read(code){
+    requireCurrent(current);
+    while(!order.has(code)&&!finished)nextCode();
+    for(const key of staged.keys())if(order.get(key)<order.get(code))staged.delete(key);
+    const entry=staged.get(code)||stage(code,'demand');entry.owner.kind='demand';runPreviewReads();
+    if(entry.result?.error)throw entry.result.error;
+    while(staged.size<3&&!finished){const code=nextCode();if(code===null)break;if(staged.has(code)||ready.has(code)||!data.parts?.[code.slice(0,4)])continue;stage(code,'ahead');}
+    const result=await entry.promise;requireCurrent(current);staged.delete(code);
+    // Preserve the first failed read until its ordered consumer reaches it.
+    // Speculation must not silently retry malformed/missing data into success.
+    if(result.error)throw result.error;
+    return result.value;
+   },
+   close(){open=false;runPreviewReads();},
+   failed:code=>!!staged.get(code)?.result?.error,
+  };
  }
  async function readPreviewItems(keys,load,isCurrent,expires,center){
   const results=new Map();
@@ -205,8 +260,9 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   const visit=(gx,gy,a,z)=>{
    if(own?.has(gx+','+gy)){known.push([a,z]);return;}
    const my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS);if(my*1e5+mx!==lastKey){lastKey=my*1e5+mx;code=meshCode(my,mx);}
+   if(reads.failed(code)){pending={code};return false;}
    const p4=code.slice(0,4),list=data.parts?.[p4]?parts.get(p4):null;
-   if(data.parts?.[p4]&&!list){pending={part:p4};return false;}
+   if(data.parts?.[p4]&&!list){pending={part:p4,code};return false;}
    const entry=list?.[code];
    if(!entry){const last=uncovered[uncovered.length-1];if(last&&last[1]>=a-.01)last[1]=Math.max(last[1],z);else uncovered.push([a,z]);return;}
    const grid=ready.get(code);if(!grid){pending={code,entry};return false;}
@@ -220,7 +276,9 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
    if(status==='clear'){status='unknown';hit={distanceM:a,topM:top,rayM:low,code,reason:a<NEAR_M?'near-building':'within-margin'};}
   };
   // Resolve meshes as the walk reaches them; a missing mesh file is not evidence of open ground.
+  const reads=orderedReader(data,observer,az,ray.maxM,ray.endpoint,isCurrent,d=>pr.beyond(stopAt,d));
   let from={latitude:observer.latitude,longitude:observer.longitude},d=0;
+  try{
   while(d<ray.maxM&&status!=='blocked'){
    if(!isCurrent())throw Error('candidate-cancelled');
    if(pr.beyond(stopAt,d))break;
@@ -230,10 +288,11 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
     pending=null;const done=cells(from,to,d,e,visit);
     if(done!==false||!pending)break;
     known.length=mark[0];uncovered.length=mark[1];status=mark[2];hit=mark[3];cellsChecked=mark[4];
-    try{if(pending.part)await part(pending.part,data);else await mesh(pending.code,pending.entry);}catch{return {status:'unknown',reason:'height-data-unavailable',source:'plateau-grid'};}
+    try{await reads.read(pending.code);}catch(e){requireCurrent(isCurrent);return {status:'unknown',reason:'height-data-unavailable',source:'plateau-grid'};}
    }
    from=to;d=e;reach=e;
   }
+  }finally{reads.close();}
   if(status==='blocked'){
    requireCurrent(isCurrent);
    const result={status:'blocked',hit,cellsChecked,source:'plateau-grid'};
@@ -310,8 +369,9 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   const visit=(gx,gy,a,z)=>{
    if(a<NEAR_M||own?.has(gx+','+gy))return;
    const my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS);if(my*1e5+mx!==lastKey){lastKey=my*1e5+mx;code=meshCode(my,mx);}
+   if(reads.failed(code)){pending={code};return false;}
    const p4=code.slice(0,4),list=data.parts?.[p4]?parts.get(p4):null;
-   if(data.parts?.[p4]&&!list){pending={part:p4};return false;}
+   if(data.parts?.[p4]&&!list){pending={part:p4,code};return false;}
    const entry=list?.[code];if(!entry){uncovered++;return;}
    const grid=previewGrids?previewGrids.get(code):ready.get(code);if(!grid){pending={code,entry};return false;}
    const i=(gy-my*ROWS)*COLS+(gx-mx*COLS),others=overlay(code,data,ray.targetKey);if(others.own.has(i))return;
@@ -319,7 +379,9 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
    const top=v-offset,toM=Math.max(hide(top,a),hide(top,Math.max(z,a+.01)));
    if(!best||toM>best.toM)best={toM,distanceM:a,topM:top};
   };
+  const reads=orderedReader(data,observer,az,D,ray.endpoint,isCurrent);
   let from={latitude:observer.latitude,longitude:observer.longitude},d=0;
+  try{
   while(d<D){
    if(!isCurrent())throw Error('candidate-cancelled');
    const e=Math.min(D,d+NODE_M),to=e>=D?{latitude:ray.endpoint.latitude,longitude:ray.endpoint.longitude}:destination(observer.latitude,observer.longitude,az,e),mark=[best,uncovered];
@@ -328,10 +390,11 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
     if(done!==false||!pending)break;
     if(previewGrids)return {status:'unknown',reason:'height-data-unavailable'};
     [best,uncovered]=mark;
-    try{if(pending.part)await part(pending.part,data);else await mesh(pending.code,pending.entry);}catch{return {status:'unknown',reason:'height-data-unavailable'};}
+    try{await reads.read(pending.code);}catch(e){requireCurrent(isCurrent);return {status:'unknown',reason:'height-data-unavailable'};}
    }
    from=to;d=e;
   }
+  }finally{reads.close();}
   return {status:'ok',toM:best?.toM??-Infinity,distanceM:best?.distanceM??null,topM:best?.topM??null,complete:uncovered===0};
  }
  // The building top (sea-level metres) at a point without waiting: 0 for no building or the aimed target's own cells,
@@ -346,9 +409,11 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   }
   const i=(gy-my*ROWS)*COLS+(gx-mx*COLS);if(m.others.own.has(i))return 0;const v=Math.max(m.grid[i],m.others.get(i)||0);return v?v-data.grid.offsetM:0;
  }
- async function loadAt(lat,lon){
+ async function loadAt(lat,lon,{isCurrent=()=>true}={}){
+  requireCurrent(isCurrent);
   const data=await index(),gy=Math.floor(lat*LAT),gx=Math.floor(lon*LON),my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS),code=meshCode(my,mx),p4=code.slice(0,4);
-  if(!data.parts?.[p4])return;const list=parts.get(p4)||await part(p4,data);if(list[code])await mesh(code,list[code]);
+  if(!data.parts?.[p4])return;
+  await queueHeightRead(async()=>{const list=parts.get(p4)||await part(p4,data);requireCurrent(isCurrent);if(list[code])await mesh(code,list[code]);},{current:isCurrent,kind:'demand'});
  }
  // The highest a building top rises above the eye along each bearing (deg, with the earth's curve), up to maxM: whether
  // other buildings stand into the sky beside the target in the photograph (generic-evaluator.js compositionOf). PLATEAU
@@ -360,7 +425,7 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
    while(d<maxM){
     if(!isCurrent())throw Error('candidate-cancelled');
     const p=destination(observer.latitude,observer.longitude,az,d);let top=topNow(p.latitude,p.longitude,targetKey);
-    if(top===undefined){try{await loadAt(p.latitude,p.longitude);}catch{return null;}top=topNow(p.latitude,p.longitude,targetKey);}
+    if(top===undefined){try{await loadAt(p.latitude,p.longitude,{isCurrent});}catch{requireCurrent(isCurrent);return null;}top=topNow(p.latitude,p.longitude,targetKey);}
     if(Number.isFinite(top)&&top>0)best=Math.max(best,Math.atan2(top-eye-c*d*d,d)/RAD);
     d+=d<1000?5:d<5000?10:20;
    }

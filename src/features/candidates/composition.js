@@ -235,17 +235,34 @@ function closestPoint(p,polygons){
  visit(tree,gap(tree));
  return {point:[nx,ny],distance};
 }
+// The ridge is already sorted by relative bearing. Preserve the original
+// subtraction and tie order at its bin edges; rounded angular buckets would
+// change which summit point supplies the contact height.
+function ridgeAt(points,relative,bin,ordered=true){
+ if(!points.length)return null;
+ if(!ordered||!Number.isFinite(relative)||!Number.isFinite(bin)||bin<0){
+  let visible=null,closest=null;
+  for(const p of points){if(!closest||Math.abs(p.relative-relative)<Math.abs(closest.relative-relative))closest=p;if(Math.abs(p.relative-relative)<=bin&&(!visible||p.geometry.angle>visible.geometry.angle))visible=p;}
+  return visible||closest;
+ }
+ const lower=before=>{let lo=0,hi=points.length;while(lo<hi){const mid=(lo+hi)>>>1;if(before(points[mid].relative))lo=mid+1;else hi=mid;}return lo;};
+ const first=lower(value=>value<relative&&Math.abs(value-relative)>bin);let visible=null;
+ for(let i=first;i<points.length&&Math.abs(points[i].relative-relative)<=bin;i++){const p=points[i];if(!visible||p.geometry.angle>visible.geometry.angle)visible=p;}
+ if(visible)return visible;
+ const right=lower(value=>value<relative);if(!right)return points[0];
+ // For equal bearings, the old forward scan kept the first point, including
+ // when the nearest point lies just to the left of the query.
+ const left=points[lower(value=>value<points[right-1].relative)];
+ return right===points.length||Math.abs(left.relative-relative)<=Math.abs(points[right].relative-relative)?left:points[right];
+}
 function ridgeGeometry(observer,target,align){
  const raw=target.rim?.points||align.rimPoints?.(target.rim);if(!Array.isArray(raw)||!raw.length)return null;
  const center=Geo().inverse(observer.latitude,observer.longitude,target.rim.latitude??target.latitude,target.rim.longitude??target.longitude),difference=(a,b)=>((a-b+540)%360)-180;
  const points=raw.filter(p=>[p.latitude,p.longitude,p.m??p.heightM].every(Number.isFinite)).map(p=>{const anchor={latitude:p.latitude,longitude:p.longitude,heightM:p.m??p.heightM},geometry=align.geometryFrom(observer,{...target,...anchor,rim:null,parts:[{id:'ridge',m:anchor.heightM}]},{
  heightM:anchor.heightM,eyeM:observer.eyeM??1.5});return {anchor,geometry,relative:difference(geometry.azimuth,center.azimuth)};}).filter(p=>Number.isFinite(p.geometry?.angle)).sort((a,b)=>a.relative-b.relative);
  if(!points.length)return null;
- const bin=Math.atan(.015/Math.max(.001,center.km))/rad;
- return {points,at(azimuth){const relative=difference(azimuth,center.azimuth);let visible=null,closest=null;
-  for(const p of points){if(!closest||Math.abs(p.relative-relative)<Math.abs(closest.relative-relative))closest=p;if(Math.abs(p.relative-relative)<=bin&&(!visible||p.geometry.angle>visible.geometry.angle))visible=p;}
-  return visible||closest;
- }};
+ const bin=Math.atan(.015/Math.max(.001,center.km))/rad,ordered=points.every(p=>Number.isFinite(p.relative));
+ return {points,at:azimuth=>ridgeAt(points,difference(azimuth,center.azimuth),bin,ordered)};
 }
 function standingDomain(point,sidewalks){
  const s=point.surfaceGeometry;

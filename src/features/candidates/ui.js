@@ -42,7 +42,8 @@ async function refreshShapes(){
 document.addEventListener('astronotes-records-change',refreshShapes);
 let againForRecords=null;document.addEventListener('astronotes-records-change',()=>againForRecords?.());
 (globalThis.startupSessionReady||Promise.resolve()).then(refreshShapes,()=>{});
-const loadLabels=async()=>{const [addresses,facilities]=await Promise.all(['candidate-label-addresses.json','candidate-label-facilities.json'].map(n=>loaded(n).catch(()=>null)));return {addresses,facilities};};
+let availableLabels=null;
+const loadLabels=async()=>{const [addresses,facilities]=await Promise.all(['candidate-label-addresses.json','candidate-label-facilities.json'].map(n=>loaded(n).catch(()=>null)));return availableLabels={addresses,facilities};};
 const knownTownAddresses=new Map(),townKey=({latitude,longitude})=>latitude+','+longitude;
 function setTownAddress(row,{address,year}){
  row.place.subtitle=address.names[0];row.labels.address=address;row.labels.addressYear=year;
@@ -73,7 +74,7 @@ const filterKey=p=>JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.mat
 const recordedPlaceContext=AstroNotesCandidateLabels.createRoadContext({fetchImpl:fetch.bind(globalThis),decodeAreas:(...args)=>AstroNotesTerrain.decodeWaterLayer(...args),
  loadFacilities:async p=>{try{if(!osmPlaces)throw Error('facility-data-unavailable');return AstroNotesCandidateDiscovery.createPlaceProvider.parseElements(await osmPlaces.elementsIn([p.longitude,p.latitude,p.longitude,p.latitude]));}
   catch(e){globalThis.AstroNotesErrors?.note('candidates.facilities',e);throw e;}}});
-AstroNotesCandidatePicker.configure({loadLabels,createMapView,filterKey,alignmentText:(t,v)=>MyPlacesUI.alignmentText(t,v),bodyName:id=>AstroNotesBodies.definition(id)?.name||id,mapIcon:UI_ICONS.map,
+AstroNotesCandidatePicker.configure({loadLabels,labelsSnapshot:()=>availableLabels,createMapView,filterKey,alignmentText:(t,v)=>MyPlacesUI.alignmentText(t,v),bodyName:id=>AstroNotesBodies.definition(id)?.name||id,mapIcon:UI_ICONS.map,
  angleIcons:{up:UI_ICONS.angleUp,down:UI_ICONS.angleDown,level:UI_ICONS.angleLevel},
  geometryFrom:(...args)=>AstroNotesAlign.geometryFrom(...args),isMountain:t=>aimIsMountain(t),geometryKey:()=>AstroNotesAtmosphere.targetK(),
  placeContext:recordedPlaceContext,
@@ -434,6 +435,7 @@ function mount(){
   :!p?'天体・対象・日付を選んでください。':!valid?'指定した日時と構図を確認してください。':'';
  let continuation=false,hasRun=false,searching=false,failed=false,hasResults=false,items=new Map(),shown=null,publishedRows=0;
  const presentation=AstroNotesLibrary.gate();
+ let labelsAttempt=null;
  // A place saved to the records leaves this list at once, and one removed from them comes back.
  againForRecords=()=>{
   if(!shown||searching||!section?.isConnected)return;
@@ -453,7 +455,23 @@ function mount(){
  // partial: rows found so far while the search goes on; the list is replaced, the progress and the action stay.
  async function present(result,selected,node,token,{cancelled=false,interrupted=false,partial=false}={}){
    const ticket=presentation.next(),isPresented=()=>presentation.current(ticket)&&current(token,selected,node);
-   const labels=result.rows.length?await loadLabels():{};if(!isPresented()||partial&&!searching)return;
+   // Keep the async commit boundary: a new search queued during cache restore
+   // owns the action and rows before this old presentation may touch the DOM.
+   await Promise.resolve();
+   if(!isPresented()||partial&&!searching)return;
+   // Names and coordinates already belong to the verified row. Address/facility
+   // labels may arrive later; they must not hold the first selectable result.
+   const labels=availableLabels||{};
+   if(result.rows.length&&(!availableLabels?.addresses||!availableLabels?.facilities)){
+    // Retry missing labels once on the next search/return, not repeatedly for
+    // every progress page. Preserve any labels that did load successfully.
+    if(labelsAttempt?.token!==token)labelsAttempt={token,done:false,promise:loadLabels()};
+    const attempt=labelsAttempt;
+    if(!attempt.done)attempt.promise.then(()=>{
+     attempt.done=true;
+     if(isPresented()&&(!partial||searching))return present(result,selected,node,token,{cancelled,interrupted,partial});
+    }).catch(error=>globalThis.AstroNotesErrors?.note('candidates.labels',error));
+   }
    // Rows already shown keep their buttons and new ones wait hidden until the list places them: emptying and
    // refilling the list for every place found made the page jump while searching (2026-11-13, seen on the iPhone).
    // Places already among the user's saved shooting places are shown on the records side only (candidate-picker.js inRecords).
@@ -475,7 +493,7 @@ function mount(){
    // Published rows belong to the current selection. Starting another batch
    // for that selection only invalidates the previous search's async work.
    AstroNotesCandidatePicker.registerAdditional(resultList,rows,selected,()=>resultsCurrent(selected,node),nodes);
-   fillTownAddresses(rows,isPresented).then(changed=>{if(changed&&isPresented())AstroNotesCandidatePicker.apply();})
+   (availableLabels?fillTownAddresses(rows,isPresented):Promise.resolve(false)).then(changed=>{if(changed&&isPresented())AstroNotesCandidatePicker.apply();})
     .catch(error=>globalThis.AstroNotesErrors?.note('candidates.town-address',error));
    hasResults=!!rows.length;publishedRows=result.rows.length;
    if(partial){visibleCredits.hidden=!hasResults;main?.reveal();return;}
@@ -527,8 +545,8 @@ function mount(){
     if(page.rows?.length>offeredRows&&searchCurrent()){offeredRows=page.rows.length;present(page,selected,node,token,{partial:true}).catch(()=>{});}
    },onBatchStart:()=>{live.resetBudget();
    footprintGround.resetBudget();treeGround.resetBudget();evaluationBudgetStarted=false;},
-   onProgress:counts=>{if(!searchCurrent())return;const checked=counts.checked||0;
-    const message=counts.stage==='inverse'?label:counts.stage==='evaluate'?'構図と見通しを確認中'+(checked?' ・ '+checked+'地点':''):'撮影場所の情報を取得中'+(checked?' ・ '+checked+'地点確認済み':'');
+   onProgress:counts=>{if(!searchCurrent())return;
+    const message=counts.stage==='inverse'?label:counts.stage==='evaluate'?'構図と見通しを確認中':'撮影場所の情報を取得中';
     updateProgress(message);
    }});
    if(!current(token,selected,node))return;if(result.cancelled){failed=true;continuation=true;setStatus('候補の情報を取得できませんでした。');return;}
