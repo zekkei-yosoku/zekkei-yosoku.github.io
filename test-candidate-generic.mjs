@@ -631,19 +631,19 @@ test('recommended rounds count new distinct places, publish after a recorded fir
  const last=await engine.searchRecommended(plan,{more:true,countPlaces,targetPlaces:8});
  assert.equal(last.canContinue,false);assert.equal(last.counts.checked,20);assert.equal(new Set(seen).size,20);assert.equal(seen.length,20);
 }));
-test('recommended deadline keeps an unevaluated point and reports a pause instead of a false empty completion',()=>recommendedFixture(async()=>{
+test('recommended safety deadline keeps an unevaluated point and reports a pause instead of a false empty completion',()=>recommendedFixture(async()=>{
  let now=0,slow=true;const evaluated=[],points=recommendedPoints(3);
  const engine=createGenericSearch({now:()=>now,bodies,yieldTask:async()=>{},provider:{load:async()=>({points,coverage:{nextCursor:null}})},evaluate:async(p,q,o,options)=>{
   evaluated.push(q.id);if(slow){now=13;slow=false;}return recommendedRow(q);
  }});
- const paused=await engine.searchRecommended(plan,{budgetMs:12});assert.equal(paused.pauseReason,'time-budget');assert.equal(paused.cancelled,undefined);assert.equal(paused.rows.length,0);assert.equal(paused.counts.checked,0);assert.equal(paused.coverage.pendingPoints,3);
- const result=await engine.searchRecommended(plan,{more:true,budgetMs:12});assert.equal(result.canContinue,false);
+ const paused=await engine.searchRecommended(plan,{hardBudgetMs:12});assert.equal(paused.pauseReason,'time-budget');assert.equal(paused.cancelled,undefined);assert.equal(paused.rows.length,0);assert.equal(paused.counts.checked,0);assert.equal(paused.coverage.pendingPoints,3);
+ const result=await engine.searchRecommended(plan,{more:true,hardBudgetMs:12});assert.equal(result.canContinue,false);
  assert.deepEqual(result.rows.map(r=>r.id),['r1','r2','r0']);assert.deepEqual(evaluated,['r0','r1','r2','r0']);
 }));
-test('recommended deadline detaches slow initial IO and caches a resumable preparation state',()=>recommendedFixture(async()=>{
+test('recommended safety deadline detaches slow initial IO and caches a resumable preparation state',()=>recommendedFixture(async()=>{
  let release,first=true;const oldBody=bodies.ensure;
  const engine=createGenericSearch({bodies:{...bodies,ensure:()=>first?(first=false,new Promise(r=>release=r)):oldBody()},yieldTask:async()=>{},provider:{load:async()=>({points:recommendedPoints(1),coverage:{nextCursor:null}})},evaluate:async(p,q)=>recommendedRow(q)});
- const paused=await engine.searchRecommended(plan,{budgetMs:15});assert.equal(paused.pauseReason,'time-budget');assert(engine.cached(plan).canContinue);assert.equal(paused.rows.length,0);
+ const paused=await engine.searchRecommended(plan,{hardBudgetMs:15});assert.equal(paused.pauseReason,'time-budget');assert(engine.cached(plan).canContinue);assert.equal(paused.rows.length,0);
  const result=await engine.searchRecommended(plan,{more:true});assert.equal(result.rows.length,1);assert.equal(result.canContinue,false);
  release();await Promise.resolve();assert.equal(engine.cached(plan).rows.length,1);
 }));
@@ -654,7 +654,7 @@ test('recommended late provider and evaluator responses cannot advance cursor, c
   const engine=createGenericSearch({bodies,yieldTask:async()=>{},provider:{load:async(p,o)=>{cursors.push(o.cursor);if(stage==='provider'&&first){first=false;await hold(o);}return {points,coverage:{nextCursor:null}};}},evaluate:async(p,q,data,o)=>{
    evaluated.push(q.id);if(stage==='evaluate'&&first){first=false;await hold(o);}return recommendedRow(q);
   }});
-  const paused=await engine.searchRecommended(plan,{budgetMs:15});assert(paused.paused);assert.equal(paused.counts.checked,0);assert.equal(oldCurrent(),false);
+  const paused=await engine.searchRecommended(plan,{hardBudgetMs:15});assert(paused.paused);assert.equal(paused.counts.checked,0);assert.equal(oldCurrent(),false);
   const done=await engine.searchRecommended(plan,{more:true});assert.equal(done.rows.length,2);assert.equal(done.counts.checked,2);
   release();await Promise.resolve();await Promise.resolve();assert.deepEqual(engine.cached(plan).rows,done.rows);assert.equal(engine.cached(plan).counts.checked,2);
   assert.deepEqual(cursors,stage==='provider'?[0,0]:[0]);assert.deepEqual(evaluated,stage==='provider'?['r0','r1']:['r0','r1','r0']);
@@ -682,8 +682,9 @@ test('recommended surface diversity crosses provider pages without discarding se
  const done=await engine.searchRecommended(plan,{more:true,targetPlaces:8});assert.equal(done.canContinue,false);assert.equal(done.counts.checked,6);assert.deepEqual(loads,[0,1]);assert.equal(new Set(evaluated.map(x=>x[0])).size,6);assert(evaluated.every(([id,page])=>page===(+id.slice(1)<3?0:1)));
 }));
 test('recommended source cooldown does not auto-wait and an exhausted zero-result search is not a paused quota',()=>recommendedFixture(async()=>{
- let load=0;const engine=createGenericSearch({bodies,yieldTask:async()=>{},provider:{load:async()=>({points:[],coverage:++load===1?{nextCursor:1,retryAfterMs:60000}:{nextCursor:null}})},evaluate:async()=>{throw Error('unexpected');}});
+ let load=0,now=0;const engine=createGenericSearch({now:()=>now,bodies,yieldTask:async()=>{},provider:{load:async()=>({points:[],coverage:++load===1?{nextCursor:1,retryAfterMs:60000}:{nextCursor:null}})},evaluate:async()=>{throw Error('unexpected');}});
  const wait=await engine.searchRecommended(plan);assert.equal(wait.pauseReason,'source-wait');assert.equal(load,1);assert.equal(wait.rows.length,0);
+ const cooling=await engine.searchRecommended(plan,{more:true});assert.equal(cooling.pauseReason,'source-wait');assert.equal(load,1,'clicking early must not reissue cooling requests');now=60000;
  const done=await engine.searchRecommended(plan,{more:true});assert.equal(load,2);assert.equal(done.canContinue,false);assert.equal(done.paused,undefined);
 }));
 
@@ -715,11 +716,11 @@ test('recommended continuation moves past a repeatedly slow point without discar
  const engine=createGenericSearch({now:()=>now,bodies,yieldTask:async()=>{},provider:{load:async(p,o)=>{
   loads.push(o.cursor);return {points:o.cursor===0?points.slice(0,1):points.slice(1),marker:o.cursor,coverage:{nextCursor:o.cursor===0?1:null}};
  }},evaluate:async(p,q,data)=>{seen.push([q.id,data.marker]);if(q.id==='r0'&&slow)now+=13;return recommendedRow(q);}});
- const first=await engine.searchRecommended(plan,{budgetMs:12});assert.equal(first.counts.checked,0);assert.equal(first.coverage.pendingPoints,1);
- const next=await engine.searchRecommended(plan,{more:true,budgetMs:12});
+ const first=await engine.searchRecommended(plan,{hardBudgetMs:12});assert.equal(first.counts.checked,0);assert.equal(first.coverage.pendingPoints,1);
+ const next=await engine.searchRecommended(plan,{more:true,hardBudgetMs:12});
  assert.equal(next.counts.checked,2);assert.deepEqual(next.rows.map(r=>r.id),['r1','r2']);assert.equal(next.canContinue,true);
  assert.equal(next.coverage.pendingPoints,1);assert.equal(next.coverage.timeDeferredPoints,1);assert.deepEqual(loads,[0,1]);
- slow=false;const done=await engine.searchRecommended(plan,{more:true,budgetMs:12});
+ slow=false;const done=await engine.searchRecommended(plan,{more:true,hardBudgetMs:12});
  assert.equal(done.canContinue,false);assert.equal(done.counts.checked,3);assert.equal(done.coverage.timeDeferredPoints,0);
  assert.deepEqual(done.rows.map(r=>r.id),['r1','r2','r0']);assert(seen.every(([id,page])=>page===(id==='r0'?0:1)));
 }));
@@ -732,9 +733,9 @@ test('recommended timeout fairness precedes surface diversity while explicit can
   const engine=createGenericSearch({now:()=>now,bodies,yieldTask:async()=>{},provider:{load:async()=>({points,coverage:{nextCursor:null}})},evaluate:async(p,q)=>{
    seen.push(q.id);if(first){first=false;now+=13;if(explicitCancel)controller.abort();}return recommendedRow(q);
   }});
-  const firstResult=await engine.searchRecommended(plan,{budgetMs:12,signal:controller.signal});
+  const firstResult=await engine.searchRecommended(plan,{hardBudgetMs:12,signal:controller.signal});
   assert.equal(!!firstResult.cancelled,explicitCancel);
-  const done=await engine.searchRecommended(plan,{more:true,budgetMs:12});assert.equal(done.counts.checked,3);assert.equal(done.canContinue,false);
+  const done=await engine.searchRecommended(plan,{more:true,hardBudgetMs:12});assert.equal(done.counts.checked,3);assert.equal(done.canContinue,false);
   assert.equal(seen[1],explicitCancel?'r0':'r1');assert.equal(new Set(done.rows.map(r=>r.id)).size,3);
  }
 }));
@@ -744,10 +745,10 @@ test('recommended never-settling evaluation cannot starve other places or later 
  const engine=createGenericSearch({bodies,yieldTask:async()=>{},provider:{load:async()=>({points,coverage:{nextCursor:null}})},evaluate:async(p,q)=>{
   seen.push(q.id);if(q.id==='r0')await new Promise(resolve=>pending.push(resolve));return recommendedRow(q);
  }});
- const first=await engine.searchRecommended(plan,{budgetMs:15});assert(first.paused);assert.equal(first.counts.checked,0);
- const second=await engine.searchRecommended(plan,{more:true,budgetMs:15});
+ const first=await engine.searchRecommended(plan,{hardBudgetMs:15});assert(first.paused);assert.equal(first.counts.checked,0);
+ const second=await engine.searchRecommended(plan,{more:true,hardBudgetMs:15});
  assert.deepEqual(second.rows.map(r=>r.id),['r1','r2']);assert.equal(second.counts.checked,2);assert.equal(second.coverage.timeDeferredPoints,1);
- const third=await engine.searchRecommended(plan,{more:true,budgetMs:15});
+ const third=await engine.searchRecommended(plan,{more:true,hardBudgetMs:15});
  assert.equal(third.canContinue,true);assert.equal(third.pauseReason,'time-budget');assert.equal(third.counts.checked,2);assert.equal(third.coverage.pendingPoints,1);
  for(const resolve of pending)resolve();await Promise.resolve();await Promise.resolve();
  assert.deepEqual(engine.cached(plan).rows,second.rows);assert.deepEqual(seen,['r0','r1','r2','r0','r0']);
@@ -823,4 +824,122 @@ test('explicit road scope admits unclassified surveyed places only with their cl
  const extended=await engine.searchRecommended({...plan,includeRoads:true});assert.deepEqual(extended.rows.map(r=>r.id),['r0','r3']);assert.deepEqual(seen,['r0','r3']);
  assert.equal(extended.rows[0].placeKind,'unknown','an unclassified surveyed place is never renamed as a road or viewpoint');
  }
+}));
+
+test('zero-result batches automatically reach the 161st useful point within one foreground action',()=>recommendedFixture(async()=>{
+ let now=0;const points=recommendedPoints(162),seen=[],published=[];
+ const engine=createGenericSearch({now:()=>now,bodies,yieldTask:async()=>{},provider:{load:async()=>({points,coverage:{nextCursor:null}})},evaluate:async(p,q)=>{
+  seen.push(q.id);now++;return q.id==='r160'?recommendedRow(q):{status:'no-overlap',recommend:false};
+ }});
+ const result=await engine.searchRecommended(plan,{budgetMs:12,hardBudgetMs:1000,onPage:p=>published.push(p.rows.map(r=>r.id))});
+ assert.equal(result.pauseReason,'first-useful');assert.equal(result.rows[0].id,'r160');assert.equal(result.counts.checked,161);assert.equal(now,161);
+ assert.equal(result.coverage.pendingPoints,1);assert.equal(seen.length,161);assert(published.some(ids=>ids.includes('r160')));
+}));
+
+test('soft first-result time never cancels a long point or repeats its local work',()=>recommendedFixture(async()=>{
+ let now=0;const calls=[],inside=[],points=recommendedPoints(2);
+ const engine=createGenericSearch({now:()=>now,bodies,yieldTask:async()=>{},provider:{load:async()=>({points,coverage:{nextCursor:null}})},evaluate:async(p,q,data,options)=>{
+  calls.push(q.id);for(let step=0;step<3;step++){now+=6;await Promise.resolve();inside.push(options.isCurrent());}return recommendedRow(q);
+ }});
+ const result=await engine.searchRecommended(plan,{budgetMs:12,hardBudgetMs:60});
+ assert.deepEqual(calls,['r0']);assert.deepEqual(inside,[true,true,true]);assert.equal(result.pauseReason,'first-useful');assert.equal(result.counts.checked,1);assert.equal(result.rows.length,1);
+}));
+
+test('inverse and provider preparation can finish after the soft goal without being restarted',()=>recommendedFixture(async()=>{
+ let now=0,inverseCalls=0,providerCalls=0;const original=C.inverseSeeds;
+ C.inverseSeeds=async()=>{inverseCalls++;now+=13;return {seeds:[{latitude:35,longitude:139,radiusM:300}],partial:true};};
+ try{
+  const engine=createGenericSearch({now:()=>now,bodies,yieldTask:async()=>{},provider:{load:async()=>{providerCalls++;now+=13;return {points:recommendedPoints(1),coverage:{nextCursor:null}};}},evaluate:async(p,q)=>recommendedRow(q)});
+  const result=await engine.searchRecommended(plan,{budgetMs:12,hardBudgetMs:60});assert.equal(result.rows.length,1);assert.equal(result.canContinue,false);assert.equal(inverseCalls,1);assert.equal(providerCalls,1);
+ }finally{C.inverseSeeds=original;}
+}));
+
+test('slow optional map falls back to exact work and its late rejection cannot own the session',()=>recommendedFixture(async()=>{
+ let rejectMap,mapCalls=0,providerCalls=0;const points=recommendedPoints(2);
+ const engine=createGenericSearch({bodies,yieldTask:async()=>{},prefilter:{regions:()=>{mapCalls++;return new Promise((_,reject)=>rejectMap=reject);},point:()=>false},
+  provider:{load:async()=>{providerCalls++;return {points,coverage:{nextCursor:null}};}},evaluate:async(p,q)=>recommendedRow(q)});
+ const first=await engine.searchRecommended(plan,{mapBudgetMs:5,hardBudgetMs:1000,targetPlaces:1});assert.equal(first.rows.length,1);assert.equal(mapCalls,1);assert.equal(providerCalls,1);
+ rejectMap(Error('late optional map'));await new Promise(resolve=>setImmediate(resolve));
+ const done=await engine.searchRecommended(plan,{more:true});assert.equal(done.rows.length,2);assert.equal(done.canContinue,false);assert.equal(mapCalls,1);assert.equal(done.counts.mapRegions,0);
+}));
+
+test('retryable terrain transport failure preserves good rows and retries only on a later eligible action',()=>recommendedFixture(async()=>{
+ let now=0,recovered=false;const seen=[],points=recommendedPoints(2);
+ const engine=createGenericSearch({now:()=>now,bodies,yieldTask:async()=>{},provider:{load:async()=>({points,coverage:{nextCursor:null}})},evaluate:async(p,q)=>{
+  seen.push(q.id);return q.id==='r0'&&!recovered?{status:'unverified',recommend:false,upperQuality:{layer:'terrain',reason:'terrain-fetch'}}:recommendedRow(q);
+ }});
+ const first=await engine.searchRecommended(plan);assert.deepEqual(first.rows.map(r=>r.id),['r1']);assert.equal(first.coverage.retryPoints,1);assert.equal(first.pauseReason,'source-wait');assert.equal(first.counts.checked,1);
+ await engine.searchRecommended(plan,{more:true});assert.deepEqual(seen,['r0','r1'],'retryAt blocks repeated immediate requests');
+ recovered=true;now=first.retryAt;const done=await engine.searchRecommended(plan,{more:true});assert.deepEqual(done.rows.map(r=>r.id),['r1','r0']);assert.equal(done.canContinue,false);assert.equal(done.counts.checked,2);assert.deepEqual(seen,['r0','r1','r0']);
+}));
+
+test('permanent terrain failure is finite and stable missing data is never transport-retried',()=>recommendedFixture(async()=>{
+ let now=0;const seen=[],points=recommendedPoints(3);
+ const reasons=['terrain-fetch','missing-tile','upper-structure-height-unknown'];
+ const engine=createGenericSearch({now:()=>now,bodies,yieldTask:async()=>{},provider:{load:async()=>({points,coverage:{nextCursor:null}})},evaluate:async(p,q)=>{
+  seen.push(q.id);return {status:'unverified',recommend:false,upperQuality:{layer:'terrain',reason:reasons[+q.id.slice(1)]}};
+ }});
+ const first=await engine.searchRecommended(plan);assert.equal(first.coverage.retryPoints,1);assert.equal(first.counts.unverified,2);assert.equal(seen.length,3);
+ now=first.retryAt;const second=await engine.searchRecommended(plan,{more:true});assert.equal(second.pauseReason,'source-wait');assert.equal(second.rows.length,0);assert.equal(second.coverage.retryPoints,1);assert.deepEqual(seen,['r0','r1','r2','r0']);assert(second.retryAt>now);
+}));
+
+test('failed provider tiles resume their own pages without rewinding successful source work',()=>recommendedFixture(async()=>{
+ let now=0;const calls=[],seen=[],points=recommendedPoints(3),tile={id:'failed-tile',bbox:[139,35,139.01,35.01],regionId:'fixture'};
+ const engine=createGenericSearch({now:()=>now,bodies,yieldTask:async()=>{},provider:{load:async(p,options)=>{
+  calls.push(structuredClone(options.cursor));
+  if(options.cursor===0)return {points:[points[0]],coverage:{nextCursor:null,failedRegions:[{...tile,reason:'network'}]}};
+  assert.deepEqual(options.cursor.batchTiles,[tile]);
+  return options.cursor.pointOffset?{points:[points[2]],coverage:{nextCursor:null}}:{points:[points[1]],coverage:{nextCursor:{...options.cursor,pointOffset:1}}};
+ }},evaluate:async(p,q)=>{seen.push(q.id);return recommendedRow(q);}});
+ const first=await engine.searchRecommended(plan);assert.equal(first.coverage.retrySources,1);assert.equal(first.rows.length,1);assert.equal(first.pauseReason,'source-wait');
+ await engine.searchRecommended(plan,{more:true});assert.equal(calls.length,1);
+ now=first.retryAt;const done=await engine.searchRecommended(plan,{more:true});assert.equal(done.canContinue,false);assert.equal(done.coverage.retrySources,0);assert.deepEqual(seen,['r0','r1','r2']);assert.equal(calls.length,3);
+}));
+
+test('an explicit retry prioritizes due failed points before a large unvisited provider tail',()=>recommendedFixture(async()=>{
+ let now=0,recovered=false;const seen=[],cursors=[],points=recommendedPoints(3);
+ const engine=createGenericSearch({now:()=>now,bodies,yieldTask:async()=>{},provider:{load:async(p,o)=>{
+  cursors.push(o.cursor);return o.cursor===0?{points:points.slice(0,2),coverage:{nextCursor:1}}:{points:[points[2]],coverage:{nextCursor:null}};
+ }},evaluate:async(p,q)=>{seen.push(q.id);return q.id==='r0'&&!recovered?{status:'unverified',recommend:false,upperQuality:{layer:'terrain',reason:'terrain-fetch'}}:recommendedRow(q);}});
+ const first=await engine.searchRecommended(plan,{targetPlaces:1});assert.equal(first.coverage.nextCursor,1);assert.equal(first.coverage.retryPoints,1);assert.deepEqual(cursors,[0]);
+ recovered=true;now=5000;const next=await engine.searchRecommended(plan,{more:true,targetPlaces:1});
+ assert.deepEqual(seen,['r0','r1','r0']);assert.deepEqual(cursors,[0],'the due point must not wait until all ordinary regions are fetched');assert.equal(next.rows.length,2);assert.equal(next.coverage.nextCursor,1);
+ const done=await engine.searchRecommended(plan,{more:true});assert.equal(done.rows.length,3);assert.equal(done.canContinue,false);
+}));
+
+test('a retried point definitively hidden by the now-ready map leaves the retry queue',()=>recommendedFixture(async()=>{
+ let now=0,hidden=false,evaluations=0;const points=recommendedPoints(1);
+ const engine=createGenericSearch({now:()=>now,bodies,yieldTask:async()=>{},prefilter:{regions:async(p,regions)=>({regions,context:{}}),point:()=>!hidden},
+  provider:{load:async()=>({points,coverage:{nextCursor:null}})},evaluate:async()=>{evaluations++;return {status:'unverified',recommend:false,upperQuality:{layer:'terrain',reason:'terrain-fetch'}};}});
+ const first=await engine.searchRecommended(plan);assert.equal(first.coverage.retryPoints,1);assert.equal(first.counts.checked,0);
+ hidden=true;now=first.retryAt;const done=await engine.searchRecommended(plan,{more:true});
+ assert.equal(done.canContinue,false);assert.equal(done.counts.checked,1);assert.equal(done.counts.blocked,1);assert.equal(done.coverage.retryPoints,0);assert.equal(evaluations,1);
+}));
+
+test('held transport failures share the deferred buffer with queued work and recover without dropping a cursor',()=>recommendedFixture(async()=>{
+ let now=0,recovered=false;const seen=[],loads=[],held=[],points=recommendedPoints(12),pageSize=4,limit=3;
+ const engine=createGenericSearch({now:()=>now,maxDeferredPoints:limit,bodies,yieldTask:async()=>{},provider:{load:async(p,o)=>{
+  loads.push(o.cursor);const index=Number(o.cursor);return {points:points.slice(index*pageSize,(index+1)*pageSize),coverage:{nextCursor:index<2?index+1:null}};
+ }},evaluate:async(p,q)=>{seen.push(q.id);return recovered?recommendedRow(q):{status:'unverified',recommend:false,upperQuality:{layer:'terrain',reason:'terrain-fetch'}};}});
+ const options={targetPlaces:20,onPage:p=>held.push(p.coverage.pendingPoints+p.coverage.retryPending)};
+ const first=await engine.searchRecommended(plan,options);assert.equal(first.pauseReason,'source-wait');assert.deepEqual(loads,[0]);assert.equal(first.coverage.retryPoints,4);assert.equal(first.coverage.nextCursor,1);assert(first.retryAt>now);
+ for(let i=0;i<3;i++)await engine.searchRecommended(plan,{...options,more:true});assert.deepEqual(loads,[0],'the full held buffer cannot pull more pages or retry before its deadline');
+ now=first.retryAt;recovered=true;const done=await engine.searchRecommended(plan,{...options,more:true});
+ assert.equal(done.canContinue,false);assert.equal(done.rows.length,12);assert.equal(done.counts.checked,12);assert.deepEqual(loads,[0,1,2]);
+ assert(held.every(n=>n<=limit+pageSize),'one provider page is the only allowed overshoot');assert.equal(new Set(seen).size,12);
+}));
+
+test('retry source pages cannot grow held point failures by another page on each retry',()=>recommendedFixture(async()=>{
+ let now=0,initialRecovered=false,allRecovered=false;const calls=[],held=[],points=recommendedPoints(9),tiles=['a','b'].map(id=>({id,bbox:[139,35,139.01,35.01]}));
+ const engine=createGenericSearch({now:()=>now,maxDeferredPoints:3,bodies,yieldTask:async()=>{},provider:{load:async(p,o)=>{
+  const id=o.cursor===0?'initial':o.cursor.batchTiles[0].id;calls.push(id);
+  return id==='initial'?{points:[points[0]],coverage:{nextCursor:null,failedRegions:tiles}}:{points:points.slice(id==='a'?1:5,id==='a'?5:9),coverage:{nextCursor:null}};
+ }},evaluate:async(p,q)=>allRecovered||initialRecovered&&q.id==='r0'?recommendedRow(q):{status:'unverified',recommend:false,upperQuality:{layer:'terrain',reason:'terrain-fetch'}}});
+ const options={targetPlaces:20,onPage:p=>held.push(p.coverage.pendingPoints+p.coverage.retryPending)};
+ const first=await engine.searchRecommended(plan,options);assert.equal(first.coverage.retryPending,3);assert.deepEqual(calls,['initial']);
+ now=first.retryAt;initialRecovered=true;const next=await engine.searchRecommended(plan,{...options,more:true});
+ assert.deepEqual(calls,['initial','a']);assert.equal(next.coverage.retryPending,5);assert.equal(next.coverage.retryPoints,4);
+ now=Math.max(now+10000,next.retryAt);const waiting=await engine.searchRecommended(plan,{...options,more:true});assert.deepEqual(calls,['initial','a']);assert.equal(waiting.coverage.retryPending,5);assert(waiting.retryAt>now,'a blocked ready source must not hide the actual point retry wait');
+ now+=60000;allRecovered=true;const done=await engine.searchRecommended(plan,{...options,more:true});assert.deepEqual(calls,['initial','a','b']);assert.equal(done.rows.length,9);assert.equal(done.canContinue,false);
+ assert(held.every(n=>n<=3+4),'held work remains within the buffer plus one returned provider page');
 }));

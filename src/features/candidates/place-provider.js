@@ -16,7 +16,12 @@ const finite=x=>typeof x==='number'&&Number.isFinite(x);
 const key=p=>p.longitude.toFixed(7)+','+p.latitude.toFixed(7);
 const bboxPoint=(p,b)=>p.longitude>=b[0]&&p.longitude<=b[2]&&p.latitude>=b[1]&&p.latitude<=b[3];
 const forbidden=t=>['private','no'].includes(t?.access)||['private','no'].includes(t?.foot);
-const nonGround=t=>!!t&&(t.location==='roof'||t.location==='rooftop'||t.location==='underground'||t.indoor==='yes'||t.bridge&&t.bridge!=='no'||t.tunnel&&t.tunnel!=='no'||t.covered==='yes'||t.level!=null&&String(t.level)!=='0'||finite(Number(t.layer))&&Number(t.layer)!==0);
+const nonGround=(t,ignoreLayer=false)=>!!t&&(t.location==='roof'||t.location==='rooftop'||t.location==='underground'||t.indoor==='yes'||t.bridge&&t.bridge!=='no'||t.tunnel&&t.tunnel!=='no'||t.covered==='yes'
+ ||t.level!=null&&String(t.level)!=='0'||!ignoreLayer&&finite(Number(t.layer))&&Number(t.layer)!==0);
+// A park boundary's layer orders overlaps; a negative layer is not an underground floor.
+// Keep the path's own structure tags, and explicit raised/indoor tags on the parent.
+// Check highway tags too: movement constraints temporarily set walking=false.
+const nonGroundArea=f=>nonGround(f.tags,f.kind==='park'&&!f.walking&&!f.building&&!f.tags?.highway&&!f.tags?.['area:highway']&&f.polygons?.length>0);
 function hash(s){let x=2166136261;for(let i=0;i<s.length;i++){x^=s.charCodeAt(i);x=Math.imul(x,16777619);}return (x>>>0).toString(16);}
 function distance(a,b){return Math.hypot((a[0]-b[0])*Math.cos((a[1]+b[1])*RAD/2),a[1]-b[1])*M;}
 function inside(r,p){let yes=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>p.latitude)!==(r[j][1]>p.latitude)&&p.longitude<(r[j][0]-r[i][0])*(p.latitude-r[i][1])/(r[j][1]-r[i][1])+r[i][0])yes=!yes;return yes;}
@@ -166,7 +171,7 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
  const generationBudget=maxPoints+skipPoints;
  const areas=features.filter(f=>f.kind&&f.polygons.length),waters=features.filter(f=>f.water),rivers=features.filter(f=>['river','canal'].includes(f.tags.waterway)),buildings=features.filter(f=>f.building),groups=[],unknownGeometry=features.filter(f=>f.geometryIncomplete).map(f=>f.id);
  let generationLimited=false,excludedPoints=0,excludedFeatures=0;
- const surfaces=new Map(),excluded=features.filter(f=>(f.water||f.building||forbidden(f.tags)||nonGround(f.tags))&&f.polygons.length);
+ const surfaces=new Map(),excluded=features.filter(f=>(f.water||f.building||forbidden(f.tags)||nonGroundArea(f))&&f.polygons.length);
  const surfaceFor=(f,area,p)=>{
   const direct={polygons:f.walking&&(f.tags.area==='yes'||f.tags['area:highway'])?f.polygons:[],lines:f.walking&&f.tags.area!=='yes'&&!f.tags['area:highway']?f.lines:[],...(f.position?{position:f.position}:{})};
   if(!f.walking||!area||!area.polygons.length||area===f)return direct;
@@ -189,7 +194,7 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
    if(!inRegion(p))return;
    const containers=areas.filter(a=>contains(a,p));if(containers.some(a=>forbidden(a.tags)))return;
    const water=waters.find(a=>contains(a,p));if(water&&!nonGround(f.tags))return;
-   const roofArea=containers.find(a=>nonGround(a.tags)),building=buildings.find(a=>contains(a,p)),viewpoint=containers.find(a=>a.kind==='viewpoint');
+   const roofArea=containers.find(nonGroundArea),building=buildings.find(a=>contains(a,p)),viewpoint=containers.find(a=>a.kind==='viewpoint');
    const square=containers.find(a=>a.kind==='plaza'),park=containers.find(a=>a.kind==='park');
    const longitudeScale=Math.cos(p.latitude*RAD);
    const river=!viewpoint&&!square&&!park&&rivers.find(a=>nearEdges(a,p,80,longitudeScale));
@@ -203,7 +208,7 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
    const placeKind=f.kind==='viewpoint'||viewpoint?'viewpoint':square||walkingSquare(f)?'plaza':park?'park':riverside?'riverbank':'sidewalk';
    if(pointKinds&&!pointKinds.has(placeKind)){excludedPoints++;return;}
    const elevated=nonGround(f.tags)||!!roofArea||!!building;
-   const surface=area&&nonGround(area.tags)?area:f;
+   const surface=area&&nonGroundArea(area)?area:f;
    // ele = absolute feature elevation, height = structure top, level = floor
    // index. None identifies the physical standing floor on its own.
    const floor=Number(surface.tags['floor:height']),floorSource=surface.tags['source:floor:height'];
@@ -255,7 +260,7 @@ function movementDomain(seed,features,{radiusM=600,allComponents=false}={}){
  const origin={latitude:seed.latitude,longitude:seed.longitude},c=Math.cos(origin.latitude*RAD);
  const usable=f=>f.walking&&!f.geometryIncomplete&&!forbidden(f.tags)&&!nonGround(f.tags);
  const area=features.find(f=>f.sourceId===seed.placeId&&f.polygons.length&&(f.kind||f.tags.area==='yes'||f.tags['area:highway']))||features.find(f=>f.kind==='park'&&contains(f,origin));
- const excluded=features.filter(f=>(f.water||f.building||forbidden(f.tags)||nonGround(f.tags))&&f.polygons.length);
+ const excluded=features.filter(f=>(f.water||f.building||forbidden(f.tags)||nonGroundArea(f))&&f.polygons.length);
  const riverbank=seed.placeKind==='riverbank'&&!area,waters=features.filter(f=>f.water),rivers=features.filter(f=>['river','canal'].includes(f.tags.waterway));
  const nearbySegments=rows=>rows.flatMap(f=>f.lines.flatMap(l=>l.slice(1).map((b,i)=>[l[i],b]))).filter(l=>edgeBoxInReach({bbox:[Math.min(l[0][0],l[1][0]),Math.min(l[0][1],l[1][1]),Math.max(l[0][0],l[1][0]),Math.max(l[0][1],l[1][1])]},origin,radiusM+300,c));
  const shores=riverbank?nearbySegments(waters):[],axes=riverbank?nearbySegments(rivers):[];

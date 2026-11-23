@@ -142,7 +142,7 @@ test('a moving solve checks its resolved position even with a finite seed floor;
   const model=createGeneric({align,bodies,geo:G,terrain,yieldTask:async()=>{}}),plan={target,body:'moon',strict:true,at:0,timeSpec:{kind:'instant',at:0},partId:'tip'};
   const result=await model.evaluate(plan,point,{});assert.equal(result.recommend,true);assert.deepEqual(seen,[solved.latitude]);assert.equal(result.assumedObserver.latitude,solved.latitude);
   seen.length=0;
-  const fixed=await model.evaluate({...plan,strict:false},point,{});assert.equal(fixed.recommend,false);assert.equal(fixed.upperQuality.status,'unknown');assert.deepEqual(seen,[point.latitude]);
+  const ordinary=await model.evaluate({...plan,strict:false},point,{});assert.equal(ordinary.recommend,true);assert.deepEqual(seen,[solved.latitude]);
   Q.check=async()=>({status:'unknown'});assert.equal((await model.evaluate(plan,point,{})).recommend,false,'surveyed final observer is checked too');
   const extra={...target,id:'tokyotower',parts:[{id:'tip',m:351},{id:'main',m:148.389}]},targets=[];
   Q.check=async(o,t)=>{targets.push(t.id);return {status:t.id==='tokyotower'?'unknown':'model-clear'};};
@@ -151,4 +151,120 @@ test('a moving solve checks its resolved position even with a finite seed floor;
   targets.length=0;
   await model.evaluate({...plan,extraTargets:[extra],requireAllTargets:false},point,{});assert.deepEqual(targets,['skytree'],'optional extras retain their existing acceptance contract');
  }finally{C.opportunities=oldSolve;Q.check=oldCheck;}
+});
+
+function evaluationFixture({events=[0],state,terrainState='model-clear'}={}){
+ const point={...observer,groundM:5,surfaceElevationM:5,surfaceAglM:0,standingSurfaceKnown:true,nonTerrainStructure:true,surveyedTargets:['skytree']};
+ const geometry={azimuth:0,angle:10,topM:636,distanceKm:1},reads={terrain:0};
+ const align={geometryFrom:()=>geometry,outlineModel:()=>model,viewProjector:(az,alt)=>(a,h)=>[a-az,h-alt],viewUnprojector:(az,alt)=>(x,y)=>[az+x,alt+y],
+  towerOutline:()=>({known:true,polygons:[[[-.001,0],[.001,0],[.001,10],[-.001,10]]]})};
+ const bodies={state:()=>state||({azimuth:0,apparentAltitude:10,angularRadius:.25})};
+ const terrain={sample:async()=>({height:5}),trace:async()=>{reads.terrain++;return {status:terrainState,checked:1,missing:terrainState==='model-clear'?0:1};}};
+ return {point,align,bodies,terrain,reads,plan:{target,body:'moon',at:0,timeSpec:{kind:'day',at:0},partId:'tip'},
+  solutions:events.map(at=>({observer:{...point,elevation:5},event:{at},geometry}))};
+}
+
+test('a fixed surveyed place with no geometric opportunity does not read upper visibility',async()=>{
+ const {createGeneric}=require('./src/features/candidates/generic-evaluator.js'),C=require('./src/features/candidates/composition.js'),f=evaluationFixture({events:[]});
+ const oldSolve=C.opportunities,oldCheck=Q.check;let solves=0,upper=0;
+ try{
+  C.opportunities=async()=>{solves++;return {solutions:[],partial:true,reason:'no-opportunity-found-in-sampled-range'};};
+  Q.check=async()=>{upper++;throw Error('unnecessary upper IO');};
+  const result=await createGeneric({...f,geo:G,yieldTask:async()=>{}}).evaluate(f.plan,f.point,{});
+  assert.equal(result.recommend,false);assert.equal(result.status,'no-overlap');assert.equal(result.partial,true);assert.equal(solves,1);assert.equal(upper,0);assert.equal(f.reads.terrain,0);
+ }finally{C.opportunities=oldSolve;Q.check=oldCheck;}
+});
+
+test('a geometric solution outside the required frame does not read upper visibility',async()=>{
+ const {createGeneric}=require('./src/features/candidates/generic-evaluator.js'),C=require('./src/features/candidates/composition.js'),f=evaluationFixture();
+ const oldSolve=C.opportunities,oldCheck=Q.check;let upper=0;
+ try{
+  C.opportunities=async()=>({solutions:f.solutions});Q.check=async()=>{upper++;throw Error('unnecessary upper IO');};
+  const plan={...f.plan,lens:{mode:'required',sensorWidth:1,sensorHeight:1,focal:1000,axis:{azimuth:90,altitude:0},targetExtent:'anchor'}};
+  const result=await createGeneric({...f,geo:G,yieldTask:async()=>{}}).evaluate(plan,f.point,{});
+  assert.equal(result.recommend,false);assert.equal(result.status,'outside-frame');assert.equal(upper,0);assert.equal(f.reads.terrain,0);
+ }finally{C.opportunities=oldSolve;Q.check=oldCheck;}
+});
+
+test('each surviving event still needs upper quality; an unknown event does not hide a later clear event',async()=>{
+ const {createGeneric}=require('./src/features/candidates/generic-evaluator.js'),C=require('./src/features/candidates/composition.js'),f=evaluationFixture({events:[0,1000]});
+ const oldSolve=C.opportunities,oldCheck=Q.check;let upper=0;
+ try{
+  C.opportunities=async()=>({solutions:f.solutions});
+  Q.check=async()=>({status:++upper===1?'unknown':'model-clear',widthCovered:true,scope:'synthetic-upper-corridor'});
+  const result=await createGeneric({...f,geo:G,yieldTask:async()=>{}}).evaluate(f.plan,f.point,{});
+  assert.equal(upper,2);assert.equal(result.recommend,true);assert.equal(result.event.at,1000);assert.deepEqual(result.additionalCandidates,[]);
+  assert.equal(result.quality.upperTower.status,'model-clear');assert.equal(result.quality.upperTower.widthCovered,true);
+ }finally{C.opportunities=oldSolve;Q.check=oldCheck;}
+});
+
+test('upper clearance alone cannot adopt an event with unread celestial terrain',async()=>{
+ const {createGeneric}=require('./src/features/candidates/generic-evaluator.js'),C=require('./src/features/candidates/composition.js'),f=evaluationFixture({terrainState:'unknown'});
+ const oldSolve=C.opportunities,oldCheck=Q.check;let upper=0;
+ try{
+  C.opportunities=async()=>({solutions:f.solutions});Q.check=async()=>{upper++;return {status:'model-clear',widthCovered:true};};
+  const result=await createGeneric({...f,geo:G,yieldTask:async()=>{}}).evaluate(f.plan,f.point,{});
+  assert.equal(upper,1);assert.equal(result.recommend,false);assert(f.reads.terrain>0);assert.equal(Object.hasOwn(result,'upperQuality'),false);
+ }finally{C.opportunities=oldSolve;Q.check=oldCheck;}
+});
+
+test('final upper rejection retains its original reason and evidence without adopting it',async()=>{
+ const {createGeneric}=require('./src/features/candidates/generic-evaluator.js'),C=require('./src/features/candidates/composition.js'),f=evaluationFixture();
+ const oldSolve=C.opportunities,oldCheck=Q.check;
+ try{
+  C.opportunities=async()=>({solutions:f.solutions,partial:true});
+  for(const upper of [{status:'unknown',reason:'upper-structure-height-unknown',layer:'buildings',hit:{id:'way/example'}},
+   {status:'unknown',reason:'missing-tile',layer:'terrain',missing:1}, {status:'deferred',reason:'time-budget'}]){
+   Q.check=async()=>upper;
+   const result=await createGeneric({...f,geo:G,yieldTask:async()=>{}}).evaluate(f.plan,f.point,{});
+   assert.equal(result.recommend,false);assert.equal(result.status,'unverified');assert.equal(result.partial,true);
+   assert.deepEqual(result.upperQuality,upper);assert.equal(f.reads.terrain,0);
+  }
+ }finally{C.opportunities=oldSolve;Q.check=oldCheck;}
+});
+
+test('a clear main target retains the required extra upper reason; only terrain transport enters retry work',async()=>{
+ const {createGeneric}=require('./src/features/candidates/generic-evaluator.js'),C=require('./src/features/candidates/composition.js');
+ const {createGenericSearch}=require('./src/features/candidates/generic-search.js'),oldSolve=C.opportunities,oldInverse=C.inverseSeeds,oldCheck=Q.check;
+ const extra={...target,id:'tokyotower',parts:[{id:'tip',m:351},{id:'main',m:148.389}]};
+ try{
+  C.inverseSeeds=async()=>({seeds:[]});
+  for(const upper of [{status:'unknown',reason:'upper-structure-height-unknown',layer:'buildings',obstacleId:'way/example',partId:'main'},
+   {status:'unknown',reason:'missing-tile',layer:'terrain',partId:'main'},{status:'unknown',reason:'terrain-fetch',layer:'terrain',partId:'main'}]){
+   const f=evaluationFixture(),seen=[];f.point.placeKind='viewpoint';
+   const plan={...f.plan,extraTargets:[extra],requireAllTargets:true};C.opportunities=async()=>({solutions:f.solutions});
+   Q.check=async(o,t)=>{seen.push({target:t.id,observer:{...o}});return t.id===extra.id?upper:{status:'model-clear'};};
+   const model=createGeneric({...f,geo:G,yieldTask:async()=>{}}),result=await model.evaluate(plan,f.point,{});
+   assert.equal(result.recommend,false);assert.equal(result.status,'unverified');assert.deepEqual(result.upperQuality,upper);
+   assert.deepEqual(seen.map(x=>x.target),['skytree','tokyotower']);assert.deepEqual(seen[1].observer,f.solutions[0].observer);
+   const engine=createGenericSearch({provider:{load:async()=>({points:[f.point],features:[],coverage:{nextCursor:null}})},evaluate:async(...args)=>{
+    const actual=await model.evaluate(...args);assert.deepEqual(actual.upperQuality,upper,JSON.stringify(actual));return actual;
+   },bodies:{ensure:async()=>{}},yieldTask:async()=>{}});
+   const page=await engine.search(plan,{retainFailures:true});assert.deepEqual(page.rows,[]);assert.equal(page.coverage.retryPoints,upper.reason==='terrain-fetch'?1:0,JSON.stringify(page));
+  }
+ }finally{C.opportunities=oldSolve;C.inverseSeeds=oldInverse;Q.check=oldCheck;}
+});
+
+test('an unread main sight line is not relabelled as the required extra transport failure',async()=>{
+ const {createGeneric}=require('./src/features/candidates/generic-evaluator.js'),C=require('./src/features/candidates/composition.js'),f=evaluationFixture({terrainState:'unknown'});
+ const oldSolve=C.opportunities,oldCheck=Q.check,extra={...target,id:'tokyotower',parts:[{id:'tip',m:351},{id:'main',m:148.389}]};
+ try{
+  C.opportunities=async()=>({solutions:f.solutions});
+  Q.check=async(o,t)=>t.id===extra.id?{status:'unknown',layer:'terrain',reason:'terrain-fetch',partId:'main'}:{status:'model-clear'};
+  const result=await createGeneric({...f,geo:G,yieldTask:async()=>{}}).evaluate({...f.plan,extraTargets:[extra],requireAllTargets:true},f.point,{});
+  assert.equal(result.recommend,false);assert.equal(result.status,'unverified');assert.equal(Object.hasOwn(result,'upperQuality'),false);assert(f.reads.terrain>0);
+ }finally{C.opportunities=oldSolve;Q.check=oldCheck;}
+});
+
+test('cancelling the final upper data read rejects the event and ignores its late release',async()=>{
+ const {createGeneric}=require('./src/features/candidates/generic-evaluator.js'),C=require('./src/features/candidates/composition.js'),f=evaluationFixture();
+ const oldSolve=C.opportunities,controller=new AbortController();let release,started;
+ const waiting=new Promise(resolve=>{started=resolve;}),heights={upperPatch:()=>{started();return new Promise(resolve=>{release=resolve;});}};
+ try{
+  C.opportunities=async()=>({solutions:f.solutions});
+  const candidate=createGeneric({...f,heights,trees:{upperPatch:async()=>({status:'clear',cells:1})},geo:G,yieldTask:async()=>{}});
+  const pending=candidate.evaluate(f.plan,f.point,{},{signal:controller.signal,isCurrent:()=>!controller.signal.aborted});
+  await waiting;controller.abort();await assert.rejects(pending,/candidate-cancelled/);release({status:'clear',cells:1});await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(f.reads.terrain,0,'no sky or target ray may be adopted after cancellation');
+ }finally{C.opportunities=oldSolve;}
 });

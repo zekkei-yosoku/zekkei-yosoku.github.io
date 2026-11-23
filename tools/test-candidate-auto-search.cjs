@@ -42,7 +42,7 @@ const grants=['records','tower','diamond','pearl','skymap','multiscene'];
    await p.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2);await activeProgress();
    await progress.scrollIntoViewIfNeeded();await p.screenshot({path:out+'/'+engine+'-auto-progress.png'});
    await release();await state('候補を探し直す');assert.equal(await progress.count(),0);assert.equal(await working.count(),0);const first=await shown();assert.equal(first.length,2);assert.equal(new Set(first).size,2);
-   await p.evaluate(()=>dateFixture.repeatCursor=true);await button.click();await state('再試行');assert.match(await feedback.innerText(),/取得できなかった/);assert.deepEqual(await loads(),[0,7,0,7]);assert.deepEqual(await shown(),first);
+   await p.evaluate(()=>dateFixture.repeatCursor=true);await button.click();await state('再試行');assert.match(await feedback.innerText(),/情報の取得が進まないため、ここで停止しました。$/);assert.deepEqual(await loads(),[0,7,0,7]);assert.deepEqual(await shown(),first);
    await p.evaluate(()=>dateFixture.repeatCursor=false);await button.click();await state('候補を探し直す');
    await p.evaluate(()=>dateFixture.holdCursor=7);await button.click();await waitHold();await activeProgress();
    await working.getByRole('button',{name:'キャンセル',exact:true}).click();await state('続きを探す');

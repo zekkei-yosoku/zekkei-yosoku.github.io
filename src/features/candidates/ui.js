@@ -503,18 +503,26 @@ function mount(){
     .catch(error=>globalThis.AstroNotesErrors?.note('candidates.town-address',error));
    hasResults=!!rows.length;publishedRows=result.rows.length;
    if(partial){visibleCredits.hidden=!hasResults;main?.reveal();return;}
-   const incomplete=!!result.stalled||interrupted||result.coverage.loaded?.some(c=>c.failedRegions?.length||c.missing?.includes('time-budget'));
+   const sourcePending=result.coverage.retryPending??Number(result.coverage.loaded?.some(c=>c.failedRegions?.length||c.missing?.includes('time-budget')));
+   const incomplete=!!result.stalled||interrupted||sourcePending>0;
    continuation=cancelled||interrupted||!!result.canContinue;failed=!cancelled&&incomplete;
    renderAction();visibleCredits.hidden=!rows.length&&!result.paused;
    const unknown=rows.some(r=>r.quality?.buildingHeights==='estimated'),unknownFrame=rows.some(r=>r.frame?.status==='unknown');
    const placeCount=AstroNotesCandidatePicker.countNewPlaces(result.rows,recorded,labels.facilities);
    const summaryText=rows.length?`${placeCount}か所の新たな撮影地点の候補があります。${unknown?'建物の高さを推定した候補を含みます。':''}${unknownFrame?'全体の画角を確認できない候補を含みます。':''}`
-    :result.paused?'まだ新たな撮影地点は見つかっていません。':incomplete?'確認できた範囲には候補がありません。':'今回確認した範囲では候補がありません。';
-   const next=incomplete?'取得できなかった範囲があります。':result.paused?'今回はここまで確認しました。続きを探せます。':result.canContinue?'探索を再開できます。':'';
+    :result.rows.length?'見つかった撮影地点は記録にあります。新たな撮影地点はまだ見つかっていません。'
+    :sourcePending?'情報を取得できず、まだ判定できない地点があります。':result.paused?'まだ新たな撮影地点は見つかっていません。'
+    :result.counts.unverified?'確認した範囲では見通しの確かな候補を見つけられませんでした。':'今回確認した範囲では候補がありません。';
+   const waitSeconds=Math.max(0,Math.ceil(((result.retryAt||0)-Date.now())/1000));
+   const next=sourcePending?(waitSeconds?`${waitSeconds}秒ほど待って情報を再取得できます。`:'確認済みの地点をやり直さず、情報を再取得できます。')
+    :result.stalled?'情報の取得が進まないため、ここで停止しました。':interrupted?'取得できなかった範囲があります。'
+    :result.pauseReason==='time-budget'?'時間内に確認しきれない地点が残っています。続きを探せます。'
+    :result.paused?'未探索の範囲も、続きから探せます。':result.canContinue?'探索を再開できます。':'';
    setStatus(cancelled?'探索をキャンセルしました。続きから探せます。':summaryText+next,!!main&&!!rows.length&&!cancelled&&!next);
    const c=result.counts,unverifiedWhy=[c.nearBuilding?`立つ点のすぐ脇に建物${c.nearBuilding}`:'',c.heightUnknown?`建物の高さが分からない${c.heightUnknown}`:'',c.obstacle?`木・橋・高架${c.obstacle}`:''].filter(Boolean).join('・');
    resultNotes.textContent=`見通しを地形と建物で確かめられた地点だけを候補にしています。${c.checked}地点を確認：遮られる${c.blocked}、`
-    +`見通しを確かめられない${c.unverified||0}${unverifiedWhy?`（うち${unverifiedWhy}）`:''}、構図に合わない${c.outsideFrame||0}、立つ高さが分からない${c.unknown}。`
+    +`見通しを確かめられない${c.unverified||0}${unverifiedWhy?`（うち${unverifiedWhy}）`:''}、重なりが見つからない${c.noOverlap||0}、構図に合わない${c.outsideFrame||0}、立つ高さが分からない${c.unknown}。`
+    +(sourcePending?`情報取得待ち${sourcePending}件は、確認済みの地点をやり直さず再試行できます。`:'')
     +(result.coverage.timeDeferredPoints?`時間内に確認できなかった${result.coverage.timeDeferredPoints}地点は、ほかの地点の後に再確認します。`:'')
     +(c.mapRegions||c.mapPoints?`見える場所の地図で、対象の名前のある部分が見えない区画${c.mapRegions||0}を探す前に外し、地点${c.mapPoints||0}を確かめる前に外しました（遮られるに含む）。`:'')
     +'建物の高さはPLATEAUを整備した都市はその高さ、ほかは国土地理院の建物の形と種類から見積もります。木はMeta・WRIの樹高地図（衛星写真からの推定、約2.4m刻み）の高さで判定し、読めないときはOpenStreetMapにある木だけを高さが分からないものとして扱います。橋・高架はOpenStreetMapにあるものだけ、高さが分からないものとして判定します。'

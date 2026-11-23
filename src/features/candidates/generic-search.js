@@ -32,12 +32,12 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
  const sessions=new Map();
  const fresh=(key,inverse,lastResult=null)=>({key,regions:regionsFor(inverse?.seeds),inverse,lastResult,rows:[],queue:[],pointData:new Map(),pointDomains:new Map(),visitedDomains:new Set(),timeDeferred:new Set(),seen:new Set(),seenRows:new Set(),cursor:0,started:false,
  counts:{checked:0,unknown:0,blocked:0,noOverlap:0,unverified:0,heightUnknown:0,nearBuilding:0,obstacle:0,outsideFrame:0,mapRegions:0,mapPoints:0,
- deferred:0},coverage:[],busy:false});
+ deferred:0},coverage:[],retryWork:new Map(),busy:false});
  // Rechecking the same conditions replaces only working progress. The last
  // complete result remains available when a recheck fails or is cancelled.
  function restart(plan){const key=requestKey(plan),previous=sessions.get(key);if(previous?.busy&&previous.current?.()!==false)return false;if(previous)sessions.set(key,fresh(key,previous.inverse,previous.lastResult));return true;}
  async function search(plan,{onProgress=()=>{},onFirstResult,onRows,isCurrent=()=>true,signal,more=false,retryFailed=true,deadline=Infinity,pointLimit=maxPointsPerBatch,
-  shouldPause=()=>false,providerOptions={},prioritizeKnown=false,diverse=false,deferTimedOut=()=>false,deprioritizePoints=()=>()=>false}={}){
+  shouldPause=()=>false,providerOptions={},prioritizeKnown=false,diverse=false,deferTimedOut=()=>false,deprioritizePoints=()=>()=>false,mapBudgetMs=Infinity,retryWork=null,retainFailures=false}={}){
   if(plan.compositionInvalid)throw Error('invalid-composition');
   const key=requestKey(plan),placeKinds=placeKindsFor(plan);let session=sessions.get(key);
   const kindAllowed=(row,fallback)=>{
@@ -50,10 +50,10 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
   const wanted=()=>!signal?.aborted&&now()<deadline&&isCurrent();
   // Shared loaders may finish after this action. Stop waiting without granting
   // their late response ownership of the queue or any displayed result.
-  const wait=promise=>{
-   if(!signal)return promise;
-   let abort;return Promise.race([promise,new Promise((_,reject)=>{abort=()=>reject(Error('candidate-cancelled'));if(signal.aborted)abort();else signal.addEventListener('abort',abort,{once:true});})])
-    .finally(()=>signal.removeEventListener('abort',abort));
+  const wait=(promise,reader=signal)=>{
+   if(!reader)return promise;
+   let abort;return Promise.race([promise,new Promise((_,reject)=>{abort=()=>reject(Error('candidate-cancelled'));if(reader.aborted)abort();else reader.addEventListener('abort',abort,{once:true});})])
+    .finally(()=>reader.removeEventListener('abort',abort));
   };
   try{
   if(!wanted())return {cancelled:true};
@@ -63,7 +63,8 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
    // Detach mutable progress from the obsolete owner. Completed batches and
    // the pending point/cursor survive even if its IO never acknowledges abort.
    session={...session,rows:session.rows.slice(),queue:session.queue.slice(),pointData:new Map(session.pointData),pointDomains:new Map(session.pointDomains),visitedDomains:new Set(session.visitedDomains),
-    timeDeferred:new Set(session.timeDeferred),seen:new Set(session.seen),seenRows:new Set(session.seenRows),counts:{...session.counts},coverage:session.coverage.slice(),busy:false,current:null};sessions.set(key,session);
+    timeDeferred:new Set(session.timeDeferred),seen:new Set(session.seen),seenRows:new Set(session.seenRows),retryWork:new Map(session.retryWork),
+    counts:{...session.counts},coverage:session.coverage.slice(),busy:false,current:null};sessions.set(key,session);
   }
   if(session?.busy)return {cancelled:true,reason:'busy'};
   if(!session?.inverse){
@@ -82,6 +83,15 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
     session.seen.add(id);session.queue.push(p);session.pointData.set(p,data);if(diverse)session.pointDomains.set(p,Composition.surfaceDomainKey(p));}};
    const visited=p=>{const domain=session.pointDomains.get(p);return domain!=null&&session.visitedDomains.has(domain);};
    const deferred=p=>session.timeDeferred.has(p);
+   const hold=(id,work)=>{
+    const previous=session.retryWork.get(id),attempts=(previous?.attempts||0)+1;
+    session.retryWork.set(id,{...work,id,attempts,retryAt:now()+Math.min(60000,5000*2**Math.min(4,attempts-1))});
+   };
+   if(retryWork?.kind==='point'){
+    const index=session.queue.indexOf(retryWork.point);if(index>=0)session.queue.splice(index,1);
+    session.queue.unshift(retryWork.point);session.pointData.set(retryWork.point,retryWork.data);
+    if(diverse)session.pointDomains.set(retryWork.point,Composition.surfaceDomainKey(retryWork.point));
+   }
    // Known fixed viewpoints need no OSM page or hundreds of ground samples.
    // They still pass the same exact geometry and visibility evaluation.
    if(prioritizeKnown&&!session.surveyedChecked&&typeof provider.surveyed==='function'){
@@ -91,23 +101,43 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
    // Read the current records once per scheduling decision, not once for each
    // point inspected by find/every. Priority changes never remove queued work.
    const lowerPriority=deprioritizePoints();
-   if((!session.queue.length||diverse&&session.queue.length<maxDeferredPoints&&session.queue.every(p=>deferred(p)||visited(p)||lowerPriority(p)))&&(session.cursor!==null||!session.started)){
+   const retrySource=retryWork?.kind==='source'?retryWork:null;
+   const room=()=>session.queue.length+session.retryWork.size<maxDeferredPoints;
+   if(retrySource||room()&&(!session.queue.length||diverse&&session.queue.every(p=>deferred(p)||visited(p)||lowerPriority(p)))&&(session.cursor!==null||!session.started)){
     // The optional map must not hold known fixed viewpoints. Compute it once,
     // just before the first ordinary provider page, within the same deadline.
     if(prefilter&&!session.mapChecked){
-     try{const f=await wait(prefilter.regions(plan,session.regions,{isCurrent:wanted,signal,deadline}));if(!wanted())return {cancelled:true};session.mapChecked=true;
-      if(f){session.counts.mapRegions=session.regions.length-f.regions.length;session.regions=f.regions;session.mapContext=f.context||null;}}
-     catch(e){if(e?.message==='candidate-cancelled')return {cancelled:true};session.mapChecked=true;globalThis.AstroNotesErrors?.note('candidates.visibility-map',e);}}
+     const mapOwner=new AbortController(),cancelMap=()=>mapOwner.abort(),mapDeadline=Math.min(deadline,now()+mapBudgetMs);
+     signal?.addEventListener('abort',cancelMap,{once:true});
+     const mapTimer=Number.isFinite(mapDeadline)?setTimeout(cancelMap,Math.max(1,mapDeadline-now())):null;
+     const mapCurrent=()=>wanted()&&!mapOwner.signal.aborted&&now()<mapDeadline;
+     try{const f=await wait(prefilter.regions(plan,session.regions,{isCurrent:mapCurrent,signal:mapOwner.signal,deadline:mapDeadline}),mapOwner.signal);
+      if(!wanted())return {cancelled:true};
+      if(f&&mapCurrent()){session.counts.mapRegions=session.regions.length-f.regions.length;session.regions=f.regions;session.mapContext=f.context||null;}}
+     catch(e){if(!wanted())return {cancelled:true};if(e?.message!=='candidate-cancelled')globalThis.AstroNotesErrors?.note('candidates.visibility-map',e);}
+     finally{if(mapTimer!==null)clearTimeout(mapTimer);signal?.removeEventListener('abort',cancelMap);mapOwner.abort();
+      // A slow optional filter must not prevent exact evaluation on every resume.
+      session.mapChecked=true;}}
     onProgress({stage:'places',...session.counts});
-    const data=await wait(provider.load(plan,{...providerOptions,regions:session.regions,cursor:session.cursor??0,isCurrent:wanted,onProgress,signal,deadline,retryFailed,pointKinds:placeKinds}));
+    const cursor=retrySource?.cursor??session.cursor??0;
+    const data=await wait(provider.load(plan,{...providerOptions,regions:session.regions,cursor,isCurrent:wanted,onProgress,signal,deadline,retryFailed,pointKinds:placeKinds}));
     if(!wanted()||data.cancelled)return {cancelled:true};
     const points=[...(data.points||[])];
     // Surveyed places of this target go in once, wherever the regions lie (place-provider.js surveyedViewpoints).
     if(!session.started&&!session.surveyedChecked&&typeof provider.surveyed==='function'){const known=await wait(provider.surveyed(plan));if(!wanted())return {cancelled:true};points.unshift(...known);session.surveyedChecked=true;}
     // Commit a provider page only after all awaited preparation is current.
     if(!wanted())return {cancelled:true};
-    session.coverage.push(data.coverage||{});session.cursor=data.coverage?.nextCursor??null;session.providerPartial=!!data.partial;
-    session.retryAt=data.coverage?.retryAfterMs>0?Date.now()+data.coverage.retryAfterMs:0;
+    session.coverage.push(data.coverage||{});session.providerPartial=!!data.partial;
+    if(!retrySource)session.cursor=data.coverage?.nextCursor??null;
+    session.retryAt=data.coverage?.retryAfterMs>0?now()+data.coverage.retryAfterMs:0;
+    if(retrySource){
+     if(data.coverage?.failedRegions?.length)hold(retrySource.id,retrySource);
+     else if(data.coverage?.nextCursor){session.retryWork.set(retrySource.id,{...retrySource,cursor:data.coverage.nextCursor});}
+     else{session.retryWork.delete(retrySource.id);}
+    }else if(retainFailures)for(const tile of data.coverage?.failedRegions||[]){
+     const id='source:'+tile.id;
+     if(!session.retryWork.has(id))hold(id,{kind:'source',cursor:{batchTiles:[{id:tile.id,bbox:tile.bbox,regionId:tile.regionId}],afterCursor:null}});
+    }
     // Public places are the default; independent roads need an explicit opt-in.
     enqueue(points,data);
     const order=['viewpoint','plaza','park','riverbank','sidewalk'];session.queue.sort((a,b)=>order.indexOf(a.placeKind)-order.indexOf(b.placeKind));
@@ -120,10 +150,10 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
     if(shouldPause())break;
     // Try one seed of each proven surface domain before revisiting the same
     // walkable surface. Keep every other seed and its own page's geometry.
-    if(diverse){
+    if(diverse&&!(count===0&&retryWork?.kind==='point'&&session.queue[0]===retryWork.point)){
      const lower=deprioritizePoints();
      let index=session.queue.findIndex(p=>!lower(p)&&!deferred(p)&&!visited(p));
-     if(index<0&&session.cursor!==null&&session.queue.length<maxDeferredPoints)break;
+     if(index<0&&session.cursor!==null&&room())break;
      if(index<0)index=session.queue.findIndex(p=>!lower(p)&&!deferred(p));
      if(index<0)index=session.queue.findIndex(p=>!lower(p));
      if(index<0)index=session.queue.findIndex(p=>!deferred(p));
@@ -132,11 +162,17 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
     const point=session.queue[0],data=session.pointData.get(point)||session.data;
     const consume=()=>{session.queue.shift();session.pointData.delete(point);session.timeDeferred.delete(point);pendingPoint=null;
      const domain=session.pointDomains.get(point);if(domain!=null)session.visitedDomains.add(domain);session.pointDomains.delete(point);};
-    if(session.mapContext&&!point.surveyedTargets?.includes(plan.target?.id)&&prefilter.point(plan,point,session.mapContext)===false){consume();session.counts.checked++;session.counts.blocked++;session.counts.mapPoints++;continue;}
+    if(session.mapContext&&!point.surveyedTargets?.includes(plan.target?.id)&&prefilter.point(plan,point,session.mapContext)===false){
+     session.retryWork.delete(point);consume();session.counts.checked++;session.counts.blocked++;session.counts.mapPoints++;continue;}
     onProgress({stage:'evaluate',...session.counts,pending:session.queue.length});
     pendingPoint=point;
     const tested=await wait(root.AstroNotesTrialOverlap?.evaluate?.(plan,p=>evaluate({...p,requestKey:key},point,data,{isCurrent:wanted,signal,deadline}))??evaluate({...plan,requestKey:key},point,data,{isCurrent:wanted,signal,deadline}));
     if(!wanted())return {cancelled:true};
+    // Only this explicit, non-cached transport failure is retryable. A missing
+    // model, a 404 tile or an unknown structure height is not a transport retry.
+    const retryable=retainFailures&&tested.status==='unverified'&&tested.upperQuality?.layer==='terrain'&&tested.upperQuality.reason==='terrain-fetch';
+    if(retryable){hold(point,{kind:'point',point,data});consume();count++;continue;}
+    session.retryWork.delete(point);
     consume();count++;session.counts.checked++;
     if(tested.partial)session.counts.deferred++;
     if(tested.status==='model-blocked')session.counts.blocked++;else if(tested.status==='no-overlap')session.counts.noOverlap++;
@@ -174,37 +210,50 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
   }
   }catch(error){if(!wanted())return {cancelled:true};throw error;}
  }
- // One foreground action. Keep exhaustive searchAll for diagnostics; a user
- // explicitly requests each next round. A deadline never discards the pending
- // point or an uncommitted provider page, even if its IO ignores cancellation.
- async function searchRecommended(plan,{budgetMs=12000,targetPlaces=8,maxEvaluations=160,countPlaces=rows=>rows.length,onPage=()=>{},onBatchStart=()=>{},...options}={}){
+ // A batch yields, but does not end a zero-result action or discard a solver's
+ // local state. Only the safety deadline and real cancellation retire that work.
+ async function searchRecommended(plan,{budgetMs=12000,hardBudgetMs=60000,mapBudgetMs=2000,targetPlaces=8,maxEvaluations=Infinity,countPlaces=rows=>rows.length,onPage=()=>{},onBatchStart=()=>{},...options}={}){
   if(plan.compositionInvalid)throw Error('invalid-composition');
   const active=sessions.get(requestKey(plan));if(active?.busy&&active.current?.()!==false)return {cancelled:true,reason:'busy'};
-  const key=requestKey(plan),started=now(),deadline=started+Math.max(1,budgetMs),own=new AbortController(),external=()=>!options.signal?.aborted&&(options.isCurrent?.()??true);
+  const key=requestKey(plan),started=now(),softDeadline=started+Math.max(1,budgetMs),deadline=started+Math.max(1,hardBudgetMs),own=new AbortController();
+  const external=()=>!options.signal?.aborted&&(options.isCurrent?.()??true);
   const cancel=()=>own.abort();options.signal?.addEventListener('abort',cancel,{once:true});
-  if(options.signal?.aborted)cancel();const timer=setTimeout(cancel,Math.max(1,budgetMs));
+  if(options.signal?.aborted)cancel();const timer=setTimeout(cancel,Math.max(1,hardBudgetMs));
   let page=sessions.get(key)?.lastResult,more=!!options.more,places=countPlaces(page?.rows||[]),reason=null;
   const initialChecked=sessions.get(key)?.counts.checked||0,cursors=new Set();
+  // Retry only failures present when the user started this action. A failed
+  // request cannot recursively schedule itself throughout the foreground job.
+  const retries=new Set(more?sessions.get(key)?.retryWork.keys():[]);
   const publish=p=>{page=p;places=countPlaces(p.rows);onPage(p);};
   // Continue means more new choices, not an immediate stop at the old quota.
-  const goal=places+targetPlaces;
+  const initialPlaces=places,goal=places+targetPlaces,softDone=()=>places>initialPlaces&&now()>=softDeadline;
   try{
    while(external()&&!own.signal.aborted&&now()<deadline){
-    const checked=(sessions.get(key)?.counts.checked||0)-initialChecked;
+    const session=sessions.get(key),checked=(session?.counts.checked||0)-initialChecked;
     if(checked>=maxEvaluations){reason='point-budget';break;}
+    const room=!session||session.queue.length+session.retryWork.size<maxDeferredPoints;
+    const work=session?[...session.retryWork.values()]:[],sourceFits=room||!session.queue.length&&!work.some(item=>item.kind==='point');
+    const retryWork=work.find(item=>retries.has(item.id)&&item.retryAt<=now()&&(item.kind==='point'||sourceFits));
+    if(session?.started&&!session.queue.length&&!retryWork){
+     if(session.retryAt>now()||session.retryWork.size&&(!room||session.cursor===null)){reason='source-wait';break;}
+    }
     onBatchStart();
-    const next=await search(plan,{...options,signal:own.signal,deadline,more,retryFailed:false,onRows:publish,prioritizeKnown:true,diverse:true,
+    const next=await search(plan,{...options,signal:own.signal,deadline,more,retryFailed:false,retryWork,retainFailures:true,onRows:publish,prioritizeKnown:true,diverse:true,mapBudgetMs,
      deferTimedOut:()=>external()&&(own.signal.aborted||now()>=deadline),
-     pointLimit:Math.min(maxPointsPerBatch,maxEvaluations-checked),shouldPause:()=>places>=goal||(sessions.get(key)?.counts.checked||0)-initialChecked>=maxEvaluations,providerOptions:{maxTiles:2,maxPoints:48}});
+     pointLimit:Math.min(maxPointsPerBatch,maxEvaluations-checked),shouldPause:()=>places>=goal||softDone()||(sessions.get(key)?.counts.checked||0)-initialChecked>=maxEvaluations,
+     providerOptions:{maxTiles:2,maxPoints:48}});
     if(!external())return {cancelled:true};
     if(next.cancelled){if(next.reason==='busy')return next;break;}
+    if(retryWork){const retained=sessions.get(key)?.retryWork.get(retryWork.id);if(!retained||retained.attempts!==retryWork.attempts)retries.delete(retryWork.id);}
     page=next;places=countPlaces(page.rows);
     if(!page.canContinue)return page;
     if(places>=goal){reason='enough-places';break;}
+    if(softDone()){reason='first-useful';break;}
     onPage(page);
     // Cooling sources resume on a later user action; never wait a minute here.
-    if(page.retryAt>now()){reason='source-wait';break;}
-    const cursor=JSON.stringify([page.coverage.nextCursor,page.counts.checked]);
+    if(!page.coverage.pendingPoints&&page.retryAt>now()){reason='source-wait';break;}
+    const retryProgress=[...sessions.get(key).retryWork.values()].map(work=>[work.kind,work.attempts,work.cursor]);
+    const cursor=JSON.stringify([page.coverage.nextCursor,page.counts.checked,retryProgress]);
     if(cursors.has(cursor)){reason='source-stalled';break;}cursors.add(cursor);
     more=true;await yieldTask();
    }
@@ -242,8 +291,15 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
   }
   return {cancelled:true};
  }
- function result(s){return {rows:s.rows.slice(),counts:{...s.counts},retryAt:s.retryAt||0,requestKey:s.key,cached:false,limited:true,coverageStatus:'partial',jobStatus:'complete',canContinue:s.queue.length>0||s.cursor!==null,coverage:{regions:s.regions.length,loaded:s.coverage,
- pendingPoints:s.queue.length,timeDeferredPoints:s.timeDeferred.size,nextCursor:s.cursor,approximateInverse:true},dataVersion:'generic-v1'};}
+ function result(s){
+  const retry=[...s.retryWork.values()],sourceFits=s.queue.length+retry.length<maxDeferredPoints||!s.queue.length&&!retry.some(work=>work.kind==='point');
+  const eligible=retry.filter(work=>work.kind==='point'||sourceFits),retryAt=eligible.length?Math.min(...eligible.map(work=>work.retryAt)):0;
+  const waitsForRetry=!s.queue.length&&(s.cursor===null||s.retryWork.size>=maxDeferredPoints);
+  return {rows:s.rows.slice(),counts:{...s.counts},retryAt:Math.max(s.retryAt||0,waitsForRetry?retryAt:0),requestKey:s.key,cached:false,limited:true,coverageStatus:'partial',jobStatus:'complete',
+   canContinue:s.queue.length>0||s.cursor!==null||retry.length>0,coverage:{regions:s.regions.length,loaded:s.coverage,pendingPoints:s.queue.length,timeDeferredPoints:s.timeDeferred.size,
+   retryPending:retry.length,retryPoints:retry.filter(work=>work.kind==='point').length,retrySources:retry.filter(work=>work.kind==='source').length,
+   nextCursor:s.cursor,approximateInverse:true},dataVersion:'generic-v1'};
+ }
  return {search,searchAll,searchRecommended,restart,cached:plan=>{const s=sessions.get(requestKey(plan));return s?.lastResult?{...s.lastResult,rows:s.lastResult.rows.slice(),cached:true}:null;},clear:()=>sessions.clear()};
 }
 api.requestKey=requestKey;api.regionsFor=regionsFor;api.createGenericSearch=createGenericSearch;

@@ -86,7 +86,8 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
  // Far along a line that has risen NEAR_RISE_M above the eye, the 10 m DEM at z12 (about 31 m pixels) is
  // read instead of the 5 m tiles, so a sun or moon line of 40 km takes a few tiles, not fifty. A coarse
  // pixel can miss a peak between samples, so there the line must pass FAR_MARGIN_M above it to be clear
- // and below it by as much to be blocked; between, it is unconfirmed. No value far out is the sea (DEM10B
+ // and below it by as much to be blocked; between, inspect every native cell of that interval. The 40 m
+ // allowance is the existing coarse policy, not a bound on every unresolved peak. No value far out is the sea (DEM10B
  // covers all land; whole-sea tiles are absent).
  const NEAR_RISE_M=300,FAR_MIN_M=2000,FAR_Z=12,FAR_MARGIN_M=40;
  async function sampleFar(point,options){
@@ -103,15 +104,32 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
   const eye=observer.elevation+(observer.eyeM??1.5),effectiveR=R*refractionK,theta=maxM/effectiveR;
   const alpha=Number.isFinite(endpoint?.elevation)?Math.atan2((effectiveR+endpoint.elevation)*Math.cos(theta)-(effectiveR+eye),(effectiveR+endpoint.elevation)*Math.sin(theta)):altitude*RAD;
   const height=d=>{const angle=d/effectiveR,den=Math.cos(angle)-Math.tan(alpha)*Math.sin(angle);return den>0?(effectiveR+eye)/den-effectiveR:Infinity;};
-  let checked=0,missing=0,minMarginM=Infinity,hit=null,d=0,steps=0,lastSource=null,lastHeight=null,endpointUncertain=false,farUncertain=false;
+  let checked=0,missing=0,minMarginM=Infinity,hit=null,d=0,steps=0,lastSource=null,lastHeight=null,endpointUncertain=false,farUncertain=false,refinementUnavailable=false;
   // The highest ground seen from the eye: up to which height the target is hidden at maxM.
   let skyAlpha=-Infinity,skyAt=null,skyM=null;const seenD=[],seenH=[];
-  function segment(d){
-   const next=Math.min(maxM,d+100),from=geo.destination(observer.latitude,observer.longitude,azimuth,d/1000),to=next===maxM&&endpoint?endpoint:geo.destination(observer.latitude,observer.longitude,azimuth,next/1000);
-   const far=d>=FAR_MIN_M&&height(d)-eye>NEAR_RISE_M,z=far?FAR_Z:15,a=pixel(from,z),b=pixel(to,z),marks=[0,1];
+  const nativeZoom=layers.reduce((z,[,level])=>Number.isInteger(level)&&level>=0&&level<=22?Math.max(z,level):NaN,15);
+  const current=()=>{if(options.isCurrent?.()===false||options.signal?.aborted)throw Error('candidate-cancelled');};
+  const minimum=(lo,hi)=>{const distances=[lo,hi],vertex=-alpha*effectiveR;if(vertex>lo&&vertex<hi)distances.push(vertex);return Math.min(...distances.map(height));};
+  function boundaries(from,to,z){
+   const a=pixel(from,z),b=pixel(to,z),marks=[0,1];
    for(let axis=0;axis<2;axis++)if(a[axis]!==b[axis])for(let edge=Math.floor(Math.min(a[axis],b[axis]))+1;edge<Math.max(a[axis],b[axis]);edge++)marks.push((edge-a[axis])/(b[axis]-a[axis]));
    marks.sort((x,y)=>x-y);
-   return {next,far,marks};
+   return marks;
+  }
+  function segment(d){
+   const next=Math.min(maxM,d+100),from=geo.destination(observer.latitude,observer.longitude,azimuth,d/1000),to=next===maxM&&endpoint?endpoint:geo.destination(observer.latitude,observer.longitude,azimuth,next/1000);
+   const far=d>=FAR_MIN_M&&height(d)-eye>NEAR_RISE_M;
+   return {next,far,marks:boundaries(from,to,far?FAR_Z:15),from,to};
+  }
+  function record(value,lo,hi,far){
+   const middle=(lo+hi)/2;
+   checked++;lastSource=value.layer;lastHeight=value.height;
+   const arc=middle/effectiveR,rise=Math.atan2((effectiveR+value.height)*Math.cos(arc)-(effectiveR+eye),(effectiveR+value.height)*Math.sin(arc));
+   seenD.push(middle);seenH.push(value.height);if(rise>skyAlpha){skyAlpha=rise;skyAt=middle;skyM=value.height;}
+   const ray=minimum(lo,hi),endpointCell=endpoint&&maxM-lo<value.resolutionM*2,margin=ray-value.height;minMarginM=Math.min(minMarginM,margin);
+   if(far){if(margin<-FAR_MARGIN_M&&!hit)hit={distanceM:middle,terrainM:value.height,rayM:ray,coarse:true};else if(margin<FAR_MARGIN_M)farUncertain=true;}
+   else if(margin<-.1&&!hit){if(endpointCell)endpointUncertain=true;else hit={distanceM:middle,terrainM:value.height,rayM:ray};}
+   steps++;
   }
   const prefetched=new Map(),enabled=lookAhead&&maxM>=8000&&layers.length>0;
   let scan=2000;
@@ -137,26 +155,43 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
   }
   try{
    while(d<maxM){
-    if(options.isCurrent?.()===false||options.signal?.aborted)throw Error('candidate-cancelled');
-    const {next,far,marks}=segment(d);
+    current();
+    const {next,far,marks,from,to}=segment(d);let nativeMarks;
     if(!far)prefetchNative(d);
     for(let i=1;i<marks.length;i++){
      if(marks[i]-marks[i-1]<1e-12)continue;
      const lo=d+marks[i-1]*(next-d),hi=d+marks[i]*(next-d),middle=(lo+hi)/2,p=geo.destination(observer.latitude,observer.longitude,azimuth,middle/1000);
      let value=far?await sampleFar(p,options):await sample(p,options);
+     current();
      if(value.reason==='terrain-budget')return {status:'unknown',checked,missing,partial:true,reason:value.reason,hit};
+     const coarseMargin=far&&Number.isFinite(value.height)?minimum(lo,hi)-value.height:Infinity;
+     if(far&&coarseMargin>=-FAR_MARGIN_M&&coarseMargin<FAR_MARGIN_M&&!refinementUnavailable&&Number.isFinite(nativeZoom)){
+      // Keep the original 100 m segment; clip ALL native cell intervals to this coarse interval.
+      // Do not put the coarse height into the skyline/last bank before replacing it.
+      nativeMarks??=boundaries(from,to,nativeZoom);
+      const cuts=[marks[i-1],...nativeMarks.filter(t=>t>marks[i-1]&&t<marks[i]),marks[i]];
+      for(let j=1;j<cuts.length;j++){
+       if(cuts[j]-cuts[j-1]<1e-12)continue;
+       current();
+       const low=d+cuts[j-1]*(next-d),high=d+cuts[j]*(next-d),at=geo.destination(observer.latitude,observer.longitude,azimuth,(low+high)/2000);
+       const fine=await sample(at,options);current();
+       if(fine.reason==='terrain-budget')return {status:'unknown',checked,missing,partial:true,reason:fine.reason,hit};
+       // A coarse/last-bank value cannot certify a missing fine cell. Stop further refinement
+       // on this ray instead of repeatedly fetching the same failed resource; coarse hits still apply.
+       if(!Number.isFinite(fine.height)){missing++;farUncertain=true;refinementUnavailable=true;break;}
+       record(fine,low,high,false);
+       if(steps%256===0){await (typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause?AstroNotesLibrary.pause():new Promise(resolve=>setTimeout(resolve,0)));current();}
+       if(steps>=200000)return {status:hit?'blocked':'unknown',hit,checked,missing,partial:true,reason:'terrain-compute-budget'};
+       if(hit)break;
+      }
+      if(hit)break;
+      continue;
+     }
      // A pixel with no value in any layer (a river or lake surface) lies below its banks: the last bank
      // read on the line stands in for it, which can only make the line look more hidden, never clearer.
      if(!Number.isFinite(value.height)){if(Number.isFinite(lastHeight)&&['missing-dem','missing-tile'].includes(value.reason))value={...value,height:lastHeight,layer:'bank-for-water'};else{missing++;continue;}}
-     checked++;lastSource=value.layer;lastHeight=value.height;
-     const arc=middle/effectiveR,rise=Math.atan2((effectiveR+value.height)*Math.cos(arc)-(effectiveR+eye),(effectiveR+value.height)*Math.sin(arc));
-     seenD.push(middle);seenH.push(value.height);if(rise>skyAlpha){skyAlpha=rise;skyAt=middle;skyM=value.height;}
-     const distances=[lo,hi],vertex=-alpha*effectiveR;if(vertex>lo&&vertex<hi)distances.push(vertex);
-     const ray=Math.min(...distances.map(height)),endpointCell=endpoint&&maxM-lo<value.resolutionM*2;
-     const margin=ray-value.height;minMarginM=Math.min(minMarginM,margin);
-     if(far){if(margin<-FAR_MARGIN_M&&!hit)hit={distanceM:middle,terrainM:value.height,rayM:ray,coarse:true};else if(margin<FAR_MARGIN_M)farUncertain=true;}
-     else if(margin<-.1&&!hit){if(endpointCell)endpointUncertain=true;else hit={distanceM:middle,terrainM:value.height,rayM:ray};}
-     if(++steps%256===0)await (typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause?AstroNotesLibrary.pause():new Promise(resolve=>setTimeout(resolve,0)));
+     record(value,lo,hi,far);
+     if(steps%256===0){await (typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause?AstroNotesLibrary.pause():new Promise(resolve=>setTimeout(resolve,0)));current();}
      if(steps>=200000)return {status:hit?'blocked':'unknown',hit,checked,missing,partial:true,reason:'terrain-compute-budget'};
      if(hit)break;
     }

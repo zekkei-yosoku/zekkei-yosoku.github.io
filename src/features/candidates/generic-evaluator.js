@@ -72,12 +72,15 @@ function standingMetadata(position,data,seed){
  // not carry the area's restrictions/structures outside the fetched region.
  if(data.coverage?.fetchedRegions&&!data.coverage.fetchedRegions.some(r=>inBounds(r.bbox)))return false;
  const source=features.find(f=>f.sourceId===seed.sourceId||f.id===seed.polygonId),areas=features.filter(contains),forbidden=t=>['no','private'].includes(t?.access)||['no','private'].includes(t?.foot);
- const raised=t=>t&&(t.location==='roof'||t.location==='rooftop'||t.location==='underground'||t.indoor==='yes'||t.bridge&&t.bridge!=='no'||t.tunnel&&t.tunnel!=='no'||t.covered==='yes'||t.level!=null&&Number(t.level)!==0||t.layer!=null&&Number(t.layer)!==0);
+ const raised=(t,ignoreLayer=false)=>t&&(t.location==='roof'||t.location==='rooftop'||t.location==='underground'||t.indoor==='yes'||t.bridge&&t.bridge!=='no'||t.tunnel&&t.tunnel!=='no'||t.covered==='yes'
+  ||t.level!=null&&Number(t.level)!==0||!ignoreLayer&&t.layer!=null&&Number(t.layer)!==0);
+ // Match place-provider's parent-only rule; the walking source keeps its own layer.
+ const raisedArea=f=>raised(f.tags,f.kind==='park'&&!f.walking&&!f.building&&!f.tags?.highway&&!f.tags?.['area:highway']&&f.polygons?.length>0);
  if(!source&&seed.sourceEvidence?.kind!=='PLATEAU-pedestrian-surface')return false;
  if(forbidden(source?.tags)||areas.some(f=>forbidden(f.tags)))return false;
  const knownRaised=seed.nonTerrainStructure&&seed.standingSurfaceKnown&&[seed.surfaceAglM,seed.surfaceHeightM,seed.surfaceElevationM].some(Number.isFinite);
  if(areas.some(f=>f.water)&&!knownRaised)return false;
- if((raised(source?.tags)||areas.some(f=>raised(f.tags)))&&!knownRaised)return false;
+ if((raised(source?.tags)||areas.some(raisedArea))&&!knownRaised)return false;
  const containingBuilding=areas.find(f=>f.building);
  if(containingBuilding&&(!knownRaised||seed.sourceEvidence?.buildingContaining!==containingBuilding.id))return false;
  const viewpoint=areas.find(f=>f.kind==='viewpoint'),square=areas.find(f=>f.kind==='plaza'),river=areas.find(f=>/河川敷|川.*テラス|川緑道|riverbank|riverside/i.test(f.name)),park=areas.find(f=>f.kind==='park');
@@ -311,12 +314,8 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    if(options.isCurrent?.()===false||options.signal?.aborted)throw Error('candidate-cancelled');
    if(Composition.definiteAngularMiss(plan,obs,{align,bodies}))return {status:'no-overlap',recommend:false,reason:'angular-prefilter'};
   }
-  // Only an immovable observer can be rejected before solving. The final
-  // solved position is checked again below, including surveyed viewpoints.
-  if(fixedStanding&&!plan.strict&&!plan.composition&&plan.profile!=='summit-contact'){
-   const upper=await upperQuality(obs,plan.target,options);
-   if(!['model-clear','not-applicable'].includes(upper.status))return {status:upper.status==='blocked'?'model-blocked':'unverified',recommend:false,reason:'upper-tower-unverified',upperQuality:upper,partial:true};
-  }
+  // Resolve a matching time and frame before the upper-width data reads. Every
+  // surviving solution, including a surveyed observer, is checked below.
   const missingHeights=b=>['building-height-unknown','height-data-unavailable','footprints-unavailable','footprint-ground-unknown'].includes(b?.reason);
   // Where the observer cannot move (no composition, not a mountain), every event's line ends on the
   // target's axis at or below its top, so a line to the top that buildings stop rules out every time
@@ -395,7 +394,14 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    if(plan.requireAllTargets&&extras.some(x=>x.visibility==='blocked')){blocked++;continue;}
    const combinedClear=los.status==='model-clear'&&extras.every(x=>x.visibility==='model-clear'),visibilityQuality=combinedClear?'model-clear':'unknown';
    // Only a sight line shown clear of terrain and buildings is a candidate (design note 21): unknown is not shown.
-   if(los.status!=='model-clear'||plan.requireAllTargets&&!combinedClear){unverified++;lastUnverified=los;if(missingHeights(los.target?.buildings)||los.rays?.some(r=>missingHeights(r.buildings)))heightUnknown++;continue;}
+   if(los.status!=='model-clear'||plan.requireAllTargets&&!combinedClear){
+    unverified++;lastUnverified=los;
+    // An extra's upper failure describes this rejection only after the main
+    // target is clear; it must not mask an unread main sight line.
+    const extraUpper=los.status==='model-clear'&&plan.requireAllTargets?extras.find(x=>x.upperQuality):null;
+    if(extraUpper)lastUnverified={...los,upperQuality:extraUpper.upperQuality};
+    if(missingHeights(los.target?.buildings)||los.rays?.some(r=>missingHeights(r.buildings)))heightUnknown++;continue;
+   }
    const usedBuildings=[los.target?.buildings,...(los.rays||[]).filter(r=>r.status==='model-clear').map(r=>r.buildings)],buildingHeights=usedBuildings.some(b=>b?.heights==='estimated')?'estimated':usedBuildings.every(b=>b?.heights==='plateau')?'plateau':'model';
    const hiddenBelow=los.surveyed?null:await hiddenNote(plan.target,position,solution.geometry.azimuth,los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline);
    const treesRead=!!los.target?.buildings?.trees&&los.target.buildings.trees.status!=='unread';
@@ -416,7 +422,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   return accepted.length?{...accepted[0],additionalCandidates:accepted.slice(1),partial:solved.partial}: {status:unverified?'unverified':blocked?'model-blocked':outside?'outside-frame':'no-overlap',recommend:false,heightUnknown:heightUnknown>0,
   obstacle:!!lastUnverified&&[lastUnverified.target?.buildings,...(lastUnverified.rays||[]).map(r=>r.buildings)].some(b=>['trees','elevated-structure'].includes(b?.reason)),unverifiedBy:lastUnverified?{target:[lastUnverified.target?.terrain?.status,lastUnverified.target?.terrain?.reason,
   lastUnverified.target?.buildings?.status,lastUnverified.target?.buildings?.reason],rays:(lastUnverified.rays||[]).map(r=>r.intentionalTarget?'target':[r.status,r.terrain?.reason||r.terrain?.status,r.buildings?.reason||r.buildings?.status].join('/'))}:null,partial:solved.partial,
-  reason:solved.reason};
+  reason:solved.reason,...(lastUnverified?.upperQuality?{upperQuality:lastUnverified.upperQuality}:{})};
  }
  return {evaluate,visibility:(plan,solution,options={})=>visibility(plan,solution,options),hiddenView,skylineView,clear:()=>{visibilityCache.clear();targetLines.clear();ridgeScope?.context.retire();ridgeScope=null;}};
 }

@@ -2,8 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {readFileSync} from 'node:fs';
+import {gunzipSync} from 'node:zlib';
 const require=createRequire(import.meta.url),D=require('./src/features/candidates/search.js');
 require('./src/features/candidates/place-provider.js');
+const {standingMetadata}=require('./src/features/candidates/generic-evaluator.js');
 const region={id:'custom-region',bbox:[139.001,35.001,139.004,35.004]};
 const way=(id,tags,xy)=>({type:'way',id,tags,geometry:xy.map(([lon,lat])=>({lon,lat}))});
 const ring=(w,s,e,n)=>[[w,s],[e,s],[e,n],[w,n],[w,s]];
@@ -76,6 +78,63 @@ test('屋上庭園・建物内・橋の未知床をDEMで地上化しない。pr
  const building=way(4,{building:'yes'},ring(139.0031,35.0031,139.0038,35.0038));
  const result=await provider([roof,line(2,{},35.0012,35.0028),line(3,{access:'private'},35.0012,35.0028),building,line(5,{},35.0032,35.0037,139.0035),line(6,{bridge:'yes'},35.0031,35.0038,139.0012)]).load({}, {regions:[region]});
  assert(result.points.length);assert(result.points.every(p=>p.sourceId!=='osm/way/3'&&!p.standingSurfaceKnown&&p.nonTerrainStructure));assert(result.points.every(p=>p.surfaceHeightM===null));
+});
+
+test('a non-walking park boundary layer does not raise its paths; generation and resolved metadata agree',async()=>{
+ for(const layer of ['-1','1'])for(const leisure of ['park','garden','recreation_ground']){
+  const outer=ring(139.0015,35.0015,139.0035,35.0035),hole=ring(139.0018,35.0022,139.0022,35.0028);
+  const park={type:'relation',id:7001,tags:{type:'multipolygon',leisure,name:'公園境界',layer},members:[{type:'way',role:'outer',geometry:outer.map(([lon,lat])=>({lon,lat}))},{type:'way',role:'inner',geometry:hole.map(([lon,lat])=>({lon,lat}))}]};
+  const data=await provider([park,line(7002,{},35.0011,35.0039)]).load({}, {regions:[region],pointKinds:['park']});
+  assert(data.points.length>0);
+  for(const row of data.points){
+   assert.equal(row.standingSurfaceKnown,true);assert.equal(row.surfaceAglM,0);assert.equal(row.nonTerrainStructure,false);assert.equal(row.sourceEvidence.areaTags.layer,layer);
+   assert.equal(standingMetadata(row,data,row).placeKind,'park');assert(row.surfaceGeometry.lines.length>0);
+   const domain=D.createPlaceProvider.movementDomain(row,data.features,{allComponents:true});assert(domain);
+   assert.equal(D.createPlaceProvider.movementPoint(domain,{latitude:35.0025,longitude:139.002},0),null,'the park hole remains outside the walking domain');
+   assert.equal(D.createPlaceProvider.movementPoint(domain,{latitude:35.0038,longitude:139.002},0),null,'the path outside the park remains excluded');
+  }
+ }
+});
+
+test('park-layer exception preserves explicit parent structures and the walking surface own layer',async()=>{
+ const explicit=[{bridge:'yes'},{tunnel:'yes'},{indoor:'yes'},{covered:'yes'},{location:'roof'},{location:'rooftop'},{location:'underground'},{level:'2'},{building:'yes'}];
+ for(const tags of explicit){
+  const park=way(7010,{leisure:'park',layer:'-1',...tags},ring(139.001,35.001,139.004,35.004));
+  const data=await provider([park,line(7011,{},35.0012,35.0038)]).load({}, {regions:[region],pointKinds:['park']});assert(data.points.length);
+  assert(data.points.every(row=>!row.standingSurfaceKnown&&row.surfaceAglM===null),JSON.stringify(tags));
+  for(const row of data.points)assert.equal(standingMetadata(row,data,row),false,JSON.stringify(tags));
+ }
+ const park=way(7020,{leisure:'park',layer:'-1'},ring(139.001,35.001,139.004,35.004));
+ for(const tags of [{layer:'1'},{layer:'-1'},{bridge:'yes'},{tunnel:'yes'}]){
+  const data=await provider([park,line(7021,tags,35.0012,35.0038)]).load({}, {regions:[region],pointKinds:['park']});assert(data.points.length);
+  for(const row of data.points){assert.equal(row.standingSurfaceKnown,false);assert.equal(standingMetadata(row,data,row),false);}
+ }
+ // Constraints can set walking=false internally; highway tags must still keep a real raised walking polygon excluded.
+ const walkingPark=way(7022,{leisure:'park',highway:'pedestrian',area:'yes',layer:'1'},ring(139.001,35.001,139.004,35.004));
+ const data=await provider([walkingPark,line(7023,{},35.0012,35.0038)]).load({}, {regions:[region]});
+ const rows=data.points.filter(p=>p.sourceId==='osm/way/7023');assert(rows.length);
+ for(const row of rows){assert.equal(row.standingSurfaceKnown,false);assert.equal(row.surfaceGeometry.lines.length,0);assert.equal(standingMetadata(row,data,row),false);}
+});
+
+test('parent-only layer handling does not certify an unknown viewpoint or missing DEM',async()=>{
+ const park=way(7030,{leisure:'park',layer:'-1'},ring(139.001,35.001,139.004,35.004));
+ const view={type:'node',id:7031,lat:35.002,lon:139.002,tags:{tourism:'viewpoint'}};
+ const data=await provider([park,view]).load({}, {regions:[region]});assert.equal(data.points.length,1);assert.equal(data.points[0].standingSurfaceKnown,false);assert.equal(data.points[0].surfaceAglM,null);
+ const missing=await provider([park,line(7032,{},35.0012,35.0038)],{terrain:{...terrain,groundElevation:async()=>null}}).load({}, {regions:[region],pointKinds:['park']});
+ assert(missing.points.length);assert(missing.points.every(p=>p.groundM===null&&!p.standingSurfaceKnown));assert(missing.partial);
+});
+
+test('bundled Hiro-machi park and Arai-zaka path preserve their layer tag without rejecting the standing surface',async()=>{
+ const O=require('./src/features/candidates/osm-places.js');
+ const rows=JSON.parse(gunzipSync(readFileSync(new URL('./data/osm-places/523974.json.gz',import.meta.url))));
+ const elements=rows.filter(r=>r.t==='w'&&[746498044,259712294].includes(r.i)).map(r=>O.element(O.decode(r)));
+ assert.equal(elements.length,2);assert.equal(elements.find(e=>e.id===746498044).tags.layer,'-1');assert.equal(elements.find(e=>e.id===259712294).tags.highway,'path');
+ const p={latitude:35.3103823,longitude:139.504013},bbox=[p.longitude-.0001,p.latitude-.0001,p.longitude+.0001,p.latitude+.0001];
+ // Ground is a fixed fixture using the earlier public trace's value, not a new DEM/visibility verification.
+ const data=await provider(elements,{terrain:{...terrain,groundElevation:async()=>({elevation:21.549999237060547,source:'fixture:recorded-ground-value'})}}).load({}, {regions:[{bbox}],pointKinds:['park']});
+ const row=data.points.find(r=>r.sourceId==='osm/way/259712294'&&r.latitude===p.latitude&&r.longitude===p.longitude);assert(row);
+ assert.equal(row.standingSurfaceKnown,true);assert.equal(row.surfaceAglM,0);assert.equal(row.sourceEvidence.areaTags.layer,'-1');assert(row.surfaceGeometry.lines.length>0);
+ assert.equal(standingMetadata(row,data,row).placeKind,'park');assert(D.createPlaceProvider.movementDomain(row,data.features));assert.equal(data.visibilityCertified,false);
 });
 test('明示した床高根拠だけを使いheight/階数から推定しない',async()=>{
  const view={type:'node',id:1,lat:35.002,lon:139.002,tags:{tourism:'viewpoint',location:'roof','floor:height':'43.2','source:floor:height':'survey:physical-standing-floor'}};

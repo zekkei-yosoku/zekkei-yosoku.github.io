@@ -1241,7 +1241,8 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
  // Far along a line that has risen NEAR_RISE_M above the eye, the 10 m DEM at z12 (about 31 m pixels) is
  // read instead of the 5 m tiles, so a sun or moon line of 40 km takes a few tiles, not fifty. A coarse
  // pixel can miss a peak between samples, so there the line must pass FAR_MARGIN_M above it to be clear
- // and below it by as much to be blocked; between, it is unconfirmed. No value far out is the sea (DEM10B
+ // and below it by as much to be blocked; between, inspect every native cell of that interval. The 40 m
+ // allowance is the existing coarse policy, not a bound on every unresolved peak. No value far out is the sea (DEM10B
  // covers all land; whole-sea tiles are absent).
  const NEAR_RISE_M=300,FAR_MIN_M=2000,FAR_Z=12,FAR_MARGIN_M=40;
  async function sampleFar(point,options){
@@ -1258,15 +1259,32 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
   const eye=observer.elevation+(observer.eyeM??1.5),effectiveR=R*refractionK,theta=maxM/effectiveR;
   const alpha=Number.isFinite(endpoint?.elevation)?Math.atan2((effectiveR+endpoint.elevation)*Math.cos(theta)-(effectiveR+eye),(effectiveR+endpoint.elevation)*Math.sin(theta)):altitude*RAD;
   const height=d=>{const angle=d/effectiveR,den=Math.cos(angle)-Math.tan(alpha)*Math.sin(angle);return den>0?(effectiveR+eye)/den-effectiveR:Infinity;};
-  let checked=0,missing=0,minMarginM=Infinity,hit=null,d=0,steps=0,lastSource=null,lastHeight=null,endpointUncertain=false,farUncertain=false;
+  let checked=0,missing=0,minMarginM=Infinity,hit=null,d=0,steps=0,lastSource=null,lastHeight=null,endpointUncertain=false,farUncertain=false,refinementUnavailable=false;
   // The highest ground seen from the eye: up to which height the target is hidden at maxM.
   let skyAlpha=-Infinity,skyAt=null,skyM=null;const seenD=[],seenH=[];
-  function segment(d){
-   const next=Math.min(maxM,d+100),from=geo.destination(observer.latitude,observer.longitude,azimuth,d/1000),to=next===maxM&&endpoint?endpoint:geo.destination(observer.latitude,observer.longitude,azimuth,next/1000);
-   const far=d>=FAR_MIN_M&&height(d)-eye>NEAR_RISE_M,z=far?FAR_Z:15,a=pixel(from,z),b=pixel(to,z),marks=[0,1];
+  const nativeZoom=layers.reduce((z,[,level])=>Number.isInteger(level)&&level>=0&&level<=22?Math.max(z,level):NaN,15);
+  const current=()=>{if(options.isCurrent?.()===false||options.signal?.aborted)throw Error('candidate-cancelled');};
+  const minimum=(lo,hi)=>{const distances=[lo,hi],vertex=-alpha*effectiveR;if(vertex>lo&&vertex<hi)distances.push(vertex);return Math.min(...distances.map(height));};
+  function boundaries(from,to,z){
+   const a=pixel(from,z),b=pixel(to,z),marks=[0,1];
    for(let axis=0;axis<2;axis++)if(a[axis]!==b[axis])for(let edge=Math.floor(Math.min(a[axis],b[axis]))+1;edge<Math.max(a[axis],b[axis]);edge++)marks.push((edge-a[axis])/(b[axis]-a[axis]));
    marks.sort((x,y)=>x-y);
-   return {next,far,marks};
+   return marks;
+  }
+  function segment(d){
+   const next=Math.min(maxM,d+100),from=geo.destination(observer.latitude,observer.longitude,azimuth,d/1000),to=next===maxM&&endpoint?endpoint:geo.destination(observer.latitude,observer.longitude,azimuth,next/1000);
+   const far=d>=FAR_MIN_M&&height(d)-eye>NEAR_RISE_M;
+   return {next,far,marks:boundaries(from,to,far?FAR_Z:15),from,to};
+  }
+  function record(value,lo,hi,far){
+   const middle=(lo+hi)/2;
+   checked++;lastSource=value.layer;lastHeight=value.height;
+   const arc=middle/effectiveR,rise=Math.atan2((effectiveR+value.height)*Math.cos(arc)-(effectiveR+eye),(effectiveR+value.height)*Math.sin(arc));
+   seenD.push(middle);seenH.push(value.height);if(rise>skyAlpha){skyAlpha=rise;skyAt=middle;skyM=value.height;}
+   const ray=minimum(lo,hi),endpointCell=endpoint&&maxM-lo<value.resolutionM*2,margin=ray-value.height;minMarginM=Math.min(minMarginM,margin);
+   if(far){if(margin<-FAR_MARGIN_M&&!hit)hit={distanceM:middle,terrainM:value.height,rayM:ray,coarse:true};else if(margin<FAR_MARGIN_M)farUncertain=true;}
+   else if(margin<-.1&&!hit){if(endpointCell)endpointUncertain=true;else hit={distanceM:middle,terrainM:value.height,rayM:ray};}
+   steps++;
   }
   const prefetched=new Map(),enabled=lookAhead&&maxM>=8000&&layers.length>0;
   let scan=2000;
@@ -1292,26 +1310,43 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
   }
   try{
    while(d<maxM){
-    if(options.isCurrent?.()===false||options.signal?.aborted)throw Error('candidate-cancelled');
-    const {next,far,marks}=segment(d);
+    current();
+    const {next,far,marks,from,to}=segment(d);let nativeMarks;
     if(!far)prefetchNative(d);
     for(let i=1;i<marks.length;i++){
      if(marks[i]-marks[i-1]<1e-12)continue;
      const lo=d+marks[i-1]*(next-d),hi=d+marks[i]*(next-d),middle=(lo+hi)/2,p=geo.destination(observer.latitude,observer.longitude,azimuth,middle/1000);
      let value=far?await sampleFar(p,options):await sample(p,options);
+     current();
      if(value.reason==='terrain-budget')return {status:'unknown',checked,missing,partial:true,reason:value.reason,hit};
+     const coarseMargin=far&&Number.isFinite(value.height)?minimum(lo,hi)-value.height:Infinity;
+     if(far&&coarseMargin>=-FAR_MARGIN_M&&coarseMargin<FAR_MARGIN_M&&!refinementUnavailable&&Number.isFinite(nativeZoom)){
+      // Keep the original 100 m segment; clip ALL native cell intervals to this coarse interval.
+      // Do not put the coarse height into the skyline/last bank before replacing it.
+      nativeMarks??=boundaries(from,to,nativeZoom);
+      const cuts=[marks[i-1],...nativeMarks.filter(t=>t>marks[i-1]&&t<marks[i]),marks[i]];
+      for(let j=1;j<cuts.length;j++){
+       if(cuts[j]-cuts[j-1]<1e-12)continue;
+       current();
+       const low=d+cuts[j-1]*(next-d),high=d+cuts[j]*(next-d),at=geo.destination(observer.latitude,observer.longitude,azimuth,(low+high)/2000);
+       const fine=await sample(at,options);current();
+       if(fine.reason==='terrain-budget')return {status:'unknown',checked,missing,partial:true,reason:fine.reason,hit};
+       // A coarse/last-bank value cannot certify a missing fine cell. Stop further refinement
+       // on this ray instead of repeatedly fetching the same failed resource; coarse hits still apply.
+       if(!Number.isFinite(fine.height)){missing++;farUncertain=true;refinementUnavailable=true;break;}
+       record(fine,low,high,false);
+       if(steps%256===0){await (typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause?AstroNotesLibrary.pause():new Promise(resolve=>setTimeout(resolve,0)));current();}
+       if(steps>=200000)return {status:hit?'blocked':'unknown',hit,checked,missing,partial:true,reason:'terrain-compute-budget'};
+       if(hit)break;
+      }
+      if(hit)break;
+      continue;
+     }
      // A pixel with no value in any layer (a river or lake surface) lies below its banks: the last bank
      // read on the line stands in for it, which can only make the line look more hidden, never clearer.
      if(!Number.isFinite(value.height)){if(Number.isFinite(lastHeight)&&['missing-dem','missing-tile'].includes(value.reason))value={...value,height:lastHeight,layer:'bank-for-water'};else{missing++;continue;}}
-     checked++;lastSource=value.layer;lastHeight=value.height;
-     const arc=middle/effectiveR,rise=Math.atan2((effectiveR+value.height)*Math.cos(arc)-(effectiveR+eye),(effectiveR+value.height)*Math.sin(arc));
-     seenD.push(middle);seenH.push(value.height);if(rise>skyAlpha){skyAlpha=rise;skyAt=middle;skyM=value.height;}
-     const distances=[lo,hi],vertex=-alpha*effectiveR;if(vertex>lo&&vertex<hi)distances.push(vertex);
-     const ray=Math.min(...distances.map(height)),endpointCell=endpoint&&maxM-lo<value.resolutionM*2;
-     const margin=ray-value.height;minMarginM=Math.min(minMarginM,margin);
-     if(far){if(margin<-FAR_MARGIN_M&&!hit)hit={distanceM:middle,terrainM:value.height,rayM:ray,coarse:true};else if(margin<FAR_MARGIN_M)farUncertain=true;}
-     else if(margin<-.1&&!hit){if(endpointCell)endpointUncertain=true;else hit={distanceM:middle,terrainM:value.height,rayM:ray};}
-     if(++steps%256===0)await (typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause?AstroNotesLibrary.pause():new Promise(resolve=>setTimeout(resolve,0)));
+     record(value,lo,hi,far);
+     if(steps%256===0){await (typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause?AstroNotesLibrary.pause():new Promise(resolve=>setTimeout(resolve,0)));current();}
      if(steps>=200000)return {status:hit?'blocked':'unknown',hit,checked,missing,partial:true,reason:'terrain-compute-budget'};
      if(hit)break;
     }
@@ -2637,7 +2672,12 @@ const finite=x=>typeof x==='number'&&Number.isFinite(x);
 const key=p=>p.longitude.toFixed(7)+','+p.latitude.toFixed(7);
 const bboxPoint=(p,b)=>p.longitude>=b[0]&&p.longitude<=b[2]&&p.latitude>=b[1]&&p.latitude<=b[3];
 const forbidden=t=>['private','no'].includes(t?.access)||['private','no'].includes(t?.foot);
-const nonGround=t=>!!t&&(t.location==='roof'||t.location==='rooftop'||t.location==='underground'||t.indoor==='yes'||t.bridge&&t.bridge!=='no'||t.tunnel&&t.tunnel!=='no'||t.covered==='yes'||t.level!=null&&String(t.level)!=='0'||finite(Number(t.layer))&&Number(t.layer)!==0);
+const nonGround=(t,ignoreLayer=false)=>!!t&&(t.location==='roof'||t.location==='rooftop'||t.location==='underground'||t.indoor==='yes'||t.bridge&&t.bridge!=='no'||t.tunnel&&t.tunnel!=='no'||t.covered==='yes'
+ ||t.level!=null&&String(t.level)!=='0'||!ignoreLayer&&finite(Number(t.layer))&&Number(t.layer)!==0);
+// A park boundary's layer orders overlaps; a negative layer is not an underground floor.
+// Keep the path's own structure tags, and explicit raised/indoor tags on the parent.
+// Check highway tags too: movement constraints temporarily set walking=false.
+const nonGroundArea=f=>nonGround(f.tags,f.kind==='park'&&!f.walking&&!f.building&&!f.tags?.highway&&!f.tags?.['area:highway']&&f.polygons?.length>0);
 function hash(s){let x=2166136261;for(let i=0;i<s.length;i++){x^=s.charCodeAt(i);x=Math.imul(x,16777619);}return (x>>>0).toString(16);}
 function distance(a,b){return Math.hypot((a[0]-b[0])*Math.cos((a[1]+b[1])*RAD/2),a[1]-b[1])*M;}
 function inside(r,p){let yes=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>p.latitude)!==(r[j][1]>p.latitude)&&p.longitude<(r[j][0]-r[i][0])*(p.latitude-r[i][1])/(r[j][1]-r[i][1])+r[i][0])yes=!yes;return yes;}
@@ -2787,7 +2827,7 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
  const generationBudget=maxPoints+skipPoints;
  const areas=features.filter(f=>f.kind&&f.polygons.length),waters=features.filter(f=>f.water),rivers=features.filter(f=>['river','canal'].includes(f.tags.waterway)),buildings=features.filter(f=>f.building),groups=[],unknownGeometry=features.filter(f=>f.geometryIncomplete).map(f=>f.id);
  let generationLimited=false,excludedPoints=0,excludedFeatures=0;
- const surfaces=new Map(),excluded=features.filter(f=>(f.water||f.building||forbidden(f.tags)||nonGround(f.tags))&&f.polygons.length);
+ const surfaces=new Map(),excluded=features.filter(f=>(f.water||f.building||forbidden(f.tags)||nonGroundArea(f))&&f.polygons.length);
  const surfaceFor=(f,area,p)=>{
   const direct={polygons:f.walking&&(f.tags.area==='yes'||f.tags['area:highway'])?f.polygons:[],lines:f.walking&&f.tags.area!=='yes'&&!f.tags['area:highway']?f.lines:[],...(f.position?{position:f.position}:{})};
   if(!f.walking||!area||!area.polygons.length||area===f)return direct;
@@ -2810,7 +2850,7 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
    if(!inRegion(p))return;
    const containers=areas.filter(a=>contains(a,p));if(containers.some(a=>forbidden(a.tags)))return;
    const water=waters.find(a=>contains(a,p));if(water&&!nonGround(f.tags))return;
-   const roofArea=containers.find(a=>nonGround(a.tags)),building=buildings.find(a=>contains(a,p)),viewpoint=containers.find(a=>a.kind==='viewpoint');
+   const roofArea=containers.find(nonGroundArea),building=buildings.find(a=>contains(a,p)),viewpoint=containers.find(a=>a.kind==='viewpoint');
    const square=containers.find(a=>a.kind==='plaza'),park=containers.find(a=>a.kind==='park');
    const longitudeScale=Math.cos(p.latitude*RAD);
    const river=!viewpoint&&!square&&!park&&rivers.find(a=>nearEdges(a,p,80,longitudeScale));
@@ -2824,7 +2864,7 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
    const placeKind=f.kind==='viewpoint'||viewpoint?'viewpoint':square||walkingSquare(f)?'plaza':park?'park':riverside?'riverbank':'sidewalk';
    if(pointKinds&&!pointKinds.has(placeKind)){excludedPoints++;return;}
    const elevated=nonGround(f.tags)||!!roofArea||!!building;
-   const surface=area&&nonGround(area.tags)?area:f;
+   const surface=area&&nonGroundArea(area)?area:f;
    // ele = absolute feature elevation, height = structure top, level = floor
    // index. None identifies the physical standing floor on its own.
    const floor=Number(surface.tags['floor:height']),floorSource=surface.tags['source:floor:height'];
@@ -2876,7 +2916,7 @@ function movementDomain(seed,features,{radiusM=600,allComponents=false}={}){
  const origin={latitude:seed.latitude,longitude:seed.longitude},c=Math.cos(origin.latitude*RAD);
  const usable=f=>f.walking&&!f.geometryIncomplete&&!forbidden(f.tags)&&!nonGround(f.tags);
  const area=features.find(f=>f.sourceId===seed.placeId&&f.polygons.length&&(f.kind||f.tags.area==='yes'||f.tags['area:highway']))||features.find(f=>f.kind==='park'&&contains(f,origin));
- const excluded=features.filter(f=>(f.water||f.building||forbidden(f.tags)||nonGround(f.tags))&&f.polygons.length);
+ const excluded=features.filter(f=>(f.water||f.building||forbidden(f.tags)||nonGroundArea(f))&&f.polygons.length);
  const riverbank=seed.placeKind==='riverbank'&&!area,waters=features.filter(f=>f.water),rivers=features.filter(f=>['river','canal'].includes(f.tags.waterway));
  const nearbySegments=rows=>rows.flatMap(f=>f.lines.flatMap(l=>l.slice(1).map((b,i)=>[l[i],b]))).filter(l=>edgeBoxInReach({bbox:[Math.min(l[0][0],l[1][0]),Math.min(l[0][1],l[1][1]),Math.max(l[0][0],l[1][0]),Math.max(l[0][1],l[1][1])]},origin,radiusM+300,c));
  const shores=riverbank?nearbySegments(waters):[],axes=riverbank?nearbySegments(rivers):[];
@@ -3213,12 +3253,15 @@ function standingMetadata(position,data,seed){
  // not carry the area's restrictions/structures outside the fetched region.
  if(data.coverage?.fetchedRegions&&!data.coverage.fetchedRegions.some(r=>inBounds(r.bbox)))return false;
  const source=features.find(f=>f.sourceId===seed.sourceId||f.id===seed.polygonId),areas=features.filter(contains),forbidden=t=>['no','private'].includes(t?.access)||['no','private'].includes(t?.foot);
- const raised=t=>t&&(t.location==='roof'||t.location==='rooftop'||t.location==='underground'||t.indoor==='yes'||t.bridge&&t.bridge!=='no'||t.tunnel&&t.tunnel!=='no'||t.covered==='yes'||t.level!=null&&Number(t.level)!==0||t.layer!=null&&Number(t.layer)!==0);
+ const raised=(t,ignoreLayer=false)=>t&&(t.location==='roof'||t.location==='rooftop'||t.location==='underground'||t.indoor==='yes'||t.bridge&&t.bridge!=='no'||t.tunnel&&t.tunnel!=='no'||t.covered==='yes'
+  ||t.level!=null&&Number(t.level)!==0||!ignoreLayer&&t.layer!=null&&Number(t.layer)!==0);
+ // Match place-provider's parent-only rule; the walking source keeps its own layer.
+ const raisedArea=f=>raised(f.tags,f.kind==='park'&&!f.walking&&!f.building&&!f.tags?.highway&&!f.tags?.['area:highway']&&f.polygons?.length>0);
  if(!source&&seed.sourceEvidence?.kind!=='PLATEAU-pedestrian-surface')return false;
  if(forbidden(source?.tags)||areas.some(f=>forbidden(f.tags)))return false;
  const knownRaised=seed.nonTerrainStructure&&seed.standingSurfaceKnown&&[seed.surfaceAglM,seed.surfaceHeightM,seed.surfaceElevationM].some(Number.isFinite);
  if(areas.some(f=>f.water)&&!knownRaised)return false;
- if((raised(source?.tags)||areas.some(f=>raised(f.tags)))&&!knownRaised)return false;
+ if((raised(source?.tags)||areas.some(raisedArea))&&!knownRaised)return false;
  const containingBuilding=areas.find(f=>f.building);
  if(containingBuilding&&(!knownRaised||seed.sourceEvidence?.buildingContaining!==containingBuilding.id))return false;
  const viewpoint=areas.find(f=>f.kind==='viewpoint'),square=areas.find(f=>f.kind==='plaza'),river=areas.find(f=>/河川敷|川.*テラス|川緑道|riverbank|riverside/i.test(f.name)),park=areas.find(f=>f.kind==='park');
@@ -3452,12 +3495,8 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    if(options.isCurrent?.()===false||options.signal?.aborted)throw Error('candidate-cancelled');
    if(Composition.definiteAngularMiss(plan,obs,{align,bodies}))return {status:'no-overlap',recommend:false,reason:'angular-prefilter'};
   }
-  // Only an immovable observer can be rejected before solving. The final
-  // solved position is checked again below, including surveyed viewpoints.
-  if(fixedStanding&&!plan.strict&&!plan.composition&&plan.profile!=='summit-contact'){
-   const upper=await upperQuality(obs,plan.target,options);
-   if(!['model-clear','not-applicable'].includes(upper.status))return {status:upper.status==='blocked'?'model-blocked':'unverified',recommend:false,reason:'upper-tower-unverified',upperQuality:upper,partial:true};
-  }
+  // Resolve a matching time and frame before the upper-width data reads. Every
+  // surviving solution, including a surveyed observer, is checked below.
   const missingHeights=b=>['building-height-unknown','height-data-unavailable','footprints-unavailable','footprint-ground-unknown'].includes(b?.reason);
   // Where the observer cannot move (no composition, not a mountain), every event's line ends on the
   // target's axis at or below its top, so a line to the top that buildings stop rules out every time
@@ -3536,7 +3575,14 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    if(plan.requireAllTargets&&extras.some(x=>x.visibility==='blocked')){blocked++;continue;}
    const combinedClear=los.status==='model-clear'&&extras.every(x=>x.visibility==='model-clear'),visibilityQuality=combinedClear?'model-clear':'unknown';
    // Only a sight line shown clear of terrain and buildings is a candidate (design note 21): unknown is not shown.
-   if(los.status!=='model-clear'||plan.requireAllTargets&&!combinedClear){unverified++;lastUnverified=los;if(missingHeights(los.target?.buildings)||los.rays?.some(r=>missingHeights(r.buildings)))heightUnknown++;continue;}
+   if(los.status!=='model-clear'||plan.requireAllTargets&&!combinedClear){
+    unverified++;lastUnverified=los;
+    // An extra's upper failure describes this rejection only after the main
+    // target is clear; it must not mask an unread main sight line.
+    const extraUpper=los.status==='model-clear'&&plan.requireAllTargets?extras.find(x=>x.upperQuality):null;
+    if(extraUpper)lastUnverified={...los,upperQuality:extraUpper.upperQuality};
+    if(missingHeights(los.target?.buildings)||los.rays?.some(r=>missingHeights(r.buildings)))heightUnknown++;continue;
+   }
    const usedBuildings=[los.target?.buildings,...(los.rays||[]).filter(r=>r.status==='model-clear').map(r=>r.buildings)],buildingHeights=usedBuildings.some(b=>b?.heights==='estimated')?'estimated':usedBuildings.every(b=>b?.heights==='plateau')?'plateau':'model';
    const hiddenBelow=los.surveyed?null:await hiddenNote(plan.target,position,solution.geometry.azimuth,los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline);
    const treesRead=!!los.target?.buildings?.trees&&los.target.buildings.trees.status!=='unread';
@@ -3557,7 +3603,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   return accepted.length?{...accepted[0],additionalCandidates:accepted.slice(1),partial:solved.partial}: {status:unverified?'unverified':blocked?'model-blocked':outside?'outside-frame':'no-overlap',recommend:false,heightUnknown:heightUnknown>0,
   obstacle:!!lastUnverified&&[lastUnverified.target?.buildings,...(lastUnverified.rays||[]).map(r=>r.buildings)].some(b=>['trees','elevated-structure'].includes(b?.reason)),unverifiedBy:lastUnverified?{target:[lastUnverified.target?.terrain?.status,lastUnverified.target?.terrain?.reason,
   lastUnverified.target?.buildings?.status,lastUnverified.target?.buildings?.reason],rays:(lastUnverified.rays||[]).map(r=>r.intentionalTarget?'target':[r.status,r.terrain?.reason||r.terrain?.status,r.buildings?.reason||r.buildings?.status].join('/'))}:null,partial:solved.partial,
-  reason:solved.reason};
+  reason:solved.reason,...(lastUnverified?.upperQuality?{upperQuality:lastUnverified.upperQuality}:{})};
  }
  return {evaluate,visibility:(plan,solution,options={})=>visibility(plan,solution,options),hiddenView,skylineView,clear:()=>{visibilityCache.clear();targetLines.clear();ridgeScope?.context.retire();ridgeScope=null;}};
 }
@@ -3599,12 +3645,12 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
  const sessions=new Map();
  const fresh=(key,inverse,lastResult=null)=>({key,regions:regionsFor(inverse?.seeds),inverse,lastResult,rows:[],queue:[],pointData:new Map(),pointDomains:new Map(),visitedDomains:new Set(),timeDeferred:new Set(),seen:new Set(),seenRows:new Set(),cursor:0,started:false,
  counts:{checked:0,unknown:0,blocked:0,noOverlap:0,unverified:0,heightUnknown:0,nearBuilding:0,obstacle:0,outsideFrame:0,mapRegions:0,mapPoints:0,
- deferred:0},coverage:[],busy:false});
+ deferred:0},coverage:[],retryWork:new Map(),busy:false});
  // Rechecking the same conditions replaces only working progress. The last
  // complete result remains available when a recheck fails or is cancelled.
  function restart(plan){const key=requestKey(plan),previous=sessions.get(key);if(previous?.busy&&previous.current?.()!==false)return false;if(previous)sessions.set(key,fresh(key,previous.inverse,previous.lastResult));return true;}
  async function search(plan,{onProgress=()=>{},onFirstResult,onRows,isCurrent=()=>true,signal,more=false,retryFailed=true,deadline=Infinity,pointLimit=maxPointsPerBatch,
-  shouldPause=()=>false,providerOptions={},prioritizeKnown=false,diverse=false,deferTimedOut=()=>false,deprioritizePoints=()=>()=>false}={}){
+  shouldPause=()=>false,providerOptions={},prioritizeKnown=false,diverse=false,deferTimedOut=()=>false,deprioritizePoints=()=>()=>false,mapBudgetMs=Infinity,retryWork=null,retainFailures=false}={}){
   if(plan.compositionInvalid)throw Error('invalid-composition');
   const key=requestKey(plan),placeKinds=placeKindsFor(plan);let session=sessions.get(key);
   const kindAllowed=(row,fallback)=>{
@@ -3617,10 +3663,10 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
   const wanted=()=>!signal?.aborted&&now()<deadline&&isCurrent();
   // Shared loaders may finish after this action. Stop waiting without granting
   // their late response ownership of the queue or any displayed result.
-  const wait=promise=>{
-   if(!signal)return promise;
-   let abort;return Promise.race([promise,new Promise((_,reject)=>{abort=()=>reject(Error('candidate-cancelled'));if(signal.aborted)abort();else signal.addEventListener('abort',abort,{once:true});})])
-    .finally(()=>signal.removeEventListener('abort',abort));
+  const wait=(promise,reader=signal)=>{
+   if(!reader)return promise;
+   let abort;return Promise.race([promise,new Promise((_,reject)=>{abort=()=>reject(Error('candidate-cancelled'));if(reader.aborted)abort();else reader.addEventListener('abort',abort,{once:true});})])
+    .finally(()=>reader.removeEventListener('abort',abort));
   };
   try{
   if(!wanted())return {cancelled:true};
@@ -3630,7 +3676,8 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
    // Detach mutable progress from the obsolete owner. Completed batches and
    // the pending point/cursor survive even if its IO never acknowledges abort.
    session={...session,rows:session.rows.slice(),queue:session.queue.slice(),pointData:new Map(session.pointData),pointDomains:new Map(session.pointDomains),visitedDomains:new Set(session.visitedDomains),
-    timeDeferred:new Set(session.timeDeferred),seen:new Set(session.seen),seenRows:new Set(session.seenRows),counts:{...session.counts},coverage:session.coverage.slice(),busy:false,current:null};sessions.set(key,session);
+    timeDeferred:new Set(session.timeDeferred),seen:new Set(session.seen),seenRows:new Set(session.seenRows),retryWork:new Map(session.retryWork),
+    counts:{...session.counts},coverage:session.coverage.slice(),busy:false,current:null};sessions.set(key,session);
   }
   if(session?.busy)return {cancelled:true,reason:'busy'};
   if(!session?.inverse){
@@ -3649,6 +3696,15 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
     session.seen.add(id);session.queue.push(p);session.pointData.set(p,data);if(diverse)session.pointDomains.set(p,Composition.surfaceDomainKey(p));}};
    const visited=p=>{const domain=session.pointDomains.get(p);return domain!=null&&session.visitedDomains.has(domain);};
    const deferred=p=>session.timeDeferred.has(p);
+   const hold=(id,work)=>{
+    const previous=session.retryWork.get(id),attempts=(previous?.attempts||0)+1;
+    session.retryWork.set(id,{...work,id,attempts,retryAt:now()+Math.min(60000,5000*2**Math.min(4,attempts-1))});
+   };
+   if(retryWork?.kind==='point'){
+    const index=session.queue.indexOf(retryWork.point);if(index>=0)session.queue.splice(index,1);
+    session.queue.unshift(retryWork.point);session.pointData.set(retryWork.point,retryWork.data);
+    if(diverse)session.pointDomains.set(retryWork.point,Composition.surfaceDomainKey(retryWork.point));
+   }
    // Known fixed viewpoints need no OSM page or hundreds of ground samples.
    // They still pass the same exact geometry and visibility evaluation.
    if(prioritizeKnown&&!session.surveyedChecked&&typeof provider.surveyed==='function'){
@@ -3658,23 +3714,43 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
    // Read the current records once per scheduling decision, not once for each
    // point inspected by find/every. Priority changes never remove queued work.
    const lowerPriority=deprioritizePoints();
-   if((!session.queue.length||diverse&&session.queue.length<maxDeferredPoints&&session.queue.every(p=>deferred(p)||visited(p)||lowerPriority(p)))&&(session.cursor!==null||!session.started)){
+   const retrySource=retryWork?.kind==='source'?retryWork:null;
+   const room=()=>session.queue.length+session.retryWork.size<maxDeferredPoints;
+   if(retrySource||room()&&(!session.queue.length||diverse&&session.queue.every(p=>deferred(p)||visited(p)||lowerPriority(p)))&&(session.cursor!==null||!session.started)){
     // The optional map must not hold known fixed viewpoints. Compute it once,
     // just before the first ordinary provider page, within the same deadline.
     if(prefilter&&!session.mapChecked){
-     try{const f=await wait(prefilter.regions(plan,session.regions,{isCurrent:wanted,signal,deadline}));if(!wanted())return {cancelled:true};session.mapChecked=true;
-      if(f){session.counts.mapRegions=session.regions.length-f.regions.length;session.regions=f.regions;session.mapContext=f.context||null;}}
-     catch(e){if(e?.message==='candidate-cancelled')return {cancelled:true};session.mapChecked=true;globalThis.AstroNotesErrors?.note('candidates.visibility-map',e);}}
+     const mapOwner=new AbortController(),cancelMap=()=>mapOwner.abort(),mapDeadline=Math.min(deadline,now()+mapBudgetMs);
+     signal?.addEventListener('abort',cancelMap,{once:true});
+     const mapTimer=Number.isFinite(mapDeadline)?setTimeout(cancelMap,Math.max(1,mapDeadline-now())):null;
+     const mapCurrent=()=>wanted()&&!mapOwner.signal.aborted&&now()<mapDeadline;
+     try{const f=await wait(prefilter.regions(plan,session.regions,{isCurrent:mapCurrent,signal:mapOwner.signal,deadline:mapDeadline}),mapOwner.signal);
+      if(!wanted())return {cancelled:true};
+      if(f&&mapCurrent()){session.counts.mapRegions=session.regions.length-f.regions.length;session.regions=f.regions;session.mapContext=f.context||null;}}
+     catch(e){if(!wanted())return {cancelled:true};if(e?.message!=='candidate-cancelled')globalThis.AstroNotesErrors?.note('candidates.visibility-map',e);}
+     finally{if(mapTimer!==null)clearTimeout(mapTimer);signal?.removeEventListener('abort',cancelMap);mapOwner.abort();
+      // A slow optional filter must not prevent exact evaluation on every resume.
+      session.mapChecked=true;}}
     onProgress({stage:'places',...session.counts});
-    const data=await wait(provider.load(plan,{...providerOptions,regions:session.regions,cursor:session.cursor??0,isCurrent:wanted,onProgress,signal,deadline,retryFailed,pointKinds:placeKinds}));
+    const cursor=retrySource?.cursor??session.cursor??0;
+    const data=await wait(provider.load(plan,{...providerOptions,regions:session.regions,cursor,isCurrent:wanted,onProgress,signal,deadline,retryFailed,pointKinds:placeKinds}));
     if(!wanted()||data.cancelled)return {cancelled:true};
     const points=[...(data.points||[])];
     // Surveyed places of this target go in once, wherever the regions lie (place-provider.js surveyedViewpoints).
     if(!session.started&&!session.surveyedChecked&&typeof provider.surveyed==='function'){const known=await wait(provider.surveyed(plan));if(!wanted())return {cancelled:true};points.unshift(...known);session.surveyedChecked=true;}
     // Commit a provider page only after all awaited preparation is current.
     if(!wanted())return {cancelled:true};
-    session.coverage.push(data.coverage||{});session.cursor=data.coverage?.nextCursor??null;session.providerPartial=!!data.partial;
-    session.retryAt=data.coverage?.retryAfterMs>0?Date.now()+data.coverage.retryAfterMs:0;
+    session.coverage.push(data.coverage||{});session.providerPartial=!!data.partial;
+    if(!retrySource)session.cursor=data.coverage?.nextCursor??null;
+    session.retryAt=data.coverage?.retryAfterMs>0?now()+data.coverage.retryAfterMs:0;
+    if(retrySource){
+     if(data.coverage?.failedRegions?.length)hold(retrySource.id,retrySource);
+     else if(data.coverage?.nextCursor){session.retryWork.set(retrySource.id,{...retrySource,cursor:data.coverage.nextCursor});}
+     else{session.retryWork.delete(retrySource.id);}
+    }else if(retainFailures)for(const tile of data.coverage?.failedRegions||[]){
+     const id='source:'+tile.id;
+     if(!session.retryWork.has(id))hold(id,{kind:'source',cursor:{batchTiles:[{id:tile.id,bbox:tile.bbox,regionId:tile.regionId}],afterCursor:null}});
+    }
     // Public places are the default; independent roads need an explicit opt-in.
     enqueue(points,data);
     const order=['viewpoint','plaza','park','riverbank','sidewalk'];session.queue.sort((a,b)=>order.indexOf(a.placeKind)-order.indexOf(b.placeKind));
@@ -3687,10 +3763,10 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
     if(shouldPause())break;
     // Try one seed of each proven surface domain before revisiting the same
     // walkable surface. Keep every other seed and its own page's geometry.
-    if(diverse){
+    if(diverse&&!(count===0&&retryWork?.kind==='point'&&session.queue[0]===retryWork.point)){
      const lower=deprioritizePoints();
      let index=session.queue.findIndex(p=>!lower(p)&&!deferred(p)&&!visited(p));
-     if(index<0&&session.cursor!==null&&session.queue.length<maxDeferredPoints)break;
+     if(index<0&&session.cursor!==null&&room())break;
      if(index<0)index=session.queue.findIndex(p=>!lower(p)&&!deferred(p));
      if(index<0)index=session.queue.findIndex(p=>!lower(p));
      if(index<0)index=session.queue.findIndex(p=>!deferred(p));
@@ -3699,11 +3775,17 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
     const point=session.queue[0],data=session.pointData.get(point)||session.data;
     const consume=()=>{session.queue.shift();session.pointData.delete(point);session.timeDeferred.delete(point);pendingPoint=null;
      const domain=session.pointDomains.get(point);if(domain!=null)session.visitedDomains.add(domain);session.pointDomains.delete(point);};
-    if(session.mapContext&&!point.surveyedTargets?.includes(plan.target?.id)&&prefilter.point(plan,point,session.mapContext)===false){consume();session.counts.checked++;session.counts.blocked++;session.counts.mapPoints++;continue;}
+    if(session.mapContext&&!point.surveyedTargets?.includes(plan.target?.id)&&prefilter.point(plan,point,session.mapContext)===false){
+     session.retryWork.delete(point);consume();session.counts.checked++;session.counts.blocked++;session.counts.mapPoints++;continue;}
     onProgress({stage:'evaluate',...session.counts,pending:session.queue.length});
     pendingPoint=point;
     const tested=await wait(root.AstroNotesTrialOverlap?.evaluate?.(plan,p=>evaluate({...p,requestKey:key},point,data,{isCurrent:wanted,signal,deadline}))??evaluate({...plan,requestKey:key},point,data,{isCurrent:wanted,signal,deadline}));
     if(!wanted())return {cancelled:true};
+    // Only this explicit, non-cached transport failure is retryable. A missing
+    // model, a 404 tile or an unknown structure height is not a transport retry.
+    const retryable=retainFailures&&tested.status==='unverified'&&tested.upperQuality?.layer==='terrain'&&tested.upperQuality.reason==='terrain-fetch';
+    if(retryable){hold(point,{kind:'point',point,data});consume();count++;continue;}
+    session.retryWork.delete(point);
     consume();count++;session.counts.checked++;
     if(tested.partial)session.counts.deferred++;
     if(tested.status==='model-blocked')session.counts.blocked++;else if(tested.status==='no-overlap')session.counts.noOverlap++;
@@ -3741,37 +3823,50 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
   }
   }catch(error){if(!wanted())return {cancelled:true};throw error;}
  }
- // One foreground action. Keep exhaustive searchAll for diagnostics; a user
- // explicitly requests each next round. A deadline never discards the pending
- // point or an uncommitted provider page, even if its IO ignores cancellation.
- async function searchRecommended(plan,{budgetMs=12000,targetPlaces=8,maxEvaluations=160,countPlaces=rows=>rows.length,onPage=()=>{},onBatchStart=()=>{},...options}={}){
+ // A batch yields, but does not end a zero-result action or discard a solver's
+ // local state. Only the safety deadline and real cancellation retire that work.
+ async function searchRecommended(plan,{budgetMs=12000,hardBudgetMs=60000,mapBudgetMs=2000,targetPlaces=8,maxEvaluations=Infinity,countPlaces=rows=>rows.length,onPage=()=>{},onBatchStart=()=>{},...options}={}){
   if(plan.compositionInvalid)throw Error('invalid-composition');
   const active=sessions.get(requestKey(plan));if(active?.busy&&active.current?.()!==false)return {cancelled:true,reason:'busy'};
-  const key=requestKey(plan),started=now(),deadline=started+Math.max(1,budgetMs),own=new AbortController(),external=()=>!options.signal?.aborted&&(options.isCurrent?.()??true);
+  const key=requestKey(plan),started=now(),softDeadline=started+Math.max(1,budgetMs),deadline=started+Math.max(1,hardBudgetMs),own=new AbortController();
+  const external=()=>!options.signal?.aborted&&(options.isCurrent?.()??true);
   const cancel=()=>own.abort();options.signal?.addEventListener('abort',cancel,{once:true});
-  if(options.signal?.aborted)cancel();const timer=setTimeout(cancel,Math.max(1,budgetMs));
+  if(options.signal?.aborted)cancel();const timer=setTimeout(cancel,Math.max(1,hardBudgetMs));
   let page=sessions.get(key)?.lastResult,more=!!options.more,places=countPlaces(page?.rows||[]),reason=null;
   const initialChecked=sessions.get(key)?.counts.checked||0,cursors=new Set();
+  // Retry only failures present when the user started this action. A failed
+  // request cannot recursively schedule itself throughout the foreground job.
+  const retries=new Set(more?sessions.get(key)?.retryWork.keys():[]);
   const publish=p=>{page=p;places=countPlaces(p.rows);onPage(p);};
   // Continue means more new choices, not an immediate stop at the old quota.
-  const goal=places+targetPlaces;
+  const initialPlaces=places,goal=places+targetPlaces,softDone=()=>places>initialPlaces&&now()>=softDeadline;
   try{
    while(external()&&!own.signal.aborted&&now()<deadline){
-    const checked=(sessions.get(key)?.counts.checked||0)-initialChecked;
+    const session=sessions.get(key),checked=(session?.counts.checked||0)-initialChecked;
     if(checked>=maxEvaluations){reason='point-budget';break;}
+    const room=!session||session.queue.length+session.retryWork.size<maxDeferredPoints;
+    const work=session?[...session.retryWork.values()]:[],sourceFits=room||!session.queue.length&&!work.some(item=>item.kind==='point');
+    const retryWork=work.find(item=>retries.has(item.id)&&item.retryAt<=now()&&(item.kind==='point'||sourceFits));
+    if(session?.started&&!session.queue.length&&!retryWork){
+     if(session.retryAt>now()||session.retryWork.size&&(!room||session.cursor===null)){reason='source-wait';break;}
+    }
     onBatchStart();
-    const next=await search(plan,{...options,signal:own.signal,deadline,more,retryFailed:false,onRows:publish,prioritizeKnown:true,diverse:true,
+    const next=await search(plan,{...options,signal:own.signal,deadline,more,retryFailed:false,retryWork,retainFailures:true,onRows:publish,prioritizeKnown:true,diverse:true,mapBudgetMs,
      deferTimedOut:()=>external()&&(own.signal.aborted||now()>=deadline),
-     pointLimit:Math.min(maxPointsPerBatch,maxEvaluations-checked),shouldPause:()=>places>=goal||(sessions.get(key)?.counts.checked||0)-initialChecked>=maxEvaluations,providerOptions:{maxTiles:2,maxPoints:48}});
+     pointLimit:Math.min(maxPointsPerBatch,maxEvaluations-checked),shouldPause:()=>places>=goal||softDone()||(sessions.get(key)?.counts.checked||0)-initialChecked>=maxEvaluations,
+     providerOptions:{maxTiles:2,maxPoints:48}});
     if(!external())return {cancelled:true};
     if(next.cancelled){if(next.reason==='busy')return next;break;}
+    if(retryWork){const retained=sessions.get(key)?.retryWork.get(retryWork.id);if(!retained||retained.attempts!==retryWork.attempts)retries.delete(retryWork.id);}
     page=next;places=countPlaces(page.rows);
     if(!page.canContinue)return page;
     if(places>=goal){reason='enough-places';break;}
+    if(softDone()){reason='first-useful';break;}
     onPage(page);
     // Cooling sources resume on a later user action; never wait a minute here.
-    if(page.retryAt>now()){reason='source-wait';break;}
-    const cursor=JSON.stringify([page.coverage.nextCursor,page.counts.checked]);
+    if(!page.coverage.pendingPoints&&page.retryAt>now()){reason='source-wait';break;}
+    const retryProgress=[...sessions.get(key).retryWork.values()].map(work=>[work.kind,work.attempts,work.cursor]);
+    const cursor=JSON.stringify([page.coverage.nextCursor,page.counts.checked,retryProgress]);
     if(cursors.has(cursor)){reason='source-stalled';break;}cursors.add(cursor);
     more=true;await yieldTask();
    }
@@ -3809,8 +3904,15 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
   }
   return {cancelled:true};
  }
- function result(s){return {rows:s.rows.slice(),counts:{...s.counts},retryAt:s.retryAt||0,requestKey:s.key,cached:false,limited:true,coverageStatus:'partial',jobStatus:'complete',canContinue:s.queue.length>0||s.cursor!==null,coverage:{regions:s.regions.length,loaded:s.coverage,
- pendingPoints:s.queue.length,timeDeferredPoints:s.timeDeferred.size,nextCursor:s.cursor,approximateInverse:true},dataVersion:'generic-v1'};}
+ function result(s){
+  const retry=[...s.retryWork.values()],sourceFits=s.queue.length+retry.length<maxDeferredPoints||!s.queue.length&&!retry.some(work=>work.kind==='point');
+  const eligible=retry.filter(work=>work.kind==='point'||sourceFits),retryAt=eligible.length?Math.min(...eligible.map(work=>work.retryAt)):0;
+  const waitsForRetry=!s.queue.length&&(s.cursor===null||s.retryWork.size>=maxDeferredPoints);
+  return {rows:s.rows.slice(),counts:{...s.counts},retryAt:Math.max(s.retryAt||0,waitsForRetry?retryAt:0),requestKey:s.key,cached:false,limited:true,coverageStatus:'partial',jobStatus:'complete',
+   canContinue:s.queue.length>0||s.cursor!==null||retry.length>0,coverage:{regions:s.regions.length,loaded:s.coverage,pendingPoints:s.queue.length,timeDeferredPoints:s.timeDeferred.size,
+   retryPending:retry.length,retryPoints:retry.filter(work=>work.kind==='point').length,retrySources:retry.filter(work=>work.kind==='source').length,
+   nextCursor:s.cursor,approximateInverse:true},dataVersion:'generic-v1'};
+ }
  return {search,searchAll,searchRecommended,restart,cached:plan=>{const s=sessions.get(requestKey(plan));return s?.lastResult?{...s.lastResult,rows:s.lastResult.rows.slice(),cached:true}:null;},clear:()=>sessions.clear()};
 }
 api.requestKey=requestKey;api.regionsFor=regionsFor;api.createGenericSearch=createGenericSearch;
@@ -5229,18 +5331,26 @@ function mount(){
     .catch(error=>globalThis.AstroNotesErrors?.note('candidates.town-address',error));
    hasResults=!!rows.length;publishedRows=result.rows.length;
    if(partial){visibleCredits.hidden=!hasResults;main?.reveal();return;}
-   const incomplete=!!result.stalled||interrupted||result.coverage.loaded?.some(c=>c.failedRegions?.length||c.missing?.includes('time-budget'));
+   const sourcePending=result.coverage.retryPending??Number(result.coverage.loaded?.some(c=>c.failedRegions?.length||c.missing?.includes('time-budget')));
+   const incomplete=!!result.stalled||interrupted||sourcePending>0;
    continuation=cancelled||interrupted||!!result.canContinue;failed=!cancelled&&incomplete;
    renderAction();visibleCredits.hidden=!rows.length&&!result.paused;
    const unknown=rows.some(r=>r.quality?.buildingHeights==='estimated'),unknownFrame=rows.some(r=>r.frame?.status==='unknown');
    const placeCount=AstroNotesCandidatePicker.countNewPlaces(result.rows,recorded,labels.facilities);
    const summaryText=rows.length?`${placeCount}か所の新たな撮影地点の候補があります。${unknown?'建物の高さを推定した候補を含みます。':''}${unknownFrame?'全体の画角を確認できない候補を含みます。':''}`
-    :result.paused?'まだ新たな撮影地点は見つかっていません。':incomplete?'確認できた範囲には候補がありません。':'今回確認した範囲では候補がありません。';
-   const next=incomplete?'取得できなかった範囲があります。':result.paused?'今回はここまで確認しました。続きを探せます。':result.canContinue?'探索を再開できます。':'';
+    :result.rows.length?'見つかった撮影地点は記録にあります。新たな撮影地点はまだ見つかっていません。'
+    :sourcePending?'情報を取得できず、まだ判定できない地点があります。':result.paused?'まだ新たな撮影地点は見つかっていません。'
+    :result.counts.unverified?'確認した範囲では見通しの確かな候補を見つけられませんでした。':'今回確認した範囲では候補がありません。';
+   const waitSeconds=Math.max(0,Math.ceil(((result.retryAt||0)-Date.now())/1000));
+   const next=sourcePending?(waitSeconds?`${waitSeconds}秒ほど待って情報を再取得できます。`:'確認済みの地点をやり直さず、情報を再取得できます。')
+    :result.stalled?'情報の取得が進まないため、ここで停止しました。':interrupted?'取得できなかった範囲があります。'
+    :result.pauseReason==='time-budget'?'時間内に確認しきれない地点が残っています。続きを探せます。'
+    :result.paused?'未探索の範囲も、続きから探せます。':result.canContinue?'探索を再開できます。':'';
    setStatus(cancelled?'探索をキャンセルしました。続きから探せます。':summaryText+next,!!main&&!!rows.length&&!cancelled&&!next);
    const c=result.counts,unverifiedWhy=[c.nearBuilding?`立つ点のすぐ脇に建物${c.nearBuilding}`:'',c.heightUnknown?`建物の高さが分からない${c.heightUnknown}`:'',c.obstacle?`木・橋・高架${c.obstacle}`:''].filter(Boolean).join('・');
    resultNotes.textContent=`見通しを地形と建物で確かめられた地点だけを候補にしています。${c.checked}地点を確認：遮られる${c.blocked}、`
-    +`見通しを確かめられない${c.unverified||0}${unverifiedWhy?`（うち${unverifiedWhy}）`:''}、構図に合わない${c.outsideFrame||0}、立つ高さが分からない${c.unknown}。`
+    +`見通しを確かめられない${c.unverified||0}${unverifiedWhy?`（うち${unverifiedWhy}）`:''}、重なりが見つからない${c.noOverlap||0}、構図に合わない${c.outsideFrame||0}、立つ高さが分からない${c.unknown}。`
+    +(sourcePending?`情報取得待ち${sourcePending}件は、確認済みの地点をやり直さず再試行できます。`:'')
     +(result.coverage.timeDeferredPoints?`時間内に確認できなかった${result.coverage.timeDeferredPoints}地点は、ほかの地点の後に再確認します。`:'')
     +(c.mapRegions||c.mapPoints?`見える場所の地図で、対象の名前のある部分が見えない区画${c.mapRegions||0}を探す前に外し、地点${c.mapPoints||0}を確かめる前に外しました（遮られるに含む）。`:'')
     +'建物の高さはPLATEAUを整備した都市はその高さ、ほかは国土地理院の建物の形と種類から見積もります。木はMeta・WRIの樹高地図（衛星写真からの推定、約2.4m刻み）の高さで判定し、読めないときはOpenStreetMapにある木だけを高さが分からないものとして扱います。橋・高架はOpenStreetMapにあるものだけ、高さが分からないものとして判定します。'
