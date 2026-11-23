@@ -235,6 +235,119 @@ function closestPoint(p,polygons){
  visit(tree,gap(tree));
  return {point:[nx,ny],distance};
 }
+const sameRidgeRaw=(prepared,raw)=>raw===prepared.raw&&raw.length===prepared.slots.length&&prepared.slots.every((p,i)=>Object.is(p.latitude,raw[i].latitude)&&Object.is(p.longitude,raw[i].longitude)&&Object.is(p.heightM,raw[i].m??raw[i].heightM));
+// A model owns one active request context, never one cache per retained search
+// session. Old async owners keep only a retired handle after key/clear changes.
+function createRidgeContext({capacity=8192}={}){
+ capacity=Math.max(1,Math.min(8192,Math.floor(Number.isFinite(capacity)?capacity:8192)));
+ const rows=new Map(),rangeRows=new Map();let binding=null,epoch=0,retired=false,hits=0,rangeHits=0,misses=0,builds=0;
+ const reset=()=>{rows.clear();rangeRows.clear();binding=null;epoch++;};
+ const copy=p=>({anchor:{...p.anchor},geometry:{...p.geometry},relative:p.relative});
+ const usable=p=>p&&[p.anchor?.latitude,p.anchor?.longitude,p.anchor?.heightM,p.geometry?.distanceKm,p.geometry?.azimuth,p.geometry?.angle,p.geometry?.topM,p.relative].every(Number.isFinite);
+ const keyOf=values=>values.every(Number.isFinite)?values.map(n=>Object.is(n,-0)?'-0':String(n)).join('|'):null;
+ return {retire(){retired=true;reset();},stats:()=>({size:rows.size,rangeRows:rangeRows.size,capacity,retired,hits,rangeHits,misses,builds}),forOwner:(current=()=>true)=>({prepare(target,align,observer){
+  if(retired||current()===false)return null;
+  const geo=Geo();if(!align.prepareRidgeObserver||!geo.prepareInverseRegion||!align.prepareRidgeObserver(observer)){reset();return null;}
+  const raw=target.rim?.points||align.rimPoints?.(target.rim),signature=[target,target.rim,align,geo,align.geometryFrom,align.rimPoints,align.prepareRidgeObserver,geo.inverse,geo.prepareInverseRegion,target.rim?.latitude??target.latitude,target.rim?.longitude??target.longitude];
+  if(!binding||!signature.every((v,i)=>Object.is(v,binding.signature[i]))||!sameRidgeRaw(binding.prepared,raw)){
+   reset();const prepared=prepareRidge(target,align,observer);if(!prepared)return null;binding={signature,prepared};builds++;
+  }
+  const token=epoch,active=()=>!retired&&token===epoch&&current()!==false;
+  const forget=key=>{const old=rows.get(key);if(old&&rangeRows.get(old.base)===old)rangeRows.delete(old.base);rows.delete(key);};
+  const memo={invalidate(){if(active())reset();},reader(values){const prefix=keyOf(values);if(prefix===null)return null;const base=prefix+'|';return {
+   key:az=>Number.isFinite(az)?base+(Object.is(az,-0)?'-0':String(az)):null,
+   get(key,q){if(!active()||key===null)return null;let entry=rows.get(key);
+    if(entry)hits++;else{const candidate=rangeRows.get(base),c=candidate?.certificate;if(c&&c.lo<q&&q<c.hi){entry=candidate;rangeHits++;}else{misses++;return null;}}
+    rows.delete(entry.key);rows.set(entry.key,entry);return {row:copy(entry.row),certificate:entry.certificate&&{...entry.certificate}};
+   },
+   put(key,p,certificate){if(!active()||key===null||!usable(p))return;forget(key);const entry={key,base,row:copy(p),certificate:certificate&&{...certificate}};rows.set(key,entry);if(certificate)rangeRows.set(base,entry);
+    while(rows.size>capacity)forget(rows.keys().next().value);
+   }
+  };}};
+  return {...binding.prepared,memo};
+ }})};
+}
+// Fixed anchor terms and the tree belong to one opportunity solve, or its
+// current request context. No rounded key crosses solves.
+function prepareRidge(target,align,observer){
+ const geo=Geo();if(!align.prepareRidgeObserver||!geo.prepareInverseRegion||!observer||!align.prepareRidgeObserver(observer))return null;
+ const raw=target.rim?.points||align.rimPoints?.(target.rim);if(!Array.isArray(raw)||!raw.length)return null;
+ const slots=raw.map(p=>{const latitude=p.latitude,longitude=p.longitude,heightM=p.m??p.heightM,valid=[latitude,longitude,heightM].every(Number.isFinite);
+  return {latitude,longitude,heightM,valid,anchor:valid?{latitude,longitude,heightM}:null};});
+ const ids=[];for(let i=0;i<slots.length;i++)if(slots[i].valid){if(Math.abs(slots[i].latitude)>90||Math.abs(slots[i].longitude)>180)return null;ids.push(i);}
+ if(!ids.length)return null;
+ const make=list=>{if(list.length<=8)return {ids:list,region:geo.prepareInverseRegion(list.map(i=>slots[i].anchor))};
+  let minLat=Infinity,maxLat=-Infinity,minLon=Infinity,maxLon=-Infinity;
+  for(const i of list){const p=slots[i];minLat=Math.min(minLat,p.latitude);maxLat=Math.max(maxLat,p.latitude);minLon=Math.min(minLon,p.longitude);maxLon=Math.max(maxLon,p.longitude);}
+  const axis=maxLat-minLat>maxLon-minLon?'latitude':'longitude';list=list.slice().sort((a,b)=>slots[a][axis]-slots[b][axis]||a-b);const middle=list.length>>>1,left=make(list.slice(0,middle)),right=make(list.slice(middle));
+  return {left,right,region:left.region&&right.region?geo.prepareInverseRegion([left.region,right.region]):null};
+ };
+ return {raw,slots,ids,tree:make(ids)};
+}
+// A final DFS partition (visited leaves plus pruned frontier) certifies only
+// an open interval selecting the same exact row. Unknown/crossing bounds and
+// close left bearings refuse reuse: far-away rounded distances could tie and
+// favour the earlier row. One-nanodegree inward slack protects finite edges;
+// output geometry and the original bin/tie comparison remain unchanged.
+function certifyRidgeRange(q,bin,selected,ids,row,frontier,visible){
+ if(!(q> -180&&q<180))return null;const p=row(selected),s=p.relative,eps=1e-9;let lo=-180,hi=180;
+ const exclude=(a,b)=>{if(q<a)hi=Math.min(hi,a-eps);else if(q>b)lo=Math.max(lo,b+eps);else return false;return true;};
+ if(visible){
+  lo=Math.max(lo,s-bin+eps);hi=Math.min(hi,s+bin-eps);
+  for(const i of ids){if(i===selected)continue;const r=row(i);if(!r)continue;
+   if(r.geometry.angle>p.geometry.angle||r.geometry.angle===p.geometry.angle&&(r.relative<s||r.relative===s&&i<selected))if(!exclude(r.relative-bin,r.relative+bin))return null;
+  }
+  for(const arcs of frontier){if(!arcs)return null;for(const [a,b]of arcs)if(!exclude(a-bin,b+bin))return null;}
+ }else{
+  const lower=x=>{if(!(s-x>eps))return false;lo=Math.max(lo,(s+x)/2+eps);return true;};
+  const upper=x=>{if(!(x>s))return false;hi=Math.min(hi,(s+x)/2-eps);return true;};
+  for(const i of ids){if(i===selected)continue;const r=row(i);if(!r)continue;
+   if(r.relative<s){if(!lower(r.relative))return null;}else if(r.relative>s){if(!upper(r.relative))return null;}else if(i<selected)return null;
+  }
+  for(const arcs of frontier){if(!arcs)return null;for(const [a,b]of arcs){if(b<s){if(!lower(b))return null;}else if(a>s){if(!upper(a))return null;}else return null;}}
+  if(q<s)hi=Math.min(hi,s-bin-eps);else if(q>s)lo=Math.max(lo,s+bin+eps);else return null;
+ }
+ return lo<q&&q<hi?{lo,hi}:null;
+}
+function lazyRidge(observer,target,align,prepared,center,bin){
+ if(!prepared||![center.km,center.azimuth,bin].every(Number.isFinite)||bin<0)return null;
+ const raw=target.rim?.points||align.rimPoints?.(target.rim),reader=align.prepareRidgeObserver?.(observer);
+ if(!sameRidgeRaw(prepared,raw)||!reader?.bearingIntervals||reader.inverse!==Geo().inverse){prepared.memo?.invalidate();return null;}
+ const memo=Array.isArray(reader.cacheKey)&&reader.cacheKey.length===5&&reader.cacheKey.every(Number.isFinite)?prepared.memo?.reader([...reader.cacheKey,center.km,center.azimuth,bin]):null;let certificate=null,certifiedRow=null;
+ const difference=(a,b)=>((a-b+540)%360)-180,padding=1e-9,rows=new Map(),regions=new Map();let materialized=null;
+ const row=i=>{if(!rows.has(i)){const anchor=prepared.slots[i].anchor,geometry=reader.geometry(anchor);rows.set(i,Number.isFinite(geometry?.angle)?{anchor:{...anchor},geometry,relative:difference(geometry.azimuth,center.azimuth)}:null);}return rows.get(i);};
+ const all=()=>materialized||=prepared.ids.map(i=>({row:row(i),ordinal:i})).filter(p=>p.row).sort((a,b)=>a.row.relative-b.row.relative||a.ordinal-b.ordinal).map(p=>p.row);
+ const earlier=(i,j)=>{const a=row(i),b=row(j);return a.relative<b.relative||a.relative===b.relative&&i<j;};
+ const intervals=node=>{if(regions.has(node))return regions.get(node);const arcs=node.region?reader.bearingIntervals(node.region):null;let found=null;
+  if(arcs?.length){found=[];for(const a of arcs){if(![a.azimuth,a.marginDeg].every(Number.isFinite)||a.marginDeg<0||a.marginDeg>=180){found=null;break;}
+   const r=difference(a.azimuth,center.azimuth),lo=r-a.marginDeg,hi=r+a.marginDeg;
+   if(lo< -180)found.push([-180,hi],[lo+360,180]);else if(hi>=180)found.push([lo,180],[-180,hi-360]);else found.push([lo,hi]);
+  }}regions.set(node,found);return found;};
+ const distanceBound=(node,q)=>{const list=intervals(node);if(!list)return 0;let d=Infinity;for(const [a,b]of list)d=Math.min(d,q<a?a-q:q>b?q-b:0);return d;};
+ // Canonical finite point geometry is expected. Preserve eager null handling
+ // if its first valid anchor cannot provide a usable geometry.
+ if(!row(prepared.ids[0])||!Number.isFinite(row(prepared.ids[0]).relative))return null;
+ return {get points(){return all();},at:azimuth=>{
+  const q=difference(azimuth,center.azimuth);if(materialized||!Number.isFinite(q))return ridgeAt(all(),q,bin,all().every(p=>Number.isFinite(p.relative)));
+  if(certificate&&certificate.lo<q&&q<certificate.hi){return certifiedRow;}
+  // The immutable observer prefix is prepared once, not stringified per query.
+  const memoKey=memo?.key(azimuth),hit=memoKey&&memo.get(memoKey,q);if(hit){certificate=hit.certificate;certifiedRow=hit.row;return hit.row;}
+  const checked=[],frontier=[];
+  let visible=null,closest=null,best=Infinity;
+  const consider=i=>{const p=row(i);if(!p)return;checked.push(i);const d=Math.abs(p.relative-q);
+   if(closest===null||d<best||d===best&&earlier(i,closest)){closest=i;best=d;}
+   if(d<=bin&&(visible===null||p.geometry.angle>row(visible).geometry.angle||p.geometry.angle===row(visible).geometry.angle&&earlier(i,visible)))visible=i;
+  };
+  const visit=(node,limit,gap=distanceBound(node,q))=>{if(gap>limit()+padding){frontier.push(intervals(node));return;}
+   if(node.ids){for(const i of node.ids)consider(i);return;}
+   const a=distanceBound(node.left,q),b=distanceBound(node.right,q);
+   if(a<=b){visit(node.left,limit,a);visit(node.right,limit,b);}else{visit(node.right,limit,b);visit(node.left,limit,a);}
+  };
+  const finish=(i,visible)=>{if(i===null)return null;const p=row(i);certificate=certifyRidgeRange(q,bin,i,checked,row,frontier,visible);certifiedRow=p;if(memoKey)memo.put(memoKey,p,certificate);return p;};
+  visit(prepared.tree,()=>bin);if(visible!==null)return finish(visible,true);
+  checked.length=0;frontier.length=0;visit(prepared.tree,()=>best);return finish(closest,false);
+ }};
+}
 // The ridge is already sorted by relative bearing. Preserve the original
 // subtraction and tie order at its bin edges; rounded angular buckets would
 // change which summit point supplies the contact height.
@@ -255,13 +368,14 @@ function ridgeAt(points,relative,bin,ordered=true){
  const left=points[lower(value=>value<points[right-1].relative)];
  return right===points.length||Math.abs(left.relative-relative)<=Math.abs(points[right].relative-relative)?left:points[right];
 }
-function ridgeGeometry(observer,target,align){
+function ridgeGeometry(observer,target,align,prepared=prepareRidge(target,align,observer)){
  const raw=target.rim?.points||align.rimPoints?.(target.rim);if(!Array.isArray(raw)||!raw.length)return null;
  const center=Geo().inverse(observer.latitude,observer.longitude,target.rim.latitude??target.latitude,target.rim.longitude??target.longitude),difference=(a,b)=>((a-b+540)%360)-180;
+ const bin=Math.atan(.015/Math.max(.001,center.km))/rad,lazy=lazyRidge(observer,target,align,prepared,center,bin);if(lazy)return lazy;
  const points=raw.filter(p=>[p.latitude,p.longitude,p.m??p.heightM].every(Number.isFinite)).map(p=>{const anchor={latitude:p.latitude,longitude:p.longitude,heightM:p.m??p.heightM},geometry=align.geometryFrom(observer,{...target,...anchor,rim:null,parts:[{id:'ridge',m:anchor.heightM}]},{
  heightM:anchor.heightM,eyeM:observer.eyeM??1.5});return {anchor,geometry,relative:difference(geometry.azimuth,center.azimuth)};}).filter(p=>Number.isFinite(p.geometry?.angle)).sort((a,b)=>a.relative-b.relative);
  if(!points.length)return null;
- const bin=Math.atan(.015/Math.max(.001,center.km))/rad,ordered=points.every(p=>Number.isFinite(p.relative));
+ const ordered=points.every(p=>Number.isFinite(p.relative));
  return {points,at:azimuth=>ridgeAt(points,difference(azimuth,center.azimuth),bin,ordered)};
 }
 function standingDomain(point,sidewalks){
@@ -285,7 +399,8 @@ function standingDomain(point,sidewalks){
 async function surfaceInverse(plan,seed,range,timeSeeds,deps){
  const {align,bodies,terrain,groundAt,sidewalks,standingAt,isCurrent,yieldTask}=deps,domain=standingDomain(seed,sidewalks),solutions=[];
  if(!domain||!domain.polygons.length&&!domain.lines.length)return {solutions,attempted:false,calls:0};
- const limit=Math.max(1,Math.floor(deps.budget)),c=plan.composition,target=plan.target,eyeM=seed.eyeM??seed.eyeHeightAGL??1.5,groundCache=new Map(),ridgeCache=new Map();let calls=0,exhausted=false,unknown=false,cancelled=false;
+ const limit=Math.max(1,Math.floor(deps.budget)),c=plan.composition,target=plan.target,eyeM=seed.eyeM??seed.eyeHeightAGL??1.5,groundCache=new Map(),ridgeCache=new Map(),ridgePrepared=!c&&target.rim?(deps.ridgePrepared||prepareRidge(target,align,seed)):null;
+ let calls=0,exhausted=false,unknown=false,cancelled=false;
  async function at(pos,time){
   if(!isCurrent()){cancelled=true;return null;}if(calls>=limit){exhausted=true;return null;}if(calls++%48===0){await yieldTask();if(!isCurrent()){cancelled=true;return null;}}
   if(![pos.latitude,pos.longitude,time].every(Number.isFinite))return null;
@@ -299,7 +414,7 @@ async function surfaceInverse(plan,seed,range,timeSeeds,deps){
   const observer={...seed,...pos,...domain.metadata,groundM:ground,groundKnown:true,elevation:floor,surfaceElevationM:floor,standingElevationM:floor,eyeM};
   try{
    const st=bodies.state(plan.body,time,{...observer,elevation:floor+eyeM});let g=c?geometry(observer,target,c,align):align.geometryFrom(observer,target,{partId:plan.partId==='__whole'?null:plan.partId,eyeM});
-   if(!c&&target.rim){let rim=ridgeCache.get(key);if(!rim){rim=ridgeGeometry(observer,target,align);if(rim)ridgeCache.set(key,rim);}const hit=rim?.at(st.azimuth);if(!hit){unknown=true;return null;}g={...hit.geometry,anchor:hit.anchor};}
+   if(!c&&target.rim){let rim=ridgeCache.get(key);if(!rim){rim=ridgeGeometry(observer,target,align,ridgePrepared);if(rim)ridgeCache.set(key,rim);}const hit=rim?.at(st.azimuth);if(!hit){unknown=true;return null;}g={...hit.geometry,anchor:hit.anchor};}
    const selected=limbKind(c?.limb||((bodies.definition?.(plan.body)?.limbs??['sun','moon'].includes(plan.body))?plan.limb:'center')),residual=g&&align.viewProjector(g.azimuth,g.angle)(st.azimuth,limb(st,selected));
    return residual?.every(Number.isFinite)?{observer,at:time,geometry:g,residual,loss:Math.hypot(...residual)}:null;
   }catch{unknown=true;return null;}
@@ -418,7 +533,7 @@ async function localGuides(plan,domain,{groundM,eyeM=1.5,align,bodies,isCurrent=
  }
  return {guides:out,partial};
 }
-async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks,standingAt,isCurrent=()=>true,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0))),budget=12000,_surfaceSolved=false}={}){
+async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks,standingAt,isCurrent=()=>true,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0))),budget=12000,_surfaceSolved=false,ridgeContext=null}={}){
  const empty=(reason,partial=false)=>({solutions:[],partial,reason}),range=timeRange(plan),target=targetInput(plan.target);
  if(!range)return empty('invalid-time-spec');
  if(!target||!align||!bodies||![point?.latitude,point?.longitude].every(Number.isFinite))return empty('invalid-target-or-observer');
@@ -439,7 +554,7 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
  const outline=pointBody||!strict&&whole?align.towerOutline?.(observer,target,{eyeM}):null;
  const selfPolygons=outline?.known&&!outline.schematic?(outline.hitPolygons||outline.polygons||[outline.hitPoints||outline.points]).filter(Boolean).map(r=>r.map(p=>project(p[0],p[1])).filter(Boolean)).filter(r=>r.length>=3):[];
  const polygons=!strict&&whole?selfPolygons:[];
- const ridge=!c&&target.rim?ridgeGeometry(observer,target,align):null;if(!c&&target.rim&&!ridge)return empty('ridge-data-unavailable',true);
+ const ridgePrepared=!c&&target.rim?(ridgeContext?ridgeContext.prepare(target,align,observer):prepareRidge(target,align,observer)):null,ridge=!c&&target.rim?ridgeGeometry(observer,target,align,ridgePrepared):null;if(!c&&target.rim&&!ridge)return empty('ridge-data-unavailable',true);
  const targetBounds=polygons.length?outlineClusters(polygons,flat(polygons)):null;
  const passage=!strict&&!pointBody&&plan.matchMode==='overlap'&&(!whole||!!ridge);
  const geometryKind=ridge?'ridge':polygons.length?'silhouette':'anchor',samples=new Map();let calls=0,exhausted=false,unknown=false,cancelled=false;
@@ -532,12 +647,12 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
  if(strict&&!_surfaceSolved&&calls>=limit&&(point.surfaceGeometry?.polygons?.length||point.surfaceGeometry?.lines?.length||!point.surfaceGeometry&&sidewalks?.features?.length))exhausted=true;
  if(strict&&!_surfaceSolved&&!exhausted&&calls<limit){
   const starts=[];for(const s of [...samples.values()].sort((a,b)=>a.score-b.score))if(starts.every(t=>Math.abs(t-s.at)>1800000)){starts.push(s.at);if(starts.length>=6)break;}
-  const inverse=await surfaceInverse({...plan,target},observer,range,starts,{align,bodies,terrain,groundAt,sidewalks,standingAt,isCurrent,yieldTask,budget:Math.min(2500,limit-calls)});
+  const inverse=await surfaceInverse({...plan,target},observer,range,starts,{align,bodies,terrain,groundAt,sidewalks,standingAt,isCurrent,yieldTask,ridgePrepared,budget:Math.min(2500,limit-calls)});
   calls+=inverse.calls;exhausted||=inverse.exhausted;unknown||=inverse.unknown;surfaceAttempted=inverse.attempted;
   if(inverse.cancelled)return empty('cancelled',true);
   for(const q of inverse.solutions){
    if(calls>=limit){exhausted=true;break;}
-   const checked=await opportunities({...plan,timeSpec:{kind:'instant',at:range.kind==='instant'?range.start:q.at}},q.observer,{align,bodies,terrain,groundAt,isCurrent,yieldTask,budget:Math.max(1,limit-calls),_surfaceSolved:true});calls+=checked.evaluated||0;
+   const checked=await opportunities({...plan,timeSpec:{kind:'instant',at:range.kind==='instant'?range.start:q.at}},q.observer,{align,bodies,terrain,groundAt,isCurrent,yieldTask,budget:Math.max(1,limit-calls),_surfaceSolved:true,ridgeContext});calls+=checked.evaluated||0;
    if(checked.reason==='cancelled')return empty('cancelled',true);
    exhausted||=checked.reason==='budget-exhausted';unknown||=checked.partial&&checked.reason==='some-calculations-unknown';
    for(const s of checked.solutions)if(!solutions.some(p=>Math.abs(p.event.at-s.event.at)<1000&&Geo().distanceKm(p.observer.latitude,p.observer.longitude,s.observer.latitude,s.observer.longitude)<.001))solutions.push({...s,event:{...s.event,inverseSurfaceSolved:true,alignmentResidualDeg:q.loss,
@@ -587,5 +702,5 @@ async function inverseSeeds(plan,{bodies,isCurrent=()=>true,yieldTask=typeof Ast
  seeds.sort((a,b)=>a.priority-b.priority||a.at-b.at||a.distanceM-b.distanceM);
  return {seeds,partial:true,reason:exhausted?'seed-budget-exhausted':unknown?'some-ephemeris-unknown':'approximate-terrain-hypotheses'};
 }
-return {valid,windowValid,limb,anchorAt,geometry,roadAt,riseSet,inWindow,windowEvents,screenAnchor,make,timeRange,opportunities,localGuides,inverseSeeds,closestPoint,definiteAngularMiss};
+return {valid,windowValid,limb,anchorAt,geometry,roadAt,riseSet,inWindow,windowEvents,screenAnchor,make,timeRange,opportunities,localGuides,inverseSeeds,closestPoint,definiteAngularMiss,createRidgeContext};
 });

@@ -1695,6 +1695,97 @@ if(typeof AstroNotesAstro!=='undefined')globalThis.SoramiAstro=AstroNotesAstro;i
     }
     return { km: sphereKm(aLat, aLon, bLat, bLon), azimuth: sphereBearing(aLat, aLon, bLat, bLon) };
   }
+
+  // Rejection bounds for a fixed group of ridge vertices. Selected leaves
+  // still run the unchanged inverse above. Regions own no cross-solve cache.
+  const prepareInverseRegion = (() => {
+    const data = new WeakMap(), keys = ['latitude', 'longitude', 'sU', 'cU', 'sPhi', 'cPhi'];
+    const Cmax = WGS_F * (4 + 4 * WGS_F) / 16 * (1 + 1e-10), B = 3 * Cmax + 19 * Cmax * Cmax;
+    const q = WGS_F * 1.01, kappa = q / (1 - q), lambdaSlack = 1e-10;
+    // Outward arithmetic slack and explicit elementary-function slack. The
+    // poorly conditioned short/polar/equatorial/antipodal cases fall back.
+    const pad = x => 4e-15 * Math.max(1, Math.abs(x)), interval = (a, b = a) => [a - pad(a), b + pad(b)];
+    const add = (a, b) => interval(a[0] + b[0], a[1] + b[1]), sub = (a, b) => interval(a[0] - b[1], a[1] - b[0]);
+    const mul = (a, b) => { const x = [a[0] * b[0], a[0] * b[1], a[1] * b[0], a[1] * b[1]]; return interval(Math.min(...x), Math.max(...x)); };
+    const scale = (a, k) => mul(a, [k, k]);
+    function trig(a, cosine = false) {
+      if (a[1] - a[0] >= 2 * Math.PI) return [-1 - 1e-14, 1 + 1e-14];
+      const fn = cosine ? Math.cos : Math.sin, values = [fn(a[0]), fn(a[1])], offset = cosine ? 0 : Math.PI / 2;
+      for (let n = Math.ceil((a[0] - offset) / Math.PI); offset + n * Math.PI <= a[1]; n++) values.push(n % 2 === 0 ? 1 : -1);
+      return [Math.min(...values) - 1e-14, Math.max(...values) + 1e-14];
+    }
+    function hypotenuse(x, y) {
+      const min = a => a[0] <= 0 && a[1] >= 0 ? 0 : Math.min(Math.abs(a[0]), Math.abs(a[1]));
+      const max = a => Math.max(Math.abs(a[0]), Math.abs(a[1]));
+      return interval(Math.hypot(min(x), min(y)) - 1e-14, Math.hypot(max(x), max(y)) + 1e-14);
+    }
+    function direction(x, y) {
+      if (x[0] <= 0 && x[1] >= 0 && y[0] <= 0 && y[1] >= 0) return null;
+      const angles = []; for (const a of x) for (const b of y) angles.push((Math.atan2(b, a) / DEG + 360) % 360);
+      angles.sort((a, b) => a - b); let gap = -1, start = 0, end = 0;
+      for (let i = 0; i < angles.length; i++) {
+        const j = (i + 1) % angles.length, d = angles[j] + (j ? 0 : 360) - angles[i];
+        if (d > gap) { gap = d; start = angles[j]; end = angles[i] + (j ? 360 : 0); }
+      }
+      return { azimuth: ((start + end) / 2) % 360, marginDeg: (end - start) / 2 + 1e-7 };
+    }
+    function ratio(s, upper) {
+      if (s < 1e-6) return upper ? 1 + s * s + 1e-14 : 1 - 1e-14;
+      return s / (Math.sin(s) + (upper ? -1e-14 : 1e-14)) + (upper ? 1e-14 : -1e-14);
+    }
+    const methods = Object.freeze({
+      bearingIntervalsTo(other) {
+        const o = data.get(this), n = data.get(other);
+        if (!o || !n || o.latitude[0] !== o.latitude[1] || o.longitude[0] !== o.longitude[1] ||
+            Math.abs(o.latitude[0]) < 1 || Math.abs(o.latitude[0]) > 85 || n.latitude[0] < -85 || n.latitude[1] > 85) return null;
+        const sU = o.sU[0], cU = o.cU[0], L = scale(sub(n.longitude, o.longitude), DEG), sinL = trig(L), cosL = trig(L, true);
+        const y0 = mul(n.cU, sinL), x0 = sub(scale(n.sU, cU), scale(mul(n.cU, cosL), sU));
+        const s0 = hypotenuse(x0, y0), c0 = add(scale(n.sU, sU), scale(mul(n.cU, cosL), cU));
+        if (!(c0[0] > 0 && s0[0] > 0)) return null;
+        const sigma0 = interval(Math.atan2(s0[0], c0[1]) - 1e-14, Math.atan2(s0[1], c0[0]) + 1e-14);
+        if (!(sigma0[0] >= 1e-4 && sigma0[1] <= Math.PI / 2 - 1e-4)) return null;
+        // All finite lambda iterates lie within L +/- kappa*sigma0. At a
+        // converged return the *previous* lambda used for the output also
+        // satisfies |F(lambda)-lambda|<1e-12. Intersect its necessary image;
+        // lambdaSlack includes that residual and outward finite arithmetic.
+        const delta = kappa * sigma0[1] + lambdaSlack;
+        let I = add(L, [-delta, delta]);
+        // The stored sin/cos pairs need not have an exactly unit norm in
+        // binary64. Cover sigma/hypot(x,y), not just ideal sigma/sin(sigma).
+        const rlo = ratio(Math.max(0, sigma0[0] - delta), false) * (1 - 1e-10), rhi = ratio(sigma0[1] + delta, true) * (1 + 1e-10);
+        // F=L+f*cosU1*cosU2*sin(lambda)*T. With D=cos(2*sigma_m),
+        // |C*D|<=3*Cmax and C^2*|-1+2*D^2|<=19*Cmax^2 avoid the
+        // ill-conditioned D division and keep all target parameters enclosed.
+        const T = interval((1 - Cmax) * rlo - B, rhi + B), coefficient = scale(scale(n.cU, cU), WGS_F);
+        for (let i = 0; i < 3; i++) {
+          const image = add(add(L, mul(mul(coefficient, trig(I)), T)), [-lambdaSlack, lambdaSlack]);
+          I = [Math.max(I[0], image[0]), Math.min(I[1], image[1])]; if (I[0] > I[1]) return null;
+        }
+        const convergent = direction(sub(scale(n.sU, cU), scale(mul(n.cU, trig(I, true)), sU)), mul(n.cU, trig(I)));
+        // The old 100-iteration fallback is a distinct arc; never fill the
+        // gap between it and the convergent azimuth with one broad margin.
+        const fallback = direction(sub(scale(n.sPhi, o.cPhi[0]), scale(mul(n.cPhi, cosL), o.sPhi[0])), mul(sinL, n.cPhi));
+        return convergent && fallback ? [convergent, fallback] : null;
+      },
+    });
+    return function prepareInverseRegion(items) {
+      if (this?.inverse !== inverse || !Array.isArray(items) || !items.length) return null;
+      const merged = Object.fromEntries(keys.map(key => [key, [Infinity, -Infinity]]));
+      for (const item of items) {
+        let p = data.get(item);
+        if (!p) {
+          const latitude = item?.latitude, longitude = item?.longitude;
+          if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
+          const phi = latitude * DEG, U = Math.atan((1 - WGS_F) * Math.tan(phi));
+          const terms = { latitude, longitude, sU: Math.sin(U), cU: Math.cos(U), sPhi: Math.sin(phi), cPhi: Math.cos(phi) };
+          if (Math.abs(Math.hypot(terms.sU, terms.cU) - 1) > 1e-12) return null;
+          p = Object.fromEntries(keys.map(key => [key, [terms[key], terms[key]]]));
+        }
+        for (const key of keys) { merged[key][0] = Math.min(merged[key][0], p[key][0]); merged[key][1] = Math.max(merged[key][1], p[key][1]); }
+      }
+      const region = Object.freeze(Object.create(methods)); data.set(region, merged); return region;
+    };
+  })();
   /// 測地線の順問題（方位と距離から行き先）
   function destination(lat, lon, bearingDeg, distanceKm) {
     const a1 = bearingDeg * DEG, s = distanceKm * 1000, sa1 = Math.sin(a1), ca1 = Math.cos(a1);
@@ -3375,7 +3466,7 @@ function createExactTerrainBatch({inJapan,tileXf,tileYf,loadTile,pixelToElevatio
 
   const AstroNotesTerrain = {
     MAX_POINTS, DEFAULT_STEPS, OBSERVATION_DECKS, decksFor, deckLabel, structureHeight, isLookout,
-    destination, currentRidgeTile, ridgeSampleCoverage, prepareRidgeDestination, prepareRidgeElevation, bearing, distanceKm, inverse,
+    destination, currentRidgeTile, ridgeSampleCoverage, prepareRidgeDestination, prepareRidgeElevation, prepareInverseRegion, bearing, distanceKm, inverse,
     fetchElevations, elevations, elevationFromTile, tileElevations, groundElevation, inJapan, resolveObserver,
     measureHorizon, horizonFunction, combinedHorizon,
     urbanHorizon, buildingHeightM, buildingAt, buildingsAlong, gsiBuildingsAlong, GSI_BUILDING_MIN_M, wikidataHeight, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, parseLatLon, parseMapLink, isShortMapLink, urbanCacheKey,
@@ -3592,6 +3683,7 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
 
   const B = global.AstroNotesBodies || (typeof require !== "undefined" ? require("./astronotes-bodies.js") : null);
   const ATM=global.AstroNotesAtmosphere||(typeof require!=="undefined"?require("./astronotes-atmosphere.js"):null);
+  const ridgeInverse=TR.inverse,ridgePrepareRegion=TR.prepareInverseRegion,ridgeElevationAngle=A.targetElevationAngle,ridgeTargetK=ATM?.targetK;
   const targetAngle=(...args)=>A.targetElevationAngle(...args,{k:ATM?ATM.targetK():7/6});
   const limbAltitude=(s,sign)=>ATM?ATM.limbAltitude(s,sign):s.apparentAltitude-sign*s.angularRadius;
   const bodyAt = (body, ms, obs) => B ? B.state(body, ms, obs) : (body === "moon" ? A.moon(ms, obs) : body === "sun" ? A.sun(ms, obs) : (() => { throw new Error("天体計算が未読込です"); })());
@@ -3787,6 +3879,28 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
       angle: targetAngle(distanceKm, (observer.elevation ?? 0) + eyeM, topM),
       topM,
     };
+  }
+
+  // The eager ridge evaluated every point under one synchronous set of
+  // providers and refraction settings. A lazy ridge must retain that same set,
+  // even if a later cooperative yield lets the UI change those settings.
+  function prepareRidgeObserver(observer) {
+    if (this?.geometryFrom !== geometryFrom || this.rimPoints !== rimPoints || TR.inverse !== ridgeInverse || !ridgePrepareRegion || TR.prepareInverseRegion !== ridgePrepareRegion ||
+        A.targetElevationAngle !== ridgeElevationAngle || ATM?.targetK !== ridgeTargetK) return null;
+    const latitude=observer?.latitude,longitude=observer?.longitude,elevation=observer?.elevation??0,eyeM=observer?.eyeM??1.5;
+    if (![latitude,longitude,elevation,eyeM].every(Number.isFinite)) return null;
+    const origin=ridgePrepareRegion.call(TR,[{latitude,longitude}]),k=ATM?ridgeTargetK():7/6;
+    if (!origin || Math.abs(latitude)<1 || Math.abs(latitude)>85 || !(Number.isFinite(k)&&k>0)) return null;
+    return Object.freeze({
+      inverse:ridgeInverse,
+      cacheKey:Object.freeze([latitude,longitude,elevation,eyeM,k]),
+      bearingIntervals:region=>origin.bearingIntervalsTo(region),
+      geometry:anchor=>{
+        if (![anchor?.latitude,anchor?.longitude,anchor?.heightM].every(Number.isFinite)) return null;
+        const {km:distanceKm,azimuth}=ridgeInverse(latitude,longitude,anchor.latitude,anchor.longitude);
+        return {distanceKm,azimuth,angle:ridgeElevationAngle(distanceKm,elevation+eyeM,anchor.heightM,{k}),topM:anchor.heightM};
+      },
+    });
   }
 
   const azDiff = (a, b) => ((a - b + 540) % 360) - 180;
@@ -5481,7 +5595,7 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
     return `${head}が見えます。${below}は${round ? "地球の丸みで" : `手前の${kind}に`}隠れます`;
   }
   const AstroNotesAlign = { heightVertices, TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
-                        altitudeCrossing, geometryFrom, upcoming, dailyView, prepareDailyView, alignmentAt, prepareAlignmentAt, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,
+                        altitudeCrossing, geometryFrom, prepareRidgeObserver, upcoming, dailyView, prepareDailyView, alignmentAt, prepareAlignmentAt, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, rimPoints, judge, buildingBlock,
                         viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, observerGuides, partTarget, get CITY_MODELS(){return global.AstroNotesCityModels || CM || {};},get TOWER_MODELS(){return global.AstroNotesTowerModels || TM || {};
                         }, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, outlineModel, towerOutline, outlineBounds, outlineScreenBounds, viewWindow, viewPath, sceneTargets, hiddenBelowText };

@@ -188,6 +188,7 @@
 
   const B = global.AstroNotesBodies || (typeof require !== "undefined" ? require("./astronotes-bodies.js") : null);
   const ATM=global.AstroNotesAtmosphere||(typeof require!=="undefined"?require("./astronotes-atmosphere.js"):null);
+  const ridgeInverse=TR.inverse,ridgePrepareRegion=TR.prepareInverseRegion,ridgeElevationAngle=A.targetElevationAngle,ridgeTargetK=ATM?.targetK;
   const targetAngle=(...args)=>A.targetElevationAngle(...args,{k:ATM?ATM.targetK():7/6});
   const limbAltitude=(s,sign)=>ATM?ATM.limbAltitude(s,sign):s.apparentAltitude-sign*s.angularRadius;
   const bodyAt = (body, ms, obs) => B ? B.state(body, ms, obs) : (body === "moon" ? A.moon(ms, obs) : body === "sun" ? A.sun(ms, obs) : (() => { throw new Error("天体計算が未読込です"); })());
@@ -383,6 +384,28 @@
       angle: targetAngle(distanceKm, (observer.elevation ?? 0) + eyeM, topM),
       topM,
     };
+  }
+
+  // The eager ridge evaluated every point under one synchronous set of
+  // providers and refraction settings. A lazy ridge must retain that same set,
+  // even if a later cooperative yield lets the UI change those settings.
+  function prepareRidgeObserver(observer) {
+    if (this?.geometryFrom !== geometryFrom || this.rimPoints !== rimPoints || TR.inverse !== ridgeInverse || !ridgePrepareRegion || TR.prepareInverseRegion !== ridgePrepareRegion ||
+        A.targetElevationAngle !== ridgeElevationAngle || ATM?.targetK !== ridgeTargetK) return null;
+    const latitude=observer?.latitude,longitude=observer?.longitude,elevation=observer?.elevation??0,eyeM=observer?.eyeM??1.5;
+    if (![latitude,longitude,elevation,eyeM].every(Number.isFinite)) return null;
+    const origin=ridgePrepareRegion.call(TR,[{latitude,longitude}]),k=ATM?ridgeTargetK():7/6;
+    if (!origin || Math.abs(latitude)<1 || Math.abs(latitude)>85 || !(Number.isFinite(k)&&k>0)) return null;
+    return Object.freeze({
+      inverse:ridgeInverse,
+      cacheKey:Object.freeze([latitude,longitude,elevation,eyeM,k]),
+      bearingIntervals:region=>origin.bearingIntervalsTo(region),
+      geometry:anchor=>{
+        if (![anchor?.latitude,anchor?.longitude,anchor?.heightM].every(Number.isFinite)) return null;
+        const {km:distanceKm,azimuth}=ridgeInverse(latitude,longitude,anchor.latitude,anchor.longitude);
+        return {distanceKm,azimuth,angle:ridgeElevationAngle(distanceKm,elevation+eyeM,anchor.heightM,{k}),topM:anchor.heightM};
+      },
+    });
   }
 
   const azDiff = (a, b) => ((a - b + 540) % 360) - 180;
@@ -2077,7 +2100,7 @@
     return `${head}が見えます。${below}は${round ? "地球の丸みで" : `手前の${kind}に`}隠れます`;
   }
   const AstroNotesAlign = { heightVertices, TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
-                        altitudeCrossing, geometryFrom, upcoming, dailyView, prepareDailyView, alignmentAt, prepareAlignmentAt, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,
+                        altitudeCrossing, geometryFrom, prepareRidgeObserver, upcoming, dailyView, prepareDailyView, alignmentAt, prepareAlignmentAt, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, rimPoints, judge, buildingBlock,
                         viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, observerGuides, partTarget, get CITY_MODELS(){return global.AstroNotesCityModels || CM || {};},get TOWER_MODELS(){return global.AstroNotesTowerModels || TM || {};
                         }, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, outlineModel, towerOutline, outlineBounds, outlineScreenBounds, viewWindow, viewPath, sceneTargets, hiddenBelowText };

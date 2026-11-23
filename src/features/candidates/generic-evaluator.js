@@ -106,6 +106,12 @@ function memoOutlines(align){
 function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,trees=null,staticTerrain=null,sidewalks=null,angularPrefilter=false,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
  const align=memoOutlines(rawAlign);
  const visibilityCache=new Map(),targetLines=new Map();
+ let ridgeScope=null;
+ const ridgeContextFor=(key,current)=>{
+  if(typeof Composition.createRidgeContext!=='function'||typeof key!=='string'||!key)return null;
+  if(!ridgeScope||ridgeScope.key!==key){ridgeScope?.context.retire();ridgeScope={key,context:Composition.createRidgeContext()};}
+  return ridgeScope.context.forOwner(current);
+ };
  // Only the current point evaluation owns these reads. Its precheck and event
  // check may share a confirmed endpoint ray, never a sky ray or an unknown read.
  // Endpoint readers derive altitude from endpoint height; the supplied altitude
@@ -285,6 +291,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
  }
  async function evaluate(plan,point,data,options={}){
   options={...options,targetReads:new Map()};
+  const ridgeContext=options.isCurrent?.()===false?null:ridgeContextFor(plan.requestKey,options.isCurrent);
   if(point.access==='no'||point.access==='private')return {status:'excluded',recommend:false,reason:'access-restricted'};
   if(point.standingSurfaceKnown!==true||point.nonTerrainStructure&&![point.surfaceElevationM,point.surfaceAglM,point.surfaceHeightM].some(Number.isFinite))return {status:'unknown',recommend:false,reason:'standing-height-unknown'};
   const ground=Number.isFinite(point.groundM)?point.groundM:await terrain?.at(point,options);
@@ -336,7 +343,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
     elevation:floor}};
    }
   }
-  const solved=await Composition.opportunities(plan,obs,{align,bodies,terrain,sidewalks,groundAt:p=>terrain?.at(p,options),standingAt:p=>standingMetadata(p,data,point),isCurrent:options.isCurrent,yieldTask});
+  const solved=await Composition.opportunities(plan,obs,{align,bodies,terrain,sidewalks,groundAt:p=>terrain?.at(p,options),standingAt:p=>standingMetadata(p,data,point),isCurrent:options.isCurrent,yieldTask,ridgeContext});
   const accepted=[];let blocked=0,outside=0,unverified=0,heightUnknown=0,lastUnverified=null;
   for(const solution of solved.solutions||[]){
    if(options.isCurrent?.()===false)throw Error('candidate-cancelled');
@@ -389,7 +396,7 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
   lastUnverified.target?.buildings?.status,lastUnverified.target?.buildings?.reason],rays:(lastUnverified.rays||[]).map(r=>r.intentionalTarget?'target':[r.status,r.terrain?.reason||r.terrain?.status,r.buildings?.reason||r.buildings?.status].join('/'))}:null,partial:solved.partial,
   reason:solved.reason};
  }
- return {evaluate,visibility:(plan,solution,options={})=>visibility(plan,solution,options),hiddenView,skylineView,clear:()=>{visibilityCache.clear();targetLines.clear();}};
+ return {evaluate,visibility:(plan,solution,options={})=>visibility(plan,solution,options),hiddenView,skylineView,clear:()=>{visibilityCache.clear();targetLines.clear();ridgeScope?.context.retire();ridgeScope=null;}};
 }
 Model.createGeneric=createGeneric;Model.standingMetadata=standingMetadata;Model.lensCheck=lensCheck;Model.photographability=photographability;Model.skyRange=skyRange;
 if(typeof module==='object'&&module.exports)module.exports={createGeneric,lensCheck,photographability,skyRange,angularDistance,standingMetadata};
