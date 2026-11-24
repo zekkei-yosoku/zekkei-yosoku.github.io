@@ -176,3 +176,17 @@ test('2000 surface samples have finite bounded work and leave inputs untouched',
   assert.ok(elapsed<3000,`2000 samples took ${elapsed.toFixed(1)}ms`);
   console.log(`groundOverlapAt 2000 samples / one narrow route: ${elapsed.toFixed(1)}ms`);
 });
+
+test('every operation uses the published procedures for its arrivals and departures',()=>{
+ // Load the trial routes with the trial engine, as the browser does (globals, not the production require path).
+ const context=vm.createContext({});
+ for(const file of ['../astronotes-astro.js','../experiments/moon-map/astronotes-routes.js','../experiments/moon-map/astronotes-plane.js'])
+  vm.runInContext(readFileSync(new URL(file,import.meta.url),'utf8'),context);
+ const plane=context.AstroNotesPlane,paths=plane.pathsFor('south',{landing:true,takeoff:true});
+ const byId=Object.fromEntries(paths.map(p=>[p.id,p]));
+ for(const id of ['16L 着陸','16R 着陸']){assert.equal(byId[id].model,'procedure');assert.match(byId[id].source,/AIP RJTT IAC/);assert.ok(byId[id].points.at(-1).distanceKm>30);}
+ for(const op of ['north','south','southBay'])for(const p of plane.pathsFor(op,{landing:true,takeoff:true})){assert.equal(p.model,'procedure',p.id);assert.match(p.source,p.kind==='landing'?/AIP RJTT IAC/:/AIP RJTT SID/);}
+ const seeds=plane.groundRibbonSeedsAt(Date.parse('2026-11-24T16:30:00+09:00'),paths,{eyeHeightAGL:1.5,stepKm:0.5,minPlaneKm:2,maxPlaneKm:20,capSteps:6});
+ const turn=seeds.seeds.filter(s=>s.pathId==='16L 着陸'&&s.edge==='center'&&s.status==='ready'&&s.planePoint.distanceKm>20);
+ assert.ok(turn.length>10,'the turn before the final yields ground-line seeds');
+});

@@ -25,20 +25,21 @@
    * 滑走路。`ident` は着陸時に向かう方位の呼び名。
    * `threshold` はその名前の端（＝そこへ降りてくる端）の座標。
    * `headingDegT` は**真方位**（磁方位ではない）。
+   * `landingThreshold` は着陸の基準となる移設された滑走路端（AIP RJTT AD2.12）。無ければ `threshold`。
    */
   const RJTT = {
     id: "RJTT", name: "羽田空港", latitude: 35.5533, longitude: 139.7811, elevationM: 6,
     runways: [
       { ident: "34L", threshold: { latitude: 35.536591, longitude: 139.785672 }, headingDegT: 330, elevationM: 6 },
-      { ident: "34R", threshold: { latitude: 35.53969, longitude: 139.805142 }, headingDegT: 330, elevationM: 6 },
+      { ident: "34R", threshold: { latitude: 35.53969, longitude: 139.805142 }, landingThreshold: { latitude: 35.542506, longitude: 139.80315 }, headingDegT: 330, elevationM: 6 },
       // 16L/16R（南風の都心上空ルート）は、好天時の RNAV 進入で**降下角 3.45°**（騒音のため高めに通す）。
       // 月丼は晴れた日の話なので、こちらを使う。出典: 国土交通省・中野区「羽田空港の新飛行経路」
-      { ident: "16L", threshold: { latitude: 35.565897, longitude: 139.78655 }, headingDegT: 150, elevationM: 7, glideDeg: 3.45 },
-      { ident: "16R", threshold: { latitude: 35.560452, longitude: 139.768734 }, headingDegT: 150, elevationM: 6, glideDeg: 3.45 },
+      { ident: "16L", threshold: { latitude: 35.565897, longitude: 139.78655 }, landingThreshold: { latitude: 35.562853, longitude: 139.788706 }, headingDegT: 150, elevationM: 7, glideDeg: 3.45 },
+      { ident: "16R", threshold: { latitude: 35.560452, longitude: 139.768734 }, landingThreshold: { latitude: 35.556242, longitude: 139.771719 }, headingDegT: 150, elevationM: 6, glideDeg: 3.45 },
       { ident: "22", threshold: { latitude: 35.567459, longitude: 139.777114 }, headingDegT: 215, elevationM: 11 },
       { ident: "04", threshold: { latitude: 35.549015, longitude: 139.761274 }, headingDegT: 35, elevationM: 6 },
       { ident: "23", threshold: { latitude: 35.540598, longitude: 139.822125 }, headingDegT: 223, elevationM: 17 },
-      { ident: "05", threshold: { latitude: 35.524001, longitude: 139.803469 }, headingDegT: 57, elevationM: 14 },
+      { ident: "05", threshold: { latitude: 35.524001, longitude: 139.803469 }, headingDegT: 42.5, elevationM: 14 },
     ],
   };
   const runwayOf = (ident) => RJTT.runways.find((r) => r.ident === ident) || null;
@@ -138,7 +139,8 @@
     const slope = slopeDeg ?? rw.glideDeg ?? 3;
     const out = [];
     for (let d = fromKm; d <= toKm + 1e-9; d += stepKm) {
-      const p = destination(rw.threshold.latitude, rw.threshold.longitude, back, d);
+      const t = rw.landingThreshold ?? rw.threshold;
+      const p = destination(t.latitude, t.longitude, back, d);
       // **滑走路の端を 15m（50ft）の高さで越える。** ICAO の標準（ILS の基準高 TCH）。
       // 以前は端で高さ0として引いていて、どの距離でも 15m 低かった（5km 先・月の高さ3°の場面で
       // 0.17°＝月の半径の6割ずれる。2026-09-30）
@@ -146,6 +148,196 @@
     }
     return out;
   }
+
+  /**
+   * 公表の飛行方式（AIP Japan RJTT AD2.24、SWIM portal 20261126発行分）。
+   * 通過点の座標は STAR/SID の Waypoint Coordinates 表と進入図から。高度は図の制限高度、
+   * 無い点は前後の制限高度から距離で按分する。管制の指示で実際はずれる。**航空機の運航には使えない。**
+   *
+   * 到着は滑走路から外へ向かう順。`faf` までは降下角 `glideDeg` の直線（最終進入）。
+   * `faf` が座標でなく数値なら、滑走路の延長線上のその距離[NM]（22 の LDA は最後の1.8NMだけ滑走路に正対する）。
+   * `cut` があれば、高度の按分にはその先の点も使い、線はその点で切る。
+   * 出発は飛行の順。滑走路の向きに `vaFt` まで上がってから最初の点へ向かう（SID の VA→DF）。
+   * 上昇は勾配 `climb` の直線で、at or above の制限を下回る区間だけ持ち上げる。
+   */
+  const FT = 0.3048, NM = 1.852;
+  const PROCEDURES = {
+    arrival: {
+      "16L": { glideDeg: 3.45, faf: [35.69578, 139.69418], source: "AIP RJTT IAC RNP RWY16L・STAR AKSEL L", cut: "SPINE", fixes: [
+        ["LYCEE", 35.74837, 139.68261, 4000], ["SANDY", 35.82153, 139.73411, 4500], ["SACHS", 35.81061, 139.81067],
+        ["SNARE", 35.79197, 139.87725, 6000], ["SOPPY", 35.74967, 140.02786, 7000], ["SPINE", 35.70375, 140.1905],
+        ["SNOKE", 35.59767, 140.23658], ["SHAFT", 35.37428, 140.22036, 9000]] },
+      "16R": { glideDeg: 3.45, faf: [35.70354, 139.66686], source: "AIP RJTT IAC RNP RWY16R・STAR AKSEL R", fixes: [
+        ["ROWAN", 35.75191, 139.63232, 3800], ["REMUS", 35.80209, 139.63209], ["RACER", 35.86484, 139.67622],
+        ["NATTY", 35.89747, 139.75869, 5000], ["NIGEL", 35.93542, 139.85494, 6000], ["NEURO", 35.95767, 139.91147, 6000],
+        ["NURSE", 36.16092, 140.03147, 9000]] },
+      "34L": { glideDeg: 3, faf: [35.32203, 139.93744], source: "AIP RJTT IAC ILS Z RWY34L・STAR AKSEL 1A", fixes: [
+        ["ARLON", 35.25703, 139.98328, 5000], ["WEDGE", 35.15011, 139.97958, 8000]] },
+      "34R": { glideDeg: 3, faf: [35.37022, 139.92503], source: "AIP RJTT IAC ILS Z RWY34R・STAR GODIN 2C", fixes: [
+        ["CAMEL", 35.28839, 139.98272, 4000], ["CLOAK", 35.26333, 140.03561, 4000], ["CREAM", 35.29539, 140.10344],
+        ["EDDIE", 35.2465, 140.36136, 8000]] },
+      "22": { glideDeg: 3, faf: 1.8, turnKm: 1.5, source: "AIP RJTT IAC LDA W RWY22・STAR AKSEL 1B", fixes: [
+        ["BONDO", 35.60536, 140.07847, 5000], ["BIBLO", 35.60564, 140.14292, 5500], ["BEAST", 35.58578, 140.18558, 6000],
+        ["BACON", 35.53194, 140.20419, 7000], ["SHAFT", 35.37428, 140.22036, 8000]] },
+      "23": { glideDeg: 3, faf: [35.6814, 139.99165], source: "AIP RJTT IAC ILS Z RWY23・STAR GODIN 1S", cut: "SCREW", fixes: [
+        ["SMILE", 35.74344, 140.06692, 4000], ["SNAKE", 35.87639, 140.11003], ["", 35.89589, 140.03436],
+        ["STEAM", 35.93147, 139.95233, 4000], ["SCREW", 36.05033, 139.90011], ["NOVEL", 36.35192, 140.00136, 8000]] },
+    },
+    departure: {
+      "05": { vaFt: 500, source: "AIP RJTT SID LAXAS（RWY05）", fixes: [
+        ["TT501", 35.55797, 139.84164], ["TT502", 35.54011, 139.95575], ["LOCUP", 35.45522, 139.93569, 5000], ["TAURA", 35.31281, 139.74647, 9000]] },
+      "34R": { vaFt: 700, source: "AIP RJTT SID BEKLA（RWY34R）", fixes: [
+        ["ARAKA", 35.64689, 139.84497], ["GUGVA", 35.70389, 139.85831], ["OHEDO", 35.7565, 139.81072], ["INTEL", 35.76472, 139.72783, 9000]] },
+      "22": { vaFt: 600, source: "AIP RJTT SID LAXAS（RWY22）", fixes: [
+        ["HOBBS", 35.44831, 139.76147], ["BASSA", 35.35244, 139.76172], ["UMUKI", 35.20531, 139.81367], ["PIPER", 35.16619, 139.76167, 9000]] },
+      "16L": { vaFt: 500, source: "AIP RJTT SID BEKLA（RWY16L）", fixes: [
+        ["T6L23", 35.441, 139.92753], ["WELDA", 35.49483, 139.99908, 6000], ["PLUTO", 35.60892, 139.96022], ["KAIJI", 35.736, 139.9685],
+        ["INTEL", 35.76472, 139.72783, 9000]] },
+      "16R": { vaFt: 500, source: "AIP RJTT SID LAXAS（RWY16R）", fixes: [
+        ["T6R11", 35.43125, 139.86033], ["TAURA", 35.31281, 139.74647, 9000]] },
+    },
+  };
+  /// 旋回半径[km]。到着 約210kt・出発 約200kt を傾き25°で回る大きさ
+  const ARRIVAL_TURN_KM = 2.2, DEPARTURE_TURN_KM = 1.8, DEPARTURE_CLIMB = 0.08;
+
+  // 羽田を中心にした平面（100km以内で距離の誤差0.3%未満）
+  const KM_PER_DEG = 6371.0088 * DEG, COS0 = Math.cos(RJTT.latitude * DEG);
+  const toXY = (lat, lon) => [(lon - RJTT.longitude) * COS0 * KM_PER_DEG, (lat - RJTT.latitude) * KM_PER_DEG];
+  const toLL = (x, y) => ({ latitude: RJTT.latitude + y / KM_PER_DEG, longitude: RJTT.longitude + x / (COS0 * KM_PER_DEG) });
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1]], add = (a, b) => [a[0] + b[0], a[1] + b[1]], mul = (a, k) => [a[0] * k, a[1] * k];
+  const len = (a) => Math.hypot(a[0], a[1]), unit = (a) => mul(a, 1 / len(a)), crossZ = (a, b) => a[0] * b[1] - a[1] * b[0];
+
+  /**
+   * 通過点を、滑らかな飛行の線にする。
+   * pts[0]→pts[1] は直線（最終進入／離陸直後）。pts[1] では直線に接したまま旋回し、pts[2] へ向いたら直進する。
+   * それより先の通過点は、手前で旋回を始めて内側を回る（fly-by）。
+   * 各点の s は元の折れ線での距離（高度の按分に使う）。
+   */
+  function smoothRoute(pts, turnKm, firstTurnKm = turnKm) {
+    const out = [{ p: pts[0], s: 0 }];
+    const cum = [0];
+    for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + len(sub(pts[i], pts[i - 1])));
+    const straight = (a, b, sa, sb) => {
+      const n = Math.max(1, Math.ceil(len(sub(b, a)) / 0.5));
+      for (let k = 1; k <= n; k++) out.push({ p: add(a, mul(sub(b, a), k / n)), s: sa + (sb - sa) * k / n });
+    };
+    const arc = (c, r, a0, sweep, sa, sb) => {
+      const n = Math.max(2, Math.ceil(Math.abs(sweep) * r / 0.15));
+      for (let k = 1; k <= n; k++) { const a = a0 + sweep * k / n; out.push({ p: [c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)], s: sa + (sb - sa) * k / n }); }
+    };
+    straight(pts[0], pts[1], 0, cum[1]);
+    if (pts.length < 3) return { out, cum };
+    // pts[1]: 接したまま回って、pts[2] へ接線で抜ける
+    let cur = pts[1], curS = cum[1];
+    {
+      const u = unit(sub(pts[1], pts[0])), w = sub(pts[2], pts[1]);
+      const side = Math.sign(crossZ(u, w));
+      const r = Math.min(firstTurnKm, 0.45 * len(w));
+      if (side !== 0 && Math.abs(Math.atan2(crossZ(u, unit(w)), u[0] * w[0] + u[1] * w[1])) > 0.5 * DEG) {
+        const n = side > 0 ? [-u[1], u[0]] : [u[1], -u[0]];
+        const c = add(pts[1], mul(n, r)), cw = sub(pts[2], c), d = len(cw);
+        const phi = Math.atan2(cw[1], cw[0]), alpha = Math.acos(Math.min(1, r / d));
+        const a0 = Math.atan2(pts[1][1] - c[1], pts[1][0] - c[0]);
+        const aT = side > 0 ? phi - alpha : phi + alpha;
+        let sweep = aT - a0;
+        if (side > 0) { while (sweep < 0) sweep += 2 * Math.PI; } else { while (sweep > 0) sweep -= 2 * Math.PI; }
+        const q = [c[0] + r * Math.cos(aT), c[1] + r * Math.sin(aT)];
+        const sq = cum[1] + (cum[2] - cum[1]) * Math.min(1, (Math.abs(sweep) * r) / len(w));
+        arc(c, r, a0, sweep, cum[1], sq);
+        cur = q; curS = sq;
+      }
+    }
+    for (let i = 2; i < pts.length - 1; i++) {
+      const vin = sub(pts[i], cur), vout = sub(pts[i + 1], pts[i]);
+      const ui = unit(vin), uo = unit(vout);
+      const theta = Math.atan2(crossZ(ui, uo), ui[0] * uo[0] + ui[1] * uo[1]);
+      if (Math.abs(theta) < 0.5 * DEG) { straight(cur, pts[i], curS, cum[i]); cur = pts[i]; curS = cum[i]; continue; }
+      const t = Math.tan(Math.abs(theta) / 2);
+      const r = Math.min(turnKm, 0.5 * Math.min(len(vin), len(vout)) / t);
+      const lead = r * t;
+      const t1 = sub(pts[i], mul(ui, lead)), t2 = add(pts[i], mul(uo, lead));
+      const s1 = cum[i] - lead, s2 = cum[i] + lead;
+      straight(cur, t1, curS, s1);
+      const n = theta > 0 ? [-ui[1], ui[0]] : [ui[1], -ui[0]];
+      const c = add(t1, mul(n, r));
+      arc(c, r, Math.atan2(t1[1] - c[1], t1[0] - c[0]), theta, s1, s2);
+      cur = t2; curS = s2;
+    }
+    straight(cur, pts[pts.length - 1], curS, cum[cum.length - 1]);
+    return { out, cum };
+  }
+
+  function interpolateAlt(cum, alts, s) {
+    let i = 1;
+    while (i < cum.length - 1 && cum[i] < s) i++;
+    const f = (s - cum[i - 1]) / (cum[i] - cum[i - 1] || 1);
+    return alts[i - 1] + (alts[i] - alts[i - 1]) * Math.min(1, Math.max(0, f));
+  }
+  /// 高度の無い点を、前後の高度の距離按分で埋める
+  function fillAltitudes(cum, alts) {
+    const out = alts.slice();
+    for (let i = 0; i < out.length; i++) {
+      if (Number.isFinite(out[i])) continue;
+      let a = i - 1, b = i + 1;
+      while (b < out.length && !Number.isFinite(out[b])) b++;
+      out[i] = b < out.length ? out[a] + (out[b] - out[a]) * (cum[i] - cum[a]) / (cum[b] - cum[a]) : out[a];
+    }
+    return out;
+  }
+  function finishRoute(res, alts, cutS) {
+    // 高度は外（到着）／先（出発）へ向かって下がらない。16R の RIPOD 3.45°パス 3810ft と ROWAN 3800ft のような丸めの差を吸収
+    const filled = fillAltitudes(res.cum, alts).map((a, i, all) => Math.max(a, ...all.slice(0, i + 1)));
+    const pts = [];
+    let d = 0, prev = null;
+    for (const { p, s } of res.out) {
+      if (prev) d += len(sub(p, prev));
+      prev = p;
+      if (cutS !== null && s > cutS + 1e-6) break;
+      pts.push({ ...toLL(p[0], p[1]), altitudeM: interpolateAlt(res.cum, filled, s), distanceKm: d });
+    }
+    return pts;
+  }
+
+  /// 公表の飛行方式による到着経路（滑走路から外へ）。無ければ null
+  function procedureApproachPath(ident) {
+    const m = PROCEDURES.arrival[ident], rw = runwayOf(ident);
+    if (!m || !rw) return null;
+    const t = rw.landingThreshold ?? rw.threshold;
+    const faf = Array.isArray(m.faf) ? m.faf
+      : (({ latitude, longitude }) => [latitude, longitude])(destination(t.latitude, t.longitude, (rw.headingDegT + 180) % 360, m.faf * NM));
+    const pts = [toXY(t.latitude, t.longitude), toXY(faf[0], faf[1]), ...m.fixes.map(([, la, lo]) => toXY(la, lo))];
+    const res = smoothRoute(pts, ARRIVAL_TURN_KM, m.turnKm ?? ARRIVAL_TURN_KM);
+    const fafKm = res.cum[1];
+    const alts = [rw.elevationM + THRESHOLD_CROSSING_M, rw.elevationM + THRESHOLD_CROSSING_M + fafKm * 1000 * Math.tan(m.glideDeg * DEG),
+      ...m.fixes.map((f) => (Number.isFinite(f[3]) ? f[3] * FT : NaN))];
+    const cutIndex = m.cut ? m.fixes.findIndex((f) => f[0] === m.cut) + 2 : -1;
+    return finishRoute(res, alts, cutIndex > 1 ? res.cum[cutIndex] : null);
+  }
+
+  /// 公表の飛行方式による出発経路（飛ぶ順）。無ければ null
+  function procedureDeparturePath(ident, { fromKm = 1 } = {}) {
+    const m = PROCEDURES.departure[ident], rw = runwayOf(ident);
+    if (!m || !rw) return null;
+    const start = destination(rw.threshold.latitude, rw.threshold.longitude, rw.headingDegT, fromKm);
+    const vaKm = fromKm + m.vaFt * FT / DEPARTURE_CLIMB / 1000;
+    const va = destination(rw.threshold.latitude, rw.threshold.longitude, rw.headingDegT, vaKm);
+    const pts = [toXY(start.latitude, start.longitude), toXY(va.latitude, va.longitude), ...m.fixes.map(([, la, lo]) => toXY(la, lo))];
+    const res = smoothRoute(pts, DEPARTURE_TURN_KM);
+    // 勾配どおりの高度。at or above の制限を下回れば、その点までの勾配を上げる
+    const base = rw.elevationM + fromKm * 1000 * DEPARTURE_CLIMB;
+    const alts = res.cum.map((c, i) => base + c * 1000 * DEPARTURE_CLIMB);
+    m.fixes.forEach((f, k) => { if (Number.isFinite(f[3]) && alts[k + 2] < f[3] * FT) {
+      const need = f[3] * FT, g = (need - base) / res.cum[k + 2];
+      for (let j = 1; j <= k + 2; j++) alts[j] = Math.max(alts[j], base + res.cum[j] * g);
+      for (let j = k + 3; j < alts.length; j++) alts[j] = Math.max(alts[j], need + (res.cum[j] - res.cum[k + 2]) * 1000 * DEPARTURE_CLIMB);
+    } });
+    return finishRoute(res, alts, null).map((p) => ({ ...p, distanceKm: p.distanceKm + fromKm }));
+  }
+
+  const procedureSource = (kind, ident) => PROCEDURES[kind === "takeoff" ? "departure" : "arrival"][ident]?.source ?? null;
+  // 旧名（キャッシュされた呼び出し側のため）
+  const measuredApproachPath = (ident) => procedureApproachPath(ident);
+  const measuredSource = (ident) => procedureSource("landing", ident);
 
   /**
    * 出発の経路。滑走路の向きへまっすぐ、上昇率で上がる。
@@ -274,9 +466,14 @@
       Math.cos(d) - Math.sin(la) * Math.sin(la2));
     return { latitude: la2 / DEG, longitude: ((lo2 / DEG + 540) % 360) - 180 };
   }
+  function haversineKm(aLat, aLon, bLat, bLon) {
+    const dLat = (bLat - aLat) * DEG, dLon = (bLon - aLon) * DEG;
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(aLat * DEG) * Math.cos(bLat * DEG) * Math.sin(dLon / 2) ** 2;
+    return 2 * R_KM * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
 
   const AstroNotesRoutes = { RJTT, runwayOf, OPERATIONS, operationFor, operationStatus, SPOTS,
-                         approachPath, departurePath, HOURLY_MOVEMENTS, HOURLY_ARRIVALS, HOURLY_DEPARTURES,
+                         approachPath, departurePath, measuredApproachPath, measuredSource, procedureApproachPath, procedureDeparturePath, procedureSource, PROCEDURES, HOURLY_MOVEMENTS, HOURLY_ARRIVALS, HOURLY_DEPARTURES,
                          trafficAt, destination, THRESHOLD_CROSSING_M, SPOT_HORIZONS, spotHorizonAt };
   global.AstroNotesRoutes = AstroNotesRoutes;
   if (typeof module !== "undefined" && module.exports) module.exports = AstroNotesRoutes;

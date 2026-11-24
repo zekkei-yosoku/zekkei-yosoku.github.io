@@ -254,7 +254,10 @@ async function planeUpdateMap() {
     const active=samples.filter(s=>Number.isFinite(s.latitude)&&Number.isFinite(s.longitude)&&!s.failed);
     if(!active.length)break;
     let heights;
-    try{heights=await AstroNotesTerrain.elevations(active,{zoom:13,indexedExactBatch:true});}catch{heights=active.map(()=>null);}
+    // Points whose 10 m DEM tile does not exist are open sea (Tokyo Bay). Answer them as sea level instead of
+    // falling back to Open-Meteo, which rate-limits (429) when a route runs over the bay.
+    const seaLevel=async url=>{const n=String(url).split('latitude=')[1].split('&')[0].split(',').length;return {ok:true,status:200,json:async()=>({elevation:new Array(n).fill(0)})};};
+    try{heights=await AstroNotesTerrain.elevations(active,{zoom:13,indexedExactBatch:true,fetchImpl:seaLevel});}catch{heights=active.map(()=>null);}
     if(!current())return;
     for(let i=0;i<active.length;i++){
       const sample=active[i],ground=heights[i];
@@ -269,6 +272,13 @@ async function planeUpdateMap() {
   if(!current())return;
   const byId=new Map(samples.map(s=>[s.id,s])),polygons=[];
   const known=id=>{const p=byId.get(id);return p&&!p.failed&&p.terrainVerified&&p.status==="ready"?p:null;};
+  // The ribbon is only as wide as the Moon's disk (tens of metres), so its verified centre is drawn as a line.
+  const centerLines=[];
+  for(const ribbon of seeds.ribbons){
+    let run=[];
+    for(const section of ribbon.sections){const c=known(section.centerId);if(c)run.push(c);else{if(run.length>1)centerLines.push({pathId:ribbon.pathId,kind:ribbon.kind,points:run});run=[];}}
+    if(run.length>1)centerLines.push({pathId:ribbon.pathId,kind:ribbon.kind,points:run});
+  }
   for(const ribbon of seeds.ribbons){
     for(let i=1;i<ribbon.sections.length;i++){
       const a=ribbon.sections[i-1],b=ribbon.sections[i];
@@ -279,7 +289,7 @@ async function planeUpdateMap() {
       const vertices=(ids||[]).map(known);if(vertices.length>=3&&vertices.every(Boolean))polygons.push({pathId:ribbon.pathId,points:vertices});
     }
   }
-  plane.map={at,paths,overlap,polygons,pending:false,missing:samples.filter(s=>s.failed||!s.terrainVerified).length};
+  plane.map={at,paths,overlap,polygons,centerLines,pending:false,missing:samples.filter(s=>s.failed||!s.terrainVerified).length};
   planeMapText();PlaneMap.redraw();
 }
 function planeMapText(){
@@ -291,24 +301,64 @@ function planeMapText(){
   else parts.push(r.overlap.overlaps?.length?'金色の区間で月円盤と重なります':'この地点から重なる区間はありません');
   if(r.pending&&r.overlap.status==='ready')parts.push('地上の候補範囲を計算中…');
   else if(r.missing)parts.push('地形を確認できない部分は未表示');
-  else if(r.overlap.status==='ready'&&!r.polygons.length)parts.push('対応範囲内に地上の候補なし');
+  else if(r.overlap.status==='ready'&&!r.polygons.length&&!r.centerLines?.length)parts.push('対応範囲内に地上の候補なし');
+  else if(r.centerLines?.length)parts.push('青い線の上に立つと月の中心に重なります');
   $("planeMapStatus").textContent=parts.join(' ／ ');
-  $("planeRouteDetails").textContent=r.paths.map(p=>`${p.runway} ${p.kind==='landing'?'着陸':'離陸'}`).join(' · ');
+  const kinds=[['landing','着陸'],['takeoff','離陸']].filter(([k])=>r.paths.some(p=>p.kind===k));
+  $("planeRouteDetails").innerHTML=kinds.map(([k,label])=>`<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px;white-space:nowrap"><svg width="26" height="8" aria-hidden="true"><line x1="2" y1="4" x2="24" y2="4" stroke="${PLANE_ROUTE_COLORS[k]}" stroke-width="4" stroke-linecap="round"${k==='takeoff'?' stroke-dasharray="6 4"':''}/></svg><b>${label}</b> ${r.paths.filter(p=>p.kind===k).map(p=>esc(p.runway)).join('・')}</span>`).join('')
+    +`<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px;white-space:nowrap"><svg width="26" height="14" aria-hidden="true"><line x1="6" y1="7" x2="20" y2="7" stroke="var(--ray-moon)" stroke-opacity=".38" stroke-width="12" stroke-linecap="round"/></svg><b>立ち位置</b></span>`
+    +(r.overlap.overlaps?.length?`<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px;white-space:nowrap"><svg width="26" height="10" aria-hidden="true"><line x1="3" y1="5" x2="23" y2="5" stroke="white" stroke-width="9" stroke-linecap="round"/><line x1="3" y1="5" x2="23" y2="5" stroke="var(--ray-sun)" stroke-width="5" stroke-linecap="round"/></svg><b>月と重なる区間</b></span>`:'')
+    +`<div class="tiny">${r.paths.map(p=>`${esc(p.runway)} ${p.kind==='landing'?'着陸':'離陸'}：${p.model==='procedure'?esc(p.source):'滑走路の延長の直線のみ'}`).join(' · ')}</div>`;
 }
+// Landings purple and solid, take-offs teal and dashed. The soft blue band is where to stand, gold the overlap.
+const PLANE_ROUTE_COLORS={landing:'#7b3fbf',takeoff:'#00897b'};
+function planeRouteColor(paths,path){return PLANE_ROUTE_COLORS[path.kind]||PLANE_ROUTE_COLORS.landing;}
 PlaneMap.setOverlay((ctx,{project,width,height})=>{
   const r=plane.map;if(!r||!toolAllowed("plane"))return;
   const cs=getComputedStyle(document.documentElement),moonC=cs.getPropertyValue('--ray-moon').trim(),sunC=cs.getPropertyValue('--ray-sun').trim(),ink=cs.getPropertyValue('--secondary').trim();
-  const trace=points=>{ctx.beginPath();points.forEach((p,i)=>{const [x,y]=project(p.latitude,p.longitude);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});};
+  const trace=points=>{ctx.beginPath();const xy=points.map(p=>project(p.latitude,p.longitude));if(!xy.length)return;ctx.moveTo(...xy[0]);
+    // Midpoint quadratic smoothing keeps sampled curves round on screen without moving the endpoints.
+    for(let i=1;i<xy.length-1;i++)ctx.quadraticCurveTo(xy[i][0],xy[i][1],(xy[i][0]+xy[i+1][0])/2,(xy[i][1]+xy[i+1][1])/2);
+    if(xy.length>1)ctx.lineTo(...xy[xy.length-1]);};
   ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
-  ctx.fillStyle=moonC;ctx.globalAlpha=.3;
-  for(const polygon of r.polygons){trace(polygon.points);ctx.closePath();ctx.fill();}
-  ctx.globalAlpha=1;
+  // Fade the base map so the overlays read first.
+  ctx.fillStyle='rgba(255,255,255,.42)';ctx.fillRect(0,0,width,height);
+  // Where to stand is an area, drawn as a soft wide band under the crisp, cased flight lines.
+  // Painted opaque on a separate layer and laid down once, so crossing bands do not darken each other.
+  const band=document.createElement('canvas');band.width=ctx.canvas.width;band.height=ctx.canvas.height;
+  const main=ctx;ctx=band.getContext('2d');ctx.setTransform(main.getTransform());ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.fillStyle=moonC;ctx.globalAlpha=.6;
+  for(const polygon of r.polygons){ctx.beginPath();polygon.points.forEach((p,i)=>{const [x,y]=project(p.latitude,p.longitude);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.closePath();ctx.fill();}
+  ctx.globalAlpha=1;ctx.strokeStyle=moonC;ctx.lineWidth=16;
+  for(const line of r.centerLines||[]){trace(line.points);ctx.stroke();}
+  ctx=main;ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=.38;ctx.drawImage(band,0,0);ctx.restore();
   for(const path of r.paths){
-    ctx.setLineDash(path.kind==='takeoff'?[7,6]:[]);ctx.strokeStyle='rgba(255,255,255,.8)';ctx.lineWidth=5.5;trace(path.points);ctx.stroke();ctx.strokeStyle=ink;ctx.lineWidth=2.2;ctx.stroke();ctx.setLineDash([]);
-    // Landing data runs outward from the threshold, opposite actual flight.
-    for(let i=4;i<path.points.length;i+=10){const [x,y]=project(path.points[i].latitude,path.points[i].longitude),q=path.points[i+(path.kind==='landing'?-1:1)];if(!q)continue;const [qx,qy]=project(q.latitude,q.longitude),a=Math.atan2(qy-y,qx-x);ctx.beginPath();ctx.moveTo(x-7*Math.cos(a-.55),y-7*Math.sin(a-.55));ctx.lineTo(x,y);ctx.lineTo(x-7*Math.cos(a+.55),y-7*Math.sin(a+.55));ctx.stroke();}
+    const color=planeRouteColor(r.paths,path),dash=path.kind==='takeoff'?[12,9]:[];
+    ctx.setLineDash(dash);ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=8;trace(path.points);ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=4;ctx.stroke();
+    // The straight final before touchdown is drawn solid and heavier.
+    const near=path.kind==='landing'?path.points.filter(p=>p.distanceKm<=8):[];
+    if(near.length>1){ctx.setLineDash([]);trace(near);ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=11;ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=6;ctx.stroke();}
+    ctx.setLineDash([]);
+    // One arrow per route, on a straight stretch. The smoothed trace passes exactly through each segment's midpoint
+    // with that segment's direction, so the arrow sits on the drawn line and points along it.
+    const xy=path.points.map(p=>project(p.latitude,p.longitude)),seg=[0];
+    for(let i=1;i<xy.length;i++)seg.push(seg[i-1]+Math.hypot(xy[i][0]-xy[i-1][0],xy[i][1]-xy[i-1][1]));
+    const total=seg[seg.length-1];if(total<80)continue;
+    const dir=i=>Math.atan2(xy[i][1]-xy[i-1][1],xy[i][0]-xy[i-1][0]),turn=(a,b)=>Math.abs(((b-a)+3*Math.PI)%(2*Math.PI)-Math.PI);
+    const target=total*(path.kind==='landing'?.45:.4);let best=null;
+    for(let i=1;i<xy.length;i++){
+      const m=(seg[i-1]+seg[i])/2;if(m<total*.2||m>total*.8||seg[i]-seg[i-1]<1)continue;
+      // Largest heading change of any segment within 40 px either side.
+      let bend=0;for(let j=1;j<xy.length;j++)if(Math.abs((seg[j-1]+seg[j])/2-m)<=40&&seg[j]-seg[j-1]>=.5)bend=Math.max(bend,turn(dir(i),dir(j)));
+      const score=bend*200+Math.abs(m-target)/total;if(!best||score<best.score)best={i,score};
+    }
+    if(!best)continue;
+    const i=best.i,x=(xy[i-1][0]+xy[i][0])/2,y=(xy[i-1][1]+xy[i][1])/2,a=dir(i)+(path.kind==='landing'?Math.PI:0);
+    ctx.beginPath();ctx.moveTo(x+9*Math.cos(a),y+9*Math.sin(a));ctx.lineTo(x-9*Math.cos(a)+8*Math.cos(a+Math.PI/2),y-9*Math.sin(a)+8*Math.sin(a+Math.PI/2));
+    ctx.lineTo(x-9*Math.cos(a)-8*Math.cos(a+Math.PI/2),y-9*Math.sin(a)-8*Math.sin(a+Math.PI/2));ctx.closePath();
+    ctx.fillStyle=color;ctx.strokeStyle='white';ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.fill();ctx.stroke();
   }
-  for(const segment of r.overlap.overlaps||[]){ctx.setLineDash(segment.kind==='takeoff'?[7,6]:[]);ctx.strokeStyle=sunC;ctx.lineWidth=7;trace(segment.points);ctx.stroke();}ctx.setLineDash([]);
+  for(const segment of r.overlap.overlaps||[]){trace(segment.points);ctx.strokeStyle='white';ctx.lineWidth=12;ctx.stroke();ctx.strokeStyle=sunC;ctx.lineWidth=7;ctx.stroke();}
   const P=planeFromPoint(),[x,y]=project(P.latitude,P.longitude);ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.fillStyle=sunC;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='white';ctx.stroke();
   aimMapLabel(ctx,x,y+18,P.name,sunC,width,height,'center');
   const A=AstroNotesRoutes.RJTT,[ax,ay]=project(A.latitude,A.longitude);ctx.beginPath();ctx.arc(ax,ay,5,0,Math.PI*2);ctx.fillStyle=ink;ctx.fill();aimMapLabel(ctx,ax,ay+15,A.name,'white',width,height,'center');

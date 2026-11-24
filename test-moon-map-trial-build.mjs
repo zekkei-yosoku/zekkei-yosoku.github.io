@@ -26,7 +26,8 @@ test('trial builder versions the overlaid assets and preserves inspectable sourc
  assert.equal(files['app-version.txt'],files['index.html'].match(/name="app-version" content="(\d+)"/)[1]+'\n');
  assert.notEqual(files['app-version.txt'],baseline('app-version.txt'));
  assert.match(files['index.html'],/name="astronotes-data-base" content="\.\.\/data\/"/);
- assert.match(files['index.html'],/name="astronotes-trial-experiment" content="20261124-moon-route-map-r1"/);
+ const revision=JSON.parse(readFileSync(new URL('experiments/moon-map/manifest.json',import.meta.url),'utf8')).revision;
+ assert.ok(files['index.html'].includes(`name="astronotes-trial-experiment" content="20261124-moon-route-map-r${revision}"`));
  assert.equal(hashCsp(files['index.html']).html,files['index.html']);
  const manifest=JSON.parse(files['moon-map-experiment.json']);
  assert.equal(manifest.overlaySha256['astronotes-plane.js'],sha(plane));

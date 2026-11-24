@@ -411,14 +411,19 @@
     const out = [];
     if (landing) {
       for (const r of op.landing) {
+        // Published procedures include the turns before the final; others remain the straight final model.
+        const proc = typeof RT.procedureApproachPath === "function" ? RT.procedureApproachPath(r) : null;
         out.push({ id: `${r} 着陸`, kind: "landing", runway: r, airportId: RT.RJTT.id,
-          altitudeDatum: "MSL", model: "representative", flightOrder: -1, points: RT.approachPath(r) });
+          altitudeDatum: "MSL", model: proc ? "procedure" : "representative", source: proc ? RT.procedureSource("landing", r) : null,
+          flightOrder: -1, points: proc || RT.approachPath(r) });
       }
     }
     if (takeoff) {
       for (const r of op.takeoff) {
+        const proc = typeof RT.procedureDeparturePath === "function" ? RT.procedureDeparturePath(r) : null;
         out.push({ id: `${r} 離陸`, kind: "takeoff", runway: r, airportId: RT.RJTT.id,
-          altitudeDatum: "MSL", model: "representative", flightOrder: 1, points: RT.departurePath(r) });
+          altitudeDatum: "MSL", model: proc ? "procedure" : "representative", source: proc ? RT.procedureSource("takeoff", r) : null,
+          flightOrder: 1, points: proc || RT.departurePath(r) });
       }
     }
     return out;

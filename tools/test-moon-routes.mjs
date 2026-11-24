@@ -71,3 +71,73 @@ test("existing wind-model choices remain estimates and keep optional-argument be
   assert.equal(operationFor(150, 2.6, 16), "north");
   assert.equal(operationFor(150, 2.61, 16), "south");
 });
+
+test("arrivals and departures follow the published procedures as smooth flown curves", () => {
+  const RT = context.AstroNotesRoutes;
+  const DEG = Math.PI / 180, FT = 0.3048;
+  const km = (a, b) => { const r = DEG, x = Math.sin((b[0] - a[0]) * r / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin((b[1] - a[1]) * r / 2) ** 2; return 2 * 6371 * Math.asin(Math.sqrt(x)); };
+  const bearing = (a, b) => Math.atan2((b.longitude - a.longitude) * Math.cos(35.55 * DEG), b.latitude - a.latitude) / DEG;
+  const turnPerKm = (path) => { let worst = 0; for (let i = 2; i < path.length; i++) {
+    const d = Math.abs(((bearing(path[i - 1], path[i]) - bearing(path[i - 2], path[i - 1])) + 540) % 360 - 180);
+    const step = km([path[i - 1].latitude, path[i - 1].longitude], [path[i].latitude, path[i].longitude]);
+    if (step > 0.02) worst = Math.max(worst, d / step); } return worst; };
+  // FAF of each published approach (AIP RJTT AD2.24 IAC): the final is straight from the threshold to here
+  const faf = { "16L": [35.69578, 139.69418], "16R": [35.70354, 139.66686], "34L": [35.32203, 139.93744], "34R": [35.37022, 139.92503], "23": [35.6814, 139.99165] };
+  for (const ident of ["16L", "16R", "34L", "34R", "22", "23"]) {
+    const path = RT.procedureApproachPath(ident), rw = RT.runwayOf(ident), m = RT.PROCEDURES.arrival[ident];
+    const t = rw.landingThreshold ?? rw.threshold;
+    assert.ok(km([path[0].latitude, path[0].longitude], [t.latitude, t.longitude]) < 0.001, ident + " starts at the landing threshold");
+    assert.ok(Math.abs(path[0].altitudeM - rw.elevationM - RT.THRESHOLD_CROSSING_M) < 0.01);
+    for (let i = 1; i < path.length; i++) {
+      assert.ok(path[i].distanceKm > path[i - 1].distanceKm, "along distance increases");
+      assert.ok(path[i].distanceKm - path[i - 1].distanceKm <= 0.5 + 1e-9, "no gap over 0.5 km");
+      assert.ok(path[i].altitudeM >= path[i - 1].altitudeM - 1e-9, ident + " arrival altitude rises outward");
+    }
+    // No kinks: a 2 km turn radius bends at most ~29°/km; allow sampling slack
+    assert.ok(turnPerKm(path) < 40, ident + " has no sharp corner: " + turnPerKm(path).toFixed(1));
+    if (faf[ident]) {
+      const hit = path.find((p) => km([p.latitude, p.longitude], faf[ident]) < 0.01);
+      assert.ok(hit, ident + " passes the FAF on the straight final");
+      assert.ok(Math.abs(hit.altitudeM - rw.elevationM - RT.THRESHOLD_CROSSING_M - hit.distanceKm * 1000 * Math.tan(m.glideDeg * DEG)) < 1, ident + " glide");
+      const final = path.filter((p) => p.distanceKm <= hit.distanceKm);
+      for (const p of final.slice(1)) assert.ok(Math.abs(((bearing(path[0], p) - bearing(path[0], hit)) + 540) % 360 - 180) < 0.2, ident + " final is straight");
+    }
+    // Every published fix with an altitude is passed nearby (fly-by turns cut inside) at that altitude
+    const end = m.cut ? m.fixes.findIndex((f) => f[0] === m.cut) : m.fixes.length - 1;
+    for (const [name, lat, lon, ft] of m.fixes.slice(0, end + 1)) {
+      const near = path.reduce((b, p) => { const d = km([p.latitude, p.longitude], [lat, lon]); return d < b.d ? { d, p } : b; }, { d: Infinity });
+      assert.ok(near.d < 1.5, ident + " passes " + name + " (" + near.d.toFixed(2) + " km)");
+      if (Number.isFinite(ft)) assert.ok(Math.abs(near.p.altitudeM - ft * FT) < 60, name + " altitude");
+    }
+    assert.match(RT.procedureSource("landing", ident), /^AIP RJTT IAC .*STAR/);
+    assert.equal(RT.measuredApproachPath(ident).length, path.length);
+  }
+  // 22 (LDA): only the last 1.8 NM is aligned with the runway
+  const p22 = RT.procedureApproachPath("22"), rw22 = RT.runwayOf("22");
+  for (const p of p22.filter((p) => p.distanceKm > 0.1 && p.distanceKm <= 1.8 * 1.852))
+    assert.ok(Math.abs(((bearing(p, p22[0]) - rw22.headingDegT) + 540) % 360 - 180) < 0.3);
+  // Landings aim at the displaced thresholds published in AIP AD2.12, not the runway ends.
+  const p16L = RT.approachPath("16L", { fromKm: 0, toKm: 0 })[0];
+  assert.ok(km([p16L.latitude, p16L.longitude], [35.562853, 139.788706]) < 0.001);
+  assert.ok(RT.procedureApproachPath("16L").at(-1).longitude > 140, "16L comes in from the Chiba side");
+  for (const ident of ["04", "05"]) assert.equal(RT.procedureApproachPath(ident), null);
+
+  for (const ident of ["05", "34R", "22", "16L", "16R"]) {
+    const path = RT.procedureDeparturePath(ident), rw = RT.runwayOf(ident), m = RT.PROCEDURES.departure[ident];
+    const straight = RT.departurePath(ident, { fromKm: 1, toKm: 1 })[0];
+    assert.ok(km([path[0].latitude, path[0].longitude], [straight.latitude, straight.longitude]) < 0.001, ident + " lifts off on the runway line");
+    const va = path.find((p) => p.altitudeM >= rw.elevationM + m.vaFt * FT);
+    for (const p of path.filter((p) => p.distanceKm <= va.distanceKm)) assert.ok(Math.abs(((bearing(path[0], p) - rw.headingDegT) + 540) % 360 - 180) < 0.5 || p === path[0], ident + " climbs straight to " + m.vaFt + " ft");
+    for (let i = 1; i < path.length; i++) assert.ok(path[i].altitudeM >= path[i - 1].altitudeM - 1e-9 && path[i].distanceKm > path[i - 1].distanceKm);
+    assert.ok(turnPerKm(path) < 45, ident + " departure has no sharp corner");
+    for (const [name, lat, lon, ft] of m.fixes) {
+      const near = path.reduce((b, p) => { const d = km([p.latitude, p.longitude], [lat, lon]); return d < b.d ? { d, p } : b; }, { d: Infinity });
+      assert.ok(near.d < 1.5, ident + " departure passes " + name);
+      if (Number.isFinite(ft)) assert.ok(near.p.altitudeM >= ft * FT - 60, name + " at or above " + ft);
+    }
+    assert.match(RT.procedureSource("takeoff", ident), /^AIP RJTT SID /);
+  }
+  assert.equal(RT.procedureDeparturePath("34L"), null);
+  // Runway 05/23 is one line: 05 points opposite 23 (was 57°, off by 14°)
+  assert.ok(Math.abs(RT.runwayOf("05").headingDegT - (RT.runwayOf("23").headingDegT - 180)) < 1);
+});
