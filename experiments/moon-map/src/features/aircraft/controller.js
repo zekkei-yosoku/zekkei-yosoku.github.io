@@ -6,7 +6,7 @@ import {createMapView} from '../../ui/map/picker.js';
 import {aimMapLabel} from '../framing/controller.js';
 import {aimObserverAt,aimSavedFrom} from '../framing/observer.js';
 import {nearName,openPlaceSheet} from '../places/search.js';
-import {renderToolAccess,toolAllowed} from '../account/session-and-access.js';
+import {apiTransport,renderToolAccess,toolAllowed} from '../account/session-and-access.js';
 // ---------------------------------------------------------------- 月丼
 //
 // 「ねらう」と同じ形。目標が**航路の上を動く点**になっただけ。
@@ -29,7 +29,18 @@ const PlaneMap = createMapView({ canvas: "planeCanvas", coord: "planeCoord", zoo
 /// **空港の**風。いま選んでいる地点の風ではない（長野を選んでいても、効くのは空港の風）。
 /// 以前は地点の予報を流用し、しかも**風向を数字で平均**していた。350°と10°の北風が
 /// 平均で180°＝南風運用に化ける（2026-09-28 修正）。風だけの小さな取得で、30分使い回す
+/// 空港で観測した風（METAR、過去7日）。今と過去の時刻は予報ではなくこれで運用を推定する（2026-11-24）。
+/// ブラウザからは直接読めないので API を通す。取れなければ予報だけで続ける
+async function planeLoadMetar() {
+  const id = AstroNotesRoutes.AIRPORT.id;
+  if (plane.metar && plane.metar.id === id && Date.now() - plane.metar.at < 10 * 60000) return plane.metar;
+  let obs = [];
+  try { obs = (await apiTransport("GET", `/aviation/metar?icao=${id}`))?.observations || []; } catch { obs = []; }
+  plane.metar = { id, at: Date.now(), obs: obs.filter((o) => Number.isFinite(o.t) && Number.isFinite(o.wdir) && Number.isFinite(o.wspdKt)) };
+  return plane.metar;
+}
 async function planeLoadWind() {
+  if (plane.dayMs <= Date.now()) await planeLoadMetar();
   const R = AstroNotesRoutes.AIRPORT;
   if (plane.wind && plane.wind.id === R.id && Date.now() - plane.wind.at < 30 * 60000) return plane.wind;
   const url = "https://api.open-meteo.com/v1/forecast?" + new URLSearchParams({
@@ -53,16 +64,10 @@ async function planeLoadWind() {
 function planeOpAt(at, { auto = false } = {}) {
   if (!AstroNotesRoutes.operationStatus(at).supported) return null;
   if (plane.op && !auto) return plane.op;
-  const w = plane.wind;
   const hour = new Date(at + 9 * 3600000).getUTCHours();
-  if (!AstroNotesRoutes.operationStatus(at).supported || !w || !w.times.length) return null;
-  let i = -1, best = Infinity;
-  for (let k = 0; k < w.times.length; k++) {
-    const d = Math.abs(w.times[k] - at);
-    if (d < best) { best = d; i = k; }
-  }
-  if (i < 0 || best > 60 * 60000) return null;
-  return AstroNotesRoutes.operationFor(w.dir[i], w.speed[i], hour);
+  const w = planeWindAt(at);
+  if (!w) return null;
+  return AstroNotesRoutes.operationFor(w.direction, w.speed, hour);
 }
 
 /// 運用の名前。南風の日は湾側と都心上空が時刻で入れ替わるので、まとめて「南風運用（湾側・都心上空）」と言う
@@ -95,7 +100,7 @@ function planeAirportId() {
 function planeSyncAirport({ recenter = true } = {}) {
   const id = planeAirportId();
   const changed = AstroNotesRoutes.AIRPORT.id !== id;
-  if (changed) { AstroNotesRoutes.selectAirport(id); plane.op = null; plane.wind = null; }
+  if (changed) { AstroNotesRoutes.selectAirport(id); plane.op = null; plane.wind = null; plane.metar = null; }
   if (changed || !$("planeOp").options.length) $("planeOp").innerHTML = '<option value="">風予報から推定</option>' + Object.entries(AstroNotesRoutes.OPERATIONS).map(([key, o]) => `<option value="${key}">${esc(o.name)}（手動）</option>`).join("");
   const sel = $("planeAirport");
   if (sel && !sel.options.length) sel.innerHTML = '<option value="">撮影地点に近い空港（自動）</option>' + [...AstroNotesRoutes.AIRPORTS].sort((a, b) => b.latitude - a.latitude).map((a) => `<option value="${a.id}">${esc(a.shortName)}（${esc(a.name)}・${a.id}）</option>`).join("");
@@ -173,9 +178,11 @@ function planeRender() {
   // （2026-10-01 ユーザー「風から決めるはいらなくない？今の運用を自動で選択させたらいい」）。
   // 南風の日は 15〜19時だけ都心上空で、ほかは湾側。計算は今までどおり時刻ごとに切り替える
   const auto = planeOpSpans(plane.dayMs, { auto: true });
-  const w = plane.wind;
+  const w = plane.wind, m = plane.metar;
   const covered = !!w && w.times.some((t) => t >= plane.dayMs && t < plane.dayMs + 86400000);
-  $("planeOp").options[0].textContent = covered ? `予報：${planeOpLabel([...new Set(auto.map((x) => x.op))])}` : "風予報なし：運用を選択";
+  const observed = !!m && m.id === AstroNotesRoutes.AIRPORT.id && m.obs.some((o) => o.t >= plane.dayMs && o.t < plane.dayMs + 86400000);
+  const kind = observed && plane.dayMs + 86400000 <= Date.now() ? "観測" : observed ? "観測と予報" : "予報";
+  $("planeOp").options[0].textContent = covered || observed ? `${kind}：${planeOpLabel([...new Set(auto.map((x) => x.op))])}` : "風予報なし：運用を選択";
   // 下の一行は滑走路（と、切り替わる日は時刻）。運用の名前は欄に出ているので繰り返さない
   const runways = (op) => { const o = AstroNotesRoutes.OPERATIONS[op]; return o ? `着陸 ${o.landing.join("・")}・離陸 ${o.takeoff.join("・")}` : "運用不明"; };
   $("planeOpNote").textContent = r.spans.filter(s=>s.op).map(opLine).join(" ／ ") || "風を取得できない場合は想定する運用を選べます";
@@ -246,7 +253,13 @@ function planeSetAt(at) {
   if(changed)planeApply(); else planeUpdateMap();
 }
 function planeWindAt(at) {
-  const w=plane.wind;if(!w)return null;
+  // 今より前で、45分以内の観測があればそれ（METARは30分ごと）
+  const m=plane.metar;
+  if(m&&m.id===AstroNotesRoutes.AIRPORT.id&&at<=Date.now()+15*60000){
+    let best=null;for(const o of m.obs){const d=Math.abs(o.t-at);if(d<=45*60000&&(!best||d<Math.abs(best.t-at)))best=o;}
+    if(best)return {at:best.t,direction:best.wdir,speed:best.wspdKt*0.514444,observed:true};
+  }
+  const w=plane.wind;if(!w||w.id!==AstroNotesRoutes.AIRPORT.id)return null;
   let index=-1,delta=Infinity;
   w.times.forEach((time,i)=>{const d=Math.abs(time-at);if(d<delta){delta=d;index=i;}});
   if(index<0||delta>3600000||!Number.isFinite(w.dir[index])||!Number.isFinite(w.speed[index]))return null;
@@ -259,10 +272,10 @@ async function planeUpdateMap() {
   plane.map=null;PlaneMap.redraw();$("planeRouteDetails").replaceChildren();
   const status=AstroNotesRoutes.operationStatus(at),op=planeOpAt(at),wind=planeWindAt(at);
   const o=AstroNotesRoutes.OPERATIONS[op];
-  $("planeOp").options[0].textContent=wind&&op ? `予報：${AstroNotesRoutes.OPERATIONS[planeOpAt(at,{auto:true})]?.name||"運用不明"}` : "風予報なし：運用を選択";
-  $("planeOpNote").textContent=(wind ? `${S.JstCal.hhmm(wind.at)}の風予報 ${Math.round(wind.direction)}°から ${wind.speed.toFixed(1)}m/s` : "この時刻の風予報を取得できません")+(o?` ／ ${plane.op?"手動の想定":"予測"}：着陸 ${o.landing.join("・")}／離陸 ${o.takeoff.join("・")}`:"");
+  $("planeOp").options[0].textContent=wind&&op ? `${wind.observed?"観測":"予報"}：${AstroNotesRoutes.OPERATIONS[planeOpAt(at,{auto:true})]?.name||"運用不明"}` : "風予報なし：運用を選択";
+  $("planeOpNote").textContent=(wind ? `${S.JstCal.hhmm(wind.at)}の${wind.observed?"観測風（METAR）":"風予報"} ${Math.round(wind.direction)}°から ${wind.speed.toFixed(1)}m/s` : "この時刻の風を取得できません")+(o?` ／ ${plane.op?"手動の想定":"予測"}：着陸 ${o.landing.join("・")}／離陸 ${o.takeoff.join("・")}`:"");
   const short=AstroNotesRoutes.AIRPORT.shortName,haneda=AstroNotesRoutes.AIRPORT.id==="RJTT";
-  $("planeOpChip").textContent=short+"・"+(!status.supported?"深夜は未対応":o?(haneda?o.name.replace("運用","").replace(/（(.+?)(上空)?）/,"・$1"):o.name.replace(/運用（.*）$/,"")):"運用を選ぶ");$("planeOpMode").textContent=status.supported&&o?(plane.op?"手動":"予報"):"";
+  $("planeOpChip").textContent=short+"・"+(!status.supported?"深夜は未対応":o?(haneda?o.name.replace("運用","").replace(/（(.+?)(上空)?）/,"・$1"):o.name.replace(/運用（.*）$/,"")):"運用を選ぶ");$("planeOpMode").textContent=status.supported&&o?(plane.op?"手動":wind?.observed?"観測":"予報"):"";
   if(!status.supported){$("planeMapStatus").textContent="23〜6時の深夜経路は未対応のため、この時刻の範囲は計算できません。";return;}
   if(!o){$("planeMapStatus").textContent="風予報がないため運用を推定できません。運用を手動で選ぶと計算できます。";return;}
   const paths=AstroNotesPlane.pathsFor(op,{landing:true,takeoff:true});
