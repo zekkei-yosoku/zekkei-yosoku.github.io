@@ -1,15 +1,17 @@
-"""Refresh the iPhone-accessible preview from the current public app (no deletion).
+"""Refresh the iPhone-accessible preview with guarded moon-map source overlays (no deletion).
 The preview shares the production account/API/storage. Review before deployment.
 
-  python3 build-preview.py           trial を本体の現行版で作り直す
+  python3 build-preview.py           本体＋月丼の実験sourceから trial を作り直す
   python3 build-preview.py --check   作り直すと変わるファイルを挙げて失敗する（何も書かない）。
-                                     trial を本体へ揃えたあとの確認に使う（2026-10-15 総点検M06）
+                                     本体の境界と trial の再現性を検証する。
 """
 from pathlib import Path
 import json,subprocess,sys
 check='--check' in sys.argv[1:]
 root=Path(__file__).resolve().parent
 out=root/'trial'
+# Validate experiment inputs and its complete output before overwriting any trial file.
+bundle=json.loads(subprocess.check_output(['node','tools/build-moon-map-trial.mjs'],cwd=root,text=True))
 expected={}
 def emit(target,data):
  expected[target]=data
@@ -30,11 +32,8 @@ for name in ['data','vendor']:
  for f in (root/name).rglob('*'):
   if f.is_file() and str(f.relative_to(root)) in tracked and not shared(f.relative_to(root)):
    emit(out/f.relative_to(root),f.read_bytes())
-s=(root/'index.html').read_text().replace('<title>AstroNotes</title>','<title>AstroNotes 試用版</title>\n<meta name="astronotes-data-base" content="../data/">').replace('name="apple-mobile-web-app-title" content="AstroNotes"','name="apple-mobile-web-app-title" content="AstroNotes 試用版"')
-idx=s.index('  <div class="masthead">')
-s=s[:idx]+'  <p style="position:relative;z-index:1;font-size:12px;padding:6px 2px;color:var(--secondary)">試用版 · 本番とアカウント・保存データ共通 <a href="../">本番へ</a></p>\n'+s[idx:]
-# The title and banner change the page, so its versions and inline-script hashes are stamped again.
-bundle=json.loads(subprocess.check_output(['node','tools/build-trial-html.mjs'],cwd=root,input=s,text=True))
+# The guarded moon-map source overlays only change trial. Its builder re-renders the
+# source and stamps asset versions/CSP against the trial assets, never production.
 for name,content in bundle.items():emit(out/name,content.encode())
 # 重なる日の計算本体（overlap-calculation*）は本体側で tools/build-overlap-products.py が作り、上の複写でそのまま来る。
 emit(out/'overlap-calculation.html',(root/'overlap-calculation.html').read_bytes())
@@ -46,6 +45,6 @@ m=json.loads((root/'manifest.json').read_text());m.update(name='AstroNotes 試�
 emit(out/'manifest.json',(json.dumps(m,ensure_ascii=False,indent=2)+'\n').encode())
 if check:
  stale=sorted(str(p.relative_to(root)) for p,data in expected.items() if not p.is_file() or p.read_bytes()!=data)
- if stale:sys.exit('trial は本体と違います（python3 build-preview.py で揃える）: '+', '.join(stale))
- print('Preview matches the public app:',len(expected),'files')
+ if stale:sys.exit('trial の生成物が一致しません（python3 build-preview.py で再生成）: '+', '.join(stale))
+ print('Preview matches the guarded moon-map build:',len(expected),'files')
 else:print('Preview refreshed:',out)

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "20261124-moon-route-map",
+  "revision": 1,
+  "baselineCommit": "1622f8d85ba58f29e1dfe0d81be738754239ba24",
+  "baselineSha256": {
+    "index.html": "9f8bab97a7f8061abc42487f98a5b88bc7fdeb118c033812930dbab19acad57e",
+    "app-version.txt": "b152c725b7785274b347754f77049934c0b9ecfb6f35a1e623639f9d0c71e20b",
+    "src/index.html": "ae5994c3e00358279d0d34940e4f60da1122f1a81eb4281980cf6d0c0812a99b",
+    "src/features/aircraft/controller.js": "c73b1cb9f611ee2301e6c18e3eb549d8078a389956b34eacf88cf6d547ae4ed1",
+    "src/source-manifest.json": "7e3be084049eedd304956ac0362902a4acc13437e6f72ad2ca85570d2ac3fb77",
+    "astronotes-plane.js": "c70e7c896eb15cec8af79e491403a439a920698080145a5e6a6e520c07b473bb",
+    "astronotes-routes.js": "ac032e07834c575e2ac63852b7e26bf74897d50a1999b933e34d4257e57daa8a",
+    "astronotes-datetime-ui.css": "9549b314efddc645788c760ea1fe8316ba424e50f943b45ba3184fd420e3a791"
+  },
+  "overlays": [
+    { "path": "src/index.html", "required": true },
+    { "path": "src/features/aircraft/controller.js", "required": true },
+    { "path": "astronotes-plane.js", "required": true },
+    { "path": "astronotes-routes.js", "required": true },
+    { "path": "astronotes-datetime-ui.css", "required": true },
+    { "path": "src/source-manifest.json", "required": false }
+  ]
+}

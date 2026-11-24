@@ -46,7 +46,7 @@
   const THRESHOLD_CROSSING_M = 15;
 
   /**
-   * 運用の向き。**風で決まる。**
+   * 風から選ぶ簡略モデル。実際の使用滑走路は気象・管制・時間帯でも変わる。
    *   北風運用 … 南から進入して北へ降りる（34L/34R）。出発は 05 と 34R
    *   南風運用 … 北から進入して南へ降りる（16L/16R）。出発は 22 と 16L
    * 南風の到着は都心の上を通る（2020年からの経路）。**15〜19時だけ**。
@@ -54,31 +54,32 @@
   const OPERATIONS = {
     north: { name: "北風運用", landing: ["34L", "34R"], takeoff: ["05", "34R"] },
     south: { name: "南風運用（都心上空）", landing: ["16L", "16R"], takeoff: ["22", "16L"],
-             landingHours: [15, 19], note: "南風の到着は都心の上空。15〜19時だけです" },
+             landingHours: [15, 19], note: "南風の新経路は15〜19時のうち3時間程度。実運用は未確認です" },
     // **15〜19時以外の南風は、湾の側から B・D 滑走路へ降りる**（都心の上は通らない）。
     // 以前はこれを持たず、南風の日は一日じゅう都心上空の線を引いていた（2026-09-28 修正）
     southBay: { name: "南風運用（湾側）", landing: ["22", "23"], takeoff: ["16L", "16R"],
-                note: "15〜19時以外の南風は、湾の側から降ります" },
+                note: "南風の湾側モデル。6〜15時・19〜23時を対象とします" },
   };
 
   /**
-   * 優先滑走路。**風が弱ければ北風運用のまま。** 34 への追い風がこれを超えたら南風運用へ移る。
-   * 5ノット（2.6m/s）は ICAO PANS-ATM の「優先滑走路を使わない追い風」の目安。
+   * 想定運用を選ぶための既存の追い風閾値。羽田の実運用を確定する条件ではない。
    */
   const TAILWIND_LIMIT_MS = 2.6;
 
   /**
-   * 風から運用を決める。
+   * 風から想定運用を選ぶ。描画前には operationStatus(at).supported も確認する。
    *
    * 以前は「風向が北寄りか南寄りか」だけで決めていたので、**弱い南風でも南風運用**にしていた。
-   * 実際は風が弱ければ北風運用のまま（優先滑走路）。34 への追い風成分で決める。
+   * このモデルでは34への追い風成分で選ぶ。ATIS等による実運用の確認は行っていない。
    *
    * @param {number} windFromDeg 風が吹いてくる方位（気象の風向）
    * @param {number} [windSpeedMs] 風速。無ければ向きだけで決める（従来どおり）
    * @param {number} [hourJst] 時刻。南風のときに、都心上空（15〜19時）か湾側かを分ける
    */
   function operationFor(windFromDeg, windSpeedMs, hourJst) {
-    if (!Number.isFinite(windFromDeg)) return null;
+    if (!Number.isFinite(windFromDeg) || windFromDeg < 0 || windFromDeg > 360) return null;
+    if (windSpeedMs !== undefined && (!Number.isFinite(windSpeedMs) || windSpeedMs < 0)) return null;
+    if (hourJst !== undefined && (!Number.isFinite(hourJst) || hourJst < 0 || hourJst >= 24)) return null;
     let south;
     if (Number.isFinite(windSpeedMs)) {
       // 34（330°）へ降りるときの向かい風成分。負なら追い風
@@ -93,6 +94,36 @@
     if (!Number.isFinite(hourJst)) return "south";
     const [from, to] = OPERATIONS.south.landingHours;
     return hourJst >= from && hourJst < to ? "south" : "southBay";
+  }
+
+  /**
+   * 選択日時にこの簡略モデルを使えるか。時刻は実行端末のTZによらずJSTで判定する。
+   * Date、epoch milliseconds、タイムゾーン付きISO文字列を受け取る。欠測を現在時刻に補完しない。
+   * 国交省の時間窓は運用確定情報ではなく、北風の新旧経路形状はこのモデルで区別していない。
+   * https://www.mlit.go.jp/koku/haneda/action/
+   */
+  function operationStatus(at) {
+    let epochMs = NaN;
+    if (typeof at === "number") epochMs = at;
+    else if (typeof at === "string" && /(?:Z|[+-]\d{2}:\d{2})$/i.test(at)) epochMs = Date.parse(at);
+    else if (Object.prototype.toString.call(at) === "[object Date]") epochMs = Date.prototype.getTime.call(at);
+    const local = new Date(epochMs + 9 * 3600000);
+    const hourJst = Number.isFinite(epochMs) && Number.isFinite(local.getTime())
+      ? local.getUTCHours() + local.getUTCMinutes() / 60 + local.getUTCSeconds() / 3600 : null;
+    const sourceUrl = "https://www.mlit.go.jp/koku/haneda/action/";
+    const modelLimit = "滑走路付近の簡略経路です。天候・管制による変更や北風の新旧経路の違いは再現していません";
+    const base = { timeZone: "Asia/Tokyo", hourJst, sourceUrl, modelLimit, operationConfirmed: false };
+    if (hourJst === null) return { ...base, supported: false, period: "unknown", northWindow: null, southWindow: null,
+      note: "日時が確認できないため経路を表示できません" };
+    if (hourJst < 6 || hourJst >= 23) return { ...base, supported: false, period: "night", northWindow: null, southWindow: null,
+      note: "23〜6時は海上の深夜早朝経路になります。このモデルは対応していません" };
+    const afternoonWindow = hourJst >= 15 && hourJst < 19;
+    const northWindow = (hourJst >= 7 && hourJst < 11.5) || afternoonWindow ? "new" : "existing";
+    const southWindow = afternoonWindow ? "new" : "existing";
+    return { ...base, supported: true, period: "day", northWindow, southWindow,
+      note: afternoonWindow
+        ? "15〜19時は新経路の時間帯ですが、運用はそのうち3時間程度です。実際の経路は未確認です"
+        : "風と時刻から選ぶ想定運用です。実際の使用滑走路・経路は未確認です" };
   }
 
   /**
@@ -244,7 +275,7 @@
     return { latitude: la2 / DEG, longitude: ((lo2 / DEG + 540) % 360) - 180 };
   }
 
-  const AstroNotesRoutes = { RJTT, runwayOf, OPERATIONS, operationFor, SPOTS,
+  const AstroNotesRoutes = { RJTT, runwayOf, OPERATIONS, operationFor, operationStatus, SPOTS,
                          approachPath, departurePath, HOURLY_MOVEMENTS, HOURLY_ARRIVALS, HOURLY_DEPARTURES,
                          trafficAt, destination, THRESHOLD_CROSSING_M, SPOT_HORIZONS, spotHorizonAt };
   global.AstroNotesRoutes = AstroNotesRoutes;

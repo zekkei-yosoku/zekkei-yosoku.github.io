@@ -10,8 +10,10 @@ test('cached HTML legacy assets retain their original bytes and canonical assets
  for(const [old,hash] of Object.entries(sha256)){
   const name=old.replace(/^sorami-/,'astronotes-');
   for(const prefix of ['','trial/'])assert.equal(createHash('sha256').update(readFileSync(new URL(prefix+old,import.meta.url))).digest('hex'),hash,prefix+old);
-  // The trial is a copy of the public app: every canonical asset has the same bytes in both places.
-  assert.equal(read(name),read('trial/'+name),name);
+  // The trial is a copy of the public app, except assets declared by a guarded experiment overlay,
+  // which must equal that overlay byte for byte (production boundary is checked by its builder test).
+  const overlay=existsSync(new URL('experiments/moon-map/'+name,import.meta.url))&&JSON.parse(read('experiments/moon-map/manifest.json')).overlays.some(o=>o.path===name);
+  assert.equal(read(overlay?'experiments/moon-map/'+name:name),read('trial/'+name),name);
  }
  const html=read('index.html');assert.doesNotMatch(html,/(?:src|href)="sorami-[^"]+\.(?:js|css)/);
 });

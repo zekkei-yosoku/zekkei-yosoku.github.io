@@ -19,8 +19,8 @@
 (function (global) {
   "use strict";
 
-  const A = global.AstroNotesAstro || (typeof require !== "undefined" ? require("./astronotes-astro.js") : null);
-  const RT = global.AstroNotesRoutes || (typeof require !== "undefined" ? require("./astronotes-routes.js") : null);
+  const A = global.AstroNotesAstro || (typeof require !== "undefined" ? require("../../astronotes-astro.js") : null);
+  const RT = global.AstroNotesRoutes || (typeof require !== "undefined" ? require("../../astronotes-routes.js") : null);
   if (!A || !RT) throw new Error("astro / routes が先に要ります");
 
   const DEG = Math.PI / 180;
@@ -335,8 +335,11 @@
     for (const spot of spots) {
       // **展望台の上なら、そのぶん目が高い。** 機体との高低差が縮むので、
       // 同じ月の高さでも近くを通る機を狙える（低い月は地上だと街に隠れる）
+      // eyeHeightAGL is already the lens/eye height above ground. Legacy deckM
+      // means floor height, so only that form receives the default eye offset.
+      const observerAGL = Number.isFinite(spot.eyeHeightAGL) ? spot.eyeHeightAGL : (spot.deckM ?? 0) + eyeM;
       const obs = { latitude: spot.latitude, longitude: spot.longitude,
-                    elevation: (spot.elevationM ?? 0) + (spot.deckM ?? 0) };
+                    elevation: (spot.elevationM ?? 0) + observerAGL };
       const track = [];
       for (let i = 0; i * stepMin * 60000 <= hours * 3600000; i++) {
         const at = dayMs + i * stepMin * 60000;
@@ -350,7 +353,7 @@
         : (az) => RT.spotHorizonAt(spot.id, az);
       const hits = [];
       for (const path of paths) {
-        for (const c of crossingsFrom(obs, path, track, { eyeM, minPlaneKm, maxPlaneKm })) {
+        for (const c of crossingsFrom(obs, path, track, { eyeM: 0, minPlaneKm, maxPlaneKm })) {
           if (c.moonAlt < minMoonAlt || c.moonAlt > maxMoonAlt) continue;
           if (c.moonAlt - MOON_RADIUS_DEG < horizonAt(c.moonAz)) continue;
           if (c.at < dayMs || c.at > dayMs + hours * 3600000) continue;
@@ -408,19 +411,347 @@
     const out = [];
     if (landing) {
       for (const r of op.landing) {
-        out.push({ id: `${r} 着陸`, kind: "landing", runway: r, points: RT.approachPath(r) });
+        out.push({ id: `${r} 着陸`, kind: "landing", runway: r, airportId: RT.RJTT.id,
+          altitudeDatum: "MSL", model: "representative", flightOrder: -1, points: RT.approachPath(r) });
       }
     }
     if (takeoff) {
       for (const r of op.takeoff) {
-        out.push({ id: `${r} 離陸`, kind: "takeoff", runway: r, points: RT.departurePath(r) });
+        out.push({ id: `${r} 離陸`, kind: "takeoff", runway: r, airportId: RT.RJTT.id,
+          altitudeDatum: "MSL", model: "representative", flightOrder: 1, points: RT.departurePath(r) });
       }
     }
     return out;
   }
 
+  // The map APIs below are pure. Terrain reads, cancellation, UI lifetime and
+  // operation selection belong to the caller. groundM is never inferred from a
+  // missing value. Every comparison uses the same absolute observer height.
+  const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const length3 = v => Math.hypot(...v);
+  const wrap180 = d => ((d + 540) % 360 + 360) % 360 - 180;
+  const directionVector = (az, alt) => [Math.cos(alt * DEG) * Math.sin(az * DEG), Math.cos(alt * DEG) * Math.cos(az * DEG), Math.sin(alt * DEG)];
+  const earthVector = p => [Math.cos(p.latitude * DEG) * Math.cos(p.longitude * DEG), Math.cos(p.latitude * DEG) * Math.sin(p.longitude * DEG), Math.sin(p.latitude * DEG)];
+  const vectorSeparation = (a, b) => Math.atan2(length3(cross3(a, b)), dot3(a, b)) / DEG;
+  const validPosition = p => p && Number.isFinite(p.latitude) && Math.abs(p.latitude) <= 90 && Number.isFinite(p.longitude) && Math.abs(p.longitude) <= 180;
+
+  function mapObserver(input, defaultEye = 1.5) {
+    if (!validPosition(input)) return { status: "invalid-observer" };
+    if (!Number.isFinite(input.groundM)) return { status: "missing-elevation" };
+    const eyeHeightAGL = input.eyeHeightAGL === undefined ? defaultEye : input.eyeHeightAGL;
+    if (!Number.isFinite(eyeHeightAGL) || eyeHeightAGL < 0) return { status: "invalid-height" };
+    return { status: "ready", latitude: input.latitude, longitude: input.longitude,
+      groundM: input.groundM, eyeHeightAGL, elevation: input.groundM + eyeHeightAGL };
+  }
+
+  function interpolatePathPoint(a, b, f) {
+    const km = distanceKm(a.latitude, a.longitude, b.latitude, b.longitude);
+    const p = km > 1e-10 ? RT.destination(a.latitude, a.longitude, bearing(a.latitude, a.longitude, b.latitude, b.longitude), km * f)
+      : { latitude: a.latitude, longitude: a.longitude };
+    return { ...p, altitudeM: a.altitudeM + (b.altitudeM - a.altitudeM) * f,
+      ...(Number.isFinite(a.distanceKm) && Number.isFinite(b.distanceKm)
+        ? { distanceKm: a.distanceKm + (b.distanceKm - a.distanceKm) * f } : {}) };
+  }
+
+  function mapPaths(paths, maxStepKm = 0.5) {
+    const out = [];
+    for (const path of Array.isArray(paths) ? paths : []) {
+      if (!path || !Array.isArray(path.points)) continue;
+      const segments = [];
+      for (let i = 0; i + 1 < path.points.length; i++) {
+        const a = path.points[i], b = path.points[i + 1];
+        if (!validPosition(a) || !validPosition(b) || !Number.isFinite(a.altitudeM) || !Number.isFinite(b.altitudeM)) continue;
+        const length = distanceKm(a.latitude, a.longitude, b.latitude, b.longitude);
+        const n = Math.max(1, Math.ceil(length / maxStepKm));
+        // Data contract: each input segment follows the shortest geodesic with
+        // linear MSL altitude. Curves must be represented by their vertices.
+        for (let j = 0; j < n; j++) {
+          const p = j ? interpolatePathPoint(a, b, j / n) : a;
+          const q = j + 1 === n ? b : interpolatePathPoint(a, b, (j + 1) / n);
+          const km = distanceKm(p.latitude, p.longitude, q.latitude, q.longitude);
+          const av = earthVector(p), bv = earthVector(q), theta = km / R_KM;
+          const tangent = theta > 1e-12 ? bv.map((x, k) => (x - av[k] * Math.cos(theta)) / Math.sin(theta)) : [0, 0, 0];
+          segments.push({ a: p, b: q, km, av, theta, tangent,
+            heading: km > 1e-10 ? bearing(p.latitude, p.longitude, q.latitude, q.longitude) : 0 });
+        }
+      }
+      out.push({ path, segments });
+    }
+    return out;
+  }
+
+  function segmentPoint(s, u) {
+    const p = s.km > 1e-10 ? RT.destination(s.a.latitude, s.a.longitude, s.heading, s.km * u)
+      : { latitude: s.a.latitude, longitude: s.a.longitude };
+    return { ...p, altitudeM: s.a.altitudeM + (s.b.altitudeM - s.a.altitudeM) * u,
+      ...(Number.isFinite(s.a.distanceKm) && Number.isFinite(s.b.distanceKm)
+        ? { distanceKm: s.a.distanceKm + (s.b.distanceKm - s.a.distanceKm) * u } : {}) };
+  }
+
+  // Split distance limits at the exact closest point of the geographic arc.
+  // This retains a narrow in-range portion even when both endpoints are outside.
+  function distanceSpans(s, obs, minKm, maxKm) {
+    const ov = earthVector(obs), raw = s.theta > 1e-12 ? Math.atan2(dot3(ov, s.tangent), dot3(ov, s.av)) / s.theta : 0;
+    const near = Math.max(0, Math.min(1, raw));
+    const dAt = u => { const p = segmentPoint(s, u); return distanceKm(obs.latitude, obs.longitude, p.latitude, p.longitude); };
+    const cuts = [0, 1];
+    if (near > 1e-10 && near < 1 - 1e-10) cuts.push(near);
+    const branches = [...cuts].sort((a, b) => a - b);
+    for (let i = 0; i + 1 < branches.length; i++) {
+      const a = branches[i], b = branches[i + 1], da = dAt(a), db = dAt(b);
+      for (const limit of [minKm, maxKm]) {
+        if ((da - limit) * (db - limit) >= 0) continue;
+        let lo = a, hi = b;
+        for (let k = 0; k < 30; k++) {
+          const mid = (lo + hi) / 2;
+          if ((dAt(mid) - limit) * (da - limit) > 0) lo = mid; else hi = mid;
+        }
+        cuts.push((lo + hi) / 2);
+      }
+    }
+    cuts.sort((a, b) => a - b);
+    const out = [];
+    for (let i = 0; i + 1 < cuts.length; i++) {
+      const lo = cuts[i], hi = cuts[i + 1], d = dAt((lo + hi) / 2);
+      if (d >= minKm - 1e-8 && d <= maxKm + 1e-8 && hi - lo > 1e-12) out.push([lo, hi]);
+    }
+    return out;
+  }
+
+  function mapSnapshot(at, input, options) {
+    const observer = mapObserver(input, options.eyeHeightAGL ?? 1.5);
+    if (!Number.isFinite(at)) return { status: "invalid-time", at, observer };
+    if (observer.status !== "ready") return { status: observer.status, at, observer };
+    const moon = A.moonDirection(at, observer, options.air || {});
+    const horizonAt = typeof options.horizonAt === "function" ? options.horizonAt : null;
+    const horizon = horizonAt ? horizonAt(moon.azimuth) : A.seaHorizonAngle(observer.elevation);
+    if (!Number.isFinite(horizon)) return { status: "missing-horizon", at, observer, moon };
+    const status = moon.apparentAltitude - moon.angularRadius < horizon ? "below-horizon" : "ready";
+    return { status, at, observer, moon, visibility: horizonAt ? "horizon-checked" : "obstructions-unchecked" };
+  }
+
+  function evaluateMap(snapshot, prepared, options, collect = true) {
+    const result = { ...snapshot, overlaps: [], closest: null, pathIds: [] };
+    if (snapshot.status !== "ready") return result;
+    const { observer, moon } = snapshot;
+    const mv = directionVector(moon.azimuth, moon.apparentAltitude), radius = moon.angularRadius;
+    const minKm = options.minPlaneKm ?? 2, maxKm = options.maxPlaneKm ?? 20;
+    if (!(minKm >= 0 && maxKm > minKm)) return { ...result, status: "invalid-distance-range" };
+    for (const { path, segments } of prepared) {
+      let previous = null;
+      for (const s of segments) {
+        const av = seenFrom(observer, s.a, 0), bv = seenFrom(observer, s.b, 0);
+        const dmin = Math.min(av.distanceKm, bv.distanceKm), dmax = Math.max(av.distanceKm, bv.distanceKm);
+        if (dmin - s.km > maxKm || dmax + s.km < minKm) { previous = null; continue; }
+        const sa = vectorSeparation(directionVector(av.azimuth, av.altitude), mv), sb = vectorSeparation(directionVector(bv.azimuth, bv.altitude), mv);
+        // Conservative angular bound from the total geographic + vertical
+        // displacement. It is deliberately wider than a screen-line bound.
+        const motionKm = s.km * 1.02 + Math.abs(s.b.altitudeM - s.a.altitudeM) / 1000;
+        const sweep = Math.atan2(motionKm, Math.max(0.001, dmin - motionKm)) / DEG + 0.01;
+        if (Math.min(sa, sb) > radius + sweep) { previous = null; continue; }
+        const evaluate = u => {
+          const point = segmentPoint(s, u), seen = seenFrom(observer, point, 0);
+          return { u, point, seen, sep: vectorSeparation(directionVector(seen.azimuth, seen.altitude), mv) };
+        };
+        for (const [from, to] of distanceSpans(s, observer, minKm, maxKm)) {
+          // Short (<=500m) geographic segments at >=2km have a single angular
+          // minimum. Subdivision preserves curved input routes and wrap safety.
+          let lo = from, hi = to;
+          const phi = (Math.sqrt(5) - 1) / 2;
+          let u = hi - phi * (hi - lo), v = lo + phi * (hi - lo), fu = evaluate(u), fv = evaluate(v);
+          for (let i = 0; i < 28; i++) {
+            if (fu.sep < fv.sep) { hi = v; v = u; fv = fu; u = hi - phi * (hi - lo); fu = evaluate(u); }
+            else { lo = u; u = v; fu = fv; v = lo + phi * (hi - lo); fv = evaluate(v); }
+          }
+          const ends = [evaluate(from), evaluate(to), fu, fv];
+          const best = ends.reduce((a, b) => a.sep < b.sep ? a : b);
+          if (!result.closest || best.sep < result.closest.minSeparationDeg) result.closest = {
+            pathId: path.id, kind: path.kind, runway: path.runway, point: best.point,
+            planeKm: best.seen.distanceKm, minSeparationDeg: best.sep };
+          if (best.sep > radius + 1e-9) { previous = null; continue; }
+          if (!result.pathIds.includes(path.id)) result.pathIds.push(path.id);
+          if (!collect) continue;
+          const boundary = (outside, inside) => {
+            if (evaluate(outside).sep <= radius) return outside;
+            for (let k = 0; k < 30; k++) {
+              const mid = (outside + inside) / 2;
+              if (evaluate(mid).sep > radius) outside = mid; else inside = mid;
+            }
+            return inside;
+          };
+          const a = boundary(from, best.u), b = boundary(to, best.u);
+          const points = [segmentPoint(s, a), best.point, segmentPoint(s, b)];
+          const last = previous?.points[previous.points.length - 1];
+          if (last && distanceKm(last.latitude, last.longitude, points[0].latitude, points[0].longitude) < 1e-5
+            && Math.abs(last.altitudeM - points[0].altitudeM) < 0.01) {
+            previous.points.push(...points.slice(1));
+            previous.minSeparationDeg = Math.min(previous.minSeparationDeg, best.sep);
+          } else {
+            previous = { pathId: path.id, kind: path.kind, runway: path.runway, airportId: path.airportId,
+              points, minSeparationDeg: best.sep };
+            result.overlaps.push(previous);
+          }
+        }
+      }
+    }
+    return result;
+  }
+
+  function routeOverlapAt(at, observer, paths, options = {}) {
+    return evaluateMap(mapSnapshot(at, observer, options), mapPaths(paths), options);
+  }
+
+  function groundOverlapAt(at, samples, paths, options = {}) {
+    const prepared = mapPaths(paths), stats = { total: 0, ready: 0, overlap: 0, missing: 0 };
+    const output = (Array.isArray(samples) ? samples : []).map(sample => {
+      // A selected observer's horizon must never be reused across the ground
+      // surface. Only a per-sample horizon, when supplied, is applied here.
+      const opts = { ...options, horizonAt: typeof sample.horizonAt === "function" ? sample.horizonAt : null };
+      const input = { ...sample, eyeHeightAGL: sample.eyeHeightAGL ?? options.eyeHeightAGL ?? 1.5 };
+      const r = evaluateMap(mapSnapshot(at, input, opts), prepared, opts, false);
+      const ready = r.status === "ready", below = r.status === "below-horizon", overlap = ready ? r.pathIds.length > 0 : below ? false : null;
+      const sep = r.closest?.minSeparationDeg ?? null;
+      stats.total++; if (ready || below) stats.ready++; else stats.missing++; if (overlap) stats.overlap++;
+      return { ...sample, status: r.status, overlap,
+        score: ready ? (overlap && sep !== null ? Math.max(0, 1 - sep / r.moon.angularRadius) : 0) : below ? 0 : null,
+        minSeparationDeg: sep, pathIds: r.pathIds, moonAz: r.moon?.azimuth ?? null,
+        moonAlt: r.moon?.apparentAltitude ?? null, angularRadius: r.moon?.angularRadius ?? null,
+        visibility: r.visibility ?? null };
+    });
+    return { status: Number.isFinite(at) ? "ready" : "invalid-time", at, samples: output, stats };
+  }
+
+  function diskDirection(moon, diskAngle, fraction = 1) {
+    if (diskAngle === null || diskAngle === undefined) return { azimuth: moon.azimuth, altitude: moon.apparentAltitude };
+    const az = moon.azimuth * DEG, alt = moon.apparentAltitude * DEG, radius = moon.angularRadius * fraction * DEG;
+    const m = directionVector(moon.azimuth, moon.apparentAltitude), east = [Math.cos(az), -Math.sin(az), 0];
+    const up = [-Math.sin(alt) * Math.sin(az), -Math.sin(alt) * Math.cos(az), Math.cos(alt)];
+    const v = m.map((x, i) => x * Math.cos(radius) + (east[i] * Math.cos(diskAngle) + up[i] * Math.sin(diskAngle)) * Math.sin(radius));
+    return { azimuth: (Math.atan2(v[0], v[1]) / DEG + 360) % 360, altitude: Math.atan2(v[2], Math.hypot(v[0], v[1])) / DEG };
+  }
+
+  function inverseGroundAt(at, planePoint, options = {}) {
+    const { groundM, eyeHeightAGL = 1.5, diskAngle = null, diskFraction = 1 } = options;
+    const minKm = options.minPlaneKm ?? 2, maxKm = options.maxPlaneKm ?? 20;
+    if (!Number.isFinite(at)) return { status: "invalid-time" };
+    if (!validPosition(planePoint) || !Number.isFinite(planePoint.altitudeM)) return { status: "invalid-path" };
+    if (!Number.isFinite(groundM)) return { status: "missing-elevation" };
+    if (!Number.isFinite(eyeHeightAGL) || eyeHeightAGL < 0 || !(maxKm > minKm && minKm >= 0)
+      || !(diskAngle === null || Number.isFinite(diskAngle)) || !Number.isFinite(diskFraction) || diskFraction < 0 || diskFraction > 1)
+      return { status: "invalid-options" };
+    const height = groundM + eyeHeightAGL;
+    let q = validPosition(options.anchor) ? { latitude: options.anchor.latitude, longitude: options.anchor.longitude } : null;
+    const evaluate = p => {
+      const obs = { ...p, elevation: height }, moon = A.moonDirection(at, obs, options.air || {});
+      const target = diskDirection(moon, diskAngle, diskFraction), seen = seenFrom(obs, planePoint, 0);
+      return { moon, seen, target, x: wrap180(seen.azimuth - target.azimuth) * Math.cos(target.altitude * DEG), y: seen.altitude - target.altitude,
+        error: vectorSeparation(directionVector(seen.azimuth, seen.altitude), directionVector(target.azimuth, target.altitude)) };
+    };
+    if (!q) {
+      const moon = A.moonDirection(at, { ...planePoint, elevation: height }, options.air || {});
+      if (moon.apparentAltitude + moon.angularRadius <= 0) return { status: "below-horizon", moon };
+      const target = diskDirection(moon, diskAngle, diskFraction);
+      let lo = 0.05, hi = Math.max(80, maxKm * 2);
+      const angle = d => A.targetElevationAngle(d, height, planePoint.altitudeM);
+      if (angle(lo) < target.altitude || angle(hi) > target.altitude) return { status: "out-of-range", moon };
+      for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (angle(mid) > target.altitude) lo = mid; else hi = mid; }
+      q = RT.destination(planePoint.latitude, planePoint.longitude, target.azimuth + 180, (lo + hi) / 2);
+    }
+    let r = evaluate(q), iterations = 0;
+    for (; iterations < 20 && r.error > 1e-7; iterations++) {
+      const step = 0.001;
+      const e = evaluate(RT.destination(q.latitude, q.longitude, 90, step));
+      const n = evaluate(RT.destination(q.latitude, q.longitude, 0, step));
+      const ex = (e.x - r.x) / step, ey = (e.y - r.y) / step, nx = (n.x - r.x) / step, ny = (n.y - r.y) / step;
+      const determinant = ex * ny - nx * ey;
+      if (!Number.isFinite(determinant) || Math.abs(determinant) < 1e-12) break;
+      let dx = (-r.x * ny + nx * r.y) / determinant, dy = (-ex * r.y + r.x * ey) / determinant;
+      const move = Math.hypot(dx, dy), scale = move > 8 ? 8 / move : 1;
+      dx *= scale; dy *= scale;
+      const next = RT.destination(q.latitude, q.longitude, Math.atan2(dx, dy) / DEG, Math.hypot(dx, dy));
+      const nr = evaluate(next);
+      if (!Number.isFinite(nr.error)) break;
+      q = next; r = nr;
+    }
+    const status = r.error > 1e-5 ? "not-converged" : r.seen.distanceKm < minKm - 1e-7 || r.seen.distanceKm > maxKm + 1e-7 ? "out-of-range" : "ready";
+    return { status, ...q, groundM, eyeHeightAGL, observerElevationM: height,
+      planeKm: r.seen.distanceKm, minSeparationDeg: vectorSeparation(directionVector(r.seen.azimuth, r.seen.altitude), directionVector(r.moon.azimuth, r.moon.apparentAltitude)),
+      angularErrorDeg: r.error, moon: r.moon, diskAngle, diskFraction, iterations };
+  }
+
+  // Seed topology for a continuous ribbon. These are deliberately NOT verified
+  // ground candidates: groundM is an explicit seed assumption. The caller must
+  // resolve each seed's DEM, rerun inverseGroundAt and check convergence before
+  // painting it. Missing or discontinuous sections must not be bridged.
+  function groundRibbonSeedsAt(at, paths, options = {}) {
+    const seeds = [], ribbons = [], invalidPathIds = [], stepKm = Math.max(0.1, options.stepKm ?? 2), capSteps = Math.max(4, Math.floor(options.capSteps ?? 8));
+    for (const path of Array.isArray(paths) ? paths : []) {
+      const points = [], raw = Array.isArray(path.points) ? path.points : [];
+      // A missing vertex breaks the route. Never make a filled ribbon by
+      // silently connecting the valid vertices on its opposite sides.
+      if (raw.some(p => !validPosition(p) || !Number.isFinite(p.altitudeM))) { invalidPathIds.push(path.id); continue; }
+      // Preserve actual bends/altitude changes; straight model vertices can be
+      // coalesced to stepKm without replacing an airport's curved route by a line.
+      let lastKept = 0;
+      for (let i = 0; i < raw.length; i++) {
+        if (!validPosition(raw[i]) || !Number.isFinite(raw[i].altitudeM)) continue;
+        let keep = i === 0 || i === raw.length - 1;
+        if (!keep && i > 0 && i + 1 < raw.length && validPosition(raw[i - 1]) && validPosition(raw[i + 1])) {
+          const before = bearing(raw[i - 1].latitude, raw[i - 1].longitude, raw[i].latitude, raw[i].longitude);
+          const after = bearing(raw[i].latitude, raw[i].longitude, raw[i + 1].latitude, raw[i + 1].longitude);
+          const d0 = distanceKm(raw[i - 1].latitude, raw[i - 1].longitude, raw[i].latitude, raw[i].longitude);
+          const d1 = distanceKm(raw[i].latitude, raw[i].longitude, raw[i + 1].latitude, raw[i + 1].longitude);
+          const slope0 = d0 ? (raw[i].altitudeM - raw[i - 1].altitudeM) / d0 : 0;
+          const slope1 = d1 ? (raw[i + 1].altitudeM - raw[i].altitudeM) / d1 : 0;
+          keep = Math.abs(wrap180(after - before)) > 0.2 || Math.abs(slope1 - slope0) > 0.2
+            || distanceKm(raw[lastKept].latitude, raw[lastKept].longitude, raw[i].latitude, raw[i].longitude) >= stepKm - 1e-6;
+        }
+        if (keep) { points.push(raw[i]); lastKept = i; }
+      }
+      if (!points.length) continue;
+      const dense = [points[0]];
+      for (let i = 0; i + 1 < points.length; i++) {
+        const a = points[i], b = points[i + 1], n = Math.max(1, Math.ceil(distanceKm(a.latitude, a.longitude, b.latitude, b.longitude) / stepKm - 1e-8));
+        for (let j = 1; j <= n; j++) dense.push(j === n ? b : interpolatePathPoint(a, b, j / n));
+      }
+      points.splice(0, points.length, ...dense);
+      const ribbon = { pathId: path.id, kind: path.kind, runway: path.runway, sections: [], startCapIds: [], endCapIds: [] };
+      const add = (p, sectionIndex, edge, diskAngle, anchor) => {
+        const id = `${path.id}:${sectionIndex}:${edge}`;
+        const solution = inverseGroundAt(at, p, { ...options, groundM: options.groundM ?? 0, diskAngle, anchor });
+        seeds.push({ id, pathId: path.id, kind: path.kind, runway: path.runway, sectionIndex, edge: edge.startsWith("cap") ? "cap" : edge,
+          planePoint: { ...p }, ...solution, diskAngle });
+        return seeds[seeds.length - 1];
+      };
+      for (let i = 0; i < points.length; i++) {
+        const p = points[i], center = add(p, i, "center", null);
+        const anchor = validPosition(center) ? center : null;
+        let perpendicular = 0;
+        if (anchor) {
+          const obs = { ...anchor, elevation: center.observerElevationM };
+          const a = seenFrom(obs, points[Math.max(0, i - 1)], 0), b = seenFrom(obs, points[Math.min(points.length - 1, i + 1)], 0);
+          const dx = wrap180(b.azimuth - a.azimuth) * Math.cos(center.moon.apparentAltitude * DEG), dy = b.altitude - a.altitude;
+          perpendicular = Math.atan2(dx, -dy);
+        }
+        const left = add(p, i, "left", perpendicular, anchor), right = add(p, i, "right", perpendicular + Math.PI, anchor);
+        ribbon.sections.push({ centerId: center.id, leftId: left.id, rightId: right.id });
+        if (i === 0 || i === points.length - 1) {
+          const ids = [];
+          for (let k = 0; k < capSteps; k++) ids.push(add(p, i, `cap${k}`, 2 * Math.PI * k / capSteps, anchor).id);
+          if (i === 0) ribbon.startCapIds = ids;
+          if (i === points.length - 1) ribbon.endCapIds = ids;
+        }
+      }
+      ribbons.push(ribbon);
+    }
+    return { status: "seed", at, seeds, ribbons, invalidPathIds, terrainVerified: false, eyeHeightAGL: options.eyeHeightAGL ?? 1.5,
+      seedGroundM: options.groundM ?? 0, maxSectionStepKm: stepKm };
+  }
+
   const AstroNotesPlane = { distanceKm, bearing, seenFrom, separation, standLine, findSpots, keepOnLand,
-                        crossingsFrom, rankSpots, mergeWindows, pathsFor, quality, MOON_RADIUS_DEG };
+                        crossingsFrom, rankSpots, mergeWindows, pathsFor, quality, MOON_RADIUS_DEG,
+                        routeOverlapAt, groundOverlapAt, inverseGroundAt, groundRibbonSeedsAt };
   global.AstroNotesPlane = AstroNotesPlane;
   if (typeof module !== "undefined" && module.exports) module.exports = AstroNotesPlane;
 })(typeof globalThis !== "undefined" ? globalThis : this);
