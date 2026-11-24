@@ -169,6 +169,11 @@ test("every listed airport has consistent runways, two wind directions and strai
   // Landing into the wind: a north wind at Kushiro uses runway 35.
   RT.selectAirport("RJCK"); assert.equal(RT.OPERATIONS[RT.operationFor(350, 5, 12)].landing.join(), "35");
   assert.equal(RT.nearestAirport(34.7739, 135.4458).airport.id, "RJOO");
+  // Main airports are chosen unless one stands right at a small airfield: Nerima picks Haneda, not Chofu.
+  assert.equal(RT.airportFor(35.7356, 139.6517).airport.id, "RJTT");
+  assert.equal(RT.airportFor(35.6703, 139.5281).airport.id, "RJTF");
+  assert.equal(RT.airportFor(34.7739, 135.4458).airport.id, "RJOO");
+  assert.equal(RT.airportFor(42.985, 144.38).airport.id, "RJCK");
   // Haneda keeps its published procedures and operations after switching back.
   RT.selectAirport("RJTT");
   assert.equal(Object.keys(RT.OPERATIONS).join(), "north,south,southBay");

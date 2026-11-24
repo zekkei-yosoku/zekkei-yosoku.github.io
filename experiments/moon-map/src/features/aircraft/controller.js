@@ -95,7 +95,7 @@ function planeOpSpans(dayMs, opts) {
 function planeAirportId() {
   if (plane.airport && AstroNotesRoutes.airportById(plane.airport)) return plane.airport;
   const P = planeFromPoint();
-  return AstroNotesRoutes.nearestAirport(P.latitude, P.longitude)?.airport.id || "RJTT";
+  return AstroNotesRoutes.airportFor(P.latitude, P.longitude)?.airport.id || "RJTT";
 }
 function planeSyncAirport({ recenter = true } = {}) {
   const id = planeAirportId();
@@ -103,8 +103,8 @@ function planeSyncAirport({ recenter = true } = {}) {
   if (changed) { AstroNotesRoutes.selectAirport(id); plane.op = null; plane.wind = null; plane.metar = null; }
   if (changed || !$("planeOp").options.length) $("planeOp").innerHTML = '<option value="">風予報から推定</option>' + Object.entries(AstroNotesRoutes.OPERATIONS).map(([key, o]) => `<option value="${key}">${esc(o.name)}（手動）</option>`).join("");
   const sel = $("planeAirport");
-  if (sel && !sel.options.length) sel.innerHTML = '<option value="">撮影地点に近い空港（自動）</option>' + [...AstroNotesRoutes.AIRPORTS].sort((a, b) => b.latitude - a.latitude).map((a) => `<option value="${a.id}">${esc(a.shortName)}（${esc(a.name)}・${a.id}）</option>`).join("");
-  if (sel) { sel.value = plane.airport || ""; sel.options[0].textContent = `撮影地点に近い空港（自動・いまは${AstroNotesRoutes.AIRPORT.shortName}）`; }
+  if (sel && !sel.options.length) sel.innerHTML = '<option value="">撮影地点に近い主な空港（自動）</option>' + [...AstroNotesRoutes.AIRPORTS].sort((a, b) => b.latitude - a.latitude).map((a) => `<option value="${a.id}">${esc(a.shortName)}（${esc(a.name)}・${a.id}）</option>`).join("");
+  if (sel) { sel.value = plane.airport || ""; sel.options[0].textContent = `撮影地点に近い主な空港（自動・いまは${AstroNotesRoutes.AIRPORT.shortName}）`; }
   if (changed && recenter && viewState.plane) PlaneMap.open(AstroNotesRoutes.AIRPORT, 10);
   return changed;
 }

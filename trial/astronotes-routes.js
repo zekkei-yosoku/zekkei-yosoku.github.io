@@ -686,6 +686,25 @@
       threshold: { latitude: lat, longitude: lon }, ...(dLat ? { landingThreshold: { latitude: dLat, longitude: dLon } } : {}) })),
   }));
   const airportById = (id) => AIRPORTS.find((a) => a.id === id) || null;
+  const runwayKm = (a) => Math.max(0, ...a.runways.map((r) => {
+    const n = (Number(r.ident.slice(0, 2)) + 17) % 36 + 1, o = a.runways.find((x) => x.ident === String(n).padStart(2, "0") + ({ L: "R", R: "L", C: "C" }[r.ident.slice(2)] || ""));
+    return o ? haversineKm(r.threshold.latitude, r.threshold.longitude, o.threshold.latitude, o.threshold.longitude) : 0;
+  }));
+  /**
+   * 撮影地点から選ぶ空港。2000m 以上の滑走路を持つ空港のうち最も近いもの。
+   * 小さい飛行場（調布など）は、その 5km 以内に立つときだけ選ぶ（練馬から調布を選んでいた。2026-11-24）
+   */
+  function airportFor(lat, lon) {
+    const near = nearestAirport(lat, lon);
+    if (near && near.distanceKm <= 5) return near;
+    let best = null, bestKm = Infinity;
+    for (const a of AIRPORTS) {
+      if (runwayKm(a) < 1.95) continue;
+      const d = haversineKm(lat, lon, a.latitude, a.longitude);
+      if (d < bestKm) { bestKm = d; best = a; }
+    }
+    return best ? { airport: best, distanceKm: bestKm } : near;
+  }
   /// いちばん近い空港。滑走路の向きが分かっている空港だけ
   function nearestAirport(lat, lon) {
     let best = null, bestKm = Infinity;
@@ -754,7 +773,7 @@
   const AstroNotesRoutes = { RJTT, runwayOf, OPERATIONS, operationFor, operationStatus, SPOTS,
                          approachPath, departurePath, measuredApproachPath, measuredSource, procedureApproachPath, procedureDeparturePath, procedureSource, PROCEDURES, HOURLY_MOVEMENTS, HOURLY_ARRIVALS, HOURLY_DEPARTURES,
                          trafficAt, destination, THRESHOLD_CROSSING_M, SPOT_HORIZONS, spotHorizonAt,
-                         AIRPORT: RJTT, HAS_TRAFFIC: true, AIRPORTS, airportById, nearestAirport, selectAirport };
+                         AIRPORT: RJTT, HAS_TRAFFIC: true, AIRPORTS, airportById, nearestAirport, airportFor, selectAirport };
   global.AstroNotesRoutes = AstroNotesRoutes;
   if (typeof module !== "undefined" && module.exports) module.exports = AstroNotesRoutes;
 })(typeof globalThis !== "undefined" ? globalThis : this);
