@@ -8,16 +8,40 @@ vm.runInContext(readFileSync(new URL("../experiments/moon-map/astronotes-routes.
 const { operationFor, operationStatus } = context.AstroNotesRoutes;
 const at = (time) => `2026-11-24T${time}+09:00`;
 
-test("deep-night routes never reuse the daytime model, including midnight", () => {
+test("deep-night hours use the night preferential runways and sea arrivals, never the daytime model", () => {
+  const RT = context.AstroNotesRoutes;
   for (const time of ["00:00:00", "05:59:59", "23:00:00", "23:59:59"]) {
     const status = operationStatus(at(time));
-    assert.equal(status.supported, false, time);
+    assert.equal(status.supported, true, time);
     assert.equal(status.period, "night", time);
     assert.equal(status.northWindow, null);
     assert.equal(status.southWindow, null);
   }
-  assert.equal(operationStatus(at("06:00:00")).supported, true);
-  assert.equal(operationStatus(at("22:59:59")).supported, true);
+  assert.equal(operationStatus(at("06:00:00")).period, "day");
+  assert.equal(operationStatus(at("22:59:59")).period, "day");
+  // AIP RJTT AD2.21 (1400-2100UTC): land 34R / 23, take off 05 / 16L.
+  for (const hour of [23, 0, 5]) {
+    assert.equal(operationFor(340, 5, hour), "northNight");
+    assert.equal(operationFor(160, 6, hour), "southNight");
+  }
+  assert.equal(RT.OPERATIONS.northNight.landing.join(), "34R");
+  assert.equal(RT.OPERATIONS.northNight.takeoff.join(), "05");
+  assert.equal(RT.OPERATIONS.southNight.landing.join(), "23");
+  assert.equal(RT.OPERATIONS.southNight.takeoff.join(), "16L");
+  assert.equal(RT.operationChoice("north", 1), "northNight");
+  assert.equal(RT.operationChoice("southBay", 23), "southNight");
+  assert.equal(RT.operationChoice("north", 12), "north");
+  // Night arrivals come in over the sea from KAIHO and are not the daytime routes.
+  for (const r of ["34R", "23"]) {
+    const night = RT.procedureApproachPath(`${r}@night`), day = RT.procedureApproachPath(r);
+    assert.ok(night && day && night.length > 20);
+    assert.match(RT.procedureSource("landing", `${r}@night`), /NIGHT/);
+    const near = (lat, lon) => night.some((p) => Math.abs(p.latitude - lat) < 0.01 && Math.abs(p.longitude - lon) < 0.01);
+    assert.ok(near(35.31606, 139.77844), `${r} night passes KAIHO`);
+    const end = night.at(-1);
+    assert.ok(Math.abs(end.latitude - 34.94639) < 0.01 && Math.abs(end.longitude - 139.89553) < 0.01, `${r} night starts at UTIBO`);
+    assert.notEqual(JSON.stringify(night.at(-1)), JSON.stringify(day.at(-1)));
+  }
 });
 
 test("published north and south time windows have exact half-hour boundaries", () => {
@@ -176,7 +200,7 @@ test("every listed airport has consistent runways, two wind directions and strai
   assert.equal(RT.airportFor(42.985, 144.38).airport.id, "RJCK");
   // Haneda keeps its published procedures and operations after switching back.
   RT.selectAirport("RJTT");
-  assert.equal(Object.keys(RT.OPERATIONS).join(), "north,south,southBay");
+  assert.equal(Object.keys(RT.OPERATIONS).join(), "north,south,northNight,southNight,southBay");
   assert.ok(RT.procedureApproachPath("16L").length > 20);
   assert.equal(RT.AIRPORT.id, "RJTT");
 });

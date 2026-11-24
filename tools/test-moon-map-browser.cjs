@@ -35,8 +35,11 @@ await p.screenshot({path:`${out}/${engine}-${width}-${theme}-map.png`,fullPage:t
   await p.locator('#planeHeightAuto').click();await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.observer.eyeHeightAGL===1.5);
   await p.locator('#planeSheetClose').click();assert.equal(await p.locator('#planeSheet').isVisible(),false);await p.locator('#planeTime').fill('18:10');await p.locator('#planeTime').dispatchEvent('change');await p.waitForFunction(()=>plane.map&&!plane.map.pending&&S.JstCal.hhmm(plane.map.at)==='18:10');
   await p.locator('#planeNext').click();await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.dayMs===Date.parse('2026-11-25T00:00:00+09:00'));assert.equal(await p.locator('#planeTime').inputValue(),'18:10');
-  await p.locator('#planeTime').fill('23:00');await p.locator('#planeTime').dispatchEvent('change');await p.waitForFunction(()=>!plane.map&&$('planeMapStatus').textContent.includes('深夜'));
-  await p.locator('.plane-btn[data-plane-pane=op]').click();await p.locator('#planeOp').selectOption('north');await p.waitForFunction(()=>!plane.map&&$('planeMapStatus').textContent.includes('深夜'));
+  // 23:00 is the night operation: 34R landing / 05 takeoff in a north wind, with the night sea arrival.
+  await p.locator('#planeTime').fill('23:00');await p.locator('#planeTime').dispatchEvent('change');
+  await p.waitForFunction(()=>plane.map&&!plane.map.pending&&S.JstCal.hhmm(plane.map.at)==='23:00');
+  assert.deepEqual(await p.evaluate(()=>plane.map.paths.map(x=>x.id).sort()),['05 離陸（深夜）','34R 着陸（深夜）']);
+  await p.locator('.plane-btn[data-plane-pane=op]').click();await p.locator('#planeOp').selectOption('north');await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.map.paths.every(x=>x.night));
   await p.evaluate(()=>{plane.wind={id:AstroNotesRoutes.AIRPORT.id,at:Date.now(),times:[],dir:[],speed:[]};plane.op=null;$('planeOp').value='';planeSetAt(Date.parse('2026-11-24T18:00:00+09:00'));});
   await p.waitForFunction(()=>!plane.map&&$('planeMapStatus').textContent.includes('風予報がない'));
   await p.locator('#planeOp').selectOption('north');await p.waitForFunction(()=>plane.map&&!plane.map.pending);
@@ -45,6 +48,13 @@ await p.screenshot({path:`${out}/${engine}-${width}-${theme}-map.png`,fullPage:t
   await p.waitForFunction(()=>AstroNotesRoutes.AIRPORT.id==='RJOO'&&plane.map&&!plane.map.pending&&plane.map.paths.every(x=>x.airportId==='RJOO'));
   assert.match(await p.locator('#planeOpChip').textContent(),/^伊丹・/);
   await p.evaluate(()=>planeSetFrom({name:'検証用の撮影地点',latitude:35.6,longitude:139.8}));await p.waitForFunction(()=>AstroNotesRoutes.AIRPORT.id==='RJTT'&&plane.map&&!plane.map.pending);
+  // Airport search: by IATA, by Japanese name, then back to automatic.
+  await p.evaluate(()=>{if($('planeSheet').hidden||$('planeSheet').dataset.pane!=='op')document.querySelector('.plane-btn[data-plane-pane=op]').click();});await p.locator('#planeAirportSearch').fill('HND');
+  assert.match(await p.locator('#planeAirportResults button').first().textContent(),/羽田.*RJTT/);
+  await p.locator('#planeAirportSearch').fill('釧路');await p.locator('#planeAirportResults button').first().click();
+  await p.waitForFunction(()=>AstroNotesRoutes.AIRPORT.id==='RJCK'&&plane.map&&!plane.map.pending);assert.match(await p.locator('#planeOpChip').textContent(),/^釧路・/);
+  await p.locator('#planeAirportAuto').click();await p.waitForFunction(()=>AstroNotesRoutes.AIRPORT.id==='RJTT'&&plane.map&&!plane.map.pending);
+  await p.locator('#planeOp').selectOption('north');await p.waitForFunction(()=>plane.map&&!plane.map.pending);
   await p.evaluate(()=>{AstroNotesTerrain.groundElevation=()=>new Promise(resolve=>{window.__resolveMoonGround=resolve;});planeSetFrom({name:'変更後の地点',latitude:35.6,longitude:139.8});planeSetAt(plane.at+60000);});
   assert.equal(await p.evaluate(()=>plane.map),null,'old observer must be invalidated while elevation pending');
   await p.evaluate(()=>{window.__resolveMoonGround(30);AstroNotesTerrain.groundElevation=async()=>20;});await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.observer.groundM===30);

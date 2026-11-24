@@ -214,6 +214,13 @@
       #planeView .plane-sheet{position:fixed;z-index:34;left:0;right:0;bottom:var(--plane-foot,96px);max-height:calc(100dvh - var(--plane-top,0px) - var(--plane-foot,96px) - 48px);overflow:auto;overscroll-behavior:contain;box-sizing:border-box;padding:0 16px 16px;background:var(--card);border-top:1px solid var(--line);border-radius:16px 16px 0 0;box-shadow:0 -6px 20px #0003}
       #planeView .plane-sheet-head{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;min-height:48px;margin:0 -16px 4px;padding:0 4px 0 16px;background:var(--card)}
       #planeView .plane-sheet-head b{font-size:16px}
+      #planeView .plane-apt-now{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;margin:0 0 6px;font-size:15px}
+      #planeView .plane-apt-now .chip{flex:none}
+      #planeView .plane-apt-list{display:flex;flex-direction:column;margin:6px 0 14px}
+      #planeView .plane-apt-list button{display:flex;align-items:baseline;justify-content:space-between;gap:10px;min-height:44px;padding:8px 4px;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);font:inherit;font-size:15px;text-align:left;cursor:pointer}
+      #planeView .plane-apt-list button[aria-current=true]{font-weight:700;color:var(--accent)}
+      #planeView .plane-apt-list small{flex:none;font-size:12px;color:var(--secondary)}
+      #planeView .plane-apt-list p{margin:8px 4px;font-size:13px;color:var(--secondary)}
       #planeView .plane-sheet-head button{min-width:44px;min-height:44px;border:0;background:transparent;color:var(--text);font-size:20px;cursor:pointer}
       @media(min-width:960px){#planeView .plane-sheet{left:50%;right:auto;width:min(780px,calc(100vw - 40px));transform:translateX(-50%);border:1px solid var(--line);border-bottom:0}}
     </style>
@@ -237,10 +244,10 @@
     <div id="planeSheet" class="plane-sheet" role="dialog" aria-labelledby="planeSheetTitle" hidden>
       <div class="plane-sheet-head"><b id="planeSheetTitle"></b><button type="button" id="planeSheetClose" aria-label="閉じる">✕</button></div>
       <div data-pane="op" data-title="空港と運用" hidden>
-        <label class="fav-l" for="planeAirport">空港</label>
-        <div class="aim-row">
-          <select id="planeAirport" class="fav-in" aria-label="空港"></select>
-        </div>
+        <label class="fav-l" for="planeAirportSearch">空港</label>
+        <div class="plane-apt-now"><span id="planeAirportNow"></span><button type="button" id="planeAirportAuto" class="chip" hidden>自動に戻す</button></div>
+        <input id="planeAirportSearch" type="search" class="fav-in" placeholder="空港を検索（羽田・HND・RJTT）" autocomplete="off" enterkeyhint="search">
+        <div id="planeAirportResults" class="plane-apt-list" role="list" aria-label="空港の候補"></div>
         <label class="fav-l" for="planeOp">運用</label>
         <div class="aim-row">
           <select id="planeOp" class="fav-in" aria-label="運用の向き"></select>

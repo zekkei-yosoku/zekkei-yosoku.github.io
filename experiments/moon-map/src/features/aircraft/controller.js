@@ -63,7 +63,7 @@ async function planeLoadWind() {
 /// 風が分からない時刻は北風運用（羽田の基本）
 function planeOpAt(at, { auto = false } = {}) {
   if (!AstroNotesRoutes.operationStatus(at).supported) return null;
-  if (plane.op && !auto) return plane.op;
+  if (plane.op && !auto) return AstroNotesRoutes.operationChoice(plane.op, new Date(at + 9 * 3600000).getUTCHours());
   const hour = new Date(at + 9 * 3600000).getUTCHours();
   const w = planeWindAt(at);
   if (!w) return null;
@@ -74,6 +74,11 @@ function planeOpAt(at, { auto = false } = {}) {
 function planeOpLabel(ops) {
   if (ops.length === 1 && ops[0]) return AstroNotesRoutes.OPERATIONS[ops[0]].name;
   ops = ops.filter(Boolean);
+  const night = ops.filter((o) => AstroNotesRoutes.OPERATIONS[o]?.night);
+  if (night.length && AstroNotesRoutes.AIRPORT.id === "RJTT") {
+    const day = planeOpLabel(ops.filter((o) => !night.includes(o)));
+    return [day, `深夜は${night.map((o) => (o === "northNight" ? "北風" : "南風")).join("・")}`].filter(Boolean).join("・");
+  }
   if (AstroNotesRoutes.AIRPORT.id !== "RJTT") return ops.map((o) => AstroNotesRoutes.OPERATIONS[o]?.name).filter(Boolean).join("・");
   const south = ops.filter((o) => o !== "north").map((o) => (o === "south" ? "都心上空" : "湾側"));
   return [ops.includes("north") ? "北風運用" : null, south.length ? `南風運用（${south.join("・")}）` : null]
@@ -101,12 +106,29 @@ function planeSyncAirport({ recenter = true } = {}) {
   const id = planeAirportId();
   const changed = AstroNotesRoutes.AIRPORT.id !== id;
   if (changed) { AstroNotesRoutes.selectAirport(id); plane.op = null; plane.wind = null; plane.metar = null; }
-  if (changed || !$("planeOp").options.length) $("planeOp").innerHTML = '<option value="">風予報から推定</option>' + Object.entries(AstroNotesRoutes.OPERATIONS).map(([key, o]) => `<option value="${key}">${esc(o.name)}（手動）</option>`).join("");
-  const sel = $("planeAirport");
-  if (sel && !sel.options.length) sel.innerHTML = '<option value="">撮影地点に近い主な空港（自動）</option>' + [...AstroNotesRoutes.AIRPORTS].sort((a, b) => b.latitude - a.latitude).map((a) => `<option value="${a.id}">${esc(a.shortName)}（${esc(a.name)}・${a.id}）</option>`).join("");
-  if (sel) { sel.value = plane.airport || ""; sel.options[0].textContent = `撮影地点に近い主な空港（自動・いまは${AstroNotesRoutes.AIRPORT.shortName}）`; }
+  if (changed || !$("planeOp").options.length) $("planeOp").innerHTML = '<option value="">風予報から推定</option>' + Object.entries(AstroNotesRoutes.OPERATIONS).filter(([, o]) => !o.night).map(([key, o]) => `<option value="${key}">${esc(o.name)}（手動）</option>`).join("");
+  const A = AstroNotesRoutes.AIRPORT;
+  $("planeAirportNow").textContent = `${A.shortName}（${A.name}・${A.id}）${plane.airport ? "" : " — 撮影地点に近い主な空港"}`;
+  $("planeAirportAuto").hidden = !plane.airport;
+  planeAirportList();
   if (changed && recenter && viewState.plane) PlaneMap.open(AstroNotesRoutes.AIRPORT, 10);
   return changed;
+}
+
+/// 空港の候補。文字があれば名前・略称・IATA・ICAO で絞り、無ければ撮影地点から近い順
+function planeAirportList() {
+  const box = $("planeAirportResults"); if (!box) return;
+  const q = $("planeAirportSearch").value.trim().toUpperCase().replace(/\s+/g, "");
+  const P = planeFromPoint(), km = (a) => Math.hypot(a.latitude - P.latitude, (a.longitude - P.longitude) * Math.cos(P.latitude * Math.PI / 180)) * 111.2;
+  let list = AstroNotesRoutes.AIRPORTS.map((a) => ({ a, d: km(a) }));
+  if (q) {
+    const score = ({ a }) => [a.id, a.iata].some((x) => x && x.toUpperCase() === q) ? 0 : a.shortName.toUpperCase().startsWith(q) || a.name.toUpperCase().startsWith(q) ? 1
+      : [a.shortName, a.name, a.id, a.iata].some((x) => x && x.toUpperCase().includes(q)) ? 2 : 9;
+    list = list.map((x) => ({ ...x, s: score(x) })).filter((x) => x.s < 9).sort((x, y) => x.s - y.s || x.d - y.d);
+  } else list.sort((x, y) => x.d - y.d);
+  const cur = AstroNotesRoutes.AIRPORT.id;
+  box.innerHTML = list.length ? list.slice(0, 8).map(({ a, d }) => `<button type="button" role="listitem" data-airport="${a.id}" aria-current="${a.id === cur}"><span>${esc(a.shortName)}<small>　${esc(a.name)}</small></span><small>${a.iata ? esc(a.iata) + "・" : ""}${a.id}・${Math.round(d)}km</small></button>`).join("")
+    : '<p>見つかりません。空港名・IATA（HND）・ICAO（RJTT）で探せます</p>';
 }
 
 async function planeApply() {
@@ -142,7 +164,7 @@ async function planeApply() {
   }
   const activeAt = (path, at) => {
     const o = AstroNotesRoutes.OPERATIONS[planeOpAt(at)];
-    return !!o && (path.kind === "landing" ? o.landing : o.takeoff).includes(path.runway);
+    return !!o && !!o.night === !!path.night && (path.kind === "landing" ? o.landing : o.takeoff).includes(path.runway);
   };
   const here = {id:"here",name:`${P.name}（撮影地点）`,latitude:P.latitude,longitude:P.longitude,elevationM:ground,eyeHeightAGL:agl,
     horizonAt:P.inherited ? moonHorizon : null,note:`標高 ${Math.round(ground)}m・レンズ高 ${agl.toFixed(1)}m`};
@@ -293,8 +315,10 @@ async function planeUpdateMap() {
     let heights;
     // Points whose 10 m DEM tile does not exist are open sea (Tokyo Bay). Answer them as sea level instead of
     // falling back to Open-Meteo, which rate-limits (429) when a route runs over the bay.
-    const seaLevel=async url=>{const n=String(url).split('latitude=')[1].split('&')[0].split(',').length;return {ok:true,status:200,json:async()=>({elevation:new Array(n).fill(0)})};};
-    try{heights=await AstroNotesTerrain.elevations(active,{zoom:13,indexedExactBatch:true,fetchImpl:seaLevel});}catch{heights=active.map(()=>null);}
+    // 国土地理院の標高タイルに値が無い所は海。そこには立てないので候補にしない（2026-11-25 ユーザー「海の上になったら行けないからなくていい」）。
+    // 予備の標高サービスへは問い合わせない（海の点で429になり、陸まで欠けていた）
+    const noFallback=async url=>{const n=String(url).split('latitude=')[1].split('&')[0].split(',').length;return {ok:true,status:200,json:async()=>({elevation:new Array(n).fill(null)})};};
+    try{heights=await AstroNotesTerrain.elevations(active,{zoom:13,indexedExactBatch:true,fetchImpl:noFallback});}catch{heights=active.map(()=>null);}
     if(!current())return;
     for(let i=0;i<active.length;i++){
       const sample=active[i],ground=heights[i];
@@ -337,7 +361,7 @@ function planeMapText(){
   else if(m&&r.overlap.status==='below-horizon')parts.push('月が地平線より下にあります');
   else parts.push(r.overlap.overlaps?.length?'金色の区間で月円盤と重なります':'この地点から重なる区間はありません');
   if(r.pending&&r.overlap.status==='ready')parts.push('地上の候補範囲を計算中…');
-  else if(r.missing)parts.push('地形を確認できない部分は未表示');
+  else if(r.missing)parts.push('海の上と地形を確認できない部分は表示しません');
   else if(r.overlap.status==='ready'&&!r.polygons.length&&!r.centerLines?.length)parts.push('対応範囲内に地上の候補なし');
   else if(r.centerLines?.length)parts.push('青い線の上に立つと月の中心に重なります');
   $("planeMapStatus").textContent=parts.join(' ／ ');
@@ -421,7 +445,9 @@ function openPlane(){
     $("planeTimeRange").oninput=()=>{plane.mapSeq.cancel();plane.map=null;PlaneMap.redraw();clearTimeout(scrub);scrub=setTimeout(()=>planeSetAt(plane.dayMs+Number($("planeTimeRange").value)*60000),150);};
     $("planeTimeRange").onchange=()=>{clearTimeout(scrub);planeSetAt(plane.dayMs+Number($("planeTimeRange").value)*60000);};
     $("planeOp").onchange=()=>{plane.op=$("planeOp").value||null;planeApply();};
-    $("planeAirport").onchange=()=>{plane.airport=$("planeAirport").value||null;planeApply();};
+    $("planeAirportSearch").oninput=planeAirportList;
+    $("planeAirportResults").onclick=e=>{const b=e.target.closest('[data-airport]');if(!b)return;plane.airport=b.dataset.airport;$("planeAirportSearch").value='';planeApply();};
+    $("planeAirportAuto").onclick=()=>{plane.airport=null;$("planeAirportSearch").value='';planeApply();};
     $("planeFromButton").onclick=()=>openPlaceSheet('plane');
     $("planeFromFav").onclick=()=>favForPoint(planeFromPoint(),entry=>{renameFromAfterFav(plane,entry);planeApply();});
     $("planePickHere").onclick=async()=>{const c=PlaneMap.center(),request=plane.seq.next();$("planePickHere").disabled=true;try{const n=await nearName(c.latitude,c.longitude);if(plane.seq.current(request)&&toolAllowed('plane')&&viewState.plane)planeSetFrom({...c,name:n.name,subtitle:n.subtitle||n.area||'地図の中心'});}finally{$("planePickHere").disabled=false;}};

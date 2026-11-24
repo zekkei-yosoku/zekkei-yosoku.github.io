@@ -405,6 +405,9 @@
   }
 
   /// その日に使う経路。運用（北風・南風）で変わる
+  /// 経路は空港から道のりで200kmまで（2026-11-25 ユーザー「もう少し長く」。遠い機は点にしか写らないので、それ以上は引かない）
+  const MAX_ROUTE_KM = 200;
+  const within = (points) => points.filter((p) => !(p.distanceKm > MAX_ROUTE_KM));
   function pathsFor(operation, { landing = true, takeoff = false } = {}) {
     const op = RT.OPERATIONS[operation];
     if (!op) return [];
@@ -412,18 +415,20 @@
     if (landing) {
       for (const r of op.landing) {
         // Published procedures include the turns before the final; others remain the straight final model.
-        const proc = typeof RT.procedureApproachPath === "function" ? RT.procedureApproachPath(r) : null;
-        out.push({ id: `${r} 着陸`, kind: "landing", runway: r, airportId: (RT.AIRPORT || RT.RJTT).id,
-          altitudeDatum: "MSL", model: proc ? "procedure" : "representative", source: proc ? RT.procedureSource("landing", r) : null,
-          flightOrder: -1, points: proc || RT.approachPath(r) });
+        // Night operations first look for the runway's night procedure ("34R@night").
+        const key = op.night && typeof RT.procedureApproachPath === "function" && RT.procedureApproachPath(`${r}@night`) ? `${r}@night` : r;
+        const proc = typeof RT.procedureApproachPath === "function" ? RT.procedureApproachPath(key) : null;
+        out.push({ id: `${r} 着陸${op.night ? "（深夜）" : ""}`, kind: "landing", runway: r, night: !!op.night, airportId: (RT.AIRPORT || RT.RJTT).id,
+          altitudeDatum: "MSL", model: proc ? "procedure" : "representative", source: proc ? RT.procedureSource("landing", key) : null,
+          flightOrder: -1, points: within(proc || RT.approachPath(r)) });
       }
     }
     if (takeoff) {
       for (const r of op.takeoff) {
         const proc = typeof RT.procedureDeparturePath === "function" ? RT.procedureDeparturePath(r) : null;
-        out.push({ id: `${r} 離陸`, kind: "takeoff", runway: r, airportId: (RT.AIRPORT || RT.RJTT).id,
+        out.push({ id: `${r} 離陸${op.night ? "（深夜）" : ""}`, kind: "takeoff", runway: r, night: !!op.night, airportId: (RT.AIRPORT || RT.RJTT).id,
           altitudeDatum: "MSL", model: proc ? "procedure" : "representative", source: proc ? RT.procedureSource("takeoff", r) : null,
-          flightOrder: 1, points: proc || RT.departurePath(r) });
+          flightOrder: 1, points: within(proc || RT.departurePath(r)) });
       }
     }
     return out;
