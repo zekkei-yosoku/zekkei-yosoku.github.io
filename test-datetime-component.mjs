@@ -11,6 +11,9 @@ test('日時バーの寸法は共通CSSだけで管理し全消費先に配信�
  assert.match(css,/grid-template-columns:44px max-content 44px 56px 40px 44px 40px/);
  // The shared calendar's narrow selects are the last rule; the trial is a copy.
  assert.match(css.trim().split('\n').at(-1),/^\.tool-date-calendar \.aim-cal-nav select\.fav-in\{[^{}]*\}$/);
- assert.equal(read('trial/astronotes-datetime-ui.css'),css);
+ // The trial is a copy, unless a guarded experiment overlay declares this asset; then it equals that overlay.
+ const overlay='experiments/moon-map/astronotes-datetime-ui.css',declared=JSON.parse(read('experiments/moon-map/manifest.json')).overlays.some(o=>o.path==='astronotes-datetime-ui.css');
+ assert.equal(read('trial/astronotes-datetime-ui.css'),declared?read(overlay):css);
+ if(declared)assert.match(read(overlay).trim().split('\n').at(-1),/^\.tool-date-calendar \.aim-cal-nav select\.fav-in\{[^{}]*\}$/);
  for(const asset of ['astronotes-datetime-ui.js','astronotes-home-time.js'])assert.equal(read('trial/'+asset),read(asset));
 });
