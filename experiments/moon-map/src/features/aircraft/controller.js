@@ -14,7 +14,8 @@ import {renderToolAccess,toolAllowed} from '../account/session-and-access.js';
 // 運用の向き（北風・南風）はその日の風の予報から決める。
 const plane = { dayMs: null, at: null, op: null, wind: null, map: null, observer: null, playback: null, mapSeq: AstroNotesLibrary.gate(), groundOverride: null, eyeOverride: null,
                 result: null, seq: AstroNotesLibrary.gate(), wired: false, pick: 0,
-                from: null };   // 撮影地点。null ならAstroNotesの地点を引き継ぐ（ねらうと同じ。2026-10-01）
+                from: null,
+                airport: null };   // 空港。null なら撮影地点にいちばん近い空港（2026-11-24 全空港へ）   // 撮影地点。null ならAstroNotesの地点を引き継ぐ（ねらうと同じ。2026-10-01）
 /// 月丼の観測地点（候補の「ここ」）。替えていなければAstroNotesの地点
 function planeFromPoint() { return plane.from || inheritedPoint(); }
 function planeSetFrom(p) {
@@ -25,12 +26,12 @@ function planeSetFrom(p) {
 
 const PlaneMap = createMapView({ canvas: "planeCanvas", coord: "planeCoord", zoomIn: "planeIn", zoomOut: "planeOut" });
 
-/// **羽田の**風。いま選んでいる地点の風ではない（長野を選んでいても、効くのは羽田の風）。
+/// **空港の**風。いま選んでいる地点の風ではない（長野を選んでいても、効くのは空港の風）。
 /// 以前は地点の予報を流用し、しかも**風向を数字で平均**していた。350°と10°の北風が
 /// 平均で180°＝南風運用に化ける（2026-09-28 修正）。風だけの小さな取得で、30分使い回す
 async function planeLoadWind() {
-  if (plane.wind && Date.now() - plane.wind.at < 30 * 60000) return plane.wind;
-  const R = AstroNotesRoutes.RJTT;
+  const R = AstroNotesRoutes.AIRPORT;
+  if (plane.wind && plane.wind.id === R.id && Date.now() - plane.wind.at < 30 * 60000) return plane.wind;
   const url = "https://api.open-meteo.com/v1/forecast?" + new URLSearchParams({
     latitude: R.latitude.toFixed(4), longitude: R.longitude.toFixed(4),
     hourly: "wind_direction_10m,wind_speed_10m", wind_speed_unit: "ms",
@@ -41,9 +42,9 @@ async function planeLoadWind() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const j = await res.json();
     const h = j.hourly || {};
-    plane.wind = { at: Date.now(), times: (h.time || []).map((s) => s * 1000),
+    plane.wind = { id: R.id, at: Date.now(), times: (h.time || []).map((s) => s * 1000),
       dir: h.wind_direction_10m || [], speed: h.wind_speed_10m || [] };
-  } catch { plane.wind = { at: Date.now(), times: [], dir: [], speed: [] }; }
+  } catch { plane.wind = { id: R.id, at: Date.now(), times: [], dir: [], speed: [] }; }
   return plane.wind;
 }
 
@@ -68,6 +69,7 @@ function planeOpAt(at, { auto = false } = {}) {
 function planeOpLabel(ops) {
   if (ops.length === 1 && ops[0]) return AstroNotesRoutes.OPERATIONS[ops[0]].name;
   ops = ops.filter(Boolean);
+  if (AstroNotesRoutes.AIRPORT.id !== "RJTT") return ops.map((o) => AstroNotesRoutes.OPERATIONS[o]?.name).filter(Boolean).join("・");
   const south = ops.filter((o) => o !== "north").map((o) => (o === "south" ? "都心上空" : "湾側"));
   return [ops.includes("north") ? "北風運用" : null, south.length ? `南風運用（${south.join("・")}）` : null]
     .filter(Boolean).join("・");
@@ -84,15 +86,34 @@ function planeOpSpans(dayMs, opts) {
   return out;
 }
 
+/// 撮影地点に合わせて空港を選ぶ（手で選んでいればそれ）。空港が替われば運用・風・地図を合わせ直す
+function planeAirportId() {
+  if (plane.airport && AstroNotesRoutes.airportById(plane.airport)) return plane.airport;
+  const P = planeFromPoint();
+  return AstroNotesRoutes.nearestAirport(P.latitude, P.longitude)?.airport.id || "RJTT";
+}
+function planeSyncAirport({ recenter = true } = {}) {
+  const id = planeAirportId();
+  const changed = AstroNotesRoutes.AIRPORT.id !== id;
+  if (changed) { AstroNotesRoutes.selectAirport(id); plane.op = null; plane.wind = null; }
+  if (changed || !$("planeOp").options.length) $("planeOp").innerHTML = '<option value="">風予報から推定</option>' + Object.entries(AstroNotesRoutes.OPERATIONS).map(([key, o]) => `<option value="${key}">${esc(o.name)}（手動）</option>`).join("");
+  const sel = $("planeAirport");
+  if (sel && !sel.options.length) sel.innerHTML = '<option value="">撮影地点に近い空港（自動）</option>' + [...AstroNotesRoutes.AIRPORTS].sort((a, b) => b.latitude - a.latitude).map((a) => `<option value="${a.id}">${esc(a.shortName)}（${esc(a.name)}・${a.id}）</option>`).join("");
+  if (sel) { sel.value = plane.airport || ""; sel.options[0].textContent = `撮影地点に近い空港（自動・いまは${AstroNotesRoutes.AIRPORT.shortName}）`; }
+  if (changed && recenter && viewState.plane) PlaneMap.open(AstroNotesRoutes.AIRPORT, 10);
+  return changed;
+}
+
 async function planeApply() {
   if (!toolAllowed("plane")) return;
+  planeSyncAirport();
   const seq = plane.seq.next();
   plane.mapSeq.cancel(); plane.map = null; plane.result = null; plane.observer = null;
   $("planeInfo").textContent = "この日の狙い目を計算中…";
   $("planeMapStatus").textContent = "空港の風と撮影地点の高さを確認中…";
   $("planeList").replaceChildren(); $("planeRouteDetails").replaceChildren(); PlaneMap.redraw();
   const P = planeFromPoint();
-  renderPointCard("planeFrom", P, null);
+  renderPointCard("planeFrom", P, null);$("planeFromChip").textContent = P.name;
   const saved = aimSavedFrom(P);
   let ground = plane.groundOverride ?? saved?.groundManualM;
   if (!Number.isFinite(ground)) {
@@ -106,7 +127,7 @@ async function planeApply() {
   $("planeGround").placeholder = Number.isFinite(ground) ? ground.toFixed(1) : "標高を取得できません";
   $("planeEye").value = String(agl);
   $("planeHeightSummary").textContent = Number.isFinite(ground) ? `標高 ${ground.toFixed(1)}m ＋ レンズ高 ${agl.toFixed(1)}m` : "標高を取得できません — 手入力できます";
-  renderPointCard("planeFrom", P, ground);
+  renderPointCard("planeFrom", P, ground);$("planeFromChip").textContent = P.name;
   await planeLoadWind();
   if (!plane.seq.current(seq) || !toolAllowed("plane")) return;
   const spans = planeOpSpans(plane.dayMs);
@@ -135,6 +156,7 @@ async function planeApply() {
 /// 期待機数の言い方。**確率ではなく、その時間に円盤の前を通る機数の平均。**
 /// 1機に満たない日も多いので「約0機」とは言わない
 function planeExpect(n) {
+  if (!AstroNotesRoutes.HAS_TRAFFIC) return "便数は未確認（時刻表と照らしてください）";
   if (!(n > 0)) return "通る機はまれ";
   if (n < 1) return `便数の目安 ${n.toFixed(1)}機`;
   return `便数の目安 ${n.toFixed(1)}機`;
@@ -196,7 +218,7 @@ function planeRender() {
   }).join("");
   for (const el of $("planeList").querySelectorAll("[data-spot]")) {
     el.onclick = () => {
-      plane.pick = Number(el.dataset.spot);
+      plane.pick = Number(el.dataset.spot);planeSheet(null);
       for(const row of $("planeList").querySelectorAll('[data-spot]')){const on=Number(row.dataset.spot)===plane.pick;row.setAttribute('aria-pressed',String(on));row.querySelector('[data-plane-map-label]').textContent=on?'表示中':'地図に表示';}
       const sp = plane.result.spots[plane.pick];
       plane.playback?.stop(false);
@@ -239,6 +261,8 @@ async function planeUpdateMap() {
   const o=AstroNotesRoutes.OPERATIONS[op];
   $("planeOp").options[0].textContent=wind&&op ? `予報：${AstroNotesRoutes.OPERATIONS[planeOpAt(at,{auto:true})]?.name||"運用不明"}` : "風予報なし：運用を選択";
   $("planeOpNote").textContent=(wind ? `${S.JstCal.hhmm(wind.at)}の風予報 ${Math.round(wind.direction)}°から ${wind.speed.toFixed(1)}m/s` : "この時刻の風予報を取得できません")+(o?` ／ ${plane.op?"手動の想定":"予測"}：着陸 ${o.landing.join("・")}／離陸 ${o.takeoff.join("・")}`:"");
+  const short=AstroNotesRoutes.AIRPORT.shortName,haneda=AstroNotesRoutes.AIRPORT.id==="RJTT";
+  $("planeOpChip").textContent=short+"・"+(!status.supported?"深夜は未対応":o?(haneda?o.name.replace("運用","").replace(/（(.+?)(上空)?）/,"・$1"):o.name.replace(/運用（.*）$/,"")):"運用を選ぶ");$("planeOpMode").textContent=status.supported&&o?(plane.op?"手動":"予報"):"";
   if(!status.supported){$("planeMapStatus").textContent="23〜6時の深夜経路は未対応のため、この時刻の範囲は計算できません。";return;}
   if(!o){$("planeMapStatus").textContent="風予報がないため運用を推定できません。運用を手動で選ぶと計算できます。";return;}
   const paths=AstroNotesPlane.pathsFor(op,{landing:true,takeoff:true});
@@ -306,16 +330,16 @@ function planeMapText(){
   $("planeMapStatus").textContent=parts.join(' ／ ');
   const kinds=[['landing','着陸'],['takeoff','離陸']].filter(([k])=>r.paths.some(p=>p.kind===k));
   $("planeRouteDetails").innerHTML=kinds.map(([k,label])=>`<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px;white-space:nowrap"><svg width="26" height="8" aria-hidden="true"><line x1="2" y1="4" x2="24" y2="4" stroke="${PLANE_ROUTE_COLORS[k]}" stroke-width="4" stroke-linecap="round"${k==='takeoff'?' stroke-dasharray="6 4"':''}/></svg><b>${label}</b> ${r.paths.filter(p=>p.kind===k).map(p=>esc(p.runway)).join('・')}</span>`).join('')
-    +`<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px;white-space:nowrap"><svg width="26" height="14" aria-hidden="true"><line x1="6" y1="7" x2="20" y2="7" stroke="var(--ray-moon)" stroke-opacity=".38" stroke-width="12" stroke-linecap="round"/></svg><b>立ち位置</b></span>`
+    +`<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px;white-space:nowrap"><svg width="26" height="14" aria-hidden="true"><line x1="6" y1="7" x2="20" y2="7" stroke="#2f7fd0" stroke-opacity=".38" stroke-width="12" stroke-linecap="round"/></svg><b>立ち位置</b></span>`
     +(r.overlap.overlaps?.length?`<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px;white-space:nowrap"><svg width="26" height="10" aria-hidden="true"><line x1="3" y1="5" x2="23" y2="5" stroke="white" stroke-width="9" stroke-linecap="round"/><line x1="3" y1="5" x2="23" y2="5" stroke="var(--ray-sun)" stroke-width="5" stroke-linecap="round"/></svg><b>月と重なる区間</b></span>`:'')
-    +`<div class="tiny">${r.paths.map(p=>`${esc(p.runway)} ${p.kind==='landing'?'着陸':'離陸'}：${p.model==='procedure'?esc(p.source):'滑走路の延長の直線のみ'}`).join(' · ')}</div>`;
+    +`<div class="tiny">${r.paths.map(p=>`${esc(p.runway)} ${p.kind==='landing'?'着陸':'離陸'}：${p.model==='procedure'?esc(p.source):'滑走路の延長の直線のみ（公表の経路は未反映）'}`).join(' · ')}</div>`;
 }
 // Landings purple and solid, take-offs teal and dashed. The soft blue band is where to stand, gold the overlap.
 const PLANE_ROUTE_COLORS={landing:'#7b3fbf',takeoff:'#00897b'};
 function planeRouteColor(paths,path){return PLANE_ROUTE_COLORS[path.kind]||PLANE_ROUTE_COLORS.landing;}
 PlaneMap.setOverlay((ctx,{project,width,height})=>{
   const r=plane.map;if(!r||!toolAllowed("plane"))return;
-  const cs=getComputedStyle(document.documentElement),moonC=cs.getPropertyValue('--ray-moon').trim(),sunC=cs.getPropertyValue('--ray-sun').trim(),ink=cs.getPropertyValue('--secondary').trim();
+  const cs=getComputedStyle(document.documentElement),sunC=cs.getPropertyValue('--ray-sun').trim(),ink=cs.getPropertyValue('--secondary').trim();
   const trace=points=>{ctx.beginPath();const xy=points.map(p=>project(p.latitude,p.longitude));if(!xy.length)return;ctx.moveTo(...xy[0]);
     // Midpoint quadratic smoothing keeps sampled curves round on screen without moving the endpoints.
     for(let i=1;i<xy.length-1;i++)ctx.quadraticCurveTo(xy[i][0],xy[i][1],(xy[i][0]+xy[i+1][0])/2,(xy[i][1]+xy[i+1][1])/2);
@@ -327,9 +351,10 @@ PlaneMap.setOverlay((ctx,{project,width,height})=>{
   // Painted opaque on a separate layer and laid down once, so crossing bands do not darken each other.
   const band=document.createElement('canvas');band.width=ctx.canvas.width;band.height=ctx.canvas.height;
   const main=ctx;ctx=band.getContext('2d');ctx.setTransform(main.getTransform());ctx.lineCap='round';ctx.lineJoin='round';
-  ctx.fillStyle=moonC;ctx.globalAlpha=.6;
+  // The base map stays light in dark mode, so the band keeps the light-theme blue.
+  const bandC='#2f7fd0';ctx.fillStyle=bandC;ctx.globalAlpha=.6;
   for(const polygon of r.polygons){ctx.beginPath();polygon.points.forEach((p,i)=>{const [x,y]=project(p.latitude,p.longitude);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.closePath();ctx.fill();}
-  ctx.globalAlpha=1;ctx.strokeStyle=moonC;ctx.lineWidth=16;
+  ctx.globalAlpha=1;ctx.strokeStyle=bandC;ctx.lineWidth=16;
   for(const line of r.centerLines||[]){trace(line.points);ctx.stroke();}
   ctx=main;ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=.38;ctx.drawImage(band,0,0);ctx.restore();
   for(const path of r.paths){
@@ -361,15 +386,15 @@ PlaneMap.setOverlay((ctx,{project,width,height})=>{
   for(const segment of r.overlap.overlaps||[]){trace(segment.points);ctx.strokeStyle='white';ctx.lineWidth=12;ctx.stroke();ctx.strokeStyle=sunC;ctx.lineWidth=7;ctx.stroke();}
   const P=planeFromPoint(),[x,y]=project(P.latitude,P.longitude);ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.fillStyle=sunC;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='white';ctx.stroke();
   aimMapLabel(ctx,x,y+18,P.name,sunC,width,height,'center');
-  const A=AstroNotesRoutes.RJTT,[ax,ay]=project(A.latitude,A.longitude);ctx.beginPath();ctx.arc(ax,ay,5,0,Math.PI*2);ctx.fillStyle=ink;ctx.fill();aimMapLabel(ctx,ax,ay+15,A.name,'white',width,height,'center');
+  const A=AstroNotesRoutes.AIRPORT,[ax,ay]=project(A.latitude,A.longitude);ctx.beginPath();ctx.arc(ax,ay,5,0,Math.PI*2);ctx.fillStyle=ink;ctx.fill();aimMapLabel(ctx,ax,ay+15,A.name,'white',width,height,'center');
   ctx.restore();
 });
 function openPlane(){
   if(!renderToolAccess('plane')){plane.seq.cancel();plane.mapSeq.cancel();plane.playback?.stop(false);return;}
   if(!Number.isFinite(plane.at))plane.at=Date.now();plane.dayMs=S.Cal.startOfDay(plane.at);
-  if(!$("planeOp").options.length)$("planeOp").innerHTML='<option value="">風予報から推定</option>'+Object.entries(AstroNotesRoutes.OPERATIONS).map(([key,o])=>`<option value="${key}">${esc(o.name)}（手動）</option>`).join('');
+  planeSyncAirport({recenter:false});
   if(!plane.wired){
-    plane.wired=true;
+    plane.wired=true;wirePlaneLayout();
     const row=$("planeTimeRow"),footer=$("planeTimeFooter");
     ToolDateTimeBar.decorate({footer,row,date:$("planeDate"),time:$("planeTime"),prev:$("planePrev"),next:$("planeNext"),more:$("planeTimeMore"),now:planeSetAt});
     const calendar=ToolDateTimeBar.calendar({button:$("planeDate"),getAt:()=>plane.at,setDay:day=>planeSetAt(day+(plane.at-plane.dayMs))});
@@ -383,6 +408,7 @@ function openPlane(){
     $("planeTimeRange").oninput=()=>{plane.mapSeq.cancel();plane.map=null;PlaneMap.redraw();clearTimeout(scrub);scrub=setTimeout(()=>planeSetAt(plane.dayMs+Number($("planeTimeRange").value)*60000),150);};
     $("planeTimeRange").onchange=()=>{clearTimeout(scrub);planeSetAt(plane.dayMs+Number($("planeTimeRange").value)*60000);};
     $("planeOp").onchange=()=>{plane.op=$("planeOp").value||null;planeApply();};
+    $("planeAirport").onchange=()=>{plane.airport=$("planeAirport").value||null;planeApply();};
     $("planeFromButton").onclick=()=>openPlaceSheet('plane');
     $("planeFromFav").onclick=()=>favForPoint(planeFromPoint(),entry=>{renameFromAfterFav(plane,entry);planeApply();});
     $("planePickHere").onclick=async()=>{const c=PlaneMap.center(),request=plane.seq.next();$("planePickHere").disabled=true;try{const n=await nearName(c.latitude,c.longitude);if(plane.seq.current(request)&&toolAllowed('plane')&&viewState.plane)planeSetFrom({...c,name:n.name,subtitle:n.subtitle||n.area||'地図の中心'});}finally{$("planePickHere").disabled=false;}};
@@ -390,7 +416,31 @@ function openPlane(){
     $("planeGround").onchange=heights;$("planeEye").onchange=heights;$("planeHeightAuto").onclick=()=>{plane.groundOverride=null;plane.eyeOverride=null;$("planeHeightError").textContent='';planeApply();};
   }
   planeSyncTime();
-  requestAnimationFrame(()=>{if(!viewState.plane||!toolAllowed('plane'))return;PlaneMap.open(AstroNotesRoutes.RJTT,10);});
+  requestAnimationFrame(()=>{if(!viewState.plane||!toolAllowed('plane'))return;planeLayout();PlaneMap.open(AstroNotesRoutes.AIRPORT,10);});
   planeApply();
+}
+// The map fills the space between the masthead and the time bar; the settings open as one sheet above the bar.
+function planeSheet(pane){
+  const sheet=$("planeSheet");if(!sheet)return;
+  const open=pane&&sheet.hidden||pane&&sheet.dataset.pane!==pane?pane:null;
+  sheet.dataset.pane=open||'';sheet.hidden=!open;
+  for(const el of sheet.querySelectorAll('[data-pane]'))el.hidden=el.dataset.pane!==open;
+  for(const b of $("planeView").querySelectorAll('button[data-plane-pane]'))b.setAttribute('aria-expanded',String(b.dataset.planePane===open));
+  if(open){$("planeSheetTitle").textContent=sheet.querySelector(`[data-pane="${open}"]`).dataset.title;sheet.scrollTop=0;}
+}
+function planeLayout(){
+  const view=$("planeView");if(!view||view.hidden)return;
+  const head=document.querySelector('main>.masthead'),foot=$("planeTimeFooter");
+  view.style.setProperty('--plane-top',Math.max(0,Math.round(head?head.getBoundingClientRect().bottom:0))+'px');
+  view.style.setProperty('--plane-foot',Math.round(foot?Math.max(0,innerHeight-foot.getBoundingClientRect().top):0)+'px');
+  PlaneMap.redraw();
+}
+function wirePlaneLayout(){
+  for(const el of $("planeView").querySelectorAll('[data-plane-pane]'))el.addEventListener('click',()=>planeSheet(el.dataset.planePane));
+  $("planeSheetClose").onclick=()=>planeSheet(null);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&viewState.plane&&!$("planeSheet").hidden){planeSheet(null);}});
+  const observer=new ResizeObserver(()=>planeLayout());observer.observe($("planeTimeFooter"));
+  const head=document.querySelector('main>.masthead');if(head)observer.observe(head);
+  addEventListener('resize',planeLayout);
 }
 export {PlaneMap,openPlane,plane,planeFromPoint,planeSetFrom};

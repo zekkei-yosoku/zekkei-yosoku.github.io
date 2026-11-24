@@ -141,3 +141,67 @@ test("arrivals and departures follow the published procedures as smooth flown cu
   // Runway 05/23 is one line: 05 points opposite 23 (was 57°, off by 14°)
   assert.ok(Math.abs(RT.runwayOf("05").headingDegT - (RT.runwayOf("23").headingDegT - 180)) < 1);
 });
+
+test("every listed airport has consistent runways, two wind directions and straight routes", () => {
+  const RT = context.AstroNotesRoutes;
+  assert.ok(RT.AIRPORTS.length >= 90, "domestic airports from AIP AD2");
+  const ids = new Set();
+  for (const a of RT.AIRPORTS) {
+    assert.ok(/^R[JO][A-Z]{2}$/.test(a.id) && !ids.has(a.id), a.id); ids.add(a.id);
+    assert.ok(a.name && a.shortName && a.runways.length >= 2, a.id);
+    for (const r of a.runways) {
+      // Each end looks along its heading at the opposite end (runway 300 m–5 km long).
+      const n = (Number(r.ident.slice(0, 2)) + 17) % 36 + 1, other = a.runways.find((o) => o.ident === String(n).padStart(2, "0") + ({ L: "R", R: "L", C: "C" }[r.ident.slice(2)] || ""));
+      assert.ok(other, `${a.id} ${r.ident} reciprocal`);
+      const p = RT.destination(r.threshold.latitude, r.threshold.longitude, r.headingDegT, 1);
+      const d0 = Math.hypot(other.threshold.latitude - r.threshold.latitude, (other.threshold.longitude - r.threshold.longitude) * Math.cos(r.threshold.latitude * Math.PI / 180));
+      const d1 = Math.hypot(other.threshold.latitude - p.latitude, (other.threshold.longitude - p.longitude) * Math.cos(r.threshold.latitude * Math.PI / 180));
+      assert.ok(d1 < d0 && d0 * 111 > 0.3 && d0 * 111 < 5, `${a.id} ${r.ident} geometry`);
+    }
+    assert.ok(RT.selectAirport(a.id));
+    const ops = Object.values(RT.OPERATIONS);
+    assert.ok(ops.length >= 2 && ops.every((o) => o.landing.length && o.takeoff.length), `${a.id} operations`);
+    for (const wind of [0, 90, 180, 270]) assert.ok(RT.OPERATIONS[RT.operationFor(wind, 5, 12)], `${a.id} wind ${wind}`);
+    const o = ops[0], path = RT.approachPath(o.landing[0]);
+    assert.ok(path.length > 10 && path[1].altitudeM > path[0].altitudeM, `${a.id} approach`);
+    assert.ok(RT.departurePath(o.takeoff[0]).length > 5, `${a.id} departure`);
+  }
+  // Landing into the wind: a north wind at Kushiro uses runway 35.
+  RT.selectAirport("RJCK"); assert.equal(RT.OPERATIONS[RT.operationFor(350, 5, 12)].landing.join(), "35");
+  assert.equal(RT.nearestAirport(34.7739, 135.4458).airport.id, "RJOO");
+  // Haneda keeps its published procedures and operations after switching back.
+  RT.selectAirport("RJTT");
+  assert.equal(Object.keys(RT.OPERATIONS).join(), "north,south,southBay");
+  assert.ok(RT.procedureApproachPath("16L").length > 20);
+  assert.equal(RT.AIRPORT.id, "RJTT");
+});
+
+test("published procedures read from the AIP give continuous, climbing routes at most airports", () => {
+  const RT = context.AstroNotesRoutes;
+  let ends = 0, arrivals = 0, departures = 0;
+  for (const a of RT.AIRPORTS) {
+    RT.selectAirport(a.id);
+    for (const r of a.runways) {
+      ends++;
+      const t = r.landingThreshold ?? r.threshold;
+      const arr = RT.procedureApproachPath(r.ident);
+      if (arr) {
+        arrivals++;
+        assert.ok(Math.abs(arr[0].latitude - t.latitude) < 1e-4 && Math.abs(arr[0].longitude - t.longitude) < 1e-4, `${a.id} ${r.ident} starts at the threshold`);
+        for (let i = 1; i < arr.length; i++) {
+          assert.ok(arr[i].altitudeM >= arr[i - 1].altitudeM - 1e-6, `${a.id} ${r.ident} arrival climbs outward`);
+          assert.ok(arr[i].distanceKm - arr[i - 1].distanceKm < 0.6, `${a.id} ${r.ident} arrival is continuous`);
+        }
+        assert.ok(RT.procedureSource("landing", r.ident).startsWith(`AIP ${a.id} IAC`));
+      }
+      const dep = RT.procedureDeparturePath(r.ident);
+      if (dep) {
+        departures++;
+        for (let i = 1; i < dep.length; i++) assert.ok(dep[i].altitudeM >= dep[i - 1].altitudeM - 1e-6 && dep[i].distanceKm - dep[i - 1].distanceKm < 0.6, `${a.id} ${r.ident} departure`);
+        assert.ok(RT.procedureSource("takeoff", r.ident).startsWith(`AIP ${a.id} SID`));
+      }
+    }
+  }
+  assert.ok(arrivals >= 110 && departures >= 110, JSON.stringify({ ends, arrivals, departures }));
+  RT.selectAirport("RJTT");
+});

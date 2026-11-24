@@ -186,24 +186,68 @@
   <div id="adminView" hidden></div>
 
   <!-- 月丼: 月と飛行機を重ねる。航路は決まっているので、月の道と突き合わせれば
-       立ち位置が解ける（「ねらう」と同じ形。目標が航路の上を動く点になっただけ）。 -->
-  <div id="planeView" hidden style="padding-bottom:120px">
+       立ち位置が解ける（「ねらう」と同じ形。目標が航路の上を動く点になっただけ）。
+       2026-11-24 ユーザー「月丼は全面地図にしてボタンで色々変えられるようにして。下の時間バーだけはそのままで」:
+       地図を画面いっぱいに置き、運用・撮影地点・狙い目・凡例は地図の上のボタンから下のシートで開く。時間バーは従来どおり。 -->
+  <div id="planeView" hidden>
     <div id="planeAccess" hidden><div class="sky-map-head"><h2>月丼</h2></div><div class="card"><p id="planeAccessMessage"></p><button id="planeAccessLogin" class="fav-btn primary">ログイン</button></div></div>
-    <div class="card">
-      <!-- 並びはねらうと同じ（2026-10-01 ユーザー「月丼とかISSとかのレイアウトも統一感あるように」）:
-           題名、道具の選ぶ欄（運用）、撮影地点（「〇〇から重ねる」。地点カードと同じ形・AstroNotesの地点を引き継ぐ。2026-10-06 に運用の下へ）、
-           日付、地図、地図のすぐ下に「ここから重ねる」、一覧。
-           **着陸と離陸は分けない**（ユーザー「着陸、離陸の両方狙うし、どっちかしか狙わないことってあんまりない」）。
-           両方の経路で数え、どちらの経路かは一覧に書き、地図では離陸を破線にする。
-           題名の行は切り替えが無くても同じ高さ（aim-head の min-height）なので、撮影地点の位置はほかの道具と同じ -->
-      <div class="section-h aim-head"><h2>月丼</h2><span class="tiny">羽田 · RJTT</span></div>
-      <label class="fav-l" for="planeOp">運用</label>
-      <div class="aim-row">
-        <select id="planeOp" class="fav-in" aria-label="運用の向き"></select>
+    <style>
+      html:has(#planeView:not([hidden]):not([data-locked])),body:has(#planeView:not([hidden]):not([data-locked])){overflow:hidden}
+      #planeView .plane-map{position:fixed!important;left:0;right:0;top:var(--plane-top,0px);bottom:var(--plane-foot,96px);height:auto!important;margin:0!important;border:0;border-radius:0!important;z-index:20;touch-action:none!important}
+      #planeView .plane-map canvas{width:100%;height:100%!important;min-height:0!important;touch-action:none!important}
+      #planeView .plane-map .sky-map-expand{display:none!important}
+      #planeView .plane-map .mapzoom{display:flex!important;flex-direction:column;gap:4px;top:auto;right:10px;bottom:12px}
+      #planeView .plane-map .mapattr{bottom:4px;left:8px;right:auto}
+      #planeView .plane-bar{position:absolute;z-index:3;top:8px;left:8px;right:8px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px}
+      #planeView .plane-bar::-webkit-scrollbar{display:none}
+      #planeView .plane-btn{flex:none;display:inline-flex;align-items:center;gap:5px;min-height:40px;max-width:42vw;padding:0 11px;border:1px solid var(--line);border-radius:20px;background:var(--card);color:var(--text);font:inherit;font-size:14px;font-weight:700;box-shadow:0 2px 8px #0003;cursor:pointer;white-space:nowrap}
+      #planeView .plane-btn>span{overflow:hidden;text-overflow:ellipsis}
+      #planeView .plane-btn[aria-expanded=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+      #planeView .plane-btn small{font-weight:600;font-size:11px;opacity:.7}
+      #planeView .plane-btn small:empty{display:none}
+      @media(max-width:419px){#planeView .plane-btn{font-size:13px;padding:0 9px;gap:3px}#planeView .plane-btn[data-plane-pane=place]{max-width:34vw}}
+      #planeView .plane-status{position:absolute;z-index:3;top:58px;left:8px;right:58px;max-width:560px;margin:0!important;padding:0 10px;border:6px solid color-mix(in srgb,var(--card) 88%,transparent);border-width:6px 0;background:color-mix(in srgb,var(--card) 88%,transparent);background-clip:padding-box;border-radius:10px;box-shadow:0 1px 6px #0002;color:var(--text)!important;font-size:12px;line-height:1.45;max-height:calc(2.9em + 12px);box-sizing:border-box;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+      #planeView .plane-status:empty{display:none}
+      #planeView .plane-info{position:absolute;z-index:3;top:58px;right:8px;width:44px;height:44px;display:grid;place-items:center;border:1px solid var(--line);border-radius:22px;background:var(--card);color:var(--text);box-shadow:0 2px 8px #0003;cursor:pointer}
+      #planeView .plane-info[aria-expanded=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+      #planeView .plane-here{position:absolute;z-index:3;left:50%;bottom:12px;transform:translateX(-50%);box-shadow:0 2px 8px #0003;background:var(--card)}
+      #planeView .plane-sheet{position:fixed;z-index:34;left:0;right:0;bottom:var(--plane-foot,96px);max-height:calc(100dvh - var(--plane-top,0px) - var(--plane-foot,96px) - 48px);overflow:auto;overscroll-behavior:contain;box-sizing:border-box;padding:0 16px 16px;background:var(--card);border-top:1px solid var(--line);border-radius:16px 16px 0 0;box-shadow:0 -6px 20px #0003}
+      #planeView .plane-sheet-head{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;min-height:48px;margin:0 -16px 4px;padding:0 4px 0 16px;background:var(--card)}
+      #planeView .plane-sheet-head b{font-size:16px}
+      #planeView .plane-sheet-head button{min-width:44px;min-height:44px;border:0;background:transparent;color:var(--text);font-size:20px;cursor:pointer}
+      @media(min-width:960px){#planeView .plane-sheet{left:50%;right:auto;width:min(780px,calc(100vw - 40px));transform:translateX(-50%);border:1px solid var(--line);border-bottom:0}}
+    </style>
+    <div class="mapwrap plane-map">
+      <canvas id="planeCanvas" aria-label="地図。着陸・離陸経路、月と重なる地上候補範囲と選択地点からの航路区間"></canvas>
+      <div class="mappin" aria-hidden="true"></div>
+      <div class="plane-bar" role="toolbar" aria-label="月丼の設定">
+        <button type="button" class="plane-btn" data-plane-pane="op" aria-expanded="false" aria-controls="planeSheet"><span id="planeOpChip">運用</span><small id="planeOpMode"></small></button>
+        <button type="button" class="plane-btn" data-plane-pane="place" aria-expanded="false" aria-controls="planeSheet"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z"/><circle cx="12" cy="9" r="2.5"/></svg><span id="planeFromChip">撮影地点</span></button>
+        <button type="button" class="plane-btn" data-plane-pane="list" aria-expanded="false" aria-controls="planeSheet">狙い目</button>
       </div>
-      <p class="tiny" id="planeOpNote" style="margin:-4px 0 8px;color:var(--tertiary)"></p>
-      <!-- 2026-10-06：天体を重ねると同じく、条件（運用）を先に、立つ場所を最後に文の形で「〇〇から重ねる」。
-           運用は重ねる相手ではなく飛行機の通り道の条件なので、文にせず名前のまま上に置く -->
+      <p id="planeMapStatus" class="plane-status" role="status" data-plane-pane="info"></p>
+      <button type="button" class="plane-info" data-plane-pane="info" aria-expanded="false" aria-controls="planeSheet" aria-label="凡例・出典" title="凡例・出典"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></svg></button>
+      <button id="planePickHere" class="chip plane-here" aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる</button>
+      <div class="mapzoom">
+        <button id="planeIn" aria-label="拡大">＋</button>
+        <button id="planeOut" aria-label="縮小">−</button>
+      </div>
+      <div class="mapattr">国土地理院</div>
+    </div>
+    <div id="planeSheet" class="plane-sheet" role="dialog" aria-labelledby="planeSheetTitle" hidden>
+      <div class="plane-sheet-head"><b id="planeSheetTitle"></b><button type="button" id="planeSheetClose" aria-label="閉じる">✕</button></div>
+      <div data-pane="op" data-title="空港と運用" hidden>
+        <label class="fav-l" for="planeAirport">空港</label>
+        <div class="aim-row">
+          <select id="planeAirport" class="fav-in" aria-label="空港"></select>
+        </div>
+        <label class="fav-l" for="planeOp">運用</label>
+        <div class="aim-row">
+          <select id="planeOp" class="fav-in" aria-label="運用の向き"></select>
+        </div>
+        <p class="tiny" id="planeOpNote" style="margin:-4px 0 8px;color:var(--tertiary)"></p>
+      </div>
+      <div data-pane="place" data-title="撮影地点" hidden>
       <div class="aim-say aim-say-from">
       <div class="place-row aim-place-card">
         <button class="place-pick" id="planeFromButton" aria-describedby="planeFromLabel">
@@ -229,33 +273,27 @@
         <button class="chip" id="planeHeightAuto">地点の高さに戻す</button>
         <p class="tiny" id="planeHeightError" role="status"></p>
       </details>
-      <div class="mapwrap" style="margin-top:8px">
-        <canvas id="planeCanvas" aria-label="地図。着陸・離陸経路、月と重なる地上候補範囲と選択地点からの航路区間"></canvas>
-        <div class="mappin" aria-hidden="true"></div>
-        <div class="mapzoom">
-          <button id="planeIn" aria-label="拡大">＋</button>
-          <button id="planeOut" aria-label="縮小">−</button>
-        </div>
-        <div class="mapattr">国土地理院</div>
-      </div>
       <div class="coord-row" data-map="plane">
         <button class="chip" data-coord-copy aria-label="ピンの位置の座標をコピー"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg><span class="coord" id="planeCoord">—</span><span class="copied" hidden>コピーしました</span></button>
         <span class="chip-split"><button class="chip" data-map-app-open><span data-map-app-label>地図アプリ</span><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg></button><button class="chip chip-more" data-map-app-change aria-label="開くアプリを変える" hidden><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span>
       </div>
-      <div class="aim-near-row">
-        <div class="aim-near-btns">
-          <button id="planePickHere" class="chip" aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる</button>
-        </div>
       </div>
-      <div class="aim-legend" aria-label="地図の凡例">
-        <span><i class="aim-k" style="border-top-color:var(--secondary)"></i>着陸 →</span>
-        <span><i class="aim-k dash" style="border-top-color:var(--secondary)"></i>離陸 →</span>
-        <span><i class="aim-k moon"></i>ここに立つと月に重なる線（概算）</span>
-        <span><i class="aim-k sun"></i>撮影地点から重なる区間</span>
+      <div data-pane="list" data-title="この日の狙い目" hidden>
+        <div id="planePick" class="al" style="margin-top:8px"></div>
+        <div id="planeInfo" class="tiny" style="margin-top:6px;color:var(--secondary)">計算しています…</div>
+        <div id="planeList" class="al" style="margin-top:8px"></div>
       </div>
-      <p id="planeMapStatus" class="tiny" role="status" style="margin:8px 0;color:var(--secondary)"></p>
-      <div id="planeRouteDetails" class="tiny" style="margin:8px 0"></div>
-      <div class="tiny" style="margin:0 0 8px">経路の一部は AIP Japan（国土交通省航空局 SWIM portal）を加工して作成。撮影計画用の概算で、航空機の運航には使えません。</div>
+      <div data-pane="info" data-title="凡例・出典" hidden>
+        <div id="planeRouteDetails" class="tiny" style="margin:8px 0"></div>
+        <div class="tiny" style="margin:0 0 8px">経路の一部は AIP Japan（国土交通省航空局 SWIM portal）を加工して作成。撮影計画用の概算で、航空機の運航には使えません。</div>
+      <details style="margin:8px 0">
+        <summary class="tiny">経路と予測について</summary>
+        <p class="tiny">経路は公表の飛行方式（AIP）の通過点・制限高度をなめらかにつないだモデルです。実際の飛行経路や高度のばらつき、建物の遮蔽、立入りの可否は含みません。青い帯（立ち位置）は航路を約500m刻みで計算した概算です。範囲内の細かな地形変化は未確認です。同じレンズ高で月円盤と重なる幾何的な候補で、通過確率ではありません。</p>
+        <p class="tiny">空港の風はOpen-Meteoの予報です。観測風（METAR）・現在の使用滑走路（ATIS）は未接続。23〜6時の深夜経路は未対応です。</p>
+        <p class="tiny">出典：<a href="https://www.mlit.go.jp/koku/haneda/action/" target="_blank" rel="noopener">国土交通省・羽田の運用</a>（説明をもとに加工）、OurAirports、国土地理院、Open-Meteo。</p>
+      </details>
+      </div>
+    </div>
       <div id="planeTimeFooter">
         <div id="planeTimeRow">
           <button id="planePrev" type="button" aria-label="前の日"></button>
@@ -266,17 +304,6 @@
         </div>
         <input id="planeTimeRange" type="range" min="0" max="1439" step="1" aria-label="一日の時刻" style="width:100%;min-height:44px">
       </div>
-      <details style="margin:8px 0">
-        <summary class="tiny">経路と予測について</summary>
-        <p class="tiny">経路は滑走路からの直線・代表高度で計算したモデルです。実際の飛行経路や高度のばらつき、建物の遮蔽、立入りの可否は含みません。青い範囲は航路を約500m刻みで計算した概算です。範囲内の細かな地形変化は未確認です。同じレンズ高で月円盤と重なる幾何的な候補で、通過確率ではありません。</p>
-        <p class="tiny">空港の風はOpen-Meteoの予報です。観測風（METAR）・現在の使用滑走路（ATIS）は未接続。23〜6時の深夜経路は未対応です。</p>
-        <p class="tiny">出典：<a href="https://www.mlit.go.jp/koku/haneda/action/" target="_blank" rel="noopener">国土交通省・羽田の運用</a>（説明をもとに加工）、OurAirports、国土地理院、Open-Meteo。</p>
-      </details>
-      <h3 style="font-size:1rem;margin:16px 0 6px">この日の狙い目</h3>
-      <div id="planePick" class="al" style="margin-top:8px"></div>
-      <div id="planeInfo" class="tiny" style="margin-top:6px;color:var(--secondary)">計算しています…</div>
-      <div id="planeList" class="al" style="margin-top:8px"></div>
-    </div>
   </div>
 
   <div id="aimView" hidden>

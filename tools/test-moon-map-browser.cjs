@@ -26,18 +26,25 @@ for(const engine of (process.env.MOON_MAP_ENGINES||'chromium,webkit').split(',')
  const state=await p.evaluate(()=>({polygons:plane.map.polygons.length,segments:plane.map.overlap.overlaps.length,status:plane.map.overlap.status,at:plane.map.at,ground:plane.observer.groundM,eye:plane.observer.eyeHeightAGL,unknown:plane.map.missing,text:$('planeMapStatus').textContent}));
  assert(state.polygons>0,'ground layer exists: '+JSON.stringify(state));assert(state.segments>0,'observer route highlight exists');assert.equal(state.status,'ready');assert.equal(state.at,at);assert.match(state.text,/方位.+高さ/);
  assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'page fits');
- await p.locator('#planeCanvas').scrollIntoViewIfNeeded();await p.screenshot({path:`${out}/${engine}-${width}-${theme}-map.png`,fullPage:true});
+ const layout=await p.evaluate(()=>{const m=$('planeCanvas').getBoundingClientRect(),f=$('planeTimeFooter').getBoundingClientRect(),h=document.querySelector('main>.masthead').getBoundingClientRect();return {mapTop:m.top,mapBottom:m.bottom,mapWidth:m.width,footTop:f.top,headBottom:h.bottom,sheet:$('planeSheet').hidden};});
+ assert(Math.abs(layout.mapWidth-width)<=1&&Math.abs(layout.mapBottom-layout.footTop)<=2&&Math.abs(layout.mapTop-layout.headBottom)<=2&&layout.sheet,'map fills between masthead and time bar: '+JSON.stringify(layout));
+await p.screenshot({path:`${out}/${engine}-${width}-${theme}-map.png`,fullPage:true});
  if(width===390&&theme==='light'&&engine==='chromium'){
-  await p.locator('.plane-height summary').click();await p.locator('#planeEye').fill('45');await p.locator('#planeEye').dispatchEvent('change');
+  await p.locator('.plane-btn[data-plane-pane=place]').click();await p.locator('.plane-height summary').click();await p.locator('#planeEye').fill('45');await p.locator('#planeEye').dispatchEvent('change');
   await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.observer.eyeHeightAGL===45);assert.equal(await p.evaluate(()=>plane.map.overlap.observer.observerElevationM??plane.map.overlap.observer.elevation),65);
   await p.locator('#planeHeightAuto').click();await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.observer.eyeHeightAGL===1.5);
-  await p.locator('#planeTime').fill('18:10');await p.locator('#planeTime').dispatchEvent('change');await p.waitForFunction(()=>plane.map&&!plane.map.pending&&S.JstCal.hhmm(plane.map.at)==='18:10');
+  await p.locator('#planeSheetClose').click();assert.equal(await p.locator('#planeSheet').isVisible(),false);await p.locator('#planeTime').fill('18:10');await p.locator('#planeTime').dispatchEvent('change');await p.waitForFunction(()=>plane.map&&!plane.map.pending&&S.JstCal.hhmm(plane.map.at)==='18:10');
   await p.locator('#planeNext').click();await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.dayMs===Date.parse('2026-11-25T00:00:00+09:00'));assert.equal(await p.locator('#planeTime').inputValue(),'18:10');
   await p.locator('#planeTime').fill('23:00');await p.locator('#planeTime').dispatchEvent('change');await p.waitForFunction(()=>!plane.map&&$('planeMapStatus').textContent.includes('深夜'));
-  await p.locator('#planeOp').selectOption('north');await p.waitForFunction(()=>!plane.map&&$('planeMapStatus').textContent.includes('深夜'));
-  await p.evaluate(()=>{plane.wind={at:Date.now(),times:[],dir:[],speed:[]};plane.op=null;$('planeOp').value='';planeSetAt(Date.parse('2026-11-24T18:00:00+09:00'));});
+  await p.locator('.plane-btn[data-plane-pane=op]').click();await p.locator('#planeOp').selectOption('north');await p.waitForFunction(()=>!plane.map&&$('planeMapStatus').textContent.includes('深夜'));
+  await p.evaluate(()=>{plane.wind={id:AstroNotesRoutes.AIRPORT.id,at:Date.now(),times:[],dir:[],speed:[]};plane.op=null;$('planeOp').value='';planeSetAt(Date.parse('2026-11-24T18:00:00+09:00'));});
   await p.waitForFunction(()=>!plane.map&&$('planeMapStatus').textContent.includes('風予報がない'));
   await p.locator('#planeOp').selectOption('north');await p.waitForFunction(()=>plane.map&&!plane.map.pending);
+  // The nearest airport follows the shooting point: Itami from the Senri river bank, back to Haneda after.
+  await p.evaluate(()=>planeSetFrom({name:'千里川の土手',latitude:34.7739,longitude:135.4458}));
+  await p.waitForFunction(()=>AstroNotesRoutes.AIRPORT.id==='RJOO'&&plane.map&&!plane.map.pending&&plane.map.paths.every(x=>x.airportId==='RJOO'));
+  assert.match(await p.locator('#planeOpChip').textContent(),/^伊丹・/);
+  await p.evaluate(()=>planeSetFrom({name:'検証用の撮影地点',latitude:35.6,longitude:139.8}));await p.waitForFunction(()=>AstroNotesRoutes.AIRPORT.id==='RJTT'&&plane.map&&!plane.map.pending);
   await p.evaluate(()=>{AstroNotesTerrain.groundElevation=()=>new Promise(resolve=>{window.__resolveMoonGround=resolve;});planeSetFrom({name:'変更後の地点',latitude:35.6,longitude:139.8});planeSetAt(plane.at+60000);});
   assert.equal(await p.evaluate(()=>plane.map),null,'old observer must be invalidated while elevation pending');
   await p.evaluate(()=>{window.__resolveMoonGround(30);AstroNotesTerrain.groundElevation=async()=>20;});await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.observer.groundM===30);
