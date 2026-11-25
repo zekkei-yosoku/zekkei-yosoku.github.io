@@ -15,7 +15,7 @@
   },
   "overlaySha256": {
     "src/index.html": "95b78d2e6903fd17859de43f4cbf5f80f8a14019b6601a9204425f1d63d49e9a",
-    "src/features/aircraft/controller.js": "a78bbdf8af02a30773613dd16bf8b48be4f039e4d3a04fad0395d856db1d7029",
+    "src/features/aircraft/controller.js": "077297aae9f296eff32a0b2439fe7066a2b56e4c29db5af5b9db48118169630e",
     "astronotes-plane.js": "20ca336df57c9b0fc6411176c7393c9db4cee7dcf587be4a0a26608c54e59916",
     "astronotes-routes.js": "a9310d78db94924bd3327f1034db2bb347310cf90f39479ebdc773a63c676abf",
     "astronotes-datetime-ui.css": "8d4714f564c8ea9bd687e9a16dcc8c4915513c2becdbf4550e012fd8a01ae32e"
@@ -24,7 +24,7 @@
     "astronotes-plane.js": "20ca336df57c9b0fc6411176c7393c9db4cee7dcf587be4a0a26608c54e59916",
     "astronotes-routes.js": "a9310d78db94924bd3327f1034db2bb347310cf90f39479ebdc773a63c676abf",
     "astronotes-datetime-ui.css": "8d4714f564c8ea9bd687e9a16dcc8c4915513c2becdbf4550e012fd8a01ae32e",
-    "index.html": "2002f22ea7b9df71facce248f228ee5ae1aabd3b135f10044b88d46ac0882428",
-    "app-version.txt": "3252de925fd4cf99a50ed38ba42eb6eeebc86247168bf903e2fb63f2d7126105"
+    "index.html": "e7cdc5f24f2319611d6058902d58f9249dc567953a8bd46725725536308bfa3c",
+    "app-version.txt": "2abda1c433b4bc82b4c79afaeb62ced1da2281228fdfa28c26420c5790a744e4"
   }
 }

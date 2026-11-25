@@ -82,7 +82,7 @@ await p.screenshot({path:`${out}/${engine}-${width}-${theme}-map.png`,fullPage:t
   await p.evaluate(()=>{if($('planeSheet').hidden||$('planeSheet').dataset.pane!=='op')document.querySelector('.plane-btn[data-plane-pane=op]').click();});await p.locator('#planeAirportSearch').fill('HND');
   assert.match(await p.locator('#planeAirportResults button').first().textContent(),/羽田.*RJTT/);
   await p.locator('#planeAirportSearch').fill('釧路');await p.locator('#planeAirportResults button').first().click();
-  await p.waitForFunction(()=>AstroNotesRoutes.AIRPORT.id==='RJCK'&&plane.map&&!plane.map.pending);assert.match(await p.locator('#planeOpChip').textContent(),/^釧路・/);assert.equal(await p.locator('#planeAirportNow').textContent(),'釧路（手動で選択）');
+  await p.waitForFunction(()=>AstroNotesRoutes.AIRPORT.id==='RJCK'&&plane.map&&!plane.map.pending);assert.match(await p.locator('#planeOpChip').textContent(),/^釧路・/);assert.equal(await p.locator('#planeAirportNow').textContent(),'釧路');
   await p.locator('#planeAirportAuto').click();await p.waitForFunction(()=>AstroNotesRoutes.AIRPORT.id==='RJTT'&&plane.map&&!plane.map.pending);assert.equal(await p.locator('#planeAirportNow').textContent(),'自動選択（羽田）');
   await p.locator('#planeOp').selectOption('dnfi1');await p.waitForFunction(()=>plane.map&&!plane.map.pending);
   await p.evaluate(()=>{AstroNotesTerrain.groundElevation=()=>new Promise(resolve=>{window.__resolveMoonGround=resolve;});planeSetFrom({name:'変更後の地点',latitude:35.6,longitude:139.8});planeSetAt(plane.at+60000);});

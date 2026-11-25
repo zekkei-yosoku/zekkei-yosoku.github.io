@@ -166,7 +166,7 @@ function planeSyncAirport({ recenter = true } = {}) {
   if (changed || !$("planeOp").options.length) $("planeOp").innerHTML = '<option value="">風予報から推定</option>' + Object.entries(AstroNotesRoutes.OPERATIONS).filter(([, o]) => !o.night).map(([key, o]) => `<option value="${key}">${esc(o.name)}（手動）</option>`).join("");
   const A = AstroNotesRoutes.AIRPORT;
   // 2026-11-25 ユーザー「空港今はとかいらなくない？…自動選択（空港名）でよくない？」
-  $("planeAirportNow").textContent = plane.airport ? `${A.shortName}（手動で選択）` : `自動選択（${A.shortName}）`;
+  $("planeAirportNow").textContent = plane.airport ? A.shortName : `自動選択（${A.shortName}）`;
   $("planeAirportAuto").hidden = !plane.airport;
   planeAirportList();
   if (changed && recenter && viewState.plane) PlaneMap.open(AstroNotesRoutes.AIRPORT, 10);
