@@ -352,13 +352,28 @@ async function planeUpdateMap() {
   plane.map={at,paths,overlap,polygons,centerLines,pending:false,missing:samples.filter(s=>s.failed||!s.terrainVerified).length};
   planeMapText();PlaneMap.redraw();
 }
+// 撮影地点から青い中心線までの最短距離と方角
+function planeNearestLine(P,lines){
+  if(!P||!lines?.length)return null;
+  const kx=111.32*Math.cos(P.latitude*Math.PI/180),ky=110.57,xy=q=>[(q.longitude-P.longitude)*kx,(q.latitude-P.latitude)*ky];
+  let best=null;
+  for(const line of lines)for(let i=1;i<line.points.length;i++){
+    const [ax,ay]=xy(line.points[i-1]),[bx,by]=xy(line.points[i]),dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy;
+    const t=L?Math.max(0,Math.min(1,-(ax*dx+ay*dy)/L)):0,x=ax+t*dx,y=ay+t*dy,km=Math.hypot(x,y);
+    if(!best||km<best.km)best={km,x,y};
+  }
+  if(!best)return null;
+  const deg=(Math.atan2(best.x,best.y)*180/Math.PI+360)%360;
+  return {km:best.km,dir:['北','北東','東','南東','南','南西','西','北西'][Math.round(deg/45)%8]};
+}
 function planeMapText(){
   const r=plane.map;if(!r)return;
   const m=r.overlap.moon,P=planeFromPoint(),parts=[`${S.JstCal.hhmm(r.at)} · ${P.name}から`];
-  if(m&&Number.isFinite(m.apparentAltitude))parts.push(`月 方位${m.azimuth.toFixed(1)}°・高さ${m.apparentAltitude.toFixed(1)}°`);
   if(r.overlap.status==='missing-elevation')parts.push('標高が不明のため計算できません');
   else if(m&&r.overlap.status==='below-horizon')parts.push('月が地平線より下にあります');
-  else parts.push(r.overlap.overlaps?.length?'金色の区間で月円盤と重なります':'この地点から重なる区間はありません');
+  else if(r.overlap.overlaps?.length)parts.push('金色の区間で月円盤と重なります');
+  else{const n=planeNearestLine(P,r.centerLines);parts.push(n?`ここでは重なりません。青い線まで${n.dir}へ${n.km<1?Math.round(n.km*1000)+'m':n.km.toFixed(1)+'km'}`:'この地点から重なる区間はありません');}
+  if(m&&Number.isFinite(m.apparentAltitude))parts.push(`月 方位${m.azimuth.toFixed(1)}°・高さ${m.apparentAltitude.toFixed(1)}°`);
   if(r.pending&&r.overlap.status==='ready')parts.push('地上の候補範囲を計算中…');
   else if(r.missing)parts.push('海の上と地形を確認できない部分は表示しません');
   else if(r.overlap.status==='ready'&&!r.polygons.length&&!r.centerLines?.length)parts.push('対応範囲内に地上の候補なし');
@@ -393,6 +408,8 @@ PlaneMap.setOverlay((ctx,{project,width,height})=>{
   ctx.globalAlpha=1;ctx.strokeStyle=bandC;ctx.lineWidth=16;
   for(const line of r.centerLines||[]){trace(line.points);ctx.stroke();}
   ctx=main;ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=.38;ctx.drawImage(band,0,0);ctx.restore();
+  // 帯は見やすさのための太さ。実際に重なる幅は数十mなので、中心を細い線で示す（2026-11-25 ユーザー「青いところにあるのに重ならない」）
+  ctx.strokeStyle='#1d5fa8';ctx.lineWidth=2;for(const line of r.centerLines||[]){trace(line.points);ctx.stroke();}
   for(const path of r.paths){
     const color=planeRouteColor(r.paths,path),dash=path.kind==='takeoff'?[12,9]:[];
     ctx.setLineDash(dash);ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=8;trace(path.points);ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=4;ctx.stroke();

@@ -33,7 +33,10 @@ await p.screenshot({path:`${out}/${engine}-${width}-${theme}-map.png`,fullPage:t
   await p.locator('.plane-btn[data-plane-pane=place]').click();await p.locator('.plane-height summary').click();await p.locator('#planeEye').fill('45');await p.locator('#planeEye').dispatchEvent('change');
   await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.observer.eyeHeightAGL===45);assert.equal(await p.evaluate(()=>plane.map.overlap.observer.observerElevationM??plane.map.overlap.observer.elevation),65);
   await p.locator('#planeHeightAuto').click();await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.observer.eyeHeightAGL===1.5);
-  await p.locator('#planeSheetClose').click();assert.equal(await p.locator('#planeSheet').isVisible(),false);await p.locator('#planeTime').fill('18:10');await p.locator('#planeTime').dispatchEvent('change');await p.waitForFunction(()=>plane.map&&!plane.map.pending&&S.JstCal.hhmm(plane.map.at)==='18:10');
+  await p.locator('#planeSheetClose').click();assert.equal(await p.locator('#planeSheet').isVisible(),false);
+  // 凡例・出典は状況の文をタップして開く（専用ボタンは置かない）
+  assert.equal(await p.locator('.plane-info').count(),0);await p.locator('#planeMapStatus').click();assert.equal(await p.locator('#planeSheet').isVisible(),true);assert.equal(await p.locator('#planeRouteDetails').isVisible(),true);
+  await p.locator('#planeSheetClose').click();await p.locator('#planeTime').fill('18:10');await p.locator('#planeTime').dispatchEvent('change');await p.waitForFunction(()=>plane.map&&!plane.map.pending&&S.JstCal.hhmm(plane.map.at)==='18:10');
   await p.locator('#planeNext').click();await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.dayMs===Date.parse('2026-11-25T00:00:00+09:00'));assert.equal(await p.locator('#planeTime').inputValue(),'18:10');
   // 探すと同じ時間バー：分→日→時の順に切り替え、どの単位でもスクロールで動く
   assert.equal(await p.locator('#planeScrubMode').textContent(),'分');

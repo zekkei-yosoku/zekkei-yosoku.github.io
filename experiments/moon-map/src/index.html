@@ -206,10 +206,8 @@
       #planeView .plane-btn small{font-weight:600;font-size:11px;opacity:.7}
       #planeView .plane-btn small:empty{display:none}
       @media(max-width:419px){#planeView .plane-btn{font-size:13px;padding:0 9px;gap:3px}#planeView .plane-btn[data-plane-pane=place]{max-width:34vw}}
-      #planeView .plane-status{position:absolute;z-index:3;top:58px;left:8px;right:58px;max-width:560px;margin:0!important;padding:0 10px;border:6px solid color-mix(in srgb,var(--card) 88%,transparent);border-width:6px 0;background:color-mix(in srgb,var(--card) 88%,transparent);background-clip:padding-box;border-radius:10px;box-shadow:0 1px 6px #0002;color:var(--text)!important;font-size:12px;line-height:1.45;max-height:calc(2.9em + 12px);box-sizing:border-box;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+      #planeView .plane-status{position:absolute;z-index:3;top:58px;left:8px;right:8px;cursor:pointer;max-width:560px;margin:0!important;padding:0 10px;border:6px solid color-mix(in srgb,var(--card) 88%,transparent);border-width:6px 0;background:color-mix(in srgb,var(--card) 88%,transparent);background-clip:padding-box;border-radius:10px;box-shadow:0 1px 6px #0002;color:var(--text)!important;font-size:12px;line-height:1.45;max-height:calc(2.9em + 12px);box-sizing:border-box;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
       #planeView .plane-status:empty{display:none}
-      #planeView .plane-info{position:absolute;z-index:3;top:58px;right:8px;width:44px;height:44px;display:grid;place-items:center;border:1px solid var(--line);border-radius:22px;background:var(--card);color:var(--text);box-shadow:0 2px 8px #0003;cursor:pointer}
-      #planeView .plane-info[aria-expanded=true]{background:var(--accent);border-color:var(--accent);color:#fff}
       #planeView .plane-here{position:absolute;z-index:3;left:50%;bottom:12px;transform:translateX(-50%);box-shadow:0 2px 8px #0003;background:var(--card)}
       #planeView .plane-sheet{position:fixed;z-index:34;left:0;right:0;bottom:var(--plane-foot,96px);max-height:calc(100dvh - var(--plane-top,0px) - var(--plane-foot,96px) - 48px);overflow:auto;overscroll-behavior:contain;box-sizing:border-box;padding:0 16px 16px;background:var(--card);border-top:1px solid var(--line);border-radius:16px 16px 0 0;box-shadow:0 -6px 20px #0003}
       #planeView .plane-sheet-head{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;min-height:48px;margin:0 -16px 4px;padding:0 4px 0 16px;background:var(--card)}
@@ -232,8 +230,7 @@
         <button type="button" class="plane-btn" data-plane-pane="place" aria-expanded="false" aria-controls="planeSheet"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z"/><circle cx="12" cy="9" r="2.5"/></svg><span id="planeFromChip">撮影地点</span></button>
         <button type="button" class="plane-btn" data-plane-pane="list" aria-expanded="false" aria-controls="planeSheet">狙い目</button>
       </div>
-      <p id="planeMapStatus" class="plane-status" role="status" data-plane-pane="info"></p>
-      <button type="button" class="plane-info" data-plane-pane="info" aria-expanded="false" aria-controls="planeSheet" aria-label="凡例・出典" title="凡例・出典"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></svg></button>
+      <p id="planeMapStatus" class="plane-status" role="status" data-plane-pane="info" tabindex="0" title="タップで凡例・出典"></p>
       <button id="planePickHere" class="chip plane-here" aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる</button>
       <div class="mapzoom">
         <button id="planeIn" aria-label="拡大">＋</button>
