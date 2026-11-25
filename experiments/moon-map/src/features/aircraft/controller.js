@@ -165,7 +165,8 @@ function planeSyncAirport({ recenter = true } = {}) {
   if (changed) { AstroNotesRoutes.selectAirport(id); plane.op = null; plane.wind = null; plane.metar = null; }
   if (changed || !$("planeOp").options.length) $("planeOp").innerHTML = '<option value="">風予報から推定</option>' + Object.entries(AstroNotesRoutes.OPERATIONS).filter(([, o]) => !o.night).map(([key, o]) => `<option value="${key}">${esc(o.name)}（手動）</option>`).join("");
   const A = AstroNotesRoutes.AIRPORT;
-  $("planeAirportNow").textContent = `${A.shortName}（${A.name}・${A.id}）${plane.airport ? "" : " — 撮影地点に近い主な空港"}`;
+  // 2026-11-25 ユーザー「空港今はとかいらなくない？…自動選択（空港名）でよくない？」
+  $("planeAirportNow").textContent = plane.airport ? `${A.shortName}（手動で選択）` : `自動選択（${A.shortName}）`;
   $("planeAirportAuto").hidden = !plane.airport;
   planeAirportList();
   if (changed && recenter && viewState.plane) PlaneMap.open(AstroNotesRoutes.AIRPORT, 10);
