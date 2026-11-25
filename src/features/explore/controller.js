@@ -1036,6 +1036,56 @@ globalThis.TrialExplore={candidateWorkspace:()=>layout.mounted?mainCandidateWork
  preferMap:()=>{transferMode='map';if(active())choose('map');},sync,paintScrubTime,invalidate:invalidateScene,sceneDraw,assertScene,searchCompositionPlaces,
  camera:()=>{let timelapse=null;try{if(plan.frameKey===stamp(snapshot())&&AstroNotesTimelapse.settings(look._timelapseConfig))timelapse={...look._timelapseConfig};}catch(e){globalThis.AstroNotesErrors?.note('explore.timelapse',e);
  }return {l:{...aimLens,focal:Number(look.querySelector('[data-lens-focal]')?.value)||aimLens.focal||50},pan:[...(look._lensOffset||[0,0])],timelapse};}};
+// 2026-11-25 ユーザー「別のAppに飛んで戻ると一覧に移動してる」「一覧に移動すると条件変わってないのに毎回検索始める」「前も指摘したよね」:
+// iPhoneは裏へ回したページを捨て、戻ると読み直す。読み直しでは一覧の結果も見え方の段階も消え、探す条件の先頭から始まっていた。
+// 裏へ回る時に、見つけた候補・見ていた候補と時刻を端末に残し、読み直した後に同じ条件なら探し直さずに一覧と見え方へ戻す。
+const RESUME_KEY='astronotes.exploreResume',RESUME_MS=6*3600000;let lastCandidateId=null;
+document.addEventListener('astronotes-candidate-selected',e=>{lastCandidateId=e.detail?.candidate?.id??null;});
+function saveResume(){
+ // Once hidden the map session is suspended (no selection): what was saved when it went to the background stays.
+ if(!SkyMapUI.selectionState())return;
+ try{
+  if(!ownsScene()||!auth?.loginId||selectionPending||!searchStarted&&!resultRequested){localStorage.removeItem(RESUME_KEY);return;}
+  const picker=globalThis.AstroNotesCandidatePicker,s=SkyMapUI.selectionState();
+  const intent=resultRequested?returnIntent:null,search=(resultRequested?intent?.searched:searchStarted)?picker?.exportSearch?.(resultRequested?intent?.candidatePlan:null):null;
+  if(!search&&!resultRequested){localStorage.removeItem(RESUME_KEY);return;}
+  localStorage.setItem(RESUME_KEY,JSON.stringify({v:1,owner:auth.loginId,savedAt:Date.now(),stage:resultRequested?'preview':'search',intent,search,
+   tab:discoveryTab,view:resultRequested&&s?{rowId:lastCandidateId,at:s.at}:null,scrollTop:document.scrollingElement.scrollTop}));
+ }catch{
+  // Storage full or blocked (private mode): nothing is kept, and the page simply starts over after a reload.
+  try{localStorage.removeItem(RESUME_KEY);}catch{/* the same storage is unavailable; there is nothing left to remove */}
+ }
+}
+// Capture on window: runs before the app's own handler suspends the map session (selectionState() is null after that).
+window.addEventListener('visibilitychange',()=>{if(document.hidden)saveResume();},true);window.addEventListener('pagehide',saveResume,true);
+let resumeData=(()=>{try{const v=JSON.parse(localStorage.getItem(RESUME_KEY)||'null');localStorage.removeItem(RESUME_KEY);return v?.v===1&&Date.now()-v.savedAt<RESUME_MS?v:null;}catch{return null;}})();
+function tryResume(tries=0){
+ const saved=resumeData;if(!saved)return;
+ const picker=globalThis.AstroNotesCandidatePicker,ready=active()&&auth?.loginId&&flowOwner===auth.loginId&&flowGeneration===accessState.generation&&SkyMapUI.selectionState()?.target&&picker?.importSearch&&!selectionPending;
+ if(!ready){if(tries<600)setTimeout(()=>tryResume(tries+1),50);else resumeData=null;return;}
+ resumeData=null;if(saved.owner!==auth.loginId||!/^#\/explore/.test(location.hash))return;
+ const intent=saved.stage==='preview'?saved.intent:null;
+ if(intent){
+  const s=intent.selection;selectionPending=true;
+  SkyMapUI.setTarget(s.target.id);SkyMapUI.workspaceHost()?.restoreTarget({target:s.target,custom:intent.custom,customTarget:intent.customTarget});
+  const body=$('skyMapBody');body.value=s.body;body.dispatchEvent(new Event('change',{bubbles:true}));SkyMapUI.setAlignment(s.partId,s.limb,s.matchMode);SkyMapUI.setTime(s.at);
+  SkyMapUI.workspaceHost()?.restoreObserver(s.observer);picker.restoreSearchFrame?.(intent.candidatePlan);selectionPending=false;
+ }
+ const imported=!!saved.search&&picker.importSearch(saved.search);
+ if(imported){searchStarted=true;pendingScroll={top:saved.scrollTop||0,count:1};}
+ syncWorkspace();if(saved.tab==='new')chooseDiscovery('new');
+ if(!intent||!saved.view?.rowId||!imported||saved.tab!=='new')return;
+ // Open the same candidate again, then go back to the time that was on the bar.
+ const open=(n=0)=>{
+  if(!mainSearchActive()){if(n<400)setTimeout(()=>open(n+1),50);return;}
+  const item=[...document.querySelectorAll('#candidateUnifiedResults .list-item[data-candidate-id]')].find(b=>(b.dataset.sourceId===saved.view.rowId||b.dataset.candidateId===saved.view.rowId)&&!b.hidden);
+  if(!item){if(n<400)setTimeout(()=>open(n+1),50);return;}
+  // The list can be shown before it accepts a choice (models and the map session still loading): try again until it opens.
+  item.click();if(!selectionPending&&!resultRequested){if(n<400)setTimeout(()=>open(n+1),100);return;}
+  const back=(k=0)=>{if(resultActive()&&!selectionPending&&lastCandidateId===saved.view.rowId){if(Number.isFinite(saved.view.at))SkyMapUI.setTime(saved.view.at);return;}if(k<200)setTimeout(()=>back(k+1),50);};back();
+ };open();
+}
+setTimeout(tryResume,0);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)invalidate();else sync();});
 window.addEventListener('resize',()=>{if(active())sync();});
 routeChanged();

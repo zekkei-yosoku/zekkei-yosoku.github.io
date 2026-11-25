@@ -300,7 +300,10 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
    retryPending:retry.length,retryPoints:retry.filter(work=>work.kind==='point').length,retrySources:retry.filter(work=>work.kind==='source').length,
    nextCursor:s.cursor,approximateInverse:true},dataVersion:'generic-v1'};
  }
- return {search,searchAll,searchRecommended,restart,cached:plan=>{const s=sessions.get(requestKey(plan));return s?.lastResult?{...s.lastResult,rows:s.lastResult.rows.slice(),cached:true}:null;},clear:()=>sessions.clear()};
+ return {search,searchAll,searchRecommended,restart,cached:plan=>{const s=sessions.get(requestKey(plan));return s?.lastResult?{...s.lastResult,rows:s.lastResult.rows.slice(),cached:true}:null;},clear:()=>sessions.clear(),
+  // A result kept across a page reload (iOS drops a backgrounded page). It only answers cached(); continuing searches afresh.
+  prime:(plan,saved)=>{const key=requestKey(plan);if(!saved||!Array.isArray(saved.rows)||saved.requestKey!==key||sessions.get(key)?.lastResult)return false;
+   sessions.set(key,{key,lastResult:{...saved,rows:saved.rows.slice(),cached:false}});while(sessions.size>4)sessions.delete(sessions.keys().next().value);return true;}};
 }
 api.requestKey=requestKey;api.regionsFor=regionsFor;api.createGenericSearch=createGenericSearch;
 if(typeof module==='object'&&module.exports)module.exports={requestKey,regionsFor,createGenericSearch};

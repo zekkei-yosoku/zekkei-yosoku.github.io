@@ -3913,7 +3913,10 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
    retryPending:retry.length,retryPoints:retry.filter(work=>work.kind==='point').length,retrySources:retry.filter(work=>work.kind==='source').length,
    nextCursor:s.cursor,approximateInverse:true},dataVersion:'generic-v1'};
  }
- return {search,searchAll,searchRecommended,restart,cached:plan=>{const s=sessions.get(requestKey(plan));return s?.lastResult?{...s.lastResult,rows:s.lastResult.rows.slice(),cached:true}:null;},clear:()=>sessions.clear()};
+ return {search,searchAll,searchRecommended,restart,cached:plan=>{const s=sessions.get(requestKey(plan));return s?.lastResult?{...s.lastResult,rows:s.lastResult.rows.slice(),cached:true}:null;},clear:()=>sessions.clear(),
+  // A result kept across a page reload (iOS drops a backgrounded page). It only answers cached(); continuing searches afresh.
+  prime:(plan,saved)=>{const key=requestKey(plan);if(!saved||!Array.isArray(saved.rows)||saved.requestKey!==key||sessions.get(key)?.lastResult)return false;
+   sessions.set(key,{key,lastResult:{...saved,rows:saved.rows.slice(),cached:false}});while(sessions.size>4)sessions.delete(sessions.keys().next().value);return true;}};
 }
 api.requestKey=requestKey;api.regionsFor=regionsFor;api.createGenericSearch=createGenericSearch;
 if(typeof module==='object'&&module.exports)module.exports={requestKey,regionsFor,createGenericSearch};
@@ -5075,6 +5078,12 @@ function snapshot(){
 const key=p=>p?AstroNotesCandidateDiscovery.requestKey(p):'';
 const uiKey=p=>key(p)+'|'+(p?.authGeneration??'');
 AstroNotesCandidatePicker.captureSearchPlan=()=>{const plan=snapshot();return plan&&engine.cached(plan)?plan:null;};
+// 2026-11-25 ユーザー「別のAppに飛んで戻ると一覧に移動してる」「条件変わってないのに毎回検索始める」: iPhoneは裏へ回したページを
+// 捨てて読み直す。見つけた候補を持ち越し、読み直した後も同じ条件なら探し直さずに出す。
+AstroNotesCandidatePicker.exportSearch=plan=>{plan=plan||snapshot();const result=plan&&engine.cached(plan);return result?{key:key(plan),result}:null;};
+AstroNotesCandidatePicker.importSearch=saved=>{const plan=snapshot();if(!plan||!saved||key(plan)!==saved.key||!engine.prime?.(plan,saved.result))return false;
+ // The section for these conditions may already be on the page without results: build it again from the kept result.
+ condition='';scheduleMount();return true;};
 AstroNotesCandidatePicker.restoreSearchFrame=plan=>{returnedSearchFrame=plan?{lens:plan.lens,identity:uiKey(plan)}:null;};
 AstroNotesCandidatePicker.registeredPlan=fallback=>mainWorkspace()||typeof placeSheetFor!=='undefined'&&placeSheetFor==='skymap'?snapshot()||fallback:fallback;
 // Registered rows keep their original selection action, but use the same full
@@ -5314,7 +5323,7 @@ function mount(){
    for(const raw of result.rows){if(AstroNotesCandidatePicker.inRecords(raw,recorded))continue;const row=AstroNotesCandidateLabels.enrich(raw,labels),town=knownTownAddresses.get(townKey(row.place));
    if(town&&row.labels.address.status!=='matched')setTownAddress(row,town);rows.push(row);
    let item=items.get(row.id);if(!item){item=document.createElement('button');item.type='button';item.className='list-item';item.hidden=true;item.textContent=row.place.name;resultList.append(item);}
-   kept.set(row.id,item);nodes.push(item);item.dataset.modelBasis=row.modelEvidence?.kind||'unknown';item.dataset.candidateName=row.place.name;item.dataset.candidateId=row.id;
+   kept.set(row.id,item);nodes.push(item);item.dataset.modelBasis=row.modelEvidence?.kind||'unknown';item.dataset.candidateName=row.place.name;item.dataset.candidateId=row.id;item.dataset.sourceId=raw.id;
     item.onclick=()=>{
     if(!item.isConnected||items.get(row.id)!==item||mainWorkspace()&&!mainWorkspace().selectable()||!resultsCurrent(selected,node)||row.requestKey!==key(selected))return;
     const event={...row.event};delete event.matchMode;const candidate={...row,event};const host=document.getElementById('aimLook'),previous=host?._compose;

@@ -7,7 +7,7 @@ import {createMapView} from '../../ui/map/picker.js';
 import {aim,aimElevCache,aimFavTarget,aimFavTargets,aimFillSelects,aimIsMountain,aimLimbValue,aimMapLabel,aimSceneExtraTargets,aimWithHeights} from '../framing/controller.js';
 import {aimAppendCandidatePage,aimBuildingDays,aimCalGridHtml,aimCalRows,aimCalSolid,aimCandidatePageEnd,aimCandidateSearchEnd,aimDaysInputKey,aimFromPoint,aimObserverAt,aimObserverEye,aimSavedFrom,
 aimShootingView,candidateDatesAppend,candidateDatesMarkup,candidateWaitMarkup} from '../framing/observer.js';
-import {aimLookKey} from '../framing/reverse-and-entry.js';
+import {aimAirSettings,aimLookKey} from '../framing/reverse-and-entry.js';
 import {openPlaceSheet} from '../places/search.js';
 import {accessState,allowedTools,apiTransport,auth,renderTools,screenAllowed,toolAllowed} from '../account/session-and-access.js';
 import {showSheet} from '../../app/overlays.js';
@@ -145,16 +145,22 @@ ctx.lineWidth=1;
   const f=plan.observer;
   const ready=validPoint(f)&&!!(plan.target?.parts||[]).length;box.closest('.sky-map-candidates').hidden=!ready;
   if(!ready){dateEntry=null;box.replaceChildren();return;}
-  const inputKey=aimDaysInputKey(f,Date.now(),plan),key=JSON.stringify([inputKey,plan.ground,globalThis.AstroNotesTrialOverlap?.key?.(plan)??null]);
+  // 大気差は設定だけを鍵にする。見え方が気象予報を読み込むたびに鍵が変わると、候補の日付を押しても効かなくなっていた
+  // （2026-11-25 ユーザー「重なる日時の候補を押してもボタンが効いてない」）。一覧の鍵（candidates/ui.js の air）と同じ考え方
+  const air=()=>JSON.stringify([typeof aimAirSettings==='undefined'?'standard':aimAirSettings]);
+  const inputKey=aimDaysInputKey(f,Date.now(),plan,air()),key=JSON.stringify([inputKey,plan.ground,globalThis.AstroNotesTrialOverlap?.key?.(plan)??null]);
   if(!dateEntry||dateEntry.key!==key||Date.now()>=dateEntry.until){
    dateEntry=null;box.innerHTML=candidateWaitMarkup();
    if(!plan.dailies?.[plan.body]||!plan.eye){if(plan.passError)box.innerHTML='<p class="tiny" role="status">候補日時を計算できません。下の再試行からやり直してください。</p>';return;}
    const now=Date.now(),obs=aimObserverAt(f,plan.ground),snapshot={target:plan.target,body:plan.body,partId:plan.partId,limb:plan.limb,matchMode:plan.matchMode};
-   const entry={key,inputKey,origin:now,until:Infinity,searchedUntil:S.Cal.startOfDay(now),rows:null,morePromise:null,error:false,obs,snapshot};dateEntry=entry;
-   const current=()=>session===plan&&hasAccess()&&active()&&dateEntry===entry&&Date.now()<entry.until&&entry.inputKey===aimDaysInputKey(session.observer,Date.now(),session);
+   const entry={key,inputKey,weather:AstroNotesAtmosphere.dataKey(),origin:now,until:Infinity,searchedUntil:S.Cal.startOfDay(now),rows:null,morePromise:null,error:false,obs,snapshot};dateEntry=entry;
+   const current=()=>session===plan&&hasAccess()&&active()&&dateEntry===entry&&Date.now()<entry.until&&entry.inputKey===aimDaysInputKey(session.observer,Date.now(),session,air());
    entry.current=current;
    entry.promise=(globalThis.AstroNotesTrialOverlap?.buildingDays?.(aimBuildingDays,plan)||aimBuildingDays)(obs,snapshot.target,snapshot.body,snapshot.partId,null,{from:now,limb:snapshot.limb,matchMode:snapshot.matchMode,isCurrent:current,onScanned:end=>{entry.searchedUntil=end;}}).then(rows=>{
-    if(!current()){if(dateEntry===entry)dateEntry=null;return;}entry.rows=rows;entry.until=S.Cal.startOfDay(now)+86400000;renderCandidateDates();
+    if(!current()){if(dateEntry===entry)dateEntry=null;return;}
+    // 計算中に気象が届くと計算本体は空の結果で止まる。その時は届いた気象でやり直す
+    if(!rows?.length&&entry.weather!==AstroNotesAtmosphere.dataKey()){dateEntry=null;renderCandidateDates();return;}
+    entry.rows=rows;entry.until=S.Cal.startOfDay(now)+86400000;renderCandidateDates();
    }).catch(()=>{if(current()){entry.error=true;renderCandidateDates();}else if(dateEntry===entry)dateEntry=null;});
    return;
   }

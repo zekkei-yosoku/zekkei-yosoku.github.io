@@ -881,12 +881,12 @@ async function aimBuildingDays(obs, target, body, partId, seq, { from = Date.now
   return rows;
 }
 // 表示日を替えても検索条件は同じ。地形・標高・有効な大気データが替われば再探索する。
-function aimDaysInputKey(f, now = Date.now(), plan = aim) {
+function aimDaysInputKey(f, now = Date.now(), plan = aim, air = AstroNotesAtmosphere.dataKey()) {
   if (!f) return null;
   return JSON.stringify([f.latitude, f.longitude, f.groundManualM, f.observationElevationM,
     f.standAglM, aimObserverEye(f), plan.target, plan.body, plan.partId,
     plan.partId === "__whole" ? null : plan.limb, plan.matchMode || 'limb',
-    AstroNotesAtmosphere.dataKey(), S.Cal.startOfDay(now)]);
+    air, S.Cal.startOfDay(now)]);
 }
 function candidateWaitMarkup(message = '候補日時を計算中…') {
   return `<div class="note-wait candidate-wait" role="status"><span class="note-wait-character" aria-hidden="true"></span><span class="note-wait-message">${esc(message)}</span></div>`;
