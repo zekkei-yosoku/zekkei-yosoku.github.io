@@ -804,6 +804,8 @@ function assertScene(){SkyMapUI.shareState();const s=snapshot();if(!resultActive
 const style=node('style');style.textContent=
 '.explore-conditions{max-width:780px;margin:0 0 12px;border:1px solid var(--line);border-radius:14px;background:var(--card)}'+
 '.explore-conditions:not([open]){position:sticky;top:0;z-index:4}'+
+// 2026-11-26 見え方では条件の欄を上に貼り付けない（ユーザー「見え方に被るのが邪魔」）。一覧の検索中だけ貼り付ける
+'#skyMapView[data-explore-stage="preview"] .explore-conditions{position:static}'+
 '.explore-conditions>summary{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;min-height:64px;padding:12px 14px;cursor:pointer;list-style:none}.explore-conditions>summary::-webkit-details-marker{display:none}'+
 '#exploreConditionTitle{font-weight:600;grid-column:1;overflow-wrap:anywhere}#exploreConditionDetail{grid-column:1;font-size:12px;color:var(--secondary);overflow-wrap:anywhere}.explore-condition-edit{grid-column:2;grid-row:1/3;align-self:center;font-size:12px;color:var(--accent)}'+
 '.explore-condition-fields{padding:4px 14px 14px}.explore-conditions[open]>summary{border-bottom:1px solid var(--line)}.explore-conditions[open] #exploreConditionDetail{display:none}'+
