@@ -1,5 +1,5 @@
 import {$,S,esc} from '../../ui/presentation-helpers.js';
-import {viewState} from '../../app/browser-state.js';
+import {place,viewState} from '../../app/browser-state.js';
 import {lightTimingText,moonGlyphAt,moonHorizon,observerHere} from '../forecast/view.js';
 import {favForPoint,inheritedPoint,renameFromAfterFav,renderPointCard} from '../places/controller.js';
 import {createMapView} from '../../ui/map/picker.js';
@@ -390,19 +390,19 @@ function planeNearestLine(P,lines){
 }
 function planeMapText(){
   const r=plane.map;if(!r)return;
-  const m=r.overlap.moon,P=planeFromPoint(),parts=[`${S.JstCal.hhmm(r.at)} · ${P.name}から`];
-  if(r.overlap.status==='missing-elevation')parts.push('標高が不明のため計算できません');
-  else if(m&&r.overlap.status==='below-horizon')parts.push('月が地平線より下にあります');
-  else if(r.overlap.overlaps?.length)parts.push('金色の区間で月円盤と重なります');
-  else{const n=planeNearestLine(P,r.centerLines);parts.push(n?`この時刻は重なりません（青い線まで${n.dir}へ${n.km<1?Math.round(n.km*1000)+'m':n.km.toFixed(1)+'km'}）`:'この時刻は重なりません');}
-  const w=planeWindows();
-  if(w&&r.overlap.status!=='missing-elevation')parts.push(w.length?'重なる目安 '+w.slice(0,3).map(([a,b])=>a===b?S.JstCal.hhmm(a)+'頃':S.JstCal.hhmm(a)+'〜'+S.JstCal.hhmm(b)).join('、')+(w.length>3?' ほか':''):'この日はこの地点で重なる時刻なし');
-  if(m&&Number.isFinite(m.apparentAltitude))parts.push(`月 方位${m.azimuth.toFixed(1)}°・高さ${m.apparentAltitude.toFixed(1)}°`);
-  if(r.pending&&r.overlap.status==='ready')parts.push('地上の候補範囲を計算中…');
-  else if(r.missing)parts.push('海の上と地形を確認できない部分は表示しません');
-  else if(r.overlap.status==='ready'&&!r.polygons.length&&!r.centerLines?.length)parts.push('対応範囲内に地上の候補なし');
-  else if(r.centerLines?.length)parts.push('青い線の上に立つと月の中心に重なります');
-  $("planeMapStatus").textContent=parts.join(' ／ ');
+  // 短い行だけにする（2026-11-25 ユーザー「13:38 · 現在地からっている？」「月 方位…／重なる目安…みたいな感じでシンプルに」）。
+  // 時刻と地点は下の時間バーと上の釦にある。海の上を出さない説明は凡例・出典へ
+  const m=r.overlap.moon,P=planeFromPoint(),w=planeWindows(),fmt=km=>km<1?Math.round(km*1000)+'m':km.toFixed(1)+'km';
+  let first,second,third='';
+  if(r.overlap.status==='missing-elevation'){first='標高が不明のため計算できません';second='';}
+  else{
+    first=m&&Number.isFinite(m.apparentAltitude)?`月 方位${m.azimuth.toFixed(1)}°・高さ${m.apparentAltitude.toFixed(1)}°`:'月の位置を計算中…';
+    if(r.overlap.overlaps?.length)first+=' ・ 今、金色の区間で重なります';
+    second=w?(w.length?'重なる目安 '+w.slice(0,3).map(([a,b])=>a===b?S.JstCal.hhmm(a)+'頃':S.JstCal.hhmm(a)+'〜'+S.JstCal.hhmm(b)).join('、')+(w.length>3?' ほか':''):'この日はここで重なる時刻なし'):'重なる時刻を計算中…';
+    const n=!r.overlap.overlaps?.length&&r.overlap.status==='ready'?planeNearestLine(P,r.centerLines):null;
+    if(n)third=`今は青い線まで${n.dir}へ${fmt(n.km)}`;
+  }
+  $("planeMapStatus").textContent=[first,second,third].filter(Boolean).join('\n');
   const kinds=[['landing','着陸'],['takeoff','離陸']].filter(([k])=>r.paths.some(p=>p.kind===k));
   $("planeRouteDetails").innerHTML=kinds.map(([k,label])=>`<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px;white-space:nowrap"><svg width="26" height="8" aria-hidden="true"><line x1="2" y1="4" x2="24" y2="4" stroke="${PLANE_ROUTE_COLORS[k]}" stroke-width="4" stroke-linecap="round"${k==='takeoff'?' stroke-dasharray="6 4"':''}/></svg><b>${label}</b> ${r.paths.filter(p=>p.kind===k).map(p=>esc(p.runway)).join('・')}</span>`).join('')
     +`<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px;white-space:nowrap"><svg width="26" height="14" aria-hidden="true"><line x1="6" y1="7" x2="20" y2="7" stroke="#2f7fd0" stroke-opacity=".38" stroke-width="12" stroke-linecap="round"/></svg><b>立ち位置</b></span>`
@@ -466,10 +466,30 @@ PlaneMap.setOverlay((ctx,{project,width,height})=>{
   const A=AstroNotesRoutes.AIRPORT,[ax,ay]=project(A.latitude,A.longitude);ctx.beginPath();ctx.arc(ax,ay,5,0,Math.PI*2);ctx.fillStyle=ink;ctx.fill();aimMapLabel(ctx,ax,ay+15,A.name,'white',width,height,'center');
   ctx.restore();
 });
+// 引き継いだ地点が「現在地」なら、開くたびに今の位置へ取り直す。アプリの地点は前に現在地を押した時の位置のままなので、
+// 移動した後に開くと前の場所（例: 東京駅）になっていた（2026-11-25 ユーザー「開くと現在地が東京駅になるんだけど」）。
+// 位置情報が許可済みの時だけ（ここで許可を求めない）。取れなければ今の地点のまま
+let planeHereRequest=0;
+async function planeRefreshHere(){
+  const here=plane.from?.here,base=here?plane.from:place;
+  if(plane.from&&!here||!(here||String(place.id||'').startsWith('geo:')||place.name==='現在地')||!navigator.geolocation)return;
+  try{if((await navigator.permissions?.query({name:'geolocation'}))?.state!=='granted')return;}catch{return;/* permissions API unavailable: do not prompt from here */}
+  const request=++planeHereRequest;
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    if(request!==planeHereRequest||plane.from&&!plane.from.here||!viewState.plane)return;
+    const {latitude,longitude}=pos.coords;
+    if(AstroNotesTerrain.distanceKm(latitude,longitude,base.latitude,base.longitude)<0.05)return;
+    let area='';try{area=(await nearName(latitude,longitude)).area||'';}catch{area='';/* the address is optional */}
+    if(request!==planeHereRequest||plane.from&&!plane.from.here||!viewState.plane)return;
+    planeSetFrom({name:'現在地',subtitle:area,latitude,longitude,here:true});
+    PlaneMap.open({latitude,longitude},12);
+  },()=>{/* no fix: keep the inherited point */},{timeout:10000,maximumAge:120000});
+}
 function openPlane(){
   if(!renderToolAccess('plane')){plane.seq.cancel();plane.mapSeq.cancel();plane.playback?.stop(false);return;}
   if(!Number.isFinite(plane.at))plane.at=Date.now();plane.dayMs=S.Cal.startOfDay(plane.at);
   planeSyncAirport({recenter:false});
+  void planeRefreshHere();
   if(!plane.wired){
     plane.wired=true;wirePlaneLayout();
     const row=$("planeTimeRow"),footer=$("planeTimeFooter");

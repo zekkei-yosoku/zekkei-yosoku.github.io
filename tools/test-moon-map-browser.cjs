@@ -26,6 +26,8 @@ for(const engine of (process.env.MOON_MAP_ENGINES||'chromium,webkit').split(',')
  const state=await p.evaluate(()=>({polygons:plane.map.polygons.length,segments:plane.map.overlap.overlaps.length,status:plane.map.overlap.status,at:plane.map.at,ground:plane.observer.groundM,eye:plane.observer.eyeHeightAGL,unknown:plane.map.missing,text:$('planeMapStatus').textContent}));
  assert(state.polygons>0,'ground layer exists: '+JSON.stringify(state));assert(state.segments>0,'observer route highlight exists');assert.equal(state.status,'ready');assert.equal(state.at,at);assert.match(state.text,/方位.+高さ/);
  assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'page fits');
+ // 状況の文は短い行だけ（時刻・地点・海の注記なし）
+ {const lines=await p.evaluate(()=>$('planeMapStatus').textContent.split('\n'));assert(lines.length<=3&&/^月 方位/.test(lines[0])&&!lines.join('').includes('海の上')&&!lines.join('').includes('から ／'),JSON.stringify(lines));}
  // 重なる目安の時刻：今重なっている18:00を含む区間が出る
  await p.waitForFunction(()=>/重なる目安 /.test($('planeMapStatus').textContent));assert.equal(await p.evaluate(at=>plane.windows.list.some(([a,b])=>a<=at&&at<=b),at),true);
  const layout=await p.evaluate(()=>{const m=$('planeCanvas').getBoundingClientRect(),f=$('planeTimeFooter').getBoundingClientRect(),h=document.querySelector('main>.masthead').getBoundingClientRect();return {mapTop:m.top,mapBottom:m.bottom,mapWidth:m.width,footTop:f.top,headBottom:h.bottom,sheet:$('planeSheet').hidden};});
@@ -75,6 +77,10 @@ await p.screenshot({path:`${out}/${engine}-${width}-${theme}-map.png`,fullPage:t
   await p.evaluate(()=>{window.__resolveMoonGround(30);AstroNotesTerrain.groundElevation=async()=>20;});await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.observer.groundM===30);
   await p.evaluate(()=>{AstroNotesTerrain.groundElevation=async()=>null;AstroNotesTerrain.elevations=async points=>points.map(()=>null);planeSetFrom({name:'標高不明',latitude:35.6,longitude:139.8});});
   await p.waitForFunction(()=>plane.map&&!plane.map.pending);assert.equal(await p.evaluate(()=>plane.map.overlap.status),'missing-elevation');assert.equal(await p.evaluate(()=>plane.map.polygons.length),0);
+  // 引き継いだ「現在地」は開くたびに今の位置へ取り直す（前に押した時の位置のままにしない）
+  await context.grantPermissions(['geolocation'],{origin:new URL(base).origin});await context.setGeolocation({latitude:35.6586,longitude:139.7454});
+  await p.evaluate(()=>{AstroNotesTerrain.groundElevation=async()=>20;AstroNotesTerrain.elevations=async points=>points.map(()=>20);Object.assign(place,{id:'geo:35.6812,139.7671',name:'現在地',latitude:35.6812,longitude:139.7671});plane.from=null;openPlane();});
+  await p.waitForFunction(()=>plane.from?.here&&Math.abs(plane.from.latitude-35.6586)<1e-4);
   await p.evaluate(()=>{auth={...auth,tools:[]};renderAuthButton();});await p.waitForFunction(()=>$('planeAccess').hidden===false);assert.equal(await p.locator('#planeTime').isVisible(),false,'revocation hides gated controls');
  }
  assert.deepEqual(errors,[]);results.push({engine,width,theme,...state,errors});console.log('PASS',engine,width,theme,JSON.stringify(state));await context.close();
