@@ -24,7 +24,8 @@ module.exports=async function checkParity(page,ready,path){
   const firstDay=await page.locator('#recordOpportunityDate').inputValue(),clock=await page.locator('#recordOpportunityList [data-opportunity-id]').first().getAttribute('data-opportunity-id');
   const dayAt=JSON.parse(clock)[1],before=await page.evaluate(()=>parityFixture.calls);
   const read=selector=>page.locator(selector).evaluateAll(ns=>ns.map(n=>({...Object.fromEntries(['place','time','address','angle','passage','spatial'].map(k=>[k,n.querySelector('[data-candidate-'+k+']')?.textContent||''])),kind:n.querySelector('[data-place-kind]')?.textContent||'',angleGlyph:n.querySelector('[data-angle-icon] svg')?.dataset.pictogram||'',angleHidden:n.querySelector('[data-candidate-angle]')?.hidden})));
-  const notes=(await read('#recordOpportunityList [data-opportunity-id]')).slice(0,5);
+  // 2026-11-25 全地点の一覧では同じ時刻に別の地点の行も並ぶ。1地点の行で比べる
+  const notes=(await read('#recordOpportunityList [data-opportunity-id]')).filter(r=>r.place==='鷺沼北公園').slice(0,5);
   assert.equal(notes.length,5);assert.deepEqual(notes.map(r=>r.time),['01:00〜01:10','01:00〜01:10','02:00〜02:10','03:00','04:00〜04:05']);
   assert(notes.some(r=>r.spatial.includes('線上で移動')));assert(notes.some(r=>r.spatial.includes('範囲内で移動')));assert(notes.every(r=>r.passage==='先端付近を通過'));
   assert(notes.every(r=>r.angleGlyph==='angle-up'&&!r.angleHidden));

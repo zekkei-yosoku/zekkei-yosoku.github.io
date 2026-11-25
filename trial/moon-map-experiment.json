@@ -4,8 +4,8 @@
   "revision": 3,
   "baselineCommit": "1622f8d85ba58f29e1dfe0d81be738754239ba24",
   "productionSha256": {
-    "index.html": "bbf64c580d2fcaa3859d7ca25465753a2f99d928d21d5844ba3c4705e9ae74f9",
-    "app-version.txt": "edccdd9afc943a46ed46b2688cbc4afd96cc5850534bbc310a7794cf0e608904",
+    "index.html": "a5568eb7e866e645541201e11f463432c2ce20e5f8a37ca60836ae56b79770d6",
+    "app-version.txt": "7d1b6377181855c1750025dd909800e4527232ee06f2231252cf3af97d297e57",
     "src/index.html": "099922d7b1582086712c46d455479c575fa30683c7888d2bc855c6b9effaa02d",
     "src/features/aircraft/controller.js": "c73b1cb9f611ee2301e6c18e3eb549d8078a389956b34eacf88cf6d547ae4ed1",
     "src/source-manifest.json": "480d100c294f92141cc9b93398fd48fbf32896155ebbd13dbc0c79a50886d8ac",
@@ -24,7 +24,7 @@
     "astronotes-plane.js": "20ca336df57c9b0fc6411176c7393c9db4cee7dcf587be4a0a26608c54e59916",
     "astronotes-routes.js": "fc099255874d597c8ee2146d8ac611cb5f3613c20c6621d223be6422365bb000",
     "astronotes-datetime-ui.css": "8d4714f564c8ea9bd687e9a16dcc8c4915513c2becdbf4550e012fd8a01ae32e",
-    "index.html": "236734c2eee5c23f76d8ff80b4028c223d5eb9db190704cb620a91df5ccbc258",
-    "app-version.txt": "e35a83d7ec1bdfc7cb45774b7adfd33da3dd8e657dc090deb03db7ca8a549d61"
+    "index.html": "f2f8b9f174bb75b31a0e4418a76b7cdcfb49d54a043d9bb8943aa79cb327a2cd",
+    "app-version.txt": "400bc4bb02fcebf6a76b305176dfca4a496c6b365dafb24a161b363b4e20b30b"
   }
 }

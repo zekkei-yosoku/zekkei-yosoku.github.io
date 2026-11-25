@@ -1062,19 +1062,19 @@ style.textContent = `
 style.textContent+=`
 #recordOpportunities{max-width:780px;margin-inline:auto}
 .record-opportunity-controls{display:grid;gap:12px}
-.record-opportunity-period{display:grid;grid-template-columns:44px minmax(0,1fr) 44px 44px;gap:4px;align-items:center}
-.record-opportunity-period button{min-width:0;min-height:44px;padding:4px;font-size:14px}
-.record-opportunity-period button:is(#recordOpportunityPrev,#recordOpportunityNext){font-size:24px}
+.record-opportunity-period{display:grid;grid-template-columns:minmax(0,1fr) 64px;gap:4px;align-items:center}
+.record-opportunity-period[hidden]{display:none}.record-opportunity-period button{min-width:0;min-height:44px;padding:4px;font-size:14px}
+.record-opportunity-period:has(#recordOpportunityToday[hidden]){grid-template-columns:minmax(0,1fr)}#recordOpportunityToday[hidden]{display:none}
 .record-opportunity-date{position:relative;display:grid;place-items:center;min-width:0;height:44px;font-size:16px;font-weight:600;white-space:nowrap;border:1px solid var(--line);border-radius:10px;background:var(--card)}
 .record-opportunity-date input{position:absolute;inset:0;width:100%;height:44px;min-width:0;margin:0;opacity:0;font-size:16px;cursor:pointer}
 .record-opportunity-date:focus-within{outline:2px solid var(--accent);outline-offset:2px}
 .record-opportunity-filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .record-opportunity-filter{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}
 .record-opportunity-filters .record-opportunity-select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;font-size:16px;margin:0;background-color:var(--card)}
-.record-opportunity-scope{display:flex;align-items:center;gap:2px;justify-self:start;width:max-content;max-width:100%;box-sizing:border-box;min-height:36px;padding:0 0 0 14px;border:1px solid var(--line);border-radius:999px;background:var(--sunk);font-size:14px}
-.record-opportunity-scope[hidden]{display:none}
-.record-opportunity-scope span{min-width:0;overflow-wrap:anywhere}
-.record-opportunity-scope .chip{min-width:44px;min-height:44px;margin:-4px 0;padding:0;border:0;background:none;box-shadow:none;font-size:18px;line-height:1;color:var(--secondary)}
+.record-opportunity-scope{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;min-width:0}
+.record-opportunity-scope[hidden]{display:none}#recordsView[data-place-list] #notebookTabs{display:none}#recordOpportunities :is([data-candidate-address],[data-place-kind]){display:none}
+.record-opportunity-scope span{min-width:0;overflow-wrap:anywhere;font-size:17px;font-weight:700}
+.record-opportunity-scope .chip{min-height:44px;padding:4px 12px;font-size:14px;white-space:nowrap}
 .record-opportunity-select{text-align:left;position:relative;padding:10px 30px 10px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);border:1px solid var(--line);border-radius:10px}
 .record-opportunity-select::after{content:'';position:absolute;right:13px;top:17px;width:7px;height:7px;border-right:2px solid var(--secondary);border-bottom:2px solid var(--secondary);transform:rotate(45deg)}
 .record-opportunity-select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -2711,6 +2711,8 @@ function recordSearchReset(){
 // This code runs inside the existing MyPlacesUI closure in the trial only.
 const opportunityDateAt=at=>new Date(at+32400000).toISOString().slice(0,10);
 const opportunityBounds=date=>{const [y,m,d]=date.split('-').map(Number),start=Date.UTC(y,m-1,d)-32400000;return [start,start+86400000];};
+const opportunityPageRows=8;
+const opportunityPageEnd=start=>Math.max(start,Math.min(aimCandidateSearchEnd(),start+7*DAY));
 let opportunityDateChosen=false;
 let opportunityOwner=null,opportunityOwnerId=null,opportunityEpoch=AstroNotesLibrary.gate(),opportunityJob=null,opportunityHost=null,opportunityDom=null,opportunityReturn=null,opportunityOpenSeq=AstroNotesLibrary.gate(),opportunityInputEpoch=AstroNotesLibrary.gate();
 // 2026-11-13 重なる日は天体と対象で絞る（ユーザー「この撮影地点より対象で絞れた方がいいんじゃないの」。10/26採用の方向性「自分の撮影地点と撮りたい対象から次の撮影機会を見つける」）。
@@ -3301,32 +3303,40 @@ function opportunityBuild(){
  const host=el('recordOpportunities');if(!host)return false;opportunityHost=host;
  if(opportunityDom?.host===host&&host.firstChild)return true;
  host.replaceChildren();const controls=opportunityNode('div',{className:'record-opportunity-controls'}),period=opportunityNode('div',{className:'record-opportunity-period'});
- const prev=opportunityNode('button',{type:'button',className:'chip'},'‹'),date=opportunityNode('input',{type:'date',id:'recordOpportunityDate',className:'fav-in'}),next=opportunityNode('button',{type:'button',className:'chip'},'›'),today=opportunityNode('button',{type:'button',className:'chip'},
- '今日');
- prev.id='recordOpportunityPrev';next.id='recordOpportunityNext';today.id='recordOpportunityToday';prev.setAttribute('aria-label','前の日');next.setAttribute('aria-label','次の日');date.setAttribute('aria-label','重なる日を調べる日付');
- const change=delta=>{const [start]=opportunityBounds(opportunityFilters.date);opportunitySet({date:opportunityDateAt(start+delta*86400000)});};prev.onclick=()=>change(-1);next.onclick=()=>change(1);date.onchange=()=>opportunitySet({date:date.value});
+ // 2026-11-25 重なる日は開始日から先を日付順に並べる（ユーザー「カレンダーだといつか一覧でわからない」）。日付は開始日を変えるだけ
+ const date=opportunityNode('input',{type:'date',id:'recordOpportunityDate',className:'fav-in'}),today=opportunityNode('button',{type:'button',className:'chip'},'今日');
+ today.id='recordOpportunityToday';date.setAttribute('aria-label','重なる日を探し始める日付');date.onchange=()=>opportunitySet({date:date.value});
  today.onclick=()=>opportunitySet({date:opportunityDateAt(Date.now())});const dateWrap=opportunityNode('label',{className:'record-opportunity-date'}),dateLabel=opportunityNode('span');dateLabel.setAttribute('aria-hidden','true');dateWrap.append(dateLabel,date);
- period.append(prev,dateWrap,next,today);
+ period.append(dateWrap,today);
  const filters=opportunityNode('div',{className:'record-opportunity-filters'}),body=opportunityNode('button',{type:'button',id:'recordOpportunityBody',className:'fav-in record-opportunity-select'}),target=opportunityNode('button',{type:'button',id:'recordOpportunityTarget',
  className:'fav-in record-opportunity-select'});
  for(const [control,label,kind]of [[body,'天体','bodies'],[target,'対象','targets']]){const wrap=opportunityNode('div',{className:'record-opportunity-filter'}),caption=opportunityNode('span',{id:control.id+'Label'},label);control.setAttribute('aria-labelledby',caption.id+' '+control.id);
  control.setAttribute('aria-haspopup','dialog');control.setAttribute('aria-expanded','false');control.onclick=()=>opportunityOpenPicker(kind,control);wrap.append(caption,control);filters.append(wrap);}
- const scope=opportunityNode('div',{id:'recordOpportunityScope',className:'record-opportunity-scope',hidden:true}),scopeName=opportunityNode('span',{id:'recordOpportunityScopeName'}),scopeClear=opportunityNode('button',{type:'button',id:'recordOpportunityScopeClear',className:'chip'},'×');
- scopeClear.setAttribute('aria-label','撮影地点の絞り込みを外す');scopeClear.onclick=()=>{opportunitySet({placeId:''});requestAnimationFrame(()=>el('recordOpportunityTarget')?.focus({preventScroll:true}));};scope.append(scopeName,scopeClear);
+ const scope=opportunityNode('div',{id:'recordOpportunityScope',className:'record-opportunity-scope',hidden:true}),scopeName=opportunityNode('span',{id:'recordOpportunityScopeName'}),
+ scopeClear=opportunityNode('button',{type:'button',id:'recordOpportunityScopeClear',className:'chip'},'すべての地点');
+ const scopeBack=opportunityNode('button',{type:'button',id:'recordOpportunityScopeBack',className:'chip'},'‹');
+ // 2026-11-25 撮影地点の「重なる日」から来たら、その地点の今日からの一覧を見出し付きで出し、日付の操作は出さない（ユーザー「その記録の地点の一覧が見たい」「日付が邪魔」）
+ scopeBack.setAttribute('aria-label','撮影地点へ戻る');scopeBack.onclick=()=>{const id=opportunityFilters.placeId;setNotebookTab('points');requestAnimationFrame(()=>document.querySelector(`[data-notebook-place="${CSS.escape(id)}"]`)?.scrollIntoView({block:'center'}));};
+ scopeClear.setAttribute('aria-label','撮影地点の絞り込みを外す');scopeClear.onclick=()=>{opportunitySet({placeId:''});requestAnimationFrame(()=>el('recordOpportunityTarget')?.focus({preventScroll:true}));};scope.append(scopeBack,scopeName,scopeClear);
  const notice=opportunityNode('p',{id:'recordOpportunityNotice',className:'tiny'});notice.setAttribute('role','status');
  const modelNotice=opportunityNode('p',{id:'recordOpportunityModelNotice',className:'tiny',hidden:true},'軌道上の候補。大気差は見え方で確認');
  const status=opportunityNode('div',{id:'recordOpportunityStatus',className:'tiny'});status.setAttribute('role','status');
  const list=opportunityNode('div',{id:'recordOpportunityList'}),pending=opportunityNode('div',{id:'recordOpportunityPending'}),actions=opportunityNode('div',{className:'record-opportunity-actions'});
  const through=opportunityNode('p',{id:'recordOpportunityThrough',className:'tiny record-opportunity-through'});
  const retry=opportunityNode('button',{type:'button',id:'recordOpportunityRetry',className:'chip',hidden:true},'再試行');
+ const more=opportunityNode('button',{type:'button',id:'recordOpportunityMore',className:'chip',hidden:true},'さらに先を探す');
  retry.onclick=()=>{
   const job=opportunityJob;if(!job||!opportunityCurrent(job)||job.scan.state.running)return;
   if(job.displayError){job.displayError=false;opportunityNotice='';opportunityDom.rendered=NaN;opportunityDraw(job);return;}
-  opportunityNotice='';if(job.remote&&(!job.scan.state.error||job.scan.state.error.code==='overlap_plan_failed')&&job.scan.retry?.()){opportunityDom.rendered=-1;void opportunityAdvance(job);return;}opportunityCancel();opportunityCache.delete(job.key);
-  renderOpportunities();
+  opportunityNotice='';if(job.remote&&(!job.scan.state.error||job.scan.state.error.code==='overlap_plan_failed')&&job.scan.retry?.()){opportunityDom.rendered=-1;void opportunityAdvance(job);return;}const end=job.scan.state.end;opportunityCancel();opportunityCache.delete(job.key);
+  renderOpportunities(end);
  };
- actions.append(retry);controls.append(period,filters,scope);host.append(controls,modelNotice,notice,status,list,pending,through,actions);
- opportunityDom={host,prev,date,dateLabel,next,today,body,target,scope,scopeName,modelNotice,notice,status,list,pending,through,retry,rendered:0,lastDay:null};return true;
+ more.onclick=()=>{
+  const job=opportunityJob;if(!job||!opportunityCurrent(job))return;
+  if(job.scan.extend(opportunityPageEnd(job.scan.state.through),opportunityPageRows))void opportunityAdvance(job);
+ };
+ actions.append(retry,more);controls.append(scope,period,filters);host.append(controls,modelNotice,notice,status,list,pending,through,actions);
+ opportunityDom={host,period,date,dateLabel,today,body,target,scope,scopeName,modelNotice,notice,status,list,pending,through,retry,more,rendered:0,lastDay:null};return true;
 }
 function opportunitySet(patch){
  if(!opportunityAllowed())return;opportunityClosePicker();
@@ -3341,15 +3351,17 @@ function opportunityRenderRows(box,rows,job,confirmed){
  async function flushOpportunityRows(){
   try{while(current()&&job.rowRequest){const request=job.rowRequest;job.rowRequest=null;
    await AstroNotesCandidatePicker.renderRecorded(box,request.rows,null,{current,context:true,rowClass:'record-opportunity-row',rowId:r=>r.id,heightRows:job.pairs,
-    heading:r=>dayText(job.start)+(request.confirmed.has(r)?'':'（確認中）'),select:r=>openOpportunity(r,job)
+    heading:r=>dayText(r.spatialWindow?.fromAt??r.event.at)+(request.confirmed.has(r)?'':'（確認中）'),select:r=>openOpportunity(r,job),
+    // 地点の一覧では地点名・住所・種類は見出しで分かるので、行は「天体 × 対象」と時刻を主にする
+    decorate:job.placeMode?button=>{const title=button.querySelector('[data-candidate-place]'),pair=button.querySelector('[data-candidate-context]');if(title&&pair){title.textContent=pair.textContent;pair.hidden=true;}}:null
    });
   }}catch(error){if(current()){job.rowRequest=null;job.displayError=true;opportunityNotice='候補の表示を完了できませんでした。再試行してください。';globalThis.AstroNotesErrors?.note('records.opportunity-rows',error);}
   }finally{job.rendering=false;if(current())opportunityDraw(job);}
  }
  void flushOpportunityRows();
 }
-// 2026-11-23 The selected JST day is the entire visible scope. Check every
-// registered pair and keep all of that day's rows; other days use the date control.
+// The device checks one day at a time (every pair of a day, then the next day) and stops
+// once the page has enough rows. The bar shows the day being checked and its pairs.
 function opportunityProgress(job,s){
  if(!job.progressUi)return;
  if(job.remote){job.progressUi.update(s.checked,s.total);return;}
@@ -3361,7 +3373,7 @@ function opportunityDraw(job){
  if(!opportunityCurrent(job)||!opportunityDom)return;
  const d=opportunityDom,s=job.scan.state,rows=s.rows;
  d.modelNotice.hidden=false;
- d.host.setAttribute('aria-busy',String(s.running&&!s.done||!!job.rendering));
+ d.host.setAttribute('aria-busy',String(s.running&&!s.done||!!job.rendering||!!job.autoMore));
  if(d.rendered<0){d.list.replaceChildren();d.rendered=0;d.lastDay=null;}
  const pending=!s.done&&!job.remote?s.pending||[]:[];
  if(d.rendered!==s.rows.length||job.pendingDrawn!==pending.length){d.rendered=s.rows.length;job.pendingDrawn=pending.length;
@@ -3374,10 +3386,14 @@ function opportunityDraw(job){
   opportunityProgress(job,s);
  }else{
   job.progressUi=null;d.status.textContent=!job.pairs.length?(!opportunityFilters.allTargets&&!opportunityFilters.targets.length?'対象を選び直してください。':job.unavailable?(job.policyUnavailable?'撮影地点の高さや重ね方を確認してください。':job.accessUnavailable===job.unavailable?'現在の権限では、この組み合わせを確認できません':'対象の登録を確認してください。'):
-  'この組み合わせで確認できる記録がありません'):failures?(s.failures.length?'確認できなかった組み合わせがあります':job.accessUnavailable===job.unavailable?'現在の権限では確認できない組み合わせがあります':'対象の登録を確認してください。'):rows.length?'':'選択した日に重なる組み合わせはありません';
+  'この組み合わせで確認できる記録がありません'):
+  failures?(s.failures.length?'確認できなかった組み合わせがあります':job.accessUnavailable===job.unavailable?'現在の権限では確認できない組み合わせがあります':'対象の登録を確認してください。'):
+  rows.length?'':'確認した期間に重なる組み合わせはありません';
  }
- d.through.textContent=job.pairs.length&&s.through>job.start?opportunityDateAt(job.start).replaceAll('-','/')+(failures?'を確認（未確認あり）':'を確認'):'';
+ d.through.textContent=job.pairs.length&&s.through>job.start?opportunityDateAt(s.through-1).replaceAll('-','/')+(failures?'まで探索（未確認あり）':'まで確認'):'';
  d.retry.hidden=!s.done||(!s.failures.length&&!s.error&&!job.displayError);
+ d.more.hidden=!job.pairs.length||s.done&&s.through>=aimCandidateSearchEnd();
+ d.more.disabled=!s.done||s.running||!!s.error;d.more.textContent=s.running?'計算中…':'さらに先を探す';
  // 2026-11-13 戻した位置は少しの間覚えておく。戻した直後に一覧が作り直されると、一瞬短くなったページにブラウザが位置を詰めていた（WebKitで292→220）
  if(opportunityRestore!==null&&opportunityRestoreUntil&&performance.now()>opportunityRestoreUntil){opportunityRestore=null;opportunityRestoreUntil=0;}
  if(opportunityRestore!==null&&(s.done||document.scrollingElement.scrollHeight-innerHeight>=opportunityRestore)){const top=opportunityRestore;if(!opportunityRestoreUntil)opportunityRestoreUntil=performance.now()+1500;
@@ -3387,16 +3403,22 @@ async function opportunityAdvance(job){
  if(!job||!opportunityCurrent(job)||job.scan.state.running)return;
  await job.scan.advance();if(!opportunityCurrent(job)){if(opportunityJob===job&&opportunityActive()&&job.air!==opportunityAirKey(job.remote)){opportunityCancel();renderOpportunities();}return;}
  if(job.scan.state.cancelled){opportunityCancel();renderOpportunities();return;}
+ if(job.remote&&job.scan.state.done&&!job.scan.state.error&&job.restoreThrough>job.scan.state.through&&job.scan.extend(opportunityPageEnd(job.scan.state.through))){void opportunityAdvance(job);return;}
+ // 2026-11-25 空の週で止めない。1件も無ければ見つかるまで、少なければ31日分までは自動で先へ進める
+ {const st=job.scan.state,few=!st.rows.length||st.rows.length<opportunityPageRows&&st.through<job.start+31*DAY;
+  if(st.done&&!st.error&&!st.failures.length&&job.pairs.length&&st.through<aimCandidateSearchEnd()&&few&&job.scan.extend(opportunityPageEnd(st.through),opportunityPageRows)){
+   job.autoMore=true;opportunityDraw(job);void opportunityAdvance(job);return;}
+  job.autoMore=false;}
  if(job.scan.state.done)opportunityRemember(job);
  opportunityDraw(job);
 }
-function renderOpportunities(){
+function renderOpportunities(retryEnd){
  recordSearchReset();
  const owner=auth?.token;
  if(opportunityOwner!==owner||opportunityOwnerId!==auth?.loginId){if(opportunityOwnerId&&opportunityOwnerId!==auth?.loginId){opportunityBackgroundFlight=null;opportunityDeviceFlights.clear();opportunityDeviceForget();}opportunityCancel(true);opportunityServer.cancel();opportunityWarmupKey='';
  opportunityOwner=owner;opportunityOwnerId=auth?.loginId;opportunityDateChosen=false;opportunityTargetSync=null;opportunityFilters={date:opportunityDateAt(Date.now()),bodies:['sun','moon'],allBodies:false,targets:[],allTargets:true,placeId:''};}
- if(!opportunityActive()){if(opportunityAllowed())setTimeout(opportunityWarmup,0);opportunityClosePicker();if(opportunityJob)opportunityCancel();if(opportunityHost?.firstChild){opportunityHost.replaceChildren();opportunityDom=null;}return;}
- if(!opportunityDateChosen){const selected=typeof SkyMapUI!=='undefined'?SkyMapUI.selectionState?.():null;opportunityFilters.date=opportunityDateAt(Number.isFinite(selected?.at)?selected.at:Date.now());opportunityDateChosen=true;}
+ if(!opportunityActive()){el('recordsView')?.removeAttribute('data-place-list');if(opportunityAllowed())setTimeout(opportunityWarmup,0);opportunityClosePicker();if(opportunityJob)opportunityCancel();if(opportunityHost?.firstChild){opportunityHost.replaceChildren();opportunityDom=null;}return;}
+ if(!opportunityDateChosen){opportunityFilters.date=opportunityDateAt(Date.now());opportunityDateChosen=true;}
  if(!opportunityBuild())return;
  opportunityPermittedBodies=AstroNotesBodies.definitions.filter(b=>aimTargetList().some(t=>AstroNotesAccess.canFrame(toolAllowed,t.id,b.id))).map(b=>b.id);if(opportunityFilters.allBodies)opportunityFilters.bodies=opportunityPermittedBodies.slice();
  if(opportunityPicker&&opportunityPicker.signature!==opportunityPickerKey(opportunityPicker.kind)){opportunityClosePicker();opportunityNotice='登録内容や利用条件が変わりました。選択を開き直してください。';}
@@ -3406,34 +3428,36 @@ function renderOpportunities(){
  if(opportunityTargetSync!==recordsTargetFilter){opportunityTargetSync=recordsTargetFilter;const one=recordsTargetFilter&&opportunityTargets.some(([id])=>id===recordsTargetFilter);opportunityFilters={...opportunityFilters,targets:one?[recordsTargetFilter]:[],allTargets:!one};}
  if(opportunityFilters.allTargets)opportunityFilters.targets=opportunityTargets.map(([id])=>id);else opportunityFilters.targets=opportunityFilters.targets.filter(id=>opportunityTargets.some(([key])=>key===id));
  if(opportunityFilters.placeId&&!opportunityPlaces.some(([id])=>id===opportunityFilters.placeId))opportunityFilters.placeId='';
- const scopeName=opportunityPlaces.find(([id])=>id===opportunityFilters.placeId)?.[1];d.scope.hidden=!scopeName;d.scopeName.textContent=scopeName?scopeName+'から':'';
+ const scopeName=opportunityPlaces.find(([id])=>id===opportunityFilters.placeId)?.[1];d.scope.hidden=!scopeName;d.period.hidden=!!scopeName;
+ d.host.classList.toggle('record-opportunity-place-mode',!!scopeName);el('recordsView')?.toggleAttribute('data-place-list',!!scopeName);d.scopeName.textContent=scopeName?scopeName+'の重なる日':'';
  d.body.textContent=opportunityFilterLabel('bodies');d.target.textContent=opportunityFilterLabel('targets');d.body.dataset.values=JSON.stringify(opportunityFilters.bodies);d.target.dataset.values=JSON.stringify(opportunityFilters.targets);d.body.disabled=!opportunityPermittedBodies.length;
  d.target.disabled=!opportunityTargets.length;
- d.date.value=opportunityFilters.date;d.dateLabel.textContent=opportunityFilters.date.replaceAll('-','/');d.date.min='1900-01-01';d.date.max='2100-12-31';d.prev.disabled=opportunityFilters.date===d.date.min;d.next.disabled=opportunityFilters.date===d.date.max;
- const [start,end]=opportunityBounds(opportunityFilters.date),key=JSON.stringify([signature,opportunityFilters]);
+ d.date.value=opportunityFilters.date;d.dateLabel.textContent=opportunityFilters.date.replaceAll('-','/')+'から';d.date.min='1900-01-01';d.date.max='2100-12-31';d.today.hidden=opportunityFilters.date===opportunityDateAt(Date.now());
+ const [start]=opportunityBounds(opportunityFilters.date),end=Number.isFinite(retryEnd)?retryEnd:opportunityPageEnd(start),key=JSON.stringify([signature,opportunityFilters]);
  if(opportunityJob?.key===key&&opportunityCurrent(opportunityJob)){opportunityDraw(opportunityJob);return;}
  opportunityCancel();d.list.replaceChildren();d.rendered=-1;
  const includesPlace=p=>opportunityFilters.targets.includes(p.target?.id??p.targetKey)&&(!opportunityFilters.placeId||(p.sourcePlaceId??p.placeId)===opportunityFilters.placeId),pairs=allPairs.filter(includesPlace),missing=unavailable.filter(includesPlace).length;
  const scanStart=start,job={remote:opportunityServer.state.enabled!==false,key,signature,owner,loginId:auth?.loginId,generation:accessState.generation,epoch:opportunityEpoch.ticket(),inputEpoch:opportunityInputEpoch.ticket(),revision:version,
  air:opportunityAirKey(opportunityServer.state.enabled!==false),pairs,unavailable:missing,accessUnavailable:unavailable.filter(p=>includesPlace(p)&&p.reason==='access').length,policyUnavailable:unavailable.filter(p=>includesPlace(p)&&['height','alignment'].includes(p.reason)).length,
- start:scanStart};opportunityJob=job;
+ start:scanStart,placeMode:!!opportunityFilters.placeId};opportunityJob=job;
  job.controller=new AbortController();
  job.scan={state:{day:start,end,through:start,rows:[],pending:[],failures:[],checked:0,total:0,done:false,running:true,error:null},cancel:()=>job.controller.abort()};
- opportunityDraw(job);void opportunityStart(job,end);
+ opportunityDraw(job);void opportunityStart(job,end,retryEnd);
 }
-async function opportunityStart(job,end){
+async function opportunityStart(job,end,retryEnd){
  try{
   const prefs=await opportunityServer.ready();if(opportunityJob!==job||job.controller.signal.aborted||!opportunityActive()||job.owner!==auth?.token||job.loginId!==auth?.loginId||job.generation!==accessState.generation)return;
   // Applying an existing account preference can change targets and the cache
   // signature. Rebuild pair metadata before accepting any server results.
-  if(job.signature!==opportunitySignature()){opportunityCancel();renderOpportunities();return;}
+  if(job.signature!==opportunitySignature()){opportunityCancel();renderOpportunities(retryEnd);return;}
   job.remote=prefs.enabled;job.air=opportunityAirKey(job.remote);
-  if(job.remote){opportunityCache.delete(job.key);job.scan=createServerOpportunityScan({api:(...args)=>apiTransport(...args),start:job.start,end,bodies:opportunityFilters.bodies.slice(),placeIds:opportunityFilters.placeId?[opportunityFilters.placeId]:null,
+  if(job.remote){const cached=opportunityCache.get(job.key);if(cached?.remote){job.restoreThrough=cached.through;opportunityCache.delete(job.key);
+  }job.scan=createServerOpportunityScan({api:(...args)=>apiTransport(...args),start:job.start,end,bodies:opportunityFilters.bodies.slice(),placeIds:opportunityFilters.placeId?[opportunityFilters.placeId]:null,
   targetIds:opportunityFilters.allTargets?null:opportunityFilters.targets.slice(),sourceRev:prefs.sourceRev,isCurrent:()=>opportunityCurrent(job),
   onStart:()=>opportunityDraw(job),onDay:()=>opportunityDraw(job),onProgress:()=>opportunityDraw(job)});}
   else{
    const solve=(pair,day,isCurrent)=>opportunityDeviceSolve(pair,day,{isCurrent});
-   job.scan=createOpportunityScan({pairs:job.pairs,start:job.start,end,notBefore:job.start,solve,ahead:()=>opportunityEngineSlots()*2,isCurrent:()=>opportunityCurrent(job),yieldTask:recordSearchYield,onStart:()=>opportunityDraw(job),
+   job.scan=createOpportunityScan({pairs:job.pairs,start:job.start,end,notBefore:job.start,pageRows:Number.isFinite(retryEnd)?Infinity:opportunityPageRows,solve,ahead:()=>opportunityEngineSlots()*2,isCurrent:()=>opportunityCurrent(job),yieldTask:recordSearchYield,onStart:()=>opportunityDraw(job),
    onDay:()=>opportunityDraw(job),onProgress:s=>{if(!opportunityCurrent(job))return;opportunityProgress(job,s);if(s.pending.length!==job.pendingDrawn)opportunityDraw(job);}});
    const cached=opportunityCache.get(job.key);if(cached){opportunityCache.delete(job.key);Object.assign(job.scan.state,cached,{running:false,cancelled:false});opportunityDraw(job);}
   }
@@ -3449,7 +3473,8 @@ async function opportunityStart(job,end){
 function openOpportunityList(placeId='',bodies=null){
  if(!opportunityAllowed())return;
  // 地点から来たときは、その地点に絞る。対象は撮影地点の一覧の絞り込みのまま（次の描画で引き継ぐ）
- opportunityOpenSeq.cancel();opportunityNotice='';opportunityTargetSync=null;opportunityFilters={...opportunityFilters,placeId:placeId||'',...(bodies?.length?{bodies:bodies.filter(b=>AstroNotesBodies.definition(b)),allBodies:false}:{})};opportunityCancel();
+ opportunityOpenSeq.cancel();opportunityNotice='';opportunityTargetSync=null;opportunityFilters={...opportunityFilters,placeId:placeId||'',...(placeId?{date:opportunityDateAt(Date.now())}:{}),
+ ...(bodies?.length?{bodies:bodies.filter(b=>AstroNotesBodies.definition(b)),allBodies:false}:{})};opportunityCancel();
  if(sheet?.open)sheet.close();setNotebookTab('opportunities');if(!viewState.records)navigationHistory.pushRoute('#/records');renderOpportunities();
  requestAnimationFrame(()=>{el('recordOpportunities')?.scrollIntoView({block:'start'});el(placeId?'recordOpportunityScopeClear':'recordOpportunityTarget')?.focus({preventScroll:true});});
 }

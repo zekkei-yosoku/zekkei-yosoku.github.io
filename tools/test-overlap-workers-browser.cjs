@@ -28,7 +28,7 @@ async function listFor(type,mode){
   await page.waitForFunction(()=>!document.getElementById('recordsView').hidden);await page.locator('#notebookOpportunitiesTab').click();await ready(page);
   const days=[];
   for(let i=0;i<3;i++){
-   if(i)await page.locator('#recordOpportunityNext').click();await ready(page);
+   if(i){const v=await page.locator('#recordOpportunityDate').inputValue(),n=new Date(Date.parse(v+'T00:00:00+09:00')+86400000+32400000).toISOString().slice(0,10);await page.locator('#recordOpportunityDate').fill(n);}await ready(page);
    days.push(await page.evaluate(()=>({status:document.getElementById('recordOpportunityStatus')?.innerText||'',rows:[...document.querySelectorAll('[data-opportunity-id]')].map(n=>n.dataset.opportunityId+'|'+n.textContent)})));
   }
   const stats=await page.evaluate(()=>({...globalThis.AstroNotesOverlapStats}));
