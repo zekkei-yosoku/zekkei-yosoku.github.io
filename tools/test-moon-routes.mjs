@@ -244,3 +244,29 @@ test("published procedures read from the AIP give continuous, climbing routes at
   assert.ok(arrivals >= 110 && departures >= 110, JSON.stringify({ ends, arrivals, departures }));
   RT.selectAirport("RJTT");
 });
+
+test("other airports follow their AIP operating hours, preferential runways and late-hour runway limits", () => {
+  const RT = context.AstroNotesRoutes;
+  const t = (hhmm) => Date.parse(`2026-11-25T${hhmm}:00+09:00`);
+  // Itami 07:00-21:00 (AD2.3), Fukuoka no take-off or landing 22:00-07:00 (AD2.20), Narita 00:00-06:00 (AD2.20).
+  RT.selectAirport("RJOO");
+  assert.equal(RT.operationStatus(t("06:59")).supported, false);assert.equal(RT.operationStatus(t("07:00")).supported, true);
+  assert.equal(RT.operationStatus(t("21:00")).period, "closed");assert.match(RT.operationStatus(t("22:00")).note, /運用時間外.*07:00〜21:00/);
+  RT.selectAirport("RJFF");assert.equal(RT.operationStatus(t("22:30")).supported, false);assert.equal(RT.operationStatus(t("21:59")).supported, true);
+  RT.selectAirport("RJAA");assert.equal(RT.operationStatus(t("03:00")).supported, false);assert.equal(RT.operationStatus(t("23:30")).supported, true);
+  // Narita 23-24h: runway 16R/34L only.
+  assert.equal(RT.OPERATIONS[RT.operationFor(340, 5, 23.5)].landing.join(), "34L");
+  assert.equal(RT.OPERATIONS[RT.operationFor(340, 5, 12)].landing.length, 2);
+  assert.equal(RT.operationChoice(RT.operationFor(340, 5, 23.5), 12), RT.operationFor(340, 5, 12));
+  // Matsuyama: land 14 / take off 32 while tail and cross wind stay within 5 / 15 kt; otherwise into the wind.
+  RT.selectAirport("RJOM");
+  assert.equal(RT.operationFor(320, 2, 12), "pref");assert.equal(RT.OPERATIONS.pref.landing.join(), "14");assert.equal(RT.OPERATIONS.pref.takeoff.join(), "32");
+  assert.notEqual(RT.operationFor(140, 8, 12), "pref");assert.notEqual(RT.operationFor(320, 8, 12), "pref");
+  // Sendai: land 27 / take off 09.
+  RT.selectAirport("RJSS");assert.equal(RT.operationFor(0, 2, 12), "pref");assert.equal(RT.OPERATIONS.pref.landing.join(), "27");
+  // 24-hour airports stay open.
+  RT.selectAirport("RJBB");assert.equal(RT.operationStatus(t("03:00")).supported, true);
+  // Every listed airport has hours (or is H24).
+  for (const a of RT.AIRPORTS) assert.ok(a.id in RT.AIRPORT_HOURS && (RT.AIRPORT_HOURS[a.id] === null || RT.AIRPORT_HOURS[a.id].length === 2), a.id);
+  RT.selectAirport("RJTT");
+});

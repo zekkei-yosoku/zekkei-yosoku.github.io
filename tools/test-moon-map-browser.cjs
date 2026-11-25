@@ -77,6 +77,10 @@ await p.screenshot({path:`${out}/${engine}-${width}-${theme}-map.png`,fullPage:t
   await p.evaluate(()=>planeSetFrom({name:'千里川の土手',latitude:34.7739,longitude:135.4458}));
   await p.waitForFunction(()=>AstroNotesRoutes.AIRPORT.id==='RJOO'&&plane.map&&!plane.map.pending&&plane.map.paths.every(x=>x.airportId==='RJOO'));
   assert.equal(await p.locator('#planeAirportNow').textContent(),'自動選択（伊丹）');
+  // 伊丹は7〜21時（AIP）。22時は運用時間外で線を引かない
+  const keepAt=await p.evaluate(()=>plane.at);await p.evaluate(()=>planeSetAt(plane.dayMs+22*3600000));
+  await p.waitForFunction(()=>/運用時間外/.test($('planeMapStatus').textContent));assert.equal(await p.locator('#planeOpChip').textContent(),'運用時間外');assert.equal(await p.evaluate(()=>plane.map),null);
+  await p.evaluate(at=>planeSetAt(at),keepAt);await p.waitForFunction(()=>plane.map&&!plane.map.pending);
   await p.evaluate(()=>planeSetFrom({name:'検証用の撮影地点',latitude:35.6,longitude:139.8}));await p.waitForFunction(()=>AstroNotesRoutes.AIRPORT.id==='RJTT'&&plane.map&&!plane.map.pending);
   // Airport search: by IATA, by Japanese name, then back to automatic.
   await p.evaluate(()=>{if($('planeSheet').hidden||$('planeSheet').dataset.pane!=='op')document.querySelector('.plane-btn[data-plane-pane=op]').click();});await p.locator('#planeAirportSearch').fill('HND');

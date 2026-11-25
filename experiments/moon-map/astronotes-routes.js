@@ -776,6 +776,25 @@
    * 運用は最も長い滑走路と同じ向きの滑走路を向きごとにまとめ、向かい風が最も強い向きへ降りて、同じ向きへ離陸する。
    * 優先滑走路・騒音の決まり・運用時間・便数は持たない。
    */
+  /// 空港の運用時間（AIP AD2.3、UTCの分 [開始, 終了]。null は24時間）。季節・曜日で違う空港は最も広い範囲。
+  /// 成田（0〜6時）と福岡（22〜7時）は AD2.20 の離着陸禁止時間から（2026-11-25 ユーザー「できるやつは全部やって」）
+  const AIRPORT_HOURS = {RJAA:[1260, 900],RJAF:[1410, 600],RJAH:null,RJAN:[1410, 495],RJAZ:[1410, 495],RJBB:null,RJBD:[1410, 660],RJBE:[1320, 840],RJBK:[1410, 570],RJBT:[1410, 570],RJCB:[1380, 720],RJCC:null,RJCH:[1350, 690],RJCK:[1380, 720],RJCM:[1380, 720],RJCN:[1410, 570],RJCO:[1350, 690],RJCR:[60, 360],RJCW:[1410, 570],RJDA:[1360, 690],RJDB:[1380, 600],RJDC:[1350, 750],RJDK:[60, 420],RJDO:[60, 420],RJDT:[1350, 720],RJEB:[0, 480],RJEC:[1380, 720],RJEO:[0, 480],RJER:[1410, 480],RJFC:[1410, 630],RJFE:[1380, 630],RJFF:[1320, 780],RJFG:[1410, 570],RJFK:[1320, 780],RJFM:[1350, 750],RJFO:[1350, 810],RJFR:null,RJFS:[1290, 900],RJFT:[1350, 750],RJFU:[1320, 780],RJGG:null,RJKA:[1380, 630],RJKB:[1410, 570],RJKI:[1410, 570],RJKN:[1410, 630],RJNA:[1320, 780],RJNF:[0, 480],RJNK:null,RJNO:[0, 480],RJNS:[1350, 780],RJNT:[1320, 750],RJNW:[1380, 630],RJOA:[1350, 810],RJOB:[1320, 780],RJOC:[1350, 690],RJOH:null,RJOI:[1350, 810],RJOK:[1320, 720],RJOM:[1320, 780],RJOO:[1320, 720],RJOR:[1320, 750],RJOS:null,RJOT:[1320, 780],RJOW:[1380, 630],RJOY:[1380, 630],RJSA:[1350, 780],RJSC:[1380, 660],RJSD:[1425, 495],RJSF:[1380, 720],RJSI:[1380, 630],RJSK:[1320, 780],RJSM:null,RJSN:[1350, 750],RJSR:[1380, 630],RJSS:[1350, 780],RJSY:[1320, 780],RJTF:[1410, 540],RJTH:[1380, 540],RJTO:[1410, 510],RJTQ:[0, 495],RJTT:null,ROAH:null,ROIG:[1380, 720],ROKJ:[1380, 630],ROKR:[0, 480],ROMD:[1380, 540],ROMY:[1380, 720],RORA:[1380, 540],RORE:[15, 465],RORK:[1380, 540],RORS:[1380, 630],RORT:[1380, 540],RORY:[1410, 570],ROYN:[1380, 630]};
+  /// AIP に書かれた運用の決まり。
+  ///   優先滑走路（AD2.21）：松山は着陸14・離陸32、仙台は着陸27・離陸09。追い風5kt・横風15ktを超えるときは使わない
+  ///   成田の23〜24時は A滑走路（16R/34L）だけ（AD2.20）
+  const AIRPORT_RULES = {
+    RJOM: { preferential: { landing: ["14"], takeoff: ["32"], tailKt: 5, crossKt: 15, source: "AIP RJOM AD2.21 優先滑走路方式" } },
+    RJSS: { preferential: { landing: ["27"], takeoff: ["09"], tailKt: 5, crossKt: 15, source: "AIP RJSS AD2.21 優先滑走路方式" } },
+    RJAA: { lateHours: { from: 23, to: 24, runways: ["16R", "34L"], source: "AIP RJAA AD2.20（23〜24時は滑走路16R/34Lのみ）" } },
+  };
+  const hhmm = (m) => String(Math.floor(((m + 540) % 1440) / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+  /// その時刻が運用時間内か（UTCの分で比べる）
+  function withinHours(id, at) {
+    const h = AIRPORT_HOURS[id];
+    if (!Array.isArray(h)) return true;
+    const m = Math.floor((((at % 86400000) + 86400000) % 86400000) / 60000), f = h[0], t = h[1];
+    return f <= t ? m >= f && m < t : m >= f || m < t;
+  }
   function genericRoutes(airport) {
     const runwayOfA = (ident) => airport.runways.find((r) => r.ident === ident) || null;
     const P = makeProcedures(AIRPORT_PROCEDURES[airport.id] || {}, runwayOfA, airport);
@@ -795,20 +814,43 @@
       // 向かい風で降りるので、風の来る向き＝滑走路の向き
       o.name = `${COMPASS[Math.round(o.heading / 45) % 8]}風運用（${o.landing.join("・")}）`;
     }
-    const operationForA = (windFromDeg, windSpeedMs) => {
+    const rules = AIRPORT_RULES[airport.id] || {}, pref = rules.preferential;
+    if (pref && pref.landing.every((r) => runwayOfA(r)) && pref.takeoff.every((r) => runwayOfA(r)))
+      ops.pref = { name: `優先滑走路（着陸${pref.landing.join("・")}・離陸${pref.takeoff.join("・")}）`, landing: pref.landing.slice(), takeoff: pref.takeoff.slice(), preferential: true, note: pref.source };
+    const late = rules.lateHours;
+    if (late) for (const [key, o] of Object.entries({ ...ops })) {
+      const keep = (list) => list.filter((r) => late.runways.includes(r));
+      if (keep(o.landing).length) ops[key + "Late"] = { ...o, name: `${o.name.replace(/（.*）$/, "")}（${keep(o.landing).join("・")}のみ）`, landing: keep(o.landing), takeoff: keep(o.takeoff), late: true, note: late.source };
+    }
+    const lateAt = (hourJst) => !!late && Number.isFinite(hourJst) && hourJst >= late.from && hourJst < late.to;
+    const operationForA = (windFromDeg, windSpeedMs, hourJst) => {
       if (!Number.isFinite(windFromDeg) || windFromDeg < 0 || windFromDeg > 360) return null;
+      // 優先滑走路は、着陸・離陸とも追い風・横風が上限以内なら使う（風速が分からなければ使わない）
+      if (ops.pref && Number.isFinite(windSpeedMs)) {
+        const kt = windSpeedMs / 0.514444, ok = (r) => { const d = (windFromDeg - runwayOfA(r).headingDegT) * DEG;
+          return -kt * Math.cos(d) <= pref.tailKt && Math.abs(kt * Math.sin(d)) <= pref.crossKt; };
+        if ([...pref.landing, ...pref.takeoff].every(ok)) return "pref";
+      }
       let best = null, head = -Infinity;
-      for (const [key, o] of Object.entries(ops)) { const h = Math.cos((windFromDeg - o.heading) * DEG); if (h > head) { head = h; best = key; } }
-      return best;
+      for (const [key, o] of Object.entries(ops)) { if (o.preferential || o.late) continue; const h = Math.cos((windFromDeg - o.heading) * DEG); if (h > head) { head = h; best = key; } }
+      return best && lateAt(hourJst) && ops[best + "Late"] ? best + "Late" : best;
     };
     const operationStatusA = (at) => {
       const t = typeof at === "number" ? at : Date.parse(at);
       if (!Number.isFinite(t)) return { supported: false, period: "unknown", operationConfirmed: false, note: "日時が確認できないため経路を表示できません" };
+      const hrs = AIRPORT_HOURS[airport.id];
+      if (!withinHours(airport.id, t)) return { supported: false, period: "closed", timeZone: "Asia/Tokyo", operationConfirmed: false,
+        note: `${airport.shortName}の運用時間外です（${hhmm(hrs[0])}〜${hhmm(hrs[1])}、AIP）。この時刻は便がありません` };
       return { supported: true, period: "day", timeZone: "Asia/Tokyo", operationConfirmed: false,
-        modelLimit: AIRPORT_PROCEDURES[airport.id] ? "公表の飛行方式から自動で読み取った代表経路です（読み取れない滑走路は直線）。優先滑走路・運用時間は反映していません" : "滑走路の延長線の直線だけの概算です。旋回する経路・優先滑走路・運用時間は反映していません",
+        modelLimit: AIRPORT_PROCEDURES[airport.id] ? "公表の飛行方式から自動で読み取った代表経路です（読み取れない滑走路は直線）。運用時間と AIP の優先滑走路は反映しています" : "滑走路の延長線の直線だけの概算です。旋回する経路・優先滑走路・運用時間は反映していません",
         note: "風から選ぶ想定運用です。実際の使用滑走路・経路・便の有無は未確認です" };
     };
-    return { AIRPORT: airport, operationChoice: (op) => op, runwayOf: runwayOfA, OPERATIONS: ops, operationFor: operationForA, operationStatus: operationStatusA,
+    const operationChoiceA = (op, hourJst) => {
+      if (!ops[op]) return op;
+      const base = op.replace(/Late$/, "");
+      return lateAt(hourJst) && ops[base + "Late"] ? base + "Late" : ops[base] ? base : op;
+    };
+    return { AIRPORT: airport, operationChoice: operationChoiceA, runwayOf: runwayOfA, OPERATIONS: ops, operationFor: operationForA, operationStatus: operationStatusA,
       approachPath: (ident, opts) => approachFrom(runwayOfA(ident), opts), departurePath: (ident, opts) => departureFrom(runwayOfA(ident), opts),
       procedureApproachPath: P.approach, procedureDeparturePath: P.departure, procedureSource: P.source,
       measuredApproachPath: P.approach, measuredSource: (ident) => P.source("landing", ident),
@@ -839,7 +881,7 @@
   const AstroNotesRoutes = { RJTT, runwayOf, OPERATIONS, operationFor, operationStatus, SPOTS,
                          approachPath, departurePath, measuredApproachPath, measuredSource, procedureApproachPath, procedureDeparturePath, procedureSource, PROCEDURES, HOURLY_MOVEMENTS, HOURLY_ARRIVALS, HOURLY_DEPARTURES,
                          trafficAt, destination, THRESHOLD_CROSSING_M, SPOT_HORIZONS, spotHorizonAt,
-                         AIRPORT: RJTT, HAS_TRAFFIC: true, operationChoice, operationKey, AIRPORTS, airportById, nearestAirport, airportFor, selectAirport };
+                         AIRPORT: RJTT, HAS_TRAFFIC: true, operationChoice, operationKey, AIRPORT_HOURS, AIRPORT_RULES, withinHours, AIRPORTS, airportById, nearestAirport, airportFor, selectAirport };
   global.AstroNotesRoutes = AstroNotesRoutes;
   if (typeof module !== "undefined" && module.exports) module.exports = AstroNotesRoutes;
 })(typeof globalThis !== "undefined" ? globalThis : this);
