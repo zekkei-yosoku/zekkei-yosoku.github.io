@@ -265,8 +265,7 @@ function planeSyncTime() {
   ToolDateTimeBar.dateText($("planeDate"),plane.at);
   $("planeDate").setAttribute("aria-label",ToolDateTimeBar.label(plane.at));
   $("planeTime").value = S.JstCal.hhmm(plane.at);
-  $("planeTimeRange").value = String((plane.at-plane.dayMs)/60000);
-  $("planeTimeRange").setAttribute("aria-valuetext",S.JstCal.hhmm(plane.at));
+  if(plane.timeline){ToolDateTimeBar.modeButton($("planeScrubMode"),plane.scrub);if(!plane.scrubbing)plane.timeline.sync(plane.at,plane.scrub);}
 }
 function planeSetAt(at) {
   if (!Number.isFinite(at) || !toolAllowed("plane")) return;
@@ -433,7 +432,7 @@ function openPlane(){
   if(!plane.wired){
     plane.wired=true;wirePlaneLayout();
     const row=$("planeTimeRow"),footer=$("planeTimeFooter");
-    ToolDateTimeBar.decorate({footer,row,date:$("planeDate"),time:$("planeTime"),prev:$("planePrev"),next:$("planeNext"),more:$("planeTimeMore"),now:planeSetAt});
+    ToolDateTimeBar.decorate({footer,row,track:$("planeTrack"),date:$("planeDate"),time:$("planeTime"),prev:$("planePrev"),next:$("planeNext"),more:$("planeTimeMore"),now:planeSetAt});
     const calendar=ToolDateTimeBar.calendar({button:$("planeDate"),getAt:()=>plane.at,setDay:day=>planeSetAt(day+(plane.at-plane.dayMs))});
     ToolDateTimeBar.editor({button:$("planeDate"),time:$("planeTime"),dialog:calendar});
     ToolDateTimeBar.details({button:$("planeTimeMore"),getText:()=>`${ToolDateTimeBar.label(plane.at)} ${S.JstCal.hhmm(plane.at)}（日本時間）\n${$("planeOpNote").textContent}\n${AstroNotesRoutes.operationStatus(plane.at).note}`});
@@ -441,9 +440,15 @@ function openPlane(){
     plane.playback=ToolDateTimeBar.playback({row,footer,getAt:()=>plane.at,enabled:()=>viewState.plane&&toolAllowed('plane'),setAt:at=>{const second=Math.floor(at/10000);if(second===tick)return;tick=second;planeSetAt(at);},onStop:()=>planeUpdateMap()});
     $("planePrev").onclick=()=>planeSetAt(plane.at-86400000);$("planeNext").onclick=()=>planeSetAt(plane.at+86400000);
     $("planeTime").onchange=()=>{const [h,m]=$("planeTime").value.split(':').map(Number);if(Number.isFinite(h)&&Number.isFinite(m))planeSetAt(plane.dayMs+(h*60+m)*60000);};
+    plane.scrub=plane.scrub||'time';
     let scrub;
-    $("planeTimeRange").oninput=()=>{plane.mapSeq.cancel();plane.map=null;PlaneMap.redraw();clearTimeout(scrub);scrub=setTimeout(()=>planeSetAt(plane.dayMs+Number($("planeTimeRange").value)*60000),150);};
-    $("planeTimeRange").onchange=()=>{clearTimeout(scrub);planeSetAt(plane.dayMs+Number($("planeTimeRange").value)*60000);};
+    const label=at=>ToolDateTimeBar.label(at)+' '+S.JstCal.hhmm(at);
+    plane.timeline=AstroNotesScrollTimeline.mount({root:$("planeTimeline"),getAt:()=>plane.at,getMode:()=>plane.scrub,enabled:()=>viewState.plane&&toolAllowed('plane'),
+      getObserver:()=>{const p=planeFromPoint();return p?{latitude:p.latitude,longitude:p.longitude,elevation:0}:null;},sun:(at,o)=>AstroNotesAstro.sun(at,o),
+      onChange:at=>{plane.playback?.stop(false);plane.mapSeq.cancel();plane.map=null;PlaneMap.redraw();plane.at=at;plane.scrubbing=true;planeSyncTime();plane.scrubbing=false;clearTimeout(scrub);scrub=setTimeout(()=>planeSetAt(plane.at),150);},
+      onSettle:at=>{clearTimeout(scrub);planeSetAt(at);},
+      format:(at,mode)=>mode==='date'?new Date(at+32400000).toISOString().slice(5,10).replace('-','/'):S.JstCal.hhmm(at),describe:(at,mode)=>mode==='date'?ToolDateTimeBar.label(at):label(at)});
+    $("planeScrubMode").onclick=()=>{plane.timeline.stop();plane.scrub=ToolDateTimeBar.nextMode(plane.scrub);planeSyncTime();};
     $("planeOp").onchange=()=>{plane.op=$("planeOp").value||null;planeApply();};
     $("planeAirportSearch").oninput=planeAirportList;
     $("planeAirportResults").onclick=e=>{const b=e.target.closest('[data-airport]');if(!b)return;plane.airport=b.dataset.airport;$("planeAirportSearch").value='';planeApply();};

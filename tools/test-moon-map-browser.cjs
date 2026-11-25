@@ -35,6 +35,16 @@ await p.screenshot({path:`${out}/${engine}-${width}-${theme}-map.png`,fullPage:t
   await p.locator('#planeHeightAuto').click();await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.observer.eyeHeightAGL===1.5);
   await p.locator('#planeSheetClose').click();assert.equal(await p.locator('#planeSheet').isVisible(),false);await p.locator('#planeTime').fill('18:10');await p.locator('#planeTime').dispatchEvent('change');await p.waitForFunction(()=>plane.map&&!plane.map.pending&&S.JstCal.hhmm(plane.map.at)==='18:10');
   await p.locator('#planeNext').click();await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.dayMs===Date.parse('2026-11-25T00:00:00+09:00'));assert.equal(await p.locator('#planeTime').inputValue(),'18:10');
+  // 探すと同じ時間バー：分→日→時の順に切り替え、どの単位でもスクロールで動く
+  assert.equal(await p.locator('#planeScrubMode').textContent(),'分');
+  const wheel=async px=>{const t=p.locator('#planeTimeline');await t.hover();await p.mouse.wheel(px,0);};
+  let before=await p.evaluate(()=>plane.at);await wheel(40);await p.waitForFunction(b=>plane.map&&!plane.map.pending&&plane.at===b+600000,before);
+  await p.locator('#planeScrubMode').click();assert.equal(await p.locator('#planeScrubMode').textContent(),'日');
+  before=await p.evaluate(()=>plane.at);await wheel(24);await p.waitForFunction(b=>plane.map&&!plane.map.pending&&plane.at===b+86400000,before);
+  await p.locator('#planeScrubMode').click();assert.equal(await p.locator('#planeScrubMode').textContent(),'時');
+  before=await p.evaluate(()=>plane.at);await wheel(-48);await p.waitForFunction(b=>plane.map&&!plane.map.pending&&plane.at===b-7200000,before);
+  await p.locator('#planeScrubMode').click();
+  await p.locator('#planePrev').click();await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.dayMs===Date.parse('2026-11-25T00:00:00+09:00'));
   // 23:00 is the night operation: 34R landing / 05 takeoff in a north wind, with the night sea arrival.
   await p.locator('#planeTime').fill('23:00');await p.locator('#planeTime').dispatchEvent('change');
   await p.waitForFunction(()=>plane.map&&!plane.map.pending&&S.JstCal.hhmm(plane.map.at)==='23:00');

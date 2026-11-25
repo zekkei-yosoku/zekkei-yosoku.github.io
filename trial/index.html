@@ -15,8 +15,8 @@
 <meta name="shape-tower" content="astronotes-tower-models.js?v=18096173220502742430">
 <meta name="shape-surface-integrity" content="sha256-KIoZP+4Nov6SYNEncGT6DRAzPZrVahtxa7scLtTCLcM=">
 <meta name="shape-surface" content="astronotes-scene-hulls.js?v=2921175070670693118">
-<meta name="app-version" content="10091177191689866337">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-56jmg3BuQK9ZbzaCr6EG5R+se0UIaJmcbxe0qnaV8D0=' 'sha256-XnkxL+31Hx09oZeO9sriA/FwZyogJfEg5OgDo5tTME0=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-+YUcl7PimU6E8WEzFPmW5b8D0OjZc5Y/FxSgxjb42LE=' 'sha256-o8qxPJ2Rfhldd8+nmFPf9eYEPcQKKO5R3Z8LbO3wDfA=' 'sha256-6v19k+3xEUvgWhnv8RFjCg6ceV74vHZTvmBpSDtlPvg=' 'sha256-9g72QbUO9OBEGMml0JT2y80Bv2ZDARdRMBY5xUI1M04=' 'sha256-OJlkVP9hufrghSR3MJ27wX9WVke/fnQnW0IaBWJlsM8=' 'sha256-PXfRim6e5oUuXkRxfWkVR4w8BPzm/BAMc94/yPcXf0M=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://data.source.coop https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787 https://api.openstreetmap.org; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="15334605484437294851">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-56jmg3BuQK9ZbzaCr6EG5R+se0UIaJmcbxe0qnaV8D0=' 'sha256-XnkxL+31Hx09oZeO9sriA/FwZyogJfEg5OgDo5tTME0=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-k6+4wex7XJN4mfQKrPeujwmGQpXmmag8Sbnq5Vbe7v4=' 'sha256-o8qxPJ2Rfhldd8+nmFPf9eYEPcQKKO5R3Z8LbO3wDfA=' 'sha256-6v19k+3xEUvgWhnv8RFjCg6ceV74vHZTvmBpSDtlPvg=' 'sha256-9g72QbUO9OBEGMml0JT2y80Bv2ZDARdRMBY5xUI1M04=' 'sha256-OJlkVP9hufrghSR3MJ27wX9WVke/fnQnW0IaBWJlsM8=' 'sha256-PXfRim6e5oUuXkRxfWkVR4w8BPzm/BAMc94/yPcXf0M=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://data.source.coop https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787 https://api.openstreetmap.org; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=17512682572335991690">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -1951,7 +1951,7 @@ button.ui-icon-button::after { content: none; }
           <span><input id="planeTime" type="time" step="60" aria-label="時刻を編集"></span>
           <button id="planeTimeMore" type="button" aria-label="日時の詳細">⋯</button>
         </div>
-        <input id="planeTimeRange" type="range" min="0" max="1439" step="1" aria-label="一日の時刻" style="width:100%;min-height:44px">
+        <div class="sky-map-scrub"><div class="sky-map-scrub-modes" role="group" aria-label="バーで動かす対象"><button type="button" class="chip" id="planeScrubMode" data-mode="time">分</button></div><div id="planeTrack" class="preview-footer-track"><div id="planeTimeline" class="sky-map-timeline" tabindex="0" role="slider" aria-label="日時を横スクロールして調整"></div><span class="sky-map-timeline-center" aria-hidden="true"></span></div></div>
       </div>
   </div>
 
@@ -7824,8 +7824,7 @@ function planeSyncTime() {
   ToolDateTimeBar.dateText($("planeDate"),plane.at);
   $("planeDate").setAttribute("aria-label",ToolDateTimeBar.label(plane.at));
   $("planeTime").value = S.JstCal.hhmm(plane.at);
-  $("planeTimeRange").value = String((plane.at-plane.dayMs)/60000);
-  $("planeTimeRange").setAttribute("aria-valuetext",S.JstCal.hhmm(plane.at));
+  if(plane.timeline){ToolDateTimeBar.modeButton($("planeScrubMode"),plane.scrub);if(!plane.scrubbing)plane.timeline.sync(plane.at,plane.scrub);}
 }
 function planeSetAt(at) {
   if (!Number.isFinite(at) || !toolAllowed("plane")) return;
@@ -7992,7 +7991,7 @@ function openPlane(){
   if(!plane.wired){
     plane.wired=true;wirePlaneLayout();
     const row=$("planeTimeRow"),footer=$("planeTimeFooter");
-    ToolDateTimeBar.decorate({footer,row,date:$("planeDate"),time:$("planeTime"),prev:$("planePrev"),next:$("planeNext"),more:$("planeTimeMore"),now:planeSetAt});
+    ToolDateTimeBar.decorate({footer,row,track:$("planeTrack"),date:$("planeDate"),time:$("planeTime"),prev:$("planePrev"),next:$("planeNext"),more:$("planeTimeMore"),now:planeSetAt});
     const calendar=ToolDateTimeBar.calendar({button:$("planeDate"),getAt:()=>plane.at,setDay:day=>planeSetAt(day+(plane.at-plane.dayMs))});
     ToolDateTimeBar.editor({button:$("planeDate"),time:$("planeTime"),dialog:calendar});
     ToolDateTimeBar.details({button:$("planeTimeMore"),getText:()=>`${ToolDateTimeBar.label(plane.at)} ${S.JstCal.hhmm(plane.at)}（日本時間）\n${$("planeOpNote").textContent}\n${AstroNotesRoutes.operationStatus(plane.at).note}`});
@@ -8000,9 +7999,15 @@ function openPlane(){
     plane.playback=ToolDateTimeBar.playback({row,footer,getAt:()=>plane.at,enabled:()=>viewState.plane&&toolAllowed('plane'),setAt:at=>{const second=Math.floor(at/10000);if(second===tick)return;tick=second;planeSetAt(at);},onStop:()=>planeUpdateMap()});
     $("planePrev").onclick=()=>planeSetAt(plane.at-86400000);$("planeNext").onclick=()=>planeSetAt(plane.at+86400000);
     $("planeTime").onchange=()=>{const [h,m]=$("planeTime").value.split(':').map(Number);if(Number.isFinite(h)&&Number.isFinite(m))planeSetAt(plane.dayMs+(h*60+m)*60000);};
+    plane.scrub=plane.scrub||'time';
     let scrub;
-    $("planeTimeRange").oninput=()=>{plane.mapSeq.cancel();plane.map=null;PlaneMap.redraw();clearTimeout(scrub);scrub=setTimeout(()=>planeSetAt(plane.dayMs+Number($("planeTimeRange").value)*60000),150);};
-    $("planeTimeRange").onchange=()=>{clearTimeout(scrub);planeSetAt(plane.dayMs+Number($("planeTimeRange").value)*60000);};
+    const label=at=>ToolDateTimeBar.label(at)+' '+S.JstCal.hhmm(at);
+    plane.timeline=AstroNotesScrollTimeline.mount({root:$("planeTimeline"),getAt:()=>plane.at,getMode:()=>plane.scrub,enabled:()=>viewState.plane&&toolAllowed('plane'),
+      getObserver:()=>{const p=planeFromPoint();return p?{latitude:p.latitude,longitude:p.longitude,elevation:0}:null;},sun:(at,o)=>AstroNotesAstro.sun(at,o),
+      onChange:at=>{plane.playback?.stop(false);plane.mapSeq.cancel();plane.map=null;PlaneMap.redraw();plane.at=at;plane.scrubbing=true;planeSyncTime();plane.scrubbing=false;clearTimeout(scrub);scrub=setTimeout(()=>planeSetAt(plane.at),150);},
+      onSettle:at=>{clearTimeout(scrub);planeSetAt(at);},
+      format:(at,mode)=>mode==='date'?new Date(at+32400000).toISOString().slice(5,10).replace('-','/'):S.JstCal.hhmm(at),describe:(at,mode)=>mode==='date'?ToolDateTimeBar.label(at):label(at)});
+    $("planeScrubMode").onclick=()=>{plane.timeline.stop();plane.scrub=ToolDateTimeBar.nextMode(plane.scrub);planeSyncTime();};
     $("planeOp").onchange=()=>{plane.op=$("planeOp").value||null;planeApply();};
     $("planeAirportSearch").oninput=planeAirportList;
     $("planeAirportResults").onclick=e=>{const b=e.target.closest('[data-airport]');if(!b)return;plane.airport=b.dataset.airport;$("planeAirportSearch").value='';planeApply();};
