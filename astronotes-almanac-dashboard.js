@@ -38,7 +38,7 @@ function phaseLabel(s){const f=s.illuminatedFraction;if(f<.005)return '新月に
 const DIR16=['北','北北東','北東','東北東','東','東南東','南東','南南東','南','南南西','南西','西南西','西','西北西','北西','北北西'],dir16=az=>DIR16[Math.round(((az%360)+360)%360/22.5)%16];
 function duration(ms){if(!Number.isFinite(ms))return '—';const n=Math.floor(ms/60000);return `${Math.floor(n/60)}時間${n%60}分`;}
 // 2026-10-20 出入りの方向は天球図：中心が天頂、外周が地平線、北が上。地平線より上の道筋を描き、今の位置を点で示す
-function compass(body,info){
+function compass(body,info,stateAt){
  const C=150,R=112,s=svg('svg',{viewBox:'6 6 288 288',class:'alm-compass',role:'img','aria-label':`${NAMES[body]}の空の道筋と出入りの方位図`}),color='var(--alm-active)';
  const pt=(alt,az)=>{const r=R*(90-Math.max(0,alt))/90,a=az*Math.PI/180;return[C+r*Math.sin(a),C-r*Math.cos(a)];};
  const defs=svg('defs',{},s),grad=svg('radialGradient',{id:'almDomeFill'},defs);svg('stop',{offset:'0%','stop-color':color,'stop-opacity':.1},grad);svg('stop',{offset:'100%','stop-color':color,'stop-opacity':0},grad);
@@ -48,19 +48,31 @@ function compass(body,info){
  for(let a=0;a<360;a+=15){const t=a*Math.PI/180,l=a%90?5:9;svg('line',{x1:C+R*Math.sin(t),y1:C-R*Math.cos(t),x2:C+(R+l)*Math.sin(t),y2:C-(R+l)*Math.cos(t),stroke:a%90?'var(--alm-grid)':'var(--secondary)'},s);}
  for(const[a,t]of [[0,'N'],[90,'E'],[180,'S'],[270,'W']]){const r=R+20,x=C+r*Math.sin(a*Math.PI/180),y=C-r*Math.cos(a*Math.PI/180)+4;text(s,x,y,t,{'text-anchor':'middle',fill:'var(--secondary)','font-size':14,'letter-spacing':'.1em'});}
  text(s,C+3,C-R*(60/90)+13,'30°',{fill:'var(--secondary)','font-size':11,opacity:.8});text(s,C+3,C-R*(30/90)+13,'60°',{fill:'var(--secondary)','font-size':11,opacity:.8});
- // 地平線より上の区間ごとに道筋を描く
- const runs=[];let run=null;for(const p of info.points||[]){if(p.alt>=0){if(!run)runs.push(run=[]);run.push(pt(p.alt,p.az));}else run=null;}
- for(const r of runs){if(r.length<2)continue;const d=r.map((q,i)=>(i?'L':'M')+q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ');svg('path',{d,fill:'none',stroke:color,'stroke-width':5,opacity:.35,filter:'url(#almDomeGlow)'},s);
- svg('path',{d,fill:'none',stroke:color,'stroke-width':2,'stroke-linecap':'round'},s);}
- for(const e of info.events){const[x,y]=pt(0,e.azimuth);
-  svg('circle',{cx:x,cy:y,r:5,fill:'var(--bg)',stroke:color,'stroke-width':2},s);
-  // 出入りの時刻と方位は上の「出・入り」の欄にあるので、ここは点だけ（2026-10-20 同じ時刻・方位が3か所に出ていた）
- }
- if(!info.events.length&&!runs.length)text(s,C,C+4,'この日は地平線の上に出ません',{'text-anchor':'middle',fill:'var(--secondary)','font-size':12});
+ // 選んだ時刻を含む1回の出から入りまでを1本で描く。沈んでいる時刻なら次に出る回。
+ // 2026-11-25 ユーザー「日を跨ぐと切れる」：0〜24時の点を区間ごとに描いていたので、夜半に昇っている月は0時と24時で途切れていた
+ const track=svg('g',{},s),line=(r)=>{if(r.length<2)return;const d=r.map((q,i)=>(i?'L':'M')+q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ');svg('path',{d,fill:'none',stroke:color,'stroke-width':5,opacity:.35,filter:'url(#almDomeGlow)'},track);
+  svg('path',{d,fill:'none',stroke:color,'stroke-width':2,'stroke-linecap':'round'},track);},
+  ring=(az)=>{const[x,y]=pt(0,az);svg('circle',{cx:x,cy:y,r:5,fill:'var(--bg)',stroke:color,'stroke-width':2},track);};
+ const STEP=600000,LIMIT=180,up=(t)=>{const st=stateAt(t);return Number.isFinite(st.geometricAltitude)&&st.geometricAltitude>=0;};
+ const edge=(inside,outside)=>{for(let i=0;i<14;i++){const m=(inside+outside)/2;if(up(m))inside=m;else outside=m;}return inside;};
+ const passAround=(t)=>{
+  let a=t,k=0;while(k<LIMIT&&!up(a)){a+=STEP;k++;}if(k>=LIMIT)return null;
+  let start=a,n=0;while(n<LIMIT&&up(start-STEP)){start-=STEP;n++;}if(n>=LIMIT)return null;
+  let end=a;n=0;while(n<LIMIT&&up(end+STEP)){end+=STEP;n++;}if(n>=LIMIT)return null;
+  start=edge(start,start-STEP);end=edge(end,end+STEP);
+  const N=Math.max(24,Math.ceil((end-start)/300000)),r=[];for(let i=0;i<=N;i++){const st=stateAt(start+(end-start)*i/N);r.push(pt(st.geometricAltitude,st.azimuth));}
+  return {start,end,from:t,r,rise:stateAt(start).azimuth,set:stateAt(end).azimuth};};
+ // 出入りの時刻と方位は上の「出・入り」の欄にあるので、ここは点だけ（2026-10-20 同じ時刻・方位が3か所に出ていた）
+ const fallback=()=>{const runs=[];let run=null;for(const p of info.points||[]){if(p.alt>=0){if(!run)runs.push(run=[]);run.push(pt(p.alt,p.az));}else run=null;}
+  for(const r of runs)line(r);for(const e of info.events)ring(e.azimuth);
+  if(!info.events.length&&!runs.length)text(track,C,C+4,'この日は地平線の上に出ません',{'text-anchor':'middle',fill:'var(--secondary)','font-size':12});};
+ let pass;const draw=(t)=>{track.replaceChildren();pass=stateAt&&Number.isFinite(t)?passAround(t):null;if(!pass){pass={start:-Infinity,end:Infinity,from:-Infinity};fallback();return;}line(pass.r);ring(pass.rise);ring(pass.set);};
+ const keep=(t)=>pass&&(t>=pass.start&&t<=pass.end||t<pass.start&&t>=pass.from);
+ if(!stateAt)draw(NaN);
  const halo=svg('circle',{r:11,fill:color,opacity:.25,filter:'url(#almDomeGlow)'},s),dot=svg('circle',{r:5,fill:color,stroke:'var(--bg)','stroke-width':1.5},s);
  // 方位は点の横に書く（2026-10-20 ユーザー「説明もなんか浮いてる」：時刻・高度・方位の文字のかたまりを図から離して置いていた）。円の内側へ寄せて枠からはみ出さない
  const azText=text(s,C,C,'',{'text-anchor':'middle',fill:'var(--text)','font-size':17,'font-weight':600,'paint-order':'stroke',stroke:'var(--bg)','stroke-width':4,'stroke-linejoin':'round'});
- s.place=(alt,az)=>{const up=Number.isFinite(alt)&&alt>=0,[x,y]=pt(up?alt:0,az);for(const e of [halo,dot]){e.setAttribute('cx',x);e.setAttribute('cy',y);e.setAttribute('opacity',up?e===halo?.25:1:0);}
+ s.place=(alt,az,t)=>{if(stateAt&&!keep(t))draw(t);const up=Number.isFinite(alt)&&alt>=0,[x,y]=pt(up?alt:0,az);for(const e of [halo,dot]){e.setAttribute('cx',x);e.setAttribute('cy',y);e.setAttribute('opacity',up?e===halo?.25:1:0);}
   const dx=C-x,dy=C-y,len=Math.hypot(dx,dy)||1,lx=x+dx/len*34,ly=y+dy/len*34+6;azText.setAttribute('x',lx.toFixed(1));azText.setAttribute('y',ly.toFixed(1));
   azText.textContent=up?`${dir16(az)} ${Math.round(az)}°`:'';};
  return s;
@@ -130,11 +142,11 @@ function render(root,day,p,events,astro,options={}){
   label={'paint-order':'stroke',stroke:'var(--bg)','stroke-width':5,'stroke-linejoin':'round'},
   timeText=text(s,0,44,'',{'text-anchor':'middle',fill:'var(--text)','font-size':narrow()?30:22,'font-weight':700,...label}),altText=text(s,0,0,'',{fill:'var(--alm-active)','font-size':narrow()?28:21,'font-weight':600,...label}),halo=svg('circle',{r:13,fill:'var(--alm-active)',opacity:.3,
   filter:'url(#almChartGlow)','clip-path':'url(#almChartClip)'},s),dot=svg('circle',{r:6,fill:'var(--alm-active)',stroke:'var(--bg)','stroke-width':2,'clip-path':'url(#almChartClip)'},s);if(peakText&&s.insertBefore)s.insertBefore(peakText,halo);
-  const dome=compass(body,info);
+  const dome=compass(body,info,(t)=>stateOf(body,t,d.observer,astro));
  let drawGeneration=AstroNotesLibrary.gate(),lastDetailAt=-Infinity;
  const update=(smooth=false)=>{
   const state=stateOf(body,at(),d.observer,astro),t=time(at());view.wallMinute=new Date(at()).getHours()*60+new Date(at()).getMinutes()+new Date(at()).getSeconds()/60+new Date(at()).getMilliseconds()/60000;cursor.setAttribute('x1',x(at()));cursor.setAttribute('x2',x(at()));
-  for(const e of [dot,halo]){e.setAttribute('cx',x(at()));e.setAttribute('cy',y(state.geometricAltitude));}dome.place(state.geometricAltitude,state.azimuth);
+  for(const e of [dot,halo]){e.setAttribute('cx',x(at()));e.setAttribute('cy',y(state.geometricAltitude));}dome.place(state.geometricAltitude,state.azimuth,at());
   if(smooth&&Math.abs(at()-lastDetailAt)<1000)return;lastDetailAt=at();
   let lunar=null;if(body==='moon'){try{lunar=g.AstroNotesLunarNames?.describe(at(),state,astro);}catch(e){globalThis.AstroNotesErrors?.note('almanac.lunarName',e);}if(!lunar)lunar={ja:phaseLabel(state),en:''};}
   let solar=null;if(body==='sun'){try{solar=g.AstroNotesSolarTerms?.describe(at())||null;}catch(e){globalThis.AstroNotesErrors?.note('almanac.solarTerm',e);}}
