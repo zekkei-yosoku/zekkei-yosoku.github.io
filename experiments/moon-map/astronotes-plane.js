@@ -415,8 +415,9 @@
     if (landing) {
       for (const r of op.landing) {
         // Published procedures include the turns before the final; others remain the straight final model.
-        // Night operations first look for the runway's night procedure ("34R@night").
-        const key = op.night && typeof RT.procedureApproachPath === "function" && RT.procedureApproachPath(`${r}@night`) ? `${r}@night` : r;
+        // An operation's arrival variant comes first ("34R@night", "34L@fine", "16L@foul"), then the runway's default procedure.
+        const variant = op.arrival || (op.night ? "night" : null);
+        const key = variant && typeof RT.procedureApproachPath === "function" && RT.procedureApproachPath(`${r}@${variant}`) ? `${r}@${variant}` : r;
         const proc = typeof RT.procedureApproachPath === "function" ? RT.procedureApproachPath(key) : null;
         out.push({ id: `${r} 着陸${op.night ? "（深夜）" : ""}`, kind: "landing", runway: r, night: !!op.night, airportId: (RT.AIRPORT || RT.RJTT).id,
           altitudeDatum: "MSL", model: proc ? "procedure" : "representative", source: proc ? RT.procedureSource("landing", key) : null,
@@ -425,9 +426,11 @@
     }
     if (takeoff) {
       for (const r of op.takeoff) {
-        const proc = typeof RT.procedureDeparturePath === "function" ? RT.procedureDeparturePath(r) : null;
+        // The new-route hours change some departures ("34R@new" follows the Arakawa north).
+        const key = op.departure && typeof RT.procedureDeparturePath === "function" && RT.procedureDeparturePath(`${r}@${op.departure}`) ? `${r}@${op.departure}` : r;
+        const proc = typeof RT.procedureDeparturePath === "function" ? RT.procedureDeparturePath(key) : null;
         out.push({ id: `${r} 離陸${op.night ? "（深夜）" : ""}`, kind: "takeoff", runway: r, night: !!op.night, airportId: (RT.AIRPORT || RT.RJTT).id,
-          altitudeDatum: "MSL", model: proc ? "procedure" : "representative", source: proc ? RT.procedureSource("takeoff", r) : null,
+          altitudeDatum: "MSL", model: proc ? "procedure" : "representative", source: proc ? RT.procedureSource("takeoff", key) : null,
           flightOrder: 1, points: within(proc || RT.departurePath(r)) });
       }
     }

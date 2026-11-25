@@ -47,26 +47,39 @@
   const THRESHOLD_CROSSING_M = 15;
 
   /**
-   * 風から選ぶ簡略モデル。実際の使用滑走路は気象・管制・時間帯でも変わる。
-   *   北風運用 … 南から進入して北へ降りる（34L/34R）。出発は 05 と 34R
-   *   南風運用 … 北から進入して南へ降りる（16L/16R）。出発は 22 と 16L
-   * 南風の到着は都心の上を通る（2020年からの経路）。**15〜19時だけ**。
+   * 羽田の運用は国交省「羽田空港飛行コースホームページ」の区分（ATISに基づく30分ごとの表示）と同じ10種類にする
+   * （2026-11-25 ユーザー「運用の名前これであってる？種類もこれでいいの？」「北風も種類あるよね？」「悪天好天もない？」）。
+   * 鍵はその表示の記号（d=日中 n/s=北風/南風 fi/fo=好天/好天時以外 1/2=通常/新経路、non=海上経路）。
+   * 進入方式は区分ごとに異なる（AIP AD2.24 と ntrack「過去の運用状況の表示内容について」）。
+   *   北風・好天        ILS X 34L／HIGHWAY VISUAL 34R、離陸 05・34R（湾へ右旋回）
+   *   北風・好天時以外  ILS Z 34L／ILS Z 34R
+   *   北風新経路        7:00〜11:30、15〜19時のうち3時間程度。34R の離陸が荒川沿いを北上
+   *   南風・好天        LDA W 22／LDA W 23、離陸 16L・16R
+   *   南風・好天時以外  ILS 22／ILS Z 23
+   *   南風新経路        15〜19時のうち3時間程度。都心上空から 16L・16R へ（好天は RNP、以外は ILS）、離陸 22・16R
+   *   海上経路（深夜）  23〜6時。北風は ILS Y 34L または 34R、南風は LDA Y 23
+   * https://www.ntrack.mlit.go.jp/appx/unkoujoukyou20221006.pdf
    */
   const OPERATIONS = {
-    north: { name: "北風運用", landing: ["34L", "34R"], takeoff: ["05", "34R"] },
-    south: { name: "南風運用（都心上空）", landing: ["16L", "16R"], takeoff: ["22", "16L"],
-             landingHours: [15, 19], note: "南風の新経路は15〜19時のうち3時間程度。実運用は未確認です" },
-    // **15〜19時以外の南風は、湾の側から B・D 滑走路へ降りる**（都心の上は通らない）。
-    // 以前はこれを持たず、南風の日は一日じゅう都心上空の線を引いていた（2026-09-28 修正）
-    // 23〜6時（AIP RJTT AD2.21 優先滑走路方式 1400–2100UTC）: 着陸は 34R／23、離陸は 05／16L。
-    // 到着は海の上（浦賀水道の KAIHO から湾を北上）の深夜用経路（2026-11-25 追加。それまでは計算しなかった）
-    northNight: { name: "北風運用（深夜）", landing: ["34R"], takeoff: ["05"], night: true,
-                  note: "23〜6時の優先滑走路（AIP AD2.21）。到着は浦賀水道から湾を北上して34Rへ" },
-    southNight: { name: "南風運用（深夜）", landing: ["23"], takeoff: ["16L"], night: true,
-                  note: "23〜6時の優先滑走路（AIP AD2.21）。到着は湾を北上して折り返し23へ" },
-    southBay: { name: "南風運用（湾側）", landing: ["22", "23"], takeoff: ["16L", "16R"],
-                note: "南風の湾側モデル。6〜15時・19〜23時を対象とします" },
+    dnfi1: { name: "北風・好天", wind: "north", arrival: "fine", landing: ["34L", "34R"], takeoff: ["05", "34R"] },
+    dnfo1: { name: "北風・好天時以外", wind: "north", arrival: "foul", landing: ["34L", "34R"], takeoff: ["05", "34R"] },
+    dnfi2: { name: "北風新経路・好天", wind: "north", arrival: "fine", departure: "new", landing: ["34L", "34R"], takeoff: ["05", "34R"],
+             note: "北風の新経路は7:00〜11:30と、15〜19時のうち3時間程度" },
+    dnfo2: { name: "北風新経路・好天時以外", wind: "north", arrival: "foul", departure: "new", landing: ["34L", "34R"], takeoff: ["05", "34R"],
+             note: "北風の新経路は7:00〜11:30と、15〜19時のうち3時間程度" },
+    dsfi1: { name: "南風・好天", wind: "south", arrival: "fine", landing: ["22", "23"], takeoff: ["16L", "16R"] },
+    dsfo1: { name: "南風・好天時以外", wind: "south", arrival: "foul", landing: ["22", "23"], takeoff: ["16L", "16R"] },
+    dsfi2: { name: "南風新経路・好天", wind: "south", arrival: "fine", departure: "new", landing: ["16L", "16R"], takeoff: ["22", "16R"],
+             note: "南風の新経路（都心上空）は15〜19時のうち3時間程度" },
+    dsfo2: { name: "南風新経路・好天時以外", wind: "south", arrival: "foul", departure: "new", landing: ["16L", "16R"], takeoff: ["22", "16R"],
+             note: "南風の新経路（都心上空）は15〜19時のうち3時間程度" },
+    nonN: { name: "海上経路・北風（深夜）", wind: "north", arrival: "night", night: true, landing: ["34L", "34R"], takeoff: ["05"],
+            note: "23〜6時。着陸は34Lか34Rのどちらか（ILS Y）" },
+    nonS: { name: "海上経路・南風（深夜）", wind: "south", arrival: "night", night: true, landing: ["23"], takeoff: ["16L"],
+            note: "23〜6時。着陸は湾から折り返して23へ（LDA Y）" },
   };
+  /// 新経路の時間帯。15〜19時の「3時間程度」は日によって違う。予報では最近の実績（15〜18時ごろ）を目安にする
+  const NEW_ROUTE_HOURS = { north: [[7, 11.5], [15, 18]], south: [[15, 18]] };
 
   /**
    * 想定運用を選ぶための既存の追い風閾値。羽田の実運用を確定する条件ではない。
@@ -83,7 +96,7 @@
    * @param {number} [windSpeedMs] 風速。無ければ向きだけで決める（従来どおり）
    * @param {number} [hourJst] 時刻。南風のときに、都心上空（15〜19時）か湾側かを分ける
    */
-  function operationFor(windFromDeg, windSpeedMs, hourJst) {
+  function operationFor(windFromDeg, windSpeedMs, hourJst, { fine = true } = {}) {
     if (!Number.isFinite(windFromDeg) || windFromDeg < 0 || windFromDeg > 360) return null;
     if (windSpeedMs !== undefined && (!Number.isFinite(windSpeedMs) || windSpeedMs < 0)) return null;
     if (hourJst !== undefined && (!Number.isFinite(hourJst) || hourJst < 0 || hourJst >= 24)) return null;
@@ -97,11 +110,13 @@
       const diff = ((windFromDeg - 330 + 540) % 360) - 180;
       south = Math.abs(diff) >= 90;
     }
-    if (Number.isFinite(hourJst) && (hourJst < 6 || hourJst >= 23)) return south ? "southNight" : "northNight";
-    if (!south) return "north";
-    if (!Number.isFinite(hourJst)) return "south";
-    const [from, to] = OPERATIONS.south.landingHours;
-    return hourJst >= from && hourJst < to ? "south" : "southBay";
+    return operationKey(south ? "south" : "north", hourJst, fine);
+  }
+  /// 風向き・時刻・天候から区分の鍵を作る
+  function operationKey(wind, hourJst, fine = true) {
+    if (Number.isFinite(hourJst) && (hourJst < 6 || hourJst >= 23)) return wind === "south" ? "nonS" : "nonN";
+    const isNew = Number.isFinite(hourJst) && NEW_ROUTE_HOURS[wind].some(([a, b]) => hourJst >= a && hourJst < b);
+    return `d${wind === "south" ? "s" : "n"}${fine ? "fi" : "fo"}${isNew ? 2 : 1}`;
   }
 
   /**
@@ -119,19 +134,19 @@
     const hourJst = Number.isFinite(epochMs) && Number.isFinite(local.getTime())
       ? local.getUTCHours() + local.getUTCMinutes() / 60 + local.getUTCSeconds() / 3600 : null;
     const sourceUrl = "https://www.mlit.go.jp/koku/haneda/action/";
-    const modelLimit = "滑走路付近の簡略経路です。天候・管制による変更や北風の新旧経路の違いは再現していません";
+    const modelLimit = "公表の飛行方式をつないだ経路です。管制の指示で実際の経路はずれます";
     const base = { timeZone: "Asia/Tokyo", hourJst, sourceUrl, modelLimit, operationConfirmed: false };
     if (hourJst === null) return { ...base, supported: false, period: "unknown", northWindow: null, southWindow: null,
       note: "日時が確認できないため経路を表示できません" };
     if (hourJst < 6 || hourJst >= 23) return { ...base, supported: true, period: "night", northWindow: null, southWindow: null,
-      note: "23〜6時は深夜早朝の優先滑走路（着陸34R／23・離陸05／16L）と海上の到着経路です。便は少なめです" };
+      note: "23〜6時は海上経路（着陸34L・34R／23、離陸05／16L）です。便は少なめです" };
     const afternoonWindow = hourJst >= 15 && hourJst < 19;
     const northWindow = (hourJst >= 7 && hourJst < 11.5) || afternoonWindow ? "new" : "existing";
     const southWindow = afternoonWindow ? "new" : "existing";
     return { ...base, supported: true, period: "day", northWindow, southWindow,
       note: afternoonWindow
-        ? "15〜19時は新経路の時間帯ですが、運用はそのうち3時間程度です。実際の経路は未確認です"
-        : "風と時刻から選ぶ想定運用です。実際の使用滑走路・経路は未確認です" };
+        ? "15〜19時は新経路の時間帯ですが、運用はそのうち3時間程度です"
+        : "風・天候と時刻から選ぶ運用です" };
   }
 
   /**
@@ -190,9 +205,34 @@
       "34R@night": { glideDeg: 3, faf: [35.47862, 139.84842], source: "AIP RJTT IAC ILS Y RWY34R・STAR NIGHT ARRIVAL", fixes: [
         ["CURVY", 35.41633, 139.86892, 3100], ["KAIHO", 35.31606, 139.77844, 4000], ["UMUKI", 35.20531, 139.81367, 6000],
         ["UTIBO", 34.94639, 139.89553]] },
-      "23@night": { glideDeg: 3, faf: [35.59214, 139.88365], source: "AIP RJTT IAC ILS Y RWY23・STAR NIGHT ARRIVAL", fixes: [
-        ["LUBBY", 35.61731, 139.91015], ["LD225", 35.43725, 139.89817], ["KAIHO", 35.31606, 139.77844, 4000],
+      // 深夜の南風は LDA Y 23（ntrack の実績。以前は ILS Y 23 を引いていた）。進入角は直前1.8NMだけ滑走路に正対する
+      "23@night": { glideDeg: 3, faf: 1.8, turnKm: 1.5, source: "AIP RJTT IAC LDA Y RWY23・STAR NIGHT ARRIVAL", fixes: [
+        ["MAPt", 35.5706, 139.8824, 1000], ["DOMEL", 35.57056, 139.94309, 1800], ["DARKS", 35.57078, 139.98414], ["LD224", 35.54792, 140.03333],
+        ["LD225", 35.43725, 139.89817], ["KAIHO", 35.31606, 139.77844, 4000], ["UMUKI", 35.20531, 139.81367, 6000], ["UTIBO", 34.94639, 139.89553]] },
+      // 深夜の北風は 34L にも降りる（ILS Y 34L。通る点は ILS X と同じで、上流は深夜の STAR）
+      "34L@night": { glideDeg: 3, faf: [35.472633, 139.831022], source: "AIP RJTT IAC ILS Y RWY34L・STAR NIGHT ARRIVAL", fixes: [
+        ["ALLIE", 35.44375, 139.85147, 1500], ["AVION", 35.41033, 139.85153, 2000], ["KAIHO", 35.31606, 139.77844, 4000],
         ["UMUKI", 35.20531, 139.81367, 6000], ["UTIBO", 34.94639, 139.89553]] },
+      // 好天時の北風 34L は ILS X（湾の上 KAIHO→AVION→ALLIE。富津沖の海上ルート）
+      "34L@fine": { glideDeg: 3, faf: [35.472633, 139.831022], source: "AIP RJTT IAC ILS X RWY34L・STAR AKSEL 1K", fixes: [
+        ["ALLIE", 35.44375, 139.85147, 1500], ["AVION", 35.41033, 139.85153, 2000], ["KAIHO", 35.31606, 139.77844, 4000],
+        ["UMUKI", 35.20531, 139.81367, 6000], ["WEDGE", 35.15011, 139.97958, 8000]] },
+      // 好天時以外の南風新経路は ILS。RNP より西から入る（LINEN・RUGBY の上を北から）
+      "16L@foul": { glideDeg: 3, faf: [35.735175, 139.66609], source: "AIP RJTT IAC ILS RWY16L・STAR AKSEL L", fixes: [
+        ["LORRY", 35.77847, 139.63519, 4000], ["LINEN", 35.82128, 139.635, 4000], ["LABAN", 35.82142, 139.68494], ["SANDY", 35.82153, 139.73411, 4500],
+        ["SACHS", 35.81061, 139.81067], ["SNARE", 35.79197, 139.87725, 6000], ["SOPPY", 35.74967, 140.02786, 7000], ["SPINE", 35.70375, 140.1905],
+        ["SNOKE", 35.59767, 140.23658], ["SHAFT", 35.37428, 140.22036, 9000]] },
+      "16R@foul": { glideDeg: 3, faf: [35.685817, 139.679508], source: "AIP RJTT IAC ILS RWY16R・STAR AKSEL R", fixes: [
+        ["RUGBY", 35.774278, 139.616333, 3000], ["RESIN", 35.840972, 139.616], ["RANGY", 35.875444, 139.703028, 3000], ["NATTY", 35.89747, 139.75869, 3000],
+        ["NIGEL", 35.93542, 139.85494, 6000], ["NEURO", 35.95767, 139.91147, 6000], ["NURSE", 36.16092, 140.03147, 9000]] },
+      // 好天時以外の南風 22 は ILS（千葉側の NYLON→NIFTY→NEXUS からまっすぐ）
+      "22@foul": { glideDeg: 3, faf: [35.769639, 139.951242], source: "AIP RJTT IAC ILS RWY22・STAR AKSEL 1N", fixes: [
+        ["NEXUS", 35.796917, 139.974833, 5000], ["NIFTY", 35.831056, 140.0655], ["NYLON", 35.671806, 140.155528, 5000],
+        ["SHAFT", 35.37428, 140.22036, 8000]] },
+      // 好天時の南風 23 は LDA W（東から緯度35.57°の線を西へ。MAPt から目視で23へ回る）。DEANE・MAPt は図のDME距離から求めた位置
+      "23@fine": { glideDeg: 3, faf: 1.8, turnKm: 1.5, source: "AIP RJTT IAC LDA W RWY23・STAR GODIN 1D", fixes: [
+        ["MAPt", 35.5706, 139.8824, 1000], ["DAMBO", 35.571253, 140.078714, 4000], ["DEANE", 35.5717, 140.1319, 4000], ["DANON", 35.571694, 140.188028, 4000],
+        ["DISCO", 35.595306, 140.237611, 4500], ["DARIO", 35.656028, 140.21125], ["DATUM", 35.716556, 140.140083, 4500]] },
       "23": { glideDeg: 3, faf: [35.6814, 139.99165], source: "AIP RJTT IAC ILS Z RWY23・STAR GODIN 1S", fixes: [
         ["SMILE", 35.74344, 140.06692, 4000], ["SNAKE", 35.87639, 140.11003], ["", 35.89589, 140.03436],
         ["STEAM", 35.93147, 139.95233, 4000], ["SCREW", 36.05033, 139.90011], ["NOVEL", 36.35192, 140.00136, 8000]] },
@@ -200,7 +240,11 @@
     departure: {
       "05": { vaFt: 500, source: "AIP RJTT SID LAXAS（RWY05）", fixes: [
         ["TT501", 35.55797, 139.84164], ["TT502", 35.54011, 139.95575], ["LOCUP", 35.45522, 139.93569, 5000], ["TAURA", 35.31281, 139.74647, 9000]] },
-      "34R": { vaFt: 700, source: "AIP RJTT SID BEKLA（RWY34R）", fixes: [
+      // 34R の離陸は時間帯で違う（SID の A／B・C）。通常（A）は右へ回って湾の上（TORAM）へ
+      "34R": { vaFt: 700, source: "AIP RJTT SID BEKLA 3A（RWY34R）", fixes: [
+        ["TORAM", 35.610222, 139.836389], ["PLUTO", 35.608917, 139.960222], ["KAIJI", 35.736, 139.9685], ["INTEL", 35.76472, 139.72783, 9000]] },
+      // 新経路（B 7:00〜11:30・C 15〜19時の3時間程度）は荒川沿いを北上
+      "34R@new": { vaFt: 700, source: "AIP RJTT SID BEKLA 4B・5C（RWY34R）", fixes: [
         ["ARAKA", 35.64689, 139.84497], ["GUGVA", 35.70389, 139.85831], ["OHEDO", 35.7565, 139.81072], ["INTEL", 35.76472, 139.72783, 9000]] },
       "22": { vaFt: 600, source: "AIP RJTT SID LAXAS（RWY22）", fixes: [
         ["HOBBS", 35.44831, 139.76147], ["BASSA", 35.35244, 139.76172], ["UMUKI", 35.20531, 139.81367], ["PIPER", 35.16619, 139.76167, 9000]] },
@@ -773,15 +817,15 @@
       trafficAt: (hourJst) => { const h = ((hourJst % 24) + 24) % 24; return h >= 7 && h < 22 ? 1 : 0; } };
   }
 
-  /// 手動で選んだ運用を、その時刻の運用にする。羽田の23〜6時は昼の運用を深夜の運用へ読み替える
+  /// 手動で選んだ運用を、その時刻の運用にする。羽田の23〜6時は昼の運用を深夜の運用へ、深夜の運用は昼の同じ風向きへ読み替える
   function operationChoice(op, hourJst) {
     if (!OPERATIONS[op] || !Number.isFinite(hourJst)) return op;
-    const night = hourJst < 6 || hourJst >= 23;
-    if (night && !OPERATIONS[op].night) return op === "north" ? "northNight" : "southNight";
-    if (!night && OPERATIONS[op].night) return op === "northNight" ? "north" : hourJst >= 15 && hourJst < 19 ? "south" : "southBay";
+    const night = hourJst < 6 || hourJst >= 23, o = OPERATIONS[op];
+    if (night && !o.night) return o.wind === "south" ? "nonS" : "nonN";
+    if (!night && o.night) return operationKey(o.wind, hourJst, true);
     return op;
   }
-  const HANEDA = { AIRPORT: RJTT, operationChoice, runwayOf, OPERATIONS, operationFor, operationStatus, approachPath, departurePath,
+  const HANEDA = { AIRPORT: RJTT, operationChoice, operationKey, runwayOf, OPERATIONS, operationFor, operationStatus, approachPath, departurePath,
     measuredApproachPath, measuredSource, procedureApproachPath, procedureDeparturePath, procedureSource,
     SPOTS, SPOT_HORIZONS, spotHorizonAt, trafficAt, HAS_TRAFFIC: true };
   /// 対象の空港を切り替える。経路・運用の関数（下の公開オブジェクトの同名の項目）が、その空港のものに入れ替わる
@@ -795,7 +839,7 @@
   const AstroNotesRoutes = { RJTT, runwayOf, OPERATIONS, operationFor, operationStatus, SPOTS,
                          approachPath, departurePath, measuredApproachPath, measuredSource, procedureApproachPath, procedureDeparturePath, procedureSource, PROCEDURES, HOURLY_MOVEMENTS, HOURLY_ARRIVALS, HOURLY_DEPARTURES,
                          trafficAt, destination, THRESHOLD_CROSSING_M, SPOT_HORIZONS, spotHorizonAt,
-                         AIRPORT: RJTT, HAS_TRAFFIC: true, operationChoice, AIRPORTS, airportById, nearestAirport, airportFor, selectAirport };
+                         AIRPORT: RJTT, HAS_TRAFFIC: true, operationChoice, operationKey, AIRPORTS, airportById, nearestAirport, airportFor, selectAirport };
   global.AstroNotesRoutes = AstroNotesRoutes;
   if (typeof module !== "undefined" && module.exports) module.exports = AstroNotesRoutes;
 })(typeof globalThis !== "undefined" ? globalThis : this);

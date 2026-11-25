@@ -182,10 +182,21 @@ test('every operation uses the published procedures for its arrivals and departu
  const context=vm.createContext({});
  for(const file of ['../astronotes-astro.js','../experiments/moon-map/astronotes-routes.js','../experiments/moon-map/astronotes-plane.js'])
   vm.runInContext(readFileSync(new URL(file,import.meta.url),'utf8'),context);
- const plane=context.AstroNotesPlane,paths=plane.pathsFor('south',{landing:true,takeoff:true});
+ const plane=context.AstroNotesPlane,paths=plane.pathsFor('dsfi2',{landing:true,takeoff:true});
  const byId=Object.fromEntries(paths.map(p=>[p.id,p]));
  for(const id of ['16L 着陸','16R 着陸']){assert.equal(byId[id].model,'procedure');assert.match(byId[id].source,/AIP RJTT IAC/);assert.ok(byId[id].points.at(-1).distanceKm>30);}
- for(const op of ['north','south','southBay'])for(const p of plane.pathsFor(op,{landing:true,takeoff:true})){assert.equal(p.model,'procedure',p.id);assert.match(p.source,p.kind==='landing'?/AIP RJTT IAC/:/AIP RJTT SID/);}
+ for(const op of Object.keys(context.AstroNotesRoutes.OPERATIONS))for(const p of plane.pathsFor(op,{landing:true,takeoff:true})){assert.equal(p.model,'procedure',p.id);assert.match(p.source,p.kind==='landing'?/AIP RJTT IAC/:/AIP RJTT SID/);}
+ // Each MLIT class draws its own approaches and departures (2026-11-25 ユーザー「悪天好天もない？」「北風も種類あるよね？」).
+ const src=(op,id)=>plane.pathsFor(op,{landing:true,takeoff:true}).find(p=>p.id===id)?.source;
+ const passes=(op,id,lat,lon)=>plane.pathsFor(op,{landing:true,takeoff:true}).find(p=>p.id===id).points.some(q=>Math.abs(q.latitude-lat)<0.01&&Math.abs(q.longitude-lon)<0.01);
+ assert.match(src('dnfi1','34L 着陸'),/ILS X RWY34L/);assert.match(src('dnfo1','34L 着陸'),/ILS Z RWY34L/);assert.ok(passes('dnfi1','34L 着陸',35.41033,139.85153),'fine 34L passes AVION over the bay');
+ assert.match(src('dnfi1','34R 離陸'),/BEKLA 3A/);assert.ok(passes('dnfi1','34R 離陸',35.610222,139.836389),'usual 34R departure turns to TORAM');
+ assert.match(src('dnfi2','34R 離陸'),/BEKLA 4B/);assert.ok(passes('dnfi2','34R 離陸',35.64689,139.84497),'new-route 34R departure follows the Arakawa (ARAKA)');
+ assert.match(src('dsfi1','22 着陸'),/LDA W RWY22/);assert.match(src('dsfo1','22 着陸'),/ILS RWY22/);assert.ok(passes('dsfo1','22 着陸',35.831056,140.0655),'foul 22 passes NIFTY');
+ assert.match(src('dsfi1','23 着陸'),/LDA W RWY23/);assert.match(src('dsfo1','23 着陸'),/ILS Z RWY23/);assert.ok(passes('dsfi1','23 着陸',35.571253,140.078714),'fine 23 passes DAMBO');
+ assert.match(src('dsfi2','16L 着陸'),/RNP RWY16L/);assert.match(src('dsfo2','16L 着陸'),/ILS RWY16L/);assert.ok(passes('dsfo2','16L 着陸',35.82128,139.635),'foul 16L passes LINEN');
+ assert.match(src('dsfo2','16R 着陸'),/ILS RWY16R/);assert.equal(plane.pathsFor('dsfi2',{landing:false,takeoff:true}).map(p=>p.runway).join(),'22,16R');
+ assert.match(src('nonN','34L 着陸（深夜）'),/ILS Y RWY34L/);assert.match(src('nonS','23 着陸（深夜）'),/LDA Y RWY23/);
  const seeds=plane.groundRibbonSeedsAt(Date.parse('2026-11-24T16:30:00+09:00'),paths,{eyeHeightAGL:1.5,stepKm:0.5,minPlaneKm:2,maxPlaneKm:20,capSteps:6});
  const turn=seeds.seeds.filter(s=>s.pathId==='16L 着陸'&&s.edge==='center'&&s.status==='ready'&&s.planePoint.distanceKm>20);
  assert.ok(turn.length>10,'the turn before the final yields ground-line seeds');

@@ -14,17 +14,17 @@
     "astronotes-datetime-ui.css": "9549b314efddc645788c760ea1fe8316ba424e50f943b45ba3184fd420e3a791"
   },
   "overlaySha256": {
-    "src/index.html": "62c88dcef973bad5388a100ac2f1a33b3339ca40ca78b3327a70292d5c3e21b1",
-    "src/features/aircraft/controller.js": "350e3316e18aa6f40b0210e18c498a51a3a795ee7750950d695faccb615497b6",
-    "astronotes-plane.js": "407e0e826fc7270bbbe3af55d6207b8d0b4bf67e66500137882290cbb1542e1f",
-    "astronotes-routes.js": "c16943fe7e03d114132eef2db9a594913c72d4b5417522dac01aaa0aaf6fe925",
+    "src/index.html": "95b78d2e6903fd17859de43f4cbf5f80f8a14019b6601a9204425f1d63d49e9a",
+    "src/features/aircraft/controller.js": "ebd6ec2f06462404f9cd2f695c82d900a4071848cb93cd16f3165138fb2170c6",
+    "astronotes-plane.js": "20ca336df57c9b0fc6411176c7393c9db4cee7dcf587be4a0a26608c54e59916",
+    "astronotes-routes.js": "a9310d78db94924bd3327f1034db2bb347310cf90f39479ebdc773a63c676abf",
     "astronotes-datetime-ui.css": "8d4714f564c8ea9bd687e9a16dcc8c4915513c2becdbf4550e012fd8a01ae32e"
   },
   "files": {
-    "astronotes-plane.js": "407e0e826fc7270bbbe3af55d6207b8d0b4bf67e66500137882290cbb1542e1f",
-    "astronotes-routes.js": "c16943fe7e03d114132eef2db9a594913c72d4b5417522dac01aaa0aaf6fe925",
+    "astronotes-plane.js": "20ca336df57c9b0fc6411176c7393c9db4cee7dcf587be4a0a26608c54e59916",
+    "astronotes-routes.js": "a9310d78db94924bd3327f1034db2bb347310cf90f39479ebdc773a63c676abf",
     "astronotes-datetime-ui.css": "8d4714f564c8ea9bd687e9a16dcc8c4915513c2becdbf4550e012fd8a01ae32e",
-    "index.html": "bded0062995efd541017f8ca7ee541f1cba384b8b041a292329965a183d174f0",
-    "app-version.txt": "9ce27562678e0bfaf12fcb434f82e25d97519b4b669180f3eb34e5664fbc6aac"
+    "index.html": "69206cf1c4e23dfa619f1d4496051a3b04079470bc06cc032a79a8aa81c1031b",
+    "app-version.txt": "73789bffcfbbf4724f9a36600cc5a6dfffed24b59142dfbad45ff0241c2b64f1"
   }
 }

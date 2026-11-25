@@ -19,20 +19,22 @@ test("deep-night hours use the night preferential runways and sea arrivals, neve
   }
   assert.equal(operationStatus(at("06:00:00")).period, "day");
   assert.equal(operationStatus(at("22:59:59")).period, "day");
-  // AIP RJTT AD2.21 (1400-2100UTC): land 34R / 23, take off 05 / 16L.
+  // 23-6 JST is the sea route (MLIT ntrack "海上経路飛行中"): land 34L or 34R (ILS Y) / 23 (LDA Y), take off 05 / 16L.
   for (const hour of [23, 0, 5]) {
-    assert.equal(operationFor(340, 5, hour), "northNight");
-    assert.equal(operationFor(160, 6, hour), "southNight");
+    assert.equal(operationFor(340, 5, hour), "nonN");
+    assert.equal(operationFor(160, 6, hour), "nonS");
   }
-  assert.equal(RT.OPERATIONS.northNight.landing.join(), "34R");
-  assert.equal(RT.OPERATIONS.northNight.takeoff.join(), "05");
-  assert.equal(RT.OPERATIONS.southNight.landing.join(), "23");
-  assert.equal(RT.OPERATIONS.southNight.takeoff.join(), "16L");
-  assert.equal(RT.operationChoice("north", 1), "northNight");
-  assert.equal(RT.operationChoice("southBay", 23), "southNight");
-  assert.equal(RT.operationChoice("north", 12), "north");
+  assert.equal(RT.OPERATIONS.nonN.landing.join(), "34L,34R");
+  assert.equal(RT.OPERATIONS.nonN.takeoff.join(), "05");
+  assert.equal(RT.OPERATIONS.nonS.landing.join(), "23");
+  assert.equal(RT.OPERATIONS.nonS.takeoff.join(), "16L");
+  assert.equal(RT.operationChoice("dnfi1", 1), "nonN");
+  assert.equal(RT.operationChoice("dsfo1", 23), "nonS");
+  assert.equal(RT.operationChoice("dnfi1", 12), "dnfi1");
+  assert.equal(RT.operationChoice("nonS", 16), "dsfi2");
+  assert.match(RT.procedureSource("landing", "23@night"), /LDA Y RWY23/);
   // Night arrivals come in over the sea from KAIHO and are not the daytime routes.
-  for (const r of ["34R", "23"]) {
+  for (const r of ["34R", "34L", "23"]) {
     const night = RT.procedureApproachPath(`${r}@night`), day = RT.procedureApproachPath(r);
     assert.ok(night && day && night.length > 20);
     assert.match(RT.procedureSource("landing", `${r}@night`), /NIGHT/);
@@ -85,15 +87,23 @@ test("bad or missing wind cannot silently select north or south", () => {
 });
 
 test("existing wind-model choices remain estimates and keep optional-argument behavior", () => {
-  assert.equal(operationFor(330, 5, 16), "north");
-  assert.equal(operationFor(360, 5, 16), "north");
-  assert.equal(operationFor(150, 5, 14.99), "southBay");
-  assert.equal(operationFor(150, 5, 15), "south");
-  assert.equal(operationFor(150, 5, 19), "southBay");
-  assert.equal(operationFor(150), "south");
-  assert.equal(operationFor(150, 0, 16), "north");
-  assert.equal(operationFor(150, 2.6, 16), "north");
-  assert.equal(operationFor(150, 2.61, 16), "south");
+  // Keys are the MLIT ntrack classes: d + n/s (wind) + fi/fo (fine / not fine) + 1/2 (usual / new route hours).
+  assert.equal(operationFor(330, 5, 16), "dnfi2");
+  assert.equal(operationFor(330, 5, 12), "dnfi1");
+  assert.equal(operationFor(330, 5, 8), "dnfi2");
+  assert.equal(operationFor(330, 5, 11.5), "dnfi1");
+  assert.equal(operationFor(360, 5, 16, { fine: false }), "dnfo2");
+  assert.equal(operationFor(150, 5, 14.99), "dsfi1");
+  assert.equal(operationFor(150, 5, 15), "dsfi2");
+  assert.equal(operationFor(150, 5, 18), "dsfi1");
+  assert.equal(operationFor(150, 5, 15, { fine: false }), "dsfo2");
+  assert.equal(operationFor(150, 5, 12, { fine: false }), "dsfo1");
+  assert.equal(operationFor(150), "dsfi1");
+  assert.equal(operationFor(150, 0, 16), "dnfi2");
+  assert.equal(operationFor(150, 2.6, 16), "dnfi2");
+  assert.equal(operationFor(150, 2.61, 16), "dsfi2");
+  // The south new route lands 16L/16R and takes off 22/16R (ntrack), not 22/16L.
+  assert.equal(context.AstroNotesRoutes.OPERATIONS.dsfi2.takeoff.join(), "22,16R");
 });
 
 test("arrivals and departures follow the published procedures as smooth flown curves", () => {
@@ -200,7 +210,7 @@ test("every listed airport has consistent runways, two wind directions and strai
   assert.equal(RT.airportFor(42.985, 144.38).airport.id, "RJCK");
   // Haneda keeps its published procedures and operations after switching back.
   RT.selectAirport("RJTT");
-  assert.equal(Object.keys(RT.OPERATIONS).join(), "north,south,northNight,southNight,southBay");
+  assert.equal(Object.keys(RT.OPERATIONS).join(), "dnfi1,dnfo1,dnfi2,dnfo2,dsfi1,dsfo1,dsfi2,dsfo2,nonN,nonS");
   assert.ok(RT.procedureApproachPath("16L").length > 20);
   assert.equal(RT.AIRPORT.id, "RJTT");
 });

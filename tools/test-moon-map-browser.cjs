@@ -9,14 +9,16 @@ for(const engine of (process.env.MOON_MAP_ENGINES||'chromium,webkit').split(',')
  const context=await browser.newContext({viewport:{width,height:900},isMobile:width<500,hasTouch:width<500,colorScheme:theme,timezoneId:'Asia/Tokyo'});
  await context.addInitScript(({tools,theme})=>{sessionStorage.setItem('sorami.token',JSON.stringify({token:'synthetic-moon-map',loginId:'moon-map-test',role:'user',tools}));localStorage.setItem('sorami.owner','moon-map-test');localStorage.setItem('sorami.theme',theme);},{tools,theme});
  await context.route('**/*',r=>new URL(r.request().url()).origin===new URL(base).origin?r.continue():r.abort());
- await context.route(/zekkei-api\.okayu-sorami\.workers\.dev|localhost:8787/,r=>{const path=new URL(r.request().url()).pathname;return r.fulfill({json:path==='/me'?{loginId:'moon-map-test',role:'user',tools,credentials:[],hasPassword:true,recoveryCodes:10}:path==='/sync'?{favorites:[],sightings:[],records:[],rev:0,more:false}:path.includes('/access')?{allowed:true,tools}:{} });});
+ await context.route(/zekkei-api\.okayu-sorami\.workers\.dev|localhost:8787/,r=>{const path=new URL(r.request().url()).pathname;return r.fulfill({json:path==='/me'?{loginId:'moon-map-test',role:'user',tools,credentials:[],hasPassword:true,recoveryCodes:10}:path==='/sync'?{favorites:[],sightings:[],records:[],rev:0,more:false}:path.includes('/access')?{allowed:true,tools}:path==='/aviation/haneda-ops'?{history:[
+  {at:Date.parse('2026-11-24T12:00:00+09:00'),code:'dnfi1',approach:'ILS X RWY34L',landing:['34L'],takeoff:['05']},
+  {at:Date.parse('2026-11-24T12:30:00+09:00'),code:'dnfo1',approach:'ILS Z RWY34L/ILS Z RWY34R',landing:['34L','34R'],takeoff:['05','34R']}],source:'出典：国土交通省 羽田空港飛行コースホームページ'}:{} });});
  await context.route('https://api.open-meteo.com/v1/forecast?**',r=>r.fulfill({json:{hourly:{time:Array.from({length:120},(_,i)=>(day-86400000)/1000+i*3600),wind_direction_10m:Array(120).fill(340),wind_speed_10m:Array(120).fill(4)}}}));
  const p=await context.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));p.setDefaultTimeout(30000);
  await p.goto(base);await p.waitForFunction(()=>typeof AstroNotesPlane!=='undefined'&&typeof plane!=='undefined'&&auth?.loginId==='moon-map-test');
  await p.evaluate(async({at})=>{
   await startupSessionReady;
   AstroNotesTerrain.groundElevation=async()=>20;AstroNotesTerrain.elevations=async points=>points.map(()=>20);
-  const paths=AstroNotesPlane.pathsFor('north',{landing:true,takeoff:true});
+  const paths=AstroNotesPlane.pathsFor('dnfi1',{landing:true,takeoff:true});
   const seeds=AstroNotesPlane.groundRibbonSeedsAt(at,paths,{groundM:20,eyeHeightAGL:1.5,stepKm:2,minPlaneKm:2,maxPlaneKm:20});
   const point=seeds.seeds.find(s=>s.edge==='center'&&s.status==='ready');if(!point)throw Error('no real-Moon inverse fixture');
   plane.at=at;plane.dayMs=S.Cal.startOfDay(at);plane.from={name:'検証用の撮影地点',latitude:point.latitude,longitude:point.longitude,groundManualM:20,standAglM:1.5};
@@ -55,14 +57,22 @@ await p.screenshot({path:`${out}/${engine}-${width}-${theme}-map.png`,fullPage:t
   before=await p.evaluate(()=>plane.at);await wheel(-48);await p.waitForFunction(b=>plane.map&&!plane.map.pending&&plane.at===b-7200000,before);
   await p.locator('#planeScrubMode').click();
   await p.locator('#planePrev').click();await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.dayMs===Date.parse('2026-11-25T00:00:00+09:00'));
-  // 23:00 is the night operation: 34R landing / 05 takeoff in a north wind, with the night sea arrival.
+  // 23:00 is the night sea route: 34L or 34R landing / 05 takeoff in a north wind.
   await p.locator('#planeTime').fill('23:00');await p.locator('#planeTime').dispatchEvent('change');
   await p.waitForFunction(()=>plane.map&&!plane.map.pending&&S.JstCal.hhmm(plane.map.at)==='23:00');
-  assert.deepEqual(await p.evaluate(()=>plane.map.paths.map(x=>x.id).sort()),['05 離陸（深夜）','34R 着陸（深夜）']);
-  await p.locator('.plane-btn[data-plane-pane=op]').click();await p.locator('#planeOp').selectOption('north');await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.map.paths.every(x=>x.night));
+  assert.deepEqual(await p.evaluate(()=>plane.map.paths.map(x=>x.id).sort()),['05 離陸（深夜）','34L 着陸（深夜）','34R 着陸（深夜）']);
+  // 国交省の実際の運用（72時間）がある時刻はそれで引く：12:10 は ILS X 34L だけ、12:40 は好天時以外の ILS Z。表示は「実際」
+  await p.evaluate(()=>planeSetAt(Date.parse('2026-11-24T12:10:00+09:00')));await p.waitForFunction(()=>plane.map&&!plane.map.pending&&S.JstCal.hhmm(plane.map.at)==='12:10');
+  assert.deepEqual(await p.evaluate(()=>plane.map.paths.map(x=>x.id).sort()),['05 離陸','34L 着陸']);assert.equal(await p.locator('#planeOpMode').textContent(),'実際');
+  assert.match(await p.locator('#planeOpChip').textContent(),/^羽田・北風・好天$/);assert.match(await p.evaluate(()=>plane.map.paths.find(x=>x.kind==='landing').source),/ILS X RWY34L/);
+  await p.evaluate(()=>planeSetAt(Date.parse('2026-11-24T12:40:00+09:00')));await p.waitForFunction(()=>plane.map&&!plane.map.pending&&S.JstCal.hhmm(plane.map.at)==='12:40');
+  assert.match(await p.locator('#planeOpChip').textContent(),/^羽田・北風・悪天$/);assert.match(await p.evaluate(()=>plane.map.paths.find(x=>x.id==='34L 着陸').source),/ILS Z RWY34L/);
+  await p.evaluate(()=>planeSetAt(Date.parse('2026-11-25T23:00:00+09:00')));await p.waitForFunction(()=>plane.map&&!plane.map.pending&&S.JstCal.hhmm(plane.map.at)==='23:00');
+  assert.equal(await p.locator('#planeOpMode').textContent(),'予報','beyond the reported hours the forecast decides');
+  await p.locator('.plane-btn[data-plane-pane=op]').click();await p.locator('#planeOp').selectOption('dnfi1');await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.map.paths.every(x=>x.night));
   await p.evaluate(()=>{plane.wind={id:AstroNotesRoutes.AIRPORT.id,at:Date.now(),times:[],dir:[],speed:[]};plane.op=null;$('planeOp').value='';planeSetAt(Date.parse('2026-11-24T18:00:00+09:00'));});
   await p.waitForFunction(()=>!plane.map&&$('planeMapStatus').textContent.includes('風予報がない'));
-  await p.locator('#planeOp').selectOption('north');await p.waitForFunction(()=>plane.map&&!plane.map.pending);
+  await p.locator('#planeOp').selectOption('dnfi1');await p.waitForFunction(()=>plane.map&&!plane.map.pending);
   // The nearest airport follows the shooting point: Itami from the Senri river bank, back to Haneda after.
   await p.evaluate(()=>planeSetFrom({name:'千里川の土手',latitude:34.7739,longitude:135.4458}));
   await p.waitForFunction(()=>AstroNotesRoutes.AIRPORT.id==='RJOO'&&plane.map&&!plane.map.pending&&plane.map.paths.every(x=>x.airportId==='RJOO'));
@@ -74,7 +84,7 @@ await p.screenshot({path:`${out}/${engine}-${width}-${theme}-map.png`,fullPage:t
   await p.locator('#planeAirportSearch').fill('釧路');await p.locator('#planeAirportResults button').first().click();
   await p.waitForFunction(()=>AstroNotesRoutes.AIRPORT.id==='RJCK'&&plane.map&&!plane.map.pending);assert.match(await p.locator('#planeOpChip').textContent(),/^釧路・/);
   await p.locator('#planeAirportAuto').click();await p.waitForFunction(()=>AstroNotesRoutes.AIRPORT.id==='RJTT'&&plane.map&&!plane.map.pending);
-  await p.locator('#planeOp').selectOption('north');await p.waitForFunction(()=>plane.map&&!plane.map.pending);
+  await p.locator('#planeOp').selectOption('dnfi1');await p.waitForFunction(()=>plane.map&&!plane.map.pending);
   await p.evaluate(()=>{AstroNotesTerrain.groundElevation=()=>new Promise(resolve=>{window.__resolveMoonGround=resolve;});planeSetFrom({name:'変更後の地点',latitude:35.6,longitude:139.8});planeSetAt(plane.at+60000);});
   assert.equal(await p.evaluate(()=>plane.map),null,'old observer must be invalidated while elevation pending');
   await p.evaluate(()=>{window.__resolveMoonGround(30);AstroNotesTerrain.groundElevation=async()=>20;});await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.observer.groundM===30);

@@ -39,13 +39,24 @@ async function planeLoadMetar() {
   plane.metar = { id, at: Date.now(), obs: obs.filter((o) => Number.isFinite(o.t) && Number.isFinite(o.wdir) && Number.isFinite(o.wspdKt)) };
   return plane.metar;
 }
+/// 羽田の実際の運用（国交省 羽田空港飛行コースホームページ、ATISに基づく30分ごとの表示・72時間分）。API を通す。
+/// 今と過去72時間はこれで線を引き、無い時刻（未来・取れない時）は風と天候から推定する（2026-11-25）
+async function planeLoadOps() {
+  if (AstroNotesRoutes.AIRPORT.id !== "RJTT") return null;
+  if (plane.ops && Date.now() - plane.ops.at < 10 * 60000) return plane.ops;
+  let body = null;
+  try { body = await apiTransport("GET", "/aviation/haneda-ops"); } catch { body = null; }
+  const history = (body?.history || []).filter((e) => Number.isFinite(e.at) && Array.isArray(e.landing) && Array.isArray(e.takeoff));
+  plane.ops = { at: Date.now(), fetchedAt: body?.fetchedAt ?? Date.now(), history, source: body?.source || "" };
+  return plane.ops;
+}
 async function planeLoadWind() {
-  if (plane.dayMs <= Date.now()) await planeLoadMetar();
+  if (plane.dayMs <= Date.now()) await Promise.all([planeLoadMetar(), planeLoadOps()]);
   const R = AstroNotesRoutes.AIRPORT;
   if (plane.wind && plane.wind.id === R.id && Date.now() - plane.wind.at < 30 * 60000) return plane.wind;
   const url = "https://api.open-meteo.com/v1/forecast?" + new URLSearchParams({
     latitude: R.latitude.toFixed(4), longitude: R.longitude.toFixed(4),
-    hourly: "wind_direction_10m,wind_speed_10m", wind_speed_unit: "ms",
+    hourly: "wind_direction_10m,wind_speed_10m,cloud_cover_low,precipitation", wind_speed_unit: "ms",
     timeformat: "unixtime", timezone: "Asia/Tokyo", forecast_days: "16", past_days: "2",
   });
   try {
@@ -54,8 +65,8 @@ async function planeLoadWind() {
     const j = await res.json();
     const h = j.hourly || {};
     plane.wind = { id: R.id, at: Date.now(), times: (h.time || []).map((s) => s * 1000),
-      dir: h.wind_direction_10m || [], speed: h.wind_speed_10m || [] };
-  } catch { plane.wind = { id: R.id, at: Date.now(), times: [], dir: [], speed: [] }; }
+      dir: h.wind_direction_10m || [], speed: h.wind_speed_10m || [], low: h.cloud_cover_low || [], rain: h.precipitation || [] };
+  } catch { plane.wind = { id: R.id, at: Date.now(), times: [], dir: [], speed: [], low: [], rain: [] }; }
   return plane.wind;
 }
 
@@ -63,26 +74,72 @@ async function planeLoadWind() {
 /// 風が分からない時刻は北風運用（羽田の基本）
 function planeOpAt(at, { auto = false } = {}) {
   if (!AstroNotesRoutes.operationStatus(at).supported) return null;
-  if (plane.op && !auto) return AstroNotesRoutes.operationChoice(plane.op, new Date(at + 9 * 3600000).getUTCHours());
-  const hour = new Date(at + 9 * 3600000).getUTCHours();
+  const local = new Date(at + 9 * 3600000), hour = local.getUTCHours() + local.getUTCMinutes() / 60;
+  if (plane.op && !auto) return AstroNotesRoutes.operationChoice(plane.op, hour);
+  const actual = planeActualAt(at);
+  if (actual) return actual.op;
   const w = planeWindAt(at);
   if (!w) return null;
-  return AstroNotesRoutes.operationFor(w.direction, w.speed, hour);
+  if (AstroNotesRoutes.AIRPORT.id !== "RJTT") return AstroNotesRoutes.operationFor(w.direction, w.speed, hour);
+  return AstroNotesRoutes.operationFor(w.direction, w.speed, hour, { fine: planeSkyAt(at)?.fine ?? true });
 }
 
-/// 運用の名前。南風の日は湾側と都心上空が時刻で入れ替わるので、まとめて「南風運用（湾側・都心上空）」と言う
-function planeOpLabel(ops) {
-  if (ops.length === 1 && ops[0]) return AstroNotesRoutes.OPERATIONS[ops[0]].name;
-  ops = ops.filter(Boolean);
-  const night = ops.filter((o) => AstroNotesRoutes.OPERATIONS[o]?.night);
-  if (night.length && AstroNotesRoutes.AIRPORT.id === "RJTT") {
-    const day = planeOpLabel(ops.filter((o) => !night.includes(o)));
-    return [day, `深夜は${night.map((o) => (o === "northNight" ? "北風" : "南風")).join("・")}`].filter(Boolean).join("・");
+/// 国交省の表示のその時刻の行（30分ごと）。最後の行から35分より先は使わない（未来は推定に戻す）
+function planeActualAt(at) {
+  const o = plane.ops;
+  if (!o || AstroNotesRoutes.AIRPORT.id !== "RJTT" || !o.history.length || at < o.history[0].at || at > o.history[o.history.length - 1].at + 35 * 60000) return null;
+  let row = null;
+  for (const e of o.history) { if (e.at <= at) row = e; else break; }
+  if (!row) return null;
+  return { ...row, op: planeOpOfRow(row, at) };
+}
+/// 表示の記号を区分の鍵へ。深夜（non）は着陸滑走路で北風・南風を分ける。知らない記号は滑走路と進入方式から読む
+function planeOpOfRow(row, at) {
+  const ops = AstroNotesRoutes.OPERATIONS;
+  if (ops[row.code]) return row.code;
+  const south = row.landing.some((r) => /^(16|22|23)/.test(r)), local = new Date(at + 9 * 3600000), hour = local.getUTCHours() + local.getUTCMinutes() / 60;
+  if (row.code === "non") return south ? "nonS" : "nonN";
+  const fine = /ILS X|HIGHWAY|LDA|RNP/.test(row.approach);
+  if (south && row.landing.some((r) => r.startsWith("16"))) return fine ? "dsfi2" : "dsfo2";
+  return AstroNotesRoutes.operationKey(south ? "south" : "north", hour, fine);
+}
+
+/// 好天か好天時以外か。国交省の72時間の区分と観測を突き合わせて決めた目安（2026-11-25、日中112件中101件一致）：
+/// 曇り・ほぼ曇り（BKN/OVC）の雲底が8000ft未満か、雨・雪・霧があれば好天時以外。未来は予報の下層雲（63%以上＝BKN相当）と降水で同じ判定をする
+function planeSkyAt(at) {
+  const m = plane.metar;
+  if (m && m.id === AstroNotesRoutes.AIRPORT.id && at <= Date.now() + 15 * 60000) {
+    let best = null; for (const o of m.obs) { const d = Math.abs(o.t - at); if (d <= 45 * 60000 && (!best || d < Math.abs(best.t - at))) best = o; }
+    if (best && (Number.isFinite(best.ceilingFt) || best.ceilingFt === null)) {
+      const wet = /(RA|DZ|SN|SG|GR|GS|PL|TS|FG)/.test(best.weather || ""), low = Number.isFinite(best.ceilingFt) && best.ceilingFt < 8000;
+      return { fine: !wet && !low, observed: true, at: best.t, text: `${Number.isFinite(best.ceilingFt) ? `雲底${best.ceilingFt}ft` : "低い雲なし"}${best.weather ? "・" + best.weather : ""}` };
+    }
   }
-  if (AstroNotesRoutes.AIRPORT.id !== "RJTT") return ops.map((o) => AstroNotesRoutes.OPERATIONS[o]?.name).filter(Boolean).join("・");
-  const south = ops.filter((o) => o !== "north").map((o) => (o === "south" ? "都心上空" : "湾側"));
-  return [ops.includes("north") ? "北風運用" : null, south.length ? `南風運用（${south.join("・")}）` : null]
-    .filter(Boolean).join("・");
+  const w = plane.wind; if (!w || w.id !== AstroNotesRoutes.AIRPORT.id) return null;
+  let index = -1, delta = Infinity;
+  w.times.forEach((time, i) => { const d = Math.abs(time - at); if (d < delta) { delta = d; index = i; } });
+  if (index < 0 || delta > 3600000 || !Number.isFinite(w.low?.[index])) return null;
+  const rain = w.rain?.[index] ?? 0, low = w.low[index];
+  return { fine: !(rain >= 0.1) && low < 63, observed: false, at: w.times[index], text: `下層雲${Math.round(low)}%${rain >= 0.1 ? `・降水${rain.toFixed(1)}mm` : ""}` };
+}
+/// その時刻の経路。国交省の表示があれば、その時に使っていた滑走路だけ（着陸が1本だけの時間もある）
+function planePathsAt(at, op) {
+  const paths = AstroNotesPlane.pathsFor(op, { landing: true, takeoff: true }), row = planeActualAt(at);
+  if (!row || row.op !== op || plane.op) return paths;
+  const kept = paths.filter((p) => (p.kind === "landing" ? row.landing : row.takeoff).includes(p.runway));
+  return kept.length ? kept : paths;
+}
+
+/// 運用の名前。一日のうちに入れ替わる日は、出てくる順に並べる
+function planeOpLabel(ops) {
+  return [...new Set(ops.filter(Boolean))].map((o) => AstroNotesRoutes.OPERATIONS[o]?.name).filter(Boolean).join("・");
+}
+/// 上の釦に出す短い名前（例「北風新経路・悪天」）。羽田以外は運用の名前のまま
+function planeOpShort(op) {
+  const o = AstroNotesRoutes.OPERATIONS[op]; if (!o) return "";
+  if (AstroNotesRoutes.AIRPORT.id !== "RJTT") return o.name.replace(/運用（.*）$/, "");
+  if (o.night) return `深夜・${o.wind === "south" ? "南風" : "北風"}`;
+  return `${o.wind === "south" ? "南風" : "北風"}${o.departure ? "新経路" : ""}・${o.arrival === "fine" ? "好天" : "悪天"}`;
 }
 
 /// その日の運用の移り変わり（「0〜14時 北風運用」のようにまとめる）
@@ -161,12 +218,13 @@ async function planeApply({keepMap = false} = {}) {
   if (!plane.seq.current(seq) || !toolAllowed("plane")) return;
   const spans = planeOpSpans(plane.dayMs);
   const paths = [];
+  // 同じ滑走路でも区分で経路が違う（好天は ILS X、悪天は ILS Z など）。区分ごとに別の経路として持つ
   for (const op of new Set(spans.map(s=>s.op).filter(Boolean))) {
-    for (const path of AstroNotesPlane.pathsFor(op, {landing:true,takeoff:true})) if (!paths.some(q=>q.id===path.id)) paths.push(path);
+    for (const path of AstroNotesPlane.pathsFor(op, {landing:true,takeoff:true})) { const p = { ...path, id: `${path.id}｜${op}`, op }; if (!paths.some(q=>q.id===p.id)) paths.push(p); }
   }
   const activeAt = (path, at) => {
-    const o = AstroNotesRoutes.OPERATIONS[planeOpAt(at)];
-    return !!o && !!o.night === !!path.night && (path.kind === "landing" ? o.landing : o.takeoff).includes(path.runway);
+    const op = planeOpAt(at);
+    return path.op === op && planePathsAt(at, op).some((q) => q.kind === path.kind && q.runway === path.runway);
   };
   const here = {id:"here",name:`${P.name}（撮影地点）`,latitude:P.latitude,longitude:P.longitude,elevationM:ground,eyeHeightAGL:agl,
     horizonAt:P.inherited ? moonHorizon : null,note:`標高 ${Math.round(ground)}m・レンズ高 ${agl.toFixed(1)}m`};
@@ -295,13 +353,21 @@ async function planeUpdateMap() {
   // 前の時刻の線は、新しい時刻の線ができるまで残す（2026-11-25 ユーザー「時間を動かすと一回一回線が消えたり出たり」）
   const status=AstroNotesRoutes.operationStatus(at),op=planeOpAt(at),wind=planeWindAt(at);
   const o=AstroNotesRoutes.OPERATIONS[op];
-  $("planeOp").options[0].textContent=wind&&op ? `${wind.observed?"観測":"予報"}：${AstroNotesRoutes.OPERATIONS[planeOpAt(at,{auto:true})]?.name||"運用不明"}` : "風予報なし：運用を選択";
-  $("planeOpNote").textContent=(wind ? `${S.JstCal.hhmm(wind.at)}の${wind.observed?"観測風（METAR）":"風予報"} ${Math.round(wind.direction)}°から ${wind.speed.toFixed(1)}m/s` : "この時刻の風を取得できません")+(o?` ／ ${plane.op?"手動の想定":"予測"}：着陸 ${o.landing.join("・")}／離陸 ${o.takeoff.join("・")}`:"");
-  const short=AstroNotesRoutes.AIRPORT.shortName,haneda=AstroNotesRoutes.AIRPORT.id==="RJTT";
-  $("planeOpChip").textContent=short+"・"+(!status.supported?"深夜は未対応":o?(haneda?o.name.replace("運用","").replace(/（(.+?)(上空)?）/,"・$1"):o.name.replace(/運用（.*）$/,"")):"運用を選ぶ");$("planeOpMode").textContent=status.supported&&o?(plane.op?"手動":wind?.observed?"観測":"予報"):"";
+  // 決め方は3つ：国交省の実際の運用（今と過去72時間）、観測（METAR）、予報。手動で選べばそれ
+  const actual=plane.op?null:planeActualAt(at),sky=AstroNotesRoutes.AIRPORT.id==="RJTT"?planeSkyAt(at):null;
+  const mode=plane.op?"手動":actual?"実際":wind?.observed?"観測":"予報";
+  const autoOp=planeOpAt(at,{auto:true});
+  $("planeOp").options[0].textContent=autoOp?`${actual?"実際（国交省）":wind?.observed?"観測":"予報"}：${AstroNotesRoutes.OPERATIONS[autoOp]?.name||"運用不明"}`:"風予報なし：運用を選択";
+  const basis=actual?`${S.JstCal.hhmm(actual.at)}の国交省の表示：${actual.approach}`
+    :[wind?`${S.JstCal.hhmm(wind.at)}の${wind.observed?"観測風（METAR）":"風予報"} ${Math.round(wind.direction)}°から ${wind.speed.toFixed(1)}m/s`:"この時刻の風を取得できません",
+      sky?`${sky.observed?"観測":"予報"}の${sky.text}→${sky.fine?"好天":"好天時以外"}`:""].filter(Boolean).join("・");
+  const lands=actual?actual.landing:o?.landing,takes=actual?actual.takeoff:o?.takeoff;
+  $("planeOpNote").textContent=basis+(o?` ／ ${mode}：着陸 ${lands.join("・")}／離陸 ${takes.join("・")}`:"");
+  const short=AstroNotesRoutes.AIRPORT.shortName;
+  $("planeOpChip").textContent=short+"・"+(!status.supported?"深夜は未対応":o?planeOpShort(op):"運用を選ぶ");$("planeOpMode").textContent=status.supported&&o?mode:"";
   if(!status.supported){plane.map=null;PlaneMap.redraw();$("planeRouteDetails").replaceChildren();$("planeMapStatus").textContent="23〜6時の深夜経路は未対応のため、この時刻の範囲は計算できません。";return;}
   if(!o){plane.map=null;PlaneMap.redraw();$("planeRouteDetails").replaceChildren();$("planeMapStatus").textContent="風予報がないため運用を推定できません。運用を手動で選ぶと計算できます。";return;}
-  const paths=AstroNotesPlane.pathsFor(op,{landing:true,takeoff:true});
+  const paths=planePathsAt(at,op);
   const overlap=AstroNotesPlane.routeOverlapAt(at,plane.observer,paths);
   // 立ち位置の帯は地形で確かめ終わるまで前の時刻のものを出しておく（数分の差なら位置はほぼ同じ）
   const prev=plane.map;plane.map={at,paths,overlap,polygons:prev?.polygons||[],centerLines:prev?.centerLines||[],pending:true,missing:0};
@@ -357,7 +423,7 @@ async function planeUpdateMap() {
 }
 // この日、選んだ地点で月が航路に重なる時刻（1分刻み）。運用は各時刻の風で決める
 // 2026-11-25 ユーザー「重なるなら重なる目安の時間を表示してよ」
-function planeWindowKey(){return JSON.stringify([plane.dayMs,plane.observer,plane.op,AstroNotesRoutes.AIRPORT.id,plane.metar?.obs?.length||0,plane.wind?.at||0]);}
+function planeWindowKey(){return JSON.stringify([plane.dayMs,plane.observer,plane.op,AstroNotesRoutes.AIRPORT.id,plane.metar?.obs?.length||0,plane.wind?.at||0,plane.ops?.history?.length||0,plane.ops?.history?.at(-1)?.at||0]);}
 function planeWindows(){
   if(!plane.observer||!Number.isFinite(plane.dayMs))return null;
   const key=planeWindowKey();
@@ -368,7 +434,8 @@ function planeWindows(){
     if(plane.windows!==job)return;
     for(const stop=Math.min(end,t+180*60000);t<stop;t+=60000){
       const op=planeOpAt(t);if(!op)continue;
-      const paths=cache[op]||(cache[op]=AstroNotesPlane.pathsFor(op,{landing:true,takeoff:true}));
+      const row=planeActualAt(t),k=row&&!plane.op?`${op}|${row.landing}|${row.takeoff}`:op;
+      const paths=cache[k]||(cache[k]=planePathsAt(t,op));
       if(AstroNotesPlane.routeOverlapAt(t,plane.observer,paths).overlaps?.length){const last=hits[hits.length-1];if(last&&t-last[1]<=60000)last[1]=t;else hits.push([t,t]);}
     }
     if(t<end){setTimeout(step,0);return;}
