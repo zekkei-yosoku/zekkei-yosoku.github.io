@@ -66,6 +66,7 @@ const style=document.createElement('style');style.textContent=`
 .journey-dismiss{width:44px;height:44px;min-height:44px;padding:0;border:0;background:transparent;color:var(--secondary);font-size:22px;margin:-10px -10px -10px 0}.journey-detail{white-space:pre-line;overflow-wrap:anywhere;margin:6px 0 10px}.journey-actions{display:flex;flex-wrap:wrap;gap:8px}\
 .journey-actions button{min-height:44px;flex:1 1 130px}
 .journey-place-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;border-bottom:1px solid var(--line);padding:4px 0}.journey-place-row>.my-place-row{flex:1 1 170px;border-bottom:0;min-width:0}.journey-place-find{min-height:44px;margin:4px 0 8px auto;flex:0 0 auto}
+/* 2026-11-25 区切りは行のまとまりの線1本だけ（ユーザー「なんで二本線区切りなの?」） */.journey-place-row>.my-place-row{border-top:0}.journey-place-row:first-child{border-top:1px solid var(--line)}
 #myPlaceSheet[data-planning-only=true] .sheet-body>:not(#myPlanningPlace):not(#myPlacePlanning):not(#myPlaceDetails):not(#myRecordError){display:none!important}
 #myPlaceSheet[data-planning-only=true] #myPlacePlanning>summary{display:none}#myPlaceSheet[data-planning-only=true] #myPlacePlanning{border:0;margin:4px 0}#myPlaceSheet .journey-planning-place{font-weight:600;overflow-wrap:anywhere;margin:10px 0 18px}#myPlanningPlace[hidden]{display:none}
 #planOpenNotebook{min-height:44px;margin-top:8px}#planOpenNotebook[hidden]{display:none}
