@@ -15,7 +15,8 @@ test('1本のtouchは通常スクロール、拡大中のみ構図パン、cance
  const start=html.indexOf('    const gesture = host._lensGesture'),end=html.indexOf('\n  } else {',start),code=html.slice(start,end);
  for(const full of [false,true]){let draws=0;const host={_full:full,_lensOffset:[0,0],_pick:null},cv={getBoundingClientRect:()=>({left:0,top:0}),setPointerCapture(){},dispatchEvent(){}},c={host,cv,W:400,H:300,k:10,frame:{halfH:10},groundEdge:200,toPx:()=>[200,180],proj:()=>[0,0],az:0,AstroNotesCameraUI:Camera,panLimit:2,draw(){draws++;},cur:{},navigator:{},Event:class{},Math,Map};vm.createContext(c);vm.runInContext(code,c);const e=(x,y)=>({pointerId:1,pointerType:'touch',clientX:x,clientY:y,button:0});cv.onpointerdown(e(100,100));cv.onpointermove(e(140,130));assert.equal(draws,full?1:0);if(full)assert.deepEqual([...host._lensOffset],[.1,.1]);cv.onpointercancel(e(140,130));assert.equal(host._lensGesture.points.size,0);}
 });
-test('中央復帰は描画した地上線を枠の下端へ、枠なしは図下余白へ',()=>{
- const start=html.indexOf('  center.onclick = () => { host._lensKeyOffset'),end=html.indexOf('\n',start),code=html.slice(start,end);
- for(const frame of [{halfH:10},null]){let draws=0;const c={center:{},host:{},toPx:()=>[200,180],proj:()=>[0,0],az:0,H:300,k:10,frame,groundEdge:200,draw(){draws++;},cur:{},Math};vm.createContext(c);vm.runInContext(code,c);c.center.onclick();const bottom=frame?250:288;assert.equal(200+c.host._lensOffset[1]*300,bottom);assert.equal(c.host._lensOffset[0],0);assert.equal(draws,1);}
+test('右上の釦は対象全体がちょうどよい大きさへ合わせ直す（2026-11-25）',()=>{
+ const start=html.indexOf('  center.onclick=()=>{host._compose={mode:"whole"'),end=html.indexOf('\n',start),code=html.slice(start,end);assert(start>0);
+ const renders=[];const c={center:{},host:{_compose:{mode:'body'},_lensKeyOffset:[1,1],_lookAt:5},selectedAt:9,spec:{},aimLookRender:(h,s)=>renders.push([h,s])};vm.createContext(c);vm.runInContext(code,c);c.center.onclick();
+ assert.equal(c.host._compose.mode,'whole');assert.equal(c.host._compose.apply,true);assert.equal(c.host._compose.at,5);assert.equal(c.host._lensKeyOffset,null);assert.equal(renders.length,1);
 });

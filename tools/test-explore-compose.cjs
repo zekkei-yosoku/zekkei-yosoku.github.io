@@ -27,6 +27,10 @@ const base=process.env.COMPOSE_BASE||'http://127.0.0.1:8992/trial/',tools=['reco
    let l=await lens();assert.equal(l.mode,'manual');assert(Math.abs(l.focal-expect.whole)<0.11,JSON.stringify([l,expect]));assert.equal(l.saved,l.focal,'撮影設定 holds the focal length');assert.equal(l.pressed,'false');assert.equal(l.label,'天体に寄る');assert.notDeepEqual(l.offset,[0,0],'frame lowered onto the ground line');
    const icon=await p.locator('#aimLook [data-lens-compose]').evaluate(n=>{const r=n.getBoundingClientRect(),c=[...document.querySelectorAll('#aimLook [data-lens-center]')].map(x=>x.getBoundingClientRect()).find(x=>x.width>0);return {w:r.width,h:r.height,belowCenter:r.top>=c.bottom,sameColumn:Math.abs(r.right-c.right)<1,r:[r.left,r.top,r.right],c:[c.left,c.top,c.right],cls:n.className,parent:n.parentElement.className};});
    assert(icon.w>=44&&icon.h>=44&&icon.belowCenter&&icon.sameColumn,JSON.stringify(icon));
+   // 2026-11-25 右上の釦は、ずらした・寄せた後でも対象がちょうどよい大きさ（全体）へ戻す
+   await p.evaluate(async()=>{const h=document.getElementById('aimLook');aimLens.mode='manual';aimLens.focal=600;h._lensOffset=[.3,-.4];await aimLookRender(h,h._lookSpec);});
+   await p.locator('#aimLook [data-lens-center]').first().click();await p.waitForFunction(w=>Math.abs(aimLens.focal-w)<0.11,expect.whole);
+   l=await lens();assert.equal(l.mode,'manual');assert.equal(l.offset[0],0,'centred horizontally');assert.notDeepEqual(l.offset,[0,0],'ground on the frame bottom again');
    // At the fixture's noon the sun is far from the tower: 天体に寄る is not offered.
    assert.equal(await p.locator('#aimLook [data-lens-compose]').isDisabled(),true,'no zoom to a body away from the target');
    // A real overlap: the sun on the Skytree's top from the Edogawa levee at Shibamata, 2026-11-20 16:05.

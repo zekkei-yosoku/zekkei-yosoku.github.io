@@ -13,7 +13,9 @@ import {versionAssets,hashCsp} from './release-html.mjs';
 const experiment='experiments/moon-map/';
 const allowed=new Map([
  ['src/index.html',true],['src/features/aircraft/controller.js',true],['astronotes-plane.js',true],
- ['astronotes-routes.js',true],['astronotes-datetime-ui.css',true],['src/source-manifest.json',false]
+ ['astronotes-routes.js',true],['astronotes-datetime-ui.css',true],['src/source-manifest.json',false],
+ // 2026-11-25 重なる日の一覧の詰め方と、見え方の「対象に合わせる」釦（trialで試す）
+ ['astronotes-myplaces.js',false],['src/features/framing/scene/render.js',false],['src/features/framing/presentation.js',false]
 ]);
 const guarded=['index.html','app-version.txt',...allowed.keys()];
 const digest=value=>createHash('sha256').update(value).digest('hex');

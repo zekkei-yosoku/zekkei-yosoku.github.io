@@ -11,7 +11,10 @@
     "src/source-manifest.json": "480d100c294f92141cc9b93398fd48fbf32896155ebbd13dbc0c79a50886d8ac",
     "astronotes-plane.js": "c70e7c896eb15cec8af79e491403a439a920698080145a5e6a6e520c07b473bb",
     "astronotes-routes.js": "ac032e07834c575e2ac63852b7e26bf74897d50a1999b933e34d4257e57daa8a",
-    "astronotes-datetime-ui.css": "9549b314efddc645788c760ea1fe8316ba424e50f943b45ba3184fd420e3a791"
+    "astronotes-datetime-ui.css": "9549b314efddc645788c760ea1fe8316ba424e50f943b45ba3184fd420e3a791",
+    "astronotes-myplaces.js": "390920c9608856a5b2887d697f3a73a364563d44ee8e901f643d2d07644a1920",
+    "src/features/framing/scene/render.js": "9733855b30b54c51a575c19606ce1301293b6310afc8d50cedc63053f8511317",
+    "src/features/framing/presentation.js": "cc12abb0271760841d5e8760a97780b27f4898c345bc02803cfcde3c77674e77"
   },
   "overlays": [
     {
@@ -36,6 +39,18 @@
     },
     {
       "path": "src/source-manifest.json",
+      "required": false
+    },
+    {
+      "path": "astronotes-myplaces.js",
+      "required": false
+    },
+    {
+      "path": "src/features/framing/scene/render.js",
+      "required": false
+    },
+    {
+      "path": "src/features/framing/presentation.js",
       "required": false
     }
   ]

@@ -1091,7 +1091,7 @@ style.textContent+=`
 .record-opportunity-picker-foot #recordOpportunityPickerApply{min-width:96px;background:var(--accent);color:var(--accent-ink,var(--bg))}
 :is(#recordOpportunityStatus,#recordOpportunityNotice){margin:12px 0;color:var(--secondary)}:is(#recordOpportunityStatus,#recordOpportunityNotice):empty{display:none}
 #recordOpportunityList:not(:empty){margin-top:12px;border-top:1px solid var(--line)}
-.record-opportunity-day{margin:0;padding:12px 0 5px;font-size:14px;color:var(--secondary)}
+.record-opportunity-day{margin:0;padding:10px 0 0;font-size:14px;color:var(--secondary)}#recordOpportunityList .record-opportunity-row{padding:8px 0!important;row-gap:2px!important;min-height:0!important}#recordOpportunityList [data-candidate-meta]{align-items:center}
 .record-opportunity-through{margin:10px 0 0;color:var(--secondary)}
 .record-opportunity-through:empty{display:none}
 #recordOpportunityMore{min-height:44px}
@@ -3353,7 +3353,9 @@ function opportunityRenderRows(box,rows,job,confirmed){
    await AstroNotesCandidatePicker.renderRecorded(box,request.rows,null,{current,context:true,rowClass:'record-opportunity-row',rowId:r=>r.id,heightRows:job.pairs,
     heading:r=>dayText(r.spatialWindow?.fromAt??r.event.at)+(request.confirmed.has(r)?'':'（確認中）'),select:r=>openOpportunity(r,job),
     // 地点の一覧では地点名・住所・種類は見出しで分かるので、行は「天体 × 対象」と時刻を主にする
-    decorate:job.placeMode?button=>{const title=button.querySelector('[data-candidate-place]'),pair=button.querySelector('[data-candidate-context]');if(title&&pair){title.textContent=pair.textContent;pair.hidden=true;}}:null
+    // 2026-11-25 仰角と通過する部位は1行にまとめて詰める（ユーザー「余白を詰めて」）
+    decorate:button=>{const meta=button.querySelector('[data-candidate-meta]'),passage=button.querySelector('[data-candidate-passage]');if(meta&&passage&&passage.parentElement!==meta)meta.append(passage);
+     if(!job.placeMode)return;const title=button.querySelector('[data-candidate-place]'),pair=button.querySelector('[data-candidate-context]');if(title&&pair){title.textContent=pair.textContent;pair.hidden=true;}}
    });
   }}catch(error){if(current()){job.rowRequest=null;job.displayError=true;opportunityNotice='候補の表示を完了できませんでした。再試行してください。';globalThis.AstroNotesErrors?.note('records.opportunity-rows',error);}
   }finally{job.rendering=false;if(current())opportunityDraw(job);}
