@@ -64,9 +64,9 @@ await p.screenshot({path:`${out}/${engine}-${width}-${theme}-map.png`,fullPage:t
   // 国交省の実際の運用（72時間）がある時刻はそれで引く：12:10 は ILS X 34L だけ、12:40 は好天時以外の ILS Z。表示は「実際」
   await p.evaluate(()=>planeSetAt(Date.parse('2026-11-24T12:10:00+09:00')));await p.waitForFunction(()=>plane.map&&!plane.map.pending&&S.JstCal.hhmm(plane.map.at)==='12:10');
   assert.deepEqual(await p.evaluate(()=>plane.map.paths.map(x=>x.id).sort()),['05 離陸','34L 着陸']);assert.equal(await p.locator('#planeOpMode').textContent(),'実際');
-  assert.match(await p.locator('#planeOpChip').textContent(),/^羽田・北風・好天$/);assert.match(await p.evaluate(()=>plane.map.paths.find(x=>x.kind==='landing').source),/ILS X RWY34L/);
+  assert.match(await p.locator('#planeOpChip').textContent(),/^北風・好天$/);assert.match(await p.evaluate(()=>plane.map.paths.find(x=>x.kind==='landing').source),/ILS X RWY34L/);
   await p.evaluate(()=>planeSetAt(Date.parse('2026-11-24T12:40:00+09:00')));await p.waitForFunction(()=>plane.map&&!plane.map.pending&&S.JstCal.hhmm(plane.map.at)==='12:40');
-  assert.match(await p.locator('#planeOpChip').textContent(),/^羽田・北風・悪天$/);assert.match(await p.evaluate(()=>plane.map.paths.find(x=>x.id==='34L 着陸').source),/ILS Z RWY34L/);
+  assert.match(await p.locator('#planeOpChip').textContent(),/^北風・悪天$/);assert.match(await p.evaluate(()=>plane.map.paths.find(x=>x.id==='34L 着陸').source),/ILS Z RWY34L/);
   await p.evaluate(()=>planeSetAt(Date.parse('2026-11-25T23:00:00+09:00')));await p.waitForFunction(()=>plane.map&&!plane.map.pending&&S.JstCal.hhmm(plane.map.at)==='23:00');
   assert.equal(await p.locator('#planeOpMode').textContent(),'予報','beyond the reported hours the forecast decides');
   await p.locator('.plane-btn[data-plane-pane=op]').click();await p.locator('#planeOp').selectOption('dnfi1');await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.map.paths.every(x=>x.night));
@@ -76,13 +76,13 @@ await p.screenshot({path:`${out}/${engine}-${width}-${theme}-map.png`,fullPage:t
   // The nearest airport follows the shooting point: Itami from the Senri river bank, back to Haneda after.
   await p.evaluate(()=>planeSetFrom({name:'千里川の土手',latitude:34.7739,longitude:135.4458}));
   await p.waitForFunction(()=>AstroNotesRoutes.AIRPORT.id==='RJOO'&&plane.map&&!plane.map.pending&&plane.map.paths.every(x=>x.airportId==='RJOO'));
-  assert.match(await p.locator('#planeOpChip').textContent(),/^伊丹・/);
+  assert.equal(await p.locator('#planeAirportNow').textContent(),'自動選択（伊丹）');
   await p.evaluate(()=>planeSetFrom({name:'検証用の撮影地点',latitude:35.6,longitude:139.8}));await p.waitForFunction(()=>AstroNotesRoutes.AIRPORT.id==='RJTT'&&plane.map&&!plane.map.pending);
   // Airport search: by IATA, by Japanese name, then back to automatic.
   await p.evaluate(()=>{if($('planeSheet').hidden||$('planeSheet').dataset.pane!=='op')document.querySelector('.plane-btn[data-plane-pane=op]').click();});await p.locator('#planeAirportSearch').fill('HND');
   assert.match(await p.locator('#planeAirportResults button').first().textContent(),/羽田.*RJTT/);
   await p.locator('#planeAirportSearch').fill('釧路');await p.locator('#planeAirportResults button').first().click();
-  await p.waitForFunction(()=>AstroNotesRoutes.AIRPORT.id==='RJCK'&&plane.map&&!plane.map.pending);assert.match(await p.locator('#planeOpChip').textContent(),/^釧路・/);assert.equal(await p.locator('#planeAirportNow').textContent(),'釧路');
+  await p.waitForFunction(()=>AstroNotesRoutes.AIRPORT.id==='RJCK'&&plane.map&&!plane.map.pending);assert.equal(await p.locator('#planeAirportNow').textContent(),'釧路');
   await p.locator('#planeAirportAuto').click();await p.waitForFunction(()=>AstroNotesRoutes.AIRPORT.id==='RJTT'&&plane.map&&!plane.map.pending);assert.equal(await p.locator('#planeAirportNow').textContent(),'自動選択（羽田）');
   await p.locator('#planeOp').selectOption('dnfi1');await p.waitForFunction(()=>plane.map&&!plane.map.pending);
   await p.evaluate(()=>{AstroNotesTerrain.groundElevation=()=>new Promise(resolve=>{window.__resolveMoonGround=resolve;});planeSetFrom({name:'変更後の地点',latitude:35.6,longitude:139.8});planeSetAt(plane.at+60000);});

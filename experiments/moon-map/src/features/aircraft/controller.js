@@ -365,7 +365,8 @@ async function planeUpdateMap() {
   const lands=actual?actual.landing:o?.landing,takes=actual?actual.takeoff:o?.takeoff;
   $("planeOpNote").textContent=basis+(o?` ／ ${mode}：着陸 ${lands.join("・")}／離陸 ${takes.join("・")}`:"");
   const short=AstroNotesRoutes.AIRPORT.shortName;
-  $("planeOpChip").textContent=short+"・"+(!status.supported?"深夜は未対応":o?planeOpShort(op):"運用を選ぶ");$("planeOpMode").textContent=status.supported&&o?mode:"";
+  // 釦は運用だけ（狭い画面で「羽田・南風新経路…」と切れて好天・悪天が隠れていた。空港は地図の印と運用の欄に出る）
+  $("planeOpChip").textContent=!status.supported?"深夜は未対応":o?planeOpShort(op):"運用を選ぶ";$("planeOpChip").parentElement.setAttribute("aria-label",`空港と運用：${short}・${$("planeOpChip").textContent}`);$("planeOpMode").textContent=status.supported&&o?mode:"";
   if(!status.supported){plane.map=null;PlaneMap.redraw();$("planeRouteDetails").replaceChildren();$("planeMapStatus").textContent="23〜6時の深夜経路は未対応のため、この時刻の範囲は計算できません。";return;}
   if(!o){plane.map=null;PlaneMap.redraw();$("planeRouteDetails").replaceChildren();$("planeMapStatus").textContent="風予報がないため運用を推定できません。運用を手動で選ぶと計算できます。";return;}
   const paths=planePathsAt(at,op);
