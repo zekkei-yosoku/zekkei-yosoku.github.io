@@ -131,14 +131,16 @@ function planeAirportList() {
     : '<p>見つかりません。空港名・IATA（HND）・ICAO（RJTT）で探せます</p>';
 }
 
-async function planeApply() {
+// keepMap: 日付だけが変わった時。撮影地点は同じなので、新しい日の線ができるまで今の線と地点を残す
+async function planeApply({keepMap = false} = {}) {
   if (!toolAllowed("plane")) return;
   planeSyncAirport();
   const seq = plane.seq.next();
-  plane.mapSeq.cancel(); plane.map = null; plane.result = null; plane.observer = null;
+  plane.result = null;
+  if (!keepMap) { plane.mapSeq.cancel(); plane.map = null; plane.observer = null;
+    $("planeMapStatus").textContent = "空港の風と撮影地点の高さを確認中…"; $("planeRouteDetails").replaceChildren(); PlaneMap.redraw(); }
   $("planeInfo").textContent = "この日の狙い目を計算中…";
-  $("planeMapStatus").textContent = "空港の風と撮影地点の高さを確認中…";
-  $("planeList").replaceChildren(); $("planeRouteDetails").replaceChildren(); PlaneMap.redraw();
+  $("planeList").replaceChildren();
   const P = planeFromPoint();
   renderPointCard("planeFrom", P, null);$("planeFromChip").textContent = P.name;
   const saved = aimSavedFrom(P);
@@ -271,7 +273,7 @@ function planeSetAt(at) {
   if (!Number.isFinite(at) || !toolAllowed("plane")) return;
   const day = S.Cal.startOfDay(at), changed = day !== plane.dayMs;
   plane.at=at; plane.dayMs=day; planeSyncTime();
-  if(changed)planeApply(); else planeUpdateMap();
+  if(changed)planeApply({keepMap:!!plane.observer}); else planeUpdateMap();
 }
 function planeWindAt(at) {
   // 今より前で、45分以内の観測があればそれ（METARは30分ごと）
@@ -290,18 +292,19 @@ async function planeUpdateMap() {
   if(!toolAllowed("plane")||!plane.observer)return;
   const token=plane.mapSeq.next(),at=plane.at;
   const current=()=>plane.mapSeq.current(token)&&toolAllowed("plane")&&viewState.plane;
-  plane.map=null;PlaneMap.redraw();$("planeRouteDetails").replaceChildren();
+  // 前の時刻の線は、新しい時刻の線ができるまで残す（2026-11-25 ユーザー「時間を動かすと一回一回線が消えたり出たり」）
   const status=AstroNotesRoutes.operationStatus(at),op=planeOpAt(at),wind=planeWindAt(at);
   const o=AstroNotesRoutes.OPERATIONS[op];
   $("planeOp").options[0].textContent=wind&&op ? `${wind.observed?"観測":"予報"}：${AstroNotesRoutes.OPERATIONS[planeOpAt(at,{auto:true})]?.name||"運用不明"}` : "風予報なし：運用を選択";
   $("planeOpNote").textContent=(wind ? `${S.JstCal.hhmm(wind.at)}の${wind.observed?"観測風（METAR）":"風予報"} ${Math.round(wind.direction)}°から ${wind.speed.toFixed(1)}m/s` : "この時刻の風を取得できません")+(o?` ／ ${plane.op?"手動の想定":"予測"}：着陸 ${o.landing.join("・")}／離陸 ${o.takeoff.join("・")}`:"");
   const short=AstroNotesRoutes.AIRPORT.shortName,haneda=AstroNotesRoutes.AIRPORT.id==="RJTT";
   $("planeOpChip").textContent=short+"・"+(!status.supported?"深夜は未対応":o?(haneda?o.name.replace("運用","").replace(/（(.+?)(上空)?）/,"・$1"):o.name.replace(/運用（.*）$/,"")):"運用を選ぶ");$("planeOpMode").textContent=status.supported&&o?(plane.op?"手動":wind?.observed?"観測":"予報"):"";
-  if(!status.supported){$("planeMapStatus").textContent="23〜6時の深夜経路は未対応のため、この時刻の範囲は計算できません。";return;}
-  if(!o){$("planeMapStatus").textContent="風予報がないため運用を推定できません。運用を手動で選ぶと計算できます。";return;}
+  if(!status.supported){plane.map=null;PlaneMap.redraw();$("planeRouteDetails").replaceChildren();$("planeMapStatus").textContent="23〜6時の深夜経路は未対応のため、この時刻の範囲は計算できません。";return;}
+  if(!o){plane.map=null;PlaneMap.redraw();$("planeRouteDetails").replaceChildren();$("planeMapStatus").textContent="風予報がないため運用を推定できません。運用を手動で選ぶと計算できます。";return;}
   const paths=AstroNotesPlane.pathsFor(op,{landing:true,takeoff:true});
   const overlap=AstroNotesPlane.routeOverlapAt(at,plane.observer,paths);
-  plane.map={at,paths,overlap,polygons:[],pending:true,missing:0};
+  // 立ち位置の帯は地形で確かめ終わるまで前の時刻のものを出しておく（数分の差なら位置はほぼ同じ）
+  const prev=plane.map;plane.map={at,paths,overlap,polygons:prev?.polygons||[],centerLines:prev?.centerLines||[],pending:true,missing:0};
   planeMapText();PlaneMap.redraw();
   if(overlap.status==="invalid-time")return;
   // Start from inverse rays, then resolve each vertex against actual terrain. A seed is never a colored result.
@@ -399,7 +402,7 @@ function planeMapText(){
     first=m&&Number.isFinite(m.apparentAltitude)?`月 方位${m.azimuth.toFixed(1)}°・高さ${m.apparentAltitude.toFixed(1)}°`:'月の位置を計算中…';
     if(r.overlap.overlaps?.length)first+=' ・ 今、金色の区間で重なります';
     second=w?(w.length?'重なる目安 '+w.slice(0,3).map(([a,b])=>a===b?S.JstCal.hhmm(a)+'頃':S.JstCal.hhmm(a)+'〜'+S.JstCal.hhmm(b)).join('、')+(w.length>3?' ほか':''):'この日はここで重なる時刻なし'):'重なる時刻を計算中…';
-    const n=!r.overlap.overlaps?.length&&r.overlap.status==='ready'?planeNearestLine(P,r.centerLines):null;
+    const n=!r.pending&&!r.overlap.overlaps?.length&&r.overlap.status==='ready'?planeNearestLine(P,r.centerLines):null;
     if(n)third=`今は青い線まで${n.dir}へ${fmt(n.km)}`;
   }
   $("planeMapStatus").textContent=[first,second,third].filter(Boolean).join('\n');
@@ -413,15 +416,16 @@ function planeMapText(){
 const PLANE_ROUTE_COLORS={landing:'#7b3fbf',takeoff:'#00897b'};
 function planeRouteColor(paths,path){return PLANE_ROUTE_COLORS[path.kind]||PLANE_ROUTE_COLORS.landing;}
 PlaneMap.setOverlay((ctx,{project,width,height})=>{
-  const r=plane.map;if(!r||!toolAllowed("plane"))return;
+  if(!toolAllowed("plane")||!planeFromPoint())return;
+  // 計算の間も撮影地点と空港は描く（2026-11-25 ユーザー「撮影地点も消えたり出たり」）
+  const r=plane.map||{paths:[],polygons:[],centerLines:[],overlap:{overlaps:[]}};
   const cs=getComputedStyle(document.documentElement),sunC=cs.getPropertyValue('--ray-sun').trim(),ink=cs.getPropertyValue('--secondary').trim();
   const trace=points=>{ctx.beginPath();const xy=points.map(p=>project(p.latitude,p.longitude));if(!xy.length)return;ctx.moveTo(...xy[0]);
     // Midpoint quadratic smoothing keeps sampled curves round on screen without moving the endpoints.
     for(let i=1;i<xy.length-1;i++)ctx.quadraticCurveTo(xy[i][0],xy[i][1],(xy[i][0]+xy[i+1][0])/2,(xy[i][1]+xy[i+1][1])/2);
     if(xy.length>1)ctx.lineTo(...xy[xy.length-1]);};
   ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
-  // Fade the base map so the overlays read first.
-  ctx.fillStyle='rgba(255,255,255,.42)';ctx.fillRect(0,0,width,height);
+  // 地図を白く薄める層は置かない（2026-11-25 ユーザー「地図の上に薄く白い何かがかかってる…いらないのでは」）
   // Where to stand is an area, drawn as a soft wide band under the crisp, cased flight lines.
   // Painted opaque on a separate layer and laid down once, so crossing bands do not darken each other.
   const band=document.createElement('canvas');band.width=ctx.canvas.width;band.height=ctx.canvas.height;
@@ -506,7 +510,7 @@ function openPlane(){
     const label=at=>ToolDateTimeBar.label(at)+' '+S.JstCal.hhmm(at);
     plane.timeline=AstroNotesScrollTimeline.mount({root:$("planeTimeline"),getAt:()=>plane.at,getMode:()=>plane.scrub,enabled:()=>viewState.plane&&toolAllowed('plane'),
       getObserver:()=>{const p=planeFromPoint();return p?{latitude:p.latitude,longitude:p.longitude,elevation:0}:null;},sun:(at,o)=>AstroNotesAstro.sun(at,o),
-      onChange:at=>{plane.playback?.stop(false);plane.mapSeq.cancel();plane.map=null;PlaneMap.redraw();plane.at=at;plane.scrubbing=true;planeSyncTime();plane.scrubbing=false;clearTimeout(scrub);scrub=setTimeout(()=>planeSetAt(plane.at),150);},
+      onChange:at=>{plane.playback?.stop(false);plane.at=at;plane.scrubbing=true;planeSyncTime();plane.scrubbing=false;clearTimeout(scrub);scrub=setTimeout(()=>planeSetAt(plane.at),150);},
       onSettle:at=>{clearTimeout(scrub);planeSetAt(at);},
       format:(at,mode)=>mode==='date'?new Date(at+32400000).toISOString().slice(5,10).replace('-','/'):S.JstCal.hhmm(at),describe:(at,mode)=>mode==='date'?ToolDateTimeBar.label(at):label(at)});
     $("planeScrubMode").onclick=()=>{plane.timeline.stop();plane.scrub=ToolDateTimeBar.nextMode(plane.scrub);planeSyncTime();};
