@@ -352,6 +352,28 @@ async function planeUpdateMap() {
   plane.map={at,paths,overlap,polygons,centerLines,pending:false,missing:samples.filter(s=>s.failed||!s.terrainVerified).length};
   planeMapText();PlaneMap.redraw();
 }
+// この日、選んだ地点で月が航路に重なる時刻（1分刻み）。運用は各時刻の風で決める
+// 2026-11-25 ユーザー「重なるなら重なる目安の時間を表示してよ」
+function planeWindowKey(){return JSON.stringify([plane.dayMs,plane.observer,plane.op,AstroNotesRoutes.AIRPORT.id,plane.metar?.obs?.length||0,plane.wind?.at||0]);}
+function planeWindows(){
+  if(!plane.observer||!Number.isFinite(plane.dayMs))return null;
+  const key=planeWindowKey();
+  if(plane.windows?.key===key)return plane.windows.list;
+  const job={key,list:null};plane.windows=job;
+  const hits=[],cache={},end=plane.dayMs+86400000;let t=plane.dayMs;
+  const step=()=>{
+    if(plane.windows!==job)return;
+    for(const stop=Math.min(end,t+180*60000);t<stop;t+=60000){
+      const op=planeOpAt(t);if(!op)continue;
+      const paths=cache[op]||(cache[op]=AstroNotesPlane.pathsFor(op,{landing:true,takeoff:true}));
+      if(AstroNotesPlane.routeOverlapAt(t,plane.observer,paths).overlaps?.length){const last=hits[hits.length-1];if(last&&t-last[1]<=60000)last[1]=t;else hits.push([t,t]);}
+    }
+    if(t<end){setTimeout(step,0);return;}
+    job.list=hits;if(plane.map&&!plane.map.pending)planeMapText();
+  };
+  setTimeout(step,0);
+  return null;
+}
 // 撮影地点から青い中心線までの最短距離と方角
 function planeNearestLine(P,lines){
   if(!P||!lines?.length)return null;
@@ -372,7 +394,9 @@ function planeMapText(){
   if(r.overlap.status==='missing-elevation')parts.push('標高が不明のため計算できません');
   else if(m&&r.overlap.status==='below-horizon')parts.push('月が地平線より下にあります');
   else if(r.overlap.overlaps?.length)parts.push('金色の区間で月円盤と重なります');
-  else{const n=planeNearestLine(P,r.centerLines);parts.push(n?`ここでは重なりません。青い線まで${n.dir}へ${n.km<1?Math.round(n.km*1000)+'m':n.km.toFixed(1)+'km'}`:'この地点から重なる区間はありません');}
+  else{const n=planeNearestLine(P,r.centerLines);parts.push(n?`この時刻は重なりません（青い線まで${n.dir}へ${n.km<1?Math.round(n.km*1000)+'m':n.km.toFixed(1)+'km'}）`:'この時刻は重なりません');}
+  const w=planeWindows();
+  if(w&&r.overlap.status!=='missing-elevation')parts.push(w.length?'重なる目安 '+w.slice(0,3).map(([a,b])=>a===b?S.JstCal.hhmm(a)+'頃':S.JstCal.hhmm(a)+'〜'+S.JstCal.hhmm(b)).join('、')+(w.length>3?' ほか':''):'この日はこの地点で重なる時刻なし');
   if(m&&Number.isFinite(m.apparentAltitude))parts.push(`月 方位${m.azimuth.toFixed(1)}°・高さ${m.apparentAltitude.toFixed(1)}°`);
   if(r.pending&&r.overlap.status==='ready')parts.push('地上の候補範囲を計算中…');
   else if(r.missing)parts.push('海の上と地形を確認できない部分は表示しません');

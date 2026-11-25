@@ -26,6 +26,8 @@ for(const engine of (process.env.MOON_MAP_ENGINES||'chromium,webkit').split(',')
  const state=await p.evaluate(()=>({polygons:plane.map.polygons.length,segments:plane.map.overlap.overlaps.length,status:plane.map.overlap.status,at:plane.map.at,ground:plane.observer.groundM,eye:plane.observer.eyeHeightAGL,unknown:plane.map.missing,text:$('planeMapStatus').textContent}));
  assert(state.polygons>0,'ground layer exists: '+JSON.stringify(state));assert(state.segments>0,'observer route highlight exists');assert.equal(state.status,'ready');assert.equal(state.at,at);assert.match(state.text,/方位.+高さ/);
  assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'page fits');
+ // 重なる目安の時刻：今重なっている18:00を含む区間が出る
+ await p.waitForFunction(()=>/重なる目安 /.test($('planeMapStatus').textContent));assert.equal(await p.evaluate(at=>plane.windows.list.some(([a,b])=>a<=at&&at<=b),at),true);
  const layout=await p.evaluate(()=>{const m=$('planeCanvas').getBoundingClientRect(),f=$('planeTimeFooter').getBoundingClientRect(),h=document.querySelector('main>.masthead').getBoundingClientRect();return {mapTop:m.top,mapBottom:m.bottom,mapWidth:m.width,footTop:f.top,headBottom:h.bottom,sheet:$('planeSheet').hidden};});
  assert(Math.abs(layout.mapWidth-width)<=1&&Math.abs(layout.mapBottom-layout.footTop)<=2&&Math.abs(layout.mapTop-layout.headBottom)<=2&&layout.sheet,'map fills between masthead and time bar: '+JSON.stringify(layout));
 await p.screenshot({path:`${out}/${engine}-${width}-${theme}-map.png`,fullPage:true});
