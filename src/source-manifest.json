@@ -1290,18 +1290,6 @@
         "retireWhen": "platformとして維持"
       },
       {
-        "name": "every",
-        "category": "browser-platform",
-        "owner": [
-          "browser"
-        ],
-        "readers": [
-          "src/features/forecast/view.js"
-        ],
-        "purpose": "既存browser APIの明示adapter",
-        "retireWhen": "platformとして維持"
-      },
-      {
         "name": "TrialExplore",
         "category": "existing-public-bridge",
         "owner": [

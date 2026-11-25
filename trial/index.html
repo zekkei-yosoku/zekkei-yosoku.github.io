@@ -15,8 +15,8 @@
 <meta name="shape-tower" content="astronotes-tower-models.js?v=18096173220502742430">
 <meta name="shape-surface-integrity" content="sha256-KIoZP+4Nov6SYNEncGT6DRAzPZrVahtxa7scLtTCLcM=">
 <meta name="shape-surface" content="astronotes-scene-hulls.js?v=2921175070670693118">
-<meta name="app-version" content="4684016986558963272">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-56jmg3BuQK9ZbzaCr6EG5R+se0UIaJmcbxe0qnaV8D0=' 'sha256-XnkxL+31Hx09oZeO9sriA/FwZyogJfEg5OgDo5tTME0=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-f5bVjlvFsyTeWOqfEfff54v2U36RXTGIGZM9UE3ECZA=' 'sha256-o8qxPJ2Rfhldd8+nmFPf9eYEPcQKKO5R3Z8LbO3wDfA=' 'sha256-6v19k+3xEUvgWhnv8RFjCg6ceV74vHZTvmBpSDtlPvg=' 'sha256-H+afbDtYbf3BGb2JOK3z8uaqZAA5bdNoo3pyZbEl1d8=' 'sha256-OJlkVP9hufrghSR3MJ27wX9WVke/fnQnW0IaBWJlsM8=' 'sha256-PXfRim6e5oUuXkRxfWkVR4w8BPzm/BAMc94/yPcXf0M=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://data.source.coop https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787 https://api.openstreetmap.org; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="12341881722755633080">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-56jmg3BuQK9ZbzaCr6EG5R+se0UIaJmcbxe0qnaV8D0=' 'sha256-XnkxL+31Hx09oZeO9sriA/FwZyogJfEg5OgDo5tTME0=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-yXXFYUYIRhon8nv3ZqdEtVzdRWe6jD7us7yOYDZefzI=' 'sha256-o8qxPJ2Rfhldd8+nmFPf9eYEPcQKKO5R3Z8LbO3wDfA=' 'sha256-6v19k+3xEUvgWhnv8RFjCg6ceV74vHZTvmBpSDtlPvg=' 'sha256-H+afbDtYbf3BGb2JOK3z8uaqZAA5bdNoo3pyZbEl1d8=' 'sha256-OJlkVP9hufrghSR3MJ27wX9WVke/fnQnW0IaBWJlsM8=' 'sha256-PXfRim6e5oUuXkRxfWkVR4w8BPzm/BAMc94/yPcXf0M=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://data.source.coop https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787 https://api.openstreetmap.org; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=17512682572335991690">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -1685,30 +1685,6 @@ button.ui-icon-button::after { content: none; }
 #exploreCompositionSelection{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0;color:var(--accent);font-size:14px}
 #exploreCompositionSelection[hidden]{display:none}
 #exploreCompositionSelection .chip{flex:none;min-height:44px;margin:0}
-
-</style>
-<style>
-
-/* The forecast matrix remains one 14-day comparison surface. */
-#cards .cell[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:-2px}
-.forecast-selection-head,.forecast-selection-overview{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 10px}
-.forecast-selection-head .ph-head{margin:0;min-width:0;flex:1 1 auto}
-.forecast-selection-open{margin-left:auto;min-height:32px;color:var(--accent);font-size:.75rem;font-weight:700;white-space:nowrap}
-.forecast-selection-close{min-width:36px;min-height:36px;padding:0;color:var(--secondary);font-size:1.25rem}
-.forecast-selection-overview{margin-top:8px;font-size:.81rem}
-.forecast-selection-verdict{font-weight:700}.forecast-selection-score{margin-left:6px;color:var(--secondary);font-variant-numeric:tabular-nums}
-.forecast-selection-time{margin-top:6px;font-size:.94rem;font-weight:700;font-variant-numeric:tabular-nums}
-.forecast-selection-say{margin-top:6px;font-size:.81rem}
-.forecast-selection-bands{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
-/* The mobile preview stays in view without moving the comparison table. It is not a modal. */
-@media(max-width:640px){
- #cards:has(.forecast-selection){padding-bottom:min(280px,36dvh)}
- .forecast-selection{position:fixed;z-index:20;left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom));margin:0;padding:10px 12px;max-height:min(260px,34dvh);overflow:auto;overscroll-behavior:contain;border:1px solid var(--line);box-shadow:0 4px 20px #0003}
- .forecast-selection-head{display:grid;grid-template-columns:minmax(0,1fr) auto 36px;gap:4px}.forecast-selection-head .ph-head{flex-wrap:nowrap;align-items:center}
- .forecast-selection-head .ph-head .nm{font-size:.94rem}
- .forecast-selection-open,.forecast-selection-close{margin-left:0}
- .forecast-selection-overview{margin-top:2px}.forecast-selection-bands{margin-top:6px;padding-top:6px}
-}
 
 </style>
 </head>
@@ -3857,18 +3833,14 @@ $("forecastTabs").onkeydown=e=>{
 };
 
 function render() {
-  forecastSummary ||= (function createForecastSummary({ document, host, context, presentation, openDetail, announce }) {
-  // Selection belongs to the forecast list. Keep identifiers, never a second prediction copy.
+  forecastSummary ||= (function createForecastSummary({ document, host, context }) {
+  // The list keeps its horizontal position and focused cell across a visit to the detail.
   // Constructing the owner does no DOM work, IO, routing, or persistent storage.
-  let placeKey = null, selected = null, scrollLeft = 0, focusedCell = null;
+  let placeKey = null, scrollLeft = 0, focusedCell = null;
   const summaryId = 'forecastSelection';
   function reconcilePlace() {
     const next = context().placeKey;
-    if (next !== placeKey) { placeKey = next; selected = null; scrollLeft = 0; focusedCell = null; }
-  }
-  function entry() {
-    if (!selected) return null;
-    return context().weeks[selected.id]?.find(item => item.dayMs === selected.dayMs) || null;
+    if (next !== placeKey) { placeKey = next; scrollLeft = 0; focusedCell = null; }
   }
   function removeSummary() { host()?.querySelector('#' + summaryId)?.remove(); }
   function capture() {
@@ -3878,53 +3850,15 @@ function render() {
     // Hidden views and loading skeletons do not own a usable comparison position.
     // Capture before the view switch, and keep the last visible prediction until replacement arrives.
     if (previous === placeKey && scroller?.clientWidth && scroller.querySelector('.cell[data-cell]')) scrollLeft = scroller.scrollLeft;
+    // A hidden list (the detail is showing) keeps the cell that was pressed to open it.
+    if (previous === placeKey && !scroller?.clientWidth) return;
     const active = document.activeElement;
     focusedCell = previous === placeKey && root?.contains(active) && active?.matches('.cell[data-cell]') ? active.dataset.cell : null;
   }
-  function timing(id, ev, dayMs) {
-    if (presentation.timeBandPhases(ev)?.some(phase => Number.isFinite(phase.score))) return '';
-    if (id === 'capCloud') {
-      if (ev.timing?.allDay) return '一日を通して';
-      if (Number.isFinite(ev.timing?.from) && Number.isFinite(ev.timing?.to)) return presentation.range(dayMs, ev.timing.from, ev.timing.to);
-      return '時間帯を絞れません';
-    }
-    if (ev.specificTime === false) return presentation.meta(id).timeOfDay || '時間帯を絞れません';
-    if (Array.isArray(ev.window) && ev.window.every(Number.isFinite)) return presentation.range(dayMs, ev.window[0], ev.window[1]);
-    return Number.isFinite(ev.peak) ? presentation.time(dayMs, ev.peak) + 'ごろ' : '';
-  }
+  // The old selection preview is gone: a cell opens the detail directly. Remove a preview left by an older page.
   function update() {
     reconcilePlace();
-    const root = host();
-    if (!root) return;
-    const hit = entry();
-    if (selected && !hit) selected = null;
-    for (const button of root.querySelectorAll('.cell[data-cell]')) {
-      button.setAttribute('aria-pressed', String(!!selected && button.dataset.cell === selected.id + '|' + selected.dayMs));
-      if (selected) button.setAttribute('aria-controls', summaryId);
-      else button.removeAttribute('aria-controls');
-    }
-    if (!selected || !hit) { removeSummary(); return; }
-    const id = selected.id, ev = hit.evaluation, p = presentation, e = p.escape;
-    let box = root.querySelector('#' + summaryId);
-    if (!box) { box = document.createElement('section'); box.id = summaryId; box.className = 'card forecast-selection'; box.setAttribute('aria-labelledby', summaryId + 'Title'); root.append(box); }
-    const unavailable = ev.unavailable;
-    const grade = unavailable ? null : p.grade(ev);
-    const phrase = unavailable ? null : p.phrase(id, ev);
-    const when = timing(id, ev, hit.dayMs);
-    box.innerHTML = `<div class="forecast-selection-head"><div class="ph-head"><span class="ic">${p.icon(id, ev.peak)}</span><span class="nm" id="${summaryId}Title">${e(p.name(id))}</span></div><button type="button" class="tap forecast-selection-open">詳細を見る →</button>\
-<button type="button" class="tap forecast-selection-close" aria-label="プレビューを閉じる">×</button></div>`
-      + `<div class="forecast-selection-overview"><span class="muted">${e(p.day(hit.dayMs, context().now))}</span>`
-      + (unavailable ? '' : `<span class="forecast-selection-verdict" style="color:${p.color(ev)}">${e(phrase.label)} <span class="forecast-selection-score">${Math.round(ev.score)} <span class="grade" title="${e(grade.caption)}" aria-label="信頼度${e(grade.key)}">${e(grade.key)}</span></span>\
-</span>`) + '</div>'
-      + (unavailable ? `<p class="ph-out">${e(unavailable.message)}</p>` : `${when ? `<div class="forecast-selection-time">${e(when)}</div>` : ''}<p class="forecast-selection-say">${e(phrase.say)}</p>${p.bands(ev, hit.dayMs)}`);
-    box.querySelector('.forecast-selection-open').onclick = () => {
-      const current = entry();
-      if (current && selected) openDetail(selected.id, current.dayMs);
-    };
-    box.querySelector('.forecast-selection-close').onclick = () => {
-      const cell = selected && [...root.querySelectorAll('.cell[data-cell]')].find(button => button.dataset.cell === selected.id + '|' + selected.dayMs);
-      selected = null; update(); cell?.focus({ preventScroll: true });
-    };
+    removeSummary();
   }
   function restore() {
     update();
@@ -3936,27 +3870,12 @@ function render() {
     }
     focusedCell = null;
   }
-  function select(id, dayMs) {
-    reconcilePlace();
-    const hit = context().weeks[id]?.find(item => item.dayMs === dayMs);
-    if (!hit) return false;
-    selected = { id, dayMs };
-    update();
-    const p = presentation, ev = hit.evaluation;
-    announce(`${p.day(dayMs, context().now)} ${p.name(id)}。${ev.unavailable ? ev.unavailable.message : p.phrase(id, ev).label}。プレビューで時間帯を確認できます`);
-    return true;
-  }
   function waiting() { reconcilePlace(); removeSummary(); }
-  return { capture, restore, select, waiting };
+  return { capture, restore, waiting };
 })
 ({
  document,host:()=>$("cards"),
- context:()=>({placeKey:predictionKeyFor(place),weeks,now:Date.now()}),
- presentation:{escape:esc,icon:iconFor,name:id=>S.longNameOf(id),meta:id=>S.PHENOMENA[id],
- day:(day,now)=>S.JstCal.relativeDay(day,now),time:forecastTime,range:forecastTimeRange,
- grade:ev=>S.reliabilityGrade(ev.confidence,ev.models),phrase:(id,ev)=>S.phrasing(id,ev.rank,ev.afterglow),
- color:ev=>RANK_COLOR[ev.rank.key],timeBandPhases:ev=>timeBandPhases(ev),bands:(ev,dayMs)=>renderTwilight(ev,{inline:true,dayMs})},
- openDetail:(id,dayMs)=>pick(id,Date.now(),dayMs),announce:message=>{$("listAnnouncement").textContent=message;}
+ context:()=>({placeKey:predictionKeyFor(place)})
 });
   forecastSummary.capture();
   if (!routeFromHash() || routeFromHash().id || (viewState.answers && toolAllowed("records"))) void savedRoundClient.ensure(place, () => render());
@@ -4098,8 +4017,10 @@ function render() {
     for (const el of $("cards").querySelectorAll("[data-cell]")) {
       el.onclick = () => {
         const [id, dayMs] = el.dataset.cell.split("|");
-        // Trial: a cell updates the preview; only the explicit detail button navigates.
-        forecastSummary.select(id, +dayMs);
+        // マスを押したらそのまま詳細へ（2026-11-25 ユーザー「1発で詳細に飛んで欲しい」）。
+        // 戻った時の横位置と押したマスへの焦点は、移る前に預けておく
+        forecastSummary.capture();
+        pick(id, now, +dayMs);
       };
     }
     forecastSummary.restore();
@@ -5616,7 +5537,7 @@ function timeBandPhases(ev) {
   }
   return null;
 }
-function renderTwilight(ev, { inline = false, dayMs } = {}) {
+function renderTwilight(ev, { dayMs } = {}) {
   const t = { phases: timeBandPhases(ev) };
   if (!Array.isArray(t.phases) || !t.phases.some((p) => Number.isFinite(p.score))) return "";
   const time = (w) => (w ? forecastTimeRange(dayMs, w[0], w[1]) : "—");
@@ -5626,7 +5547,7 @@ function renderTwilight(ev, { inline = false, dayMs } = {}) {
       <span class="tw-time">${time(p.window)}</span><span class="tw-rank" style="color:${color}">${ok ? esc(S.phrasing(ev.phenomenon, r).label) : "—"}</span>
       <span class="tw-score">${ok ? Math.round(p.score) : "—"}</span><span class="tw-bar" aria-hidden="true"><i style="width:${ok ? Math.round(p.score) : 0}%;background:${color}"></i></span></li>`;
   }).join("");
-  return `${inline ? '<div class="forecast-selection-bands">' : '<div class="card twilight-card">'}<div class="tw-head">時間帯ごとの見込み</div><ol class="tw-list">${rows}</ol></div>`;
+  return `<div class="card twilight-card"><div class="tw-head">時間帯ごとの見込み</div><ol class="tw-list">${rows}</ol></div>`;
 }
 
 // 評価の言葉を主役、点数を従にする。

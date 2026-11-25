@@ -4,17 +4,17 @@
   "revision": 3,
   "baselineCommit": "1622f8d85ba58f29e1dfe0d81be738754239ba24",
   "productionSha256": {
-    "index.html": "978a5e6c0bf78643506a67ee6bd377c3dabafbab35a0c286bd67dfe742b53b09",
-    "app-version.txt": "9ec8fee918b8fcbd6b41af98889f0a42784b27872e28813e71c1a6564963057e",
-    "src/index.html": "ae5994c3e00358279d0d34940e4f60da1122f1a81eb4281980cf6d0c0812a99b",
+    "index.html": "bbf64c580d2fcaa3859d7ca25465753a2f99d928d21d5844ba3c4705e9ae74f9",
+    "app-version.txt": "edccdd9afc943a46ed46b2688cbc4afd96cc5850534bbc310a7794cf0e608904",
+    "src/index.html": "099922d7b1582086712c46d455479c575fa30683c7888d2bc855c6b9effaa02d",
     "src/features/aircraft/controller.js": "c73b1cb9f611ee2301e6c18e3eb549d8078a389956b34eacf88cf6d547ae4ed1",
-    "src/source-manifest.json": "7e3be084049eedd304956ac0362902a4acc13437e6f72ad2ca85570d2ac3fb77",
+    "src/source-manifest.json": "480d100c294f92141cc9b93398fd48fbf32896155ebbd13dbc0c79a50886d8ac",
     "astronotes-plane.js": "c70e7c896eb15cec8af79e491403a439a920698080145a5e6a6e520c07b473bb",
     "astronotes-routes.js": "ac032e07834c575e2ac63852b7e26bf74897d50a1999b933e34d4257e57daa8a",
     "astronotes-datetime-ui.css": "9549b314efddc645788c760ea1fe8316ba424e50f943b45ba3184fd420e3a791"
   },
   "overlaySha256": {
-    "src/index.html": "fd4d20b0f9f3b6a3ab8ac0138d2d027e7980de5fd701ee7d1ab346eb656cf11e",
+    "src/index.html": "62c88dcef973bad5388a100ac2f1a33b3339ca40ca78b3327a70292d5c3e21b1",
     "src/features/aircraft/controller.js": "350e3316e18aa6f40b0210e18c498a51a3a795ee7750950d695faccb615497b6",
     "astronotes-plane.js": "407e0e826fc7270bbbe3af55d6207b8d0b4bf67e66500137882290cbb1542e1f",
     "astronotes-routes.js": "c16943fe7e03d114132eef2db9a594913c72d4b5417522dac01aaa0aaf6fe925",
@@ -24,7 +24,7 @@
     "astronotes-plane.js": "407e0e826fc7270bbbe3af55d6207b8d0b4bf67e66500137882290cbb1542e1f",
     "astronotes-routes.js": "c16943fe7e03d114132eef2db9a594913c72d4b5417522dac01aaa0aaf6fe925",
     "astronotes-datetime-ui.css": "8d4714f564c8ea9bd687e9a16dcc8c4915513c2becdbf4550e012fd8a01ae32e",
-    "index.html": "bc44319c607fb2daa20a71f83da3331b381c9e109ef1801f4fd9d43199aa4a0e",
-    "app-version.txt": "68219e87fe1aaf9094e2812cc6e87993653111adfe6937913fb4a6ca691b6ce9"
+    "index.html": "bded0062995efd541017f8ca7ee541f1cba384b8b041a292329965a183d174f0",
+    "app-version.txt": "9ce27562678e0bfaf12fcb434f82e25d97519b4b669180f3eb34e5664fbc6aac"
   }
 }

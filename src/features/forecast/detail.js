@@ -636,7 +636,7 @@ function timeBandPhases(ev) {
   }
   return null;
 }
-function renderTwilight(ev, { inline = false, dayMs } = {}) {
+function renderTwilight(ev, { dayMs } = {}) {
   const t = { phases: timeBandPhases(ev) };
   if (!Array.isArray(t.phases) || !t.phases.some((p) => Number.isFinite(p.score))) return "";
   const time = (w) => (w ? forecastTimeRange(dayMs, w[0], w[1]) : "—");
@@ -646,7 +646,7 @@ function renderTwilight(ev, { inline = false, dayMs } = {}) {
       <span class="tw-time">${time(p.window)}</span><span class="tw-rank" style="color:${color}">${ok ? esc(S.phrasing(ev.phenomenon, r).label) : "—"}</span>
       <span class="tw-score">${ok ? Math.round(p.score) : "—"}</span><span class="tw-bar" aria-hidden="true"><i style="width:${ok ? Math.round(p.score) : 0}%;background:${color}"></i></span></li>`;
   }).join("");
-  return `${inline ? '<div class="forecast-selection-bands">' : '<div class="card twilight-card">'}<div class="tw-head">時間帯ごとの見込み</div><ol class="tw-list">${rows}</ol></div>`;
+  return `<div class="card twilight-card"><div class="tw-head">時間帯ごとの見込み</div><ol class="tw-list">${rows}</ol></div>`;
 }
 
 // 評価の言葉を主役、点数を従にする。
@@ -814,4 +814,4 @@ function renderTable(id, entries) {
     <th>降水</th><th>湿度</th><th>気温</th><th>視程</th></tr>${rows}</table></div>
     ${hasSunward ? `<p class="tiny">陽＝太陽の方向の雲</p>` : ""}</div>`;
 }
-export {renderBestNote,renderCapLine,renderDayDetail,renderDetailPane,renderLightTimes,renderMatrix,renderMoonTimes,renderSkeleton,renderTwilight,timeBandPhases};
+export {renderBestNote,renderCapLine,renderDayDetail,renderDetailPane,renderLightTimes,renderMatrix,renderMoonTimes,renderSkeleton};

@@ -111,10 +111,8 @@ async function verifyCalendarTimes(page,day,tag){
    const ev=weeks.starrySky.find(row=>row.dayMs===selected).evaluation;
    ev.window=[selected+start*3600000,selected+end*3600000];ev.peak=ev.window[0];ev.score=100;ev.rank=S.rankOf(100);render();
   },{selected,start,end});
-  await page.locator(`#cards .cell[data-cell="starrySky|${selected}"]`).click();
-  assert.equal(await page.locator('#forecastSelection .forecast-selection-time').innerText(),expected,'summary identifies the calendar day of each endpoint');
   assert((await page.locator('#bestNote').innerText()).includes(peakText),'highlight uses the same observing-day convention');
-  await page.locator('#forecastSelection .forecast-selection-open').click();
+  await page.locator(`#cards .cell[data-cell="starrySky|${selected}"]`).click();await page.locator('#detailView').waitFor({state:'visible'});
   assert((await page.locator('#dayDetail .head-row > .muted').innerText()).includes(expected.replace('–','〜')),'detail uses the same calendar-day range');
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'calendar labels do not overflow the detail');
   await page.screenshot({path:path.join(out,tag+'-'+name+'.png'),fullPage:true});
@@ -126,11 +124,12 @@ async function verifyCalendarTimes(page,day,tag){
   const ev=weeks.moon.find(row=>row.dayMs===selected).evaluation;
   ev.timeBands.phases[0].window=[selected+25*3600000,selected+28*3600000];render();
  },selected);
- await page.locator(`#cards .cell[data-cell="moon|${selected}"]`).click();
- assert.equal(await page.locator('#forecastSelection .tw-time').first().innerText(),'翌日 01:00–04:00');
- assert(await page.locator('#forecastSelection .tw-row').first().evaluate(row=>{
+ await page.locator(`#cards .cell[data-cell="moon|${selected}"]`).click();await page.locator('#detailView').waitFor({state:'visible'});
+ assert.equal(await page.locator('#dayDetail .tw-time').first().innerText(),'翌日 01:00–04:00');
+ assert(await page.locator('#dayDetail .tw-row').first().evaluate(row=>{
   const time=row.querySelector('.tw-time'),rank=row.querySelector('.tw-rank');return time.scrollWidth<=time.clientWidth+1&&time.getBoundingClientRect().right<=rank.getBoundingClientRect().left;
  }),'next-day time bands remain inside their column');
+ await page.locator('#backLink').click();
 }
 
 async function verifySortFocus(page){
@@ -187,15 +186,8 @@ async function verifySortFocus(page){
     assert.equal(await page.evaluate(()=>pickHighlight(weeks,Date.now()).id),'rainbow','fixture would recommend rainbow without the presentation filter');
     assert(await page.evaluate(()=>!!S.PHENOMENA.rainbow&&AstroNotesPrediction.IDS.includes('rainbow')&&weeks.rainbow.length===14),'metadata and accepted rainbow forecast remain complete');
     assert(await page.evaluate(()=>!!S.PHENOMENA.capCloud&&weeks.capCloud.length===14),'capCloud metadata and accepted forecast remain complete');
-    assert.equal(await page.locator('#forecastSelection').count(),0,'no second prediction until a cell is selected');
     const day=await page.evaluate(()=>forecastTest.day),target=day+10*86400000,selector=`#cards .cell[data-cell="sunset|${target}"]`;
-    await page.locator(selector).focus();const vertical=await page.evaluate(()=>scrollY);await page.locator(selector).press('Enter');assert.equal(await page.evaluate(()=>location.hash),'#/','keyboard selection stays on the matrix');
-    assert.equal(await page.evaluate(()=>scrollY),vertical,'selection does not scroll the comparison table');
-    if(width<640)assert(await page.locator('#forecastSelection').evaluate(n=>{const r=n.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight&&r.height<=innerHeight*.35;}),'mobile preview is immediately visible and compact');
-    assert.equal(await page.locator(selector).getAttribute('aria-pressed'),'true');
-    assert((await page.locator('#forecastSelection').innerText()).includes('夕焼け'));
-    assert.equal(await page.locator('#forecastSelection .tw-row').count(),2,'existing time-band rows reused');
-    assert.equal(await page.locator('#forecastSelection .card').count(),0,'no nested card chrome');
+    // 2026-11-25 ユーザー「1発で詳細に飛んで欲しい」: a cell opens its detail directly; there is no preview in between.
     const horizontal=await page.locator('#cards .mxscroll').evaluate(n=>{n.scrollLeft=Math.min(320,n.scrollWidth-n.clientWidth);return n.scrollLeft;});
     if(width<500)assert(horizontal>0,'mobile preservation uses a nonzero horizontal position');
     await page.evaluate(()=>{weeks.moon=Array.from({length:14},(_,i)=>forecastTest.make('moon',i));weeks.fuji=Array.from({length:14},(_,i)=>forecastTest.make('fuji',i));render();});
@@ -203,35 +195,30 @@ async function verifySortFocus(page){
     assert.equal(phenomena,9,'the other nine phenomena remain available');
     assert.equal(await page.locator('#cards [data-cell^="rainbow|"]').count(),0,'late arrivals do not revive the rainbow row');
     assert.equal(await page.locator('#cards [data-cell^="capCloud|"]').count(),0,'late arrivals do not revive the capCloud row');
-    assert.equal(await page.locator(selector).getAttribute('aria-pressed'),'true');assert(Math.abs(await page.locator('#cards .mxscroll').evaluate(n=>n.scrollLeft)-horizontal)<1,'late arrivals preserve horizontal position');
-    assert.equal(await page.evaluate(()=>document.activeElement.dataset.cell),'sunset|'+target,'late arrivals preserve keyboard focus');
+    assert(Math.abs(await page.locator('#cards .mxscroll').evaluate(n=>n.scrollLeft)-horizontal)<1,'late arrivals preserve horizontal position');
     await verifySortFocus(page);
-    assert.equal(await page.locator(selector).getAttribute('aria-pressed'),'true');assert(Math.abs(await page.locator('#cards .mxscroll').evaluate(n=>n.scrollLeft)-horizontal)<1,'sort preserves horizontal position');
-    await page.locator('#forecastSelection .forecast-selection-open').click();await page.locator('#detailView').waitFor({state:'visible'});assert.equal(await page.evaluate(()=>picked),'sunset');
+    assert(Math.abs(await page.locator('#cards .mxscroll').evaluate(n=>n.scrollLeft)-horizontal)<1,'sort preserves horizontal position');
+    await page.locator(selector).focus();await page.locator(selector).press('Enter');
+    await page.locator('#detailView').waitFor({state:'visible'});assert.equal(await page.evaluate(()=>picked),'sunset','one press opens the detail');
+    assert.equal(await page.locator('#forecastSelection').count(),0,'no preview in between');
     await page.locator('#backLink').click();await page.locator('#listView').waitFor({state:'visible'});
-    assert.equal(await page.locator(selector).getAttribute('aria-pressed'),'true');assert(Math.abs(await page.locator('#cards .mxscroll').evaluate(n=>n.scrollLeft)-horizontal)<1,'detail return preserves horizontal position');
-    await page.locator('#resultsTab').click();await page.locator('#answersView').waitFor({state:'visible'});await page.locator('#forecastTab').click();await page.locator('#listView').waitFor({state:'visible'});assert.equal(await page.locator(selector).getAttribute('aria-pressed'),'true');
+    assert(Math.abs(await page.locator('#cards .mxscroll').evaluate(n=>n.scrollLeft)-horizontal)<1,'detail return preserves horizontal position');
+    assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.cell),'sunset|'+target,'detail return focuses the pressed cell');
+    await page.locator('#resultsTab').click();await page.locator('#answersView').waitFor({state:'visible'});await page.locator('#forecastTab').click();await page.locator('#listView').waitFor({state:'visible'});
     assert(Math.abs(await page.locator('#cards .mxscroll').evaluate(n=>n.scrollLeft)-horizontal)<1,'tab return preserves horizontal position');
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'page does not overflow');
-    assert(await page.locator('#forecastSelection').evaluate(n=>{const r=n.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth;}),'summary fits');
     await page.screenshot({path:path.join(out,tag+'-summary.png'),fullPage:true});
     await page.screenshot({path:path.join(out,tag+'-viewport.png')});
-    await page.locator('#forecastSelection .forecast-selection-close').click();assert.equal(await page.locator('#forecastSelection').count(),0,'preview can be closed');assert.equal(await page.locator(selector).getAttribute('aria-pressed'),'false');
-    await page.locator(selector).press('Enter');assert.equal(await page.locator(selector).getAttribute('aria-pressed'),'true','keyboard can reopen the preview');
-    await page.evaluate(()=>{bundle=null;render();});assert.equal(await page.locator('#forecastSelection').count(),0,'waiting hides the old summary');
+    await page.evaluate(()=>{bundle=null;render();});
     assert.equal(await page.locator('#cards .mxrow').count(),phenomena,'loading skeleton uses the same nine phenomena');
     assert(!(await page.locator('#cards').innerText()).includes('虹'),'rainbow is absent while loading');
     assert(!(await page.locator('#cards').innerText()).includes('笠雲'),'capCloud is absent while loading');
-    await seed(page);assert.equal(await page.locator(selector).getAttribute('aria-pressed'),'true','same-place prediction restores selection');
-    assert(Math.abs(await page.locator('#cards .mxscroll').evaluate(n=>n.scrollLeft)-horizontal)<1,'same-place prediction restores horizontal position');
-    await page.locator(`#cards .cell[data-cell="starrySky|${day}"]`).click();assert((await page.locator('#forecastSelection').innerText()).includes('0'),'low scores remain selectable');
-    await page.evaluate(day=>{weeks.starrySky.find(x=>x.dayMs===day).evaluation.unavailable={message:'データ不足'};render();},day);assert((await page.locator('#forecastSelection').innerText()).includes('データ不足'),'selected missing data is explicit');
-    await page.evaluate(day=>{weeks.starrySky=weeks.starrySky.filter(x=>x.dayMs!==day);render();},day);assert.equal(await page.locator('#forecastSelection').count(),0,'expired selection is discarded');
-    await page.locator(selector).click();await page.evaluate(()=>{place={...place,latitude:35.7};bundle=null;weeks={};render();});assert.equal(await page.locator('#forecastSelection').count(),0,'new location waiting clears selection');
+    await seed(page);assert(Math.abs(await page.locator('#cards .mxscroll').evaluate(n=>n.scrollLeft)-horizontal)<1,'same-place prediction restores horizontal position');
+    await page.locator(`#cards .cell[data-cell="starrySky|${day}"]`).click();await page.locator('#detailView').waitFor({state:'visible'});assert.equal(await page.evaluate(()=>picked),'starrySky','low scores open their detail too');
+    await page.locator('#backLink').click();await page.locator('#listView').waitFor({state:'visible'});
+    await page.evaluate(()=>{place={...place,latitude:35.7};bundle=null;weeks={};render();});
     assert.equal(await page.locator('#cards .skel').count()>0,true,'loading matrix retained');
-    await seed(page);await page.locator(selector).click();await page.evaluate(()=>{for(const rows of Object.values(weeks))for(const row of rows)row.evaluation.unavailable={message:'データ不足'};render();});
-    assert((await page.locator('#forecastSelection').innerText()).includes('データ不足'),'all unavailable updates the selected summary');
-    assert.equal(await page.locator('#forecastSelection .forecast-selection-score').count(),0,'all unavailable never displays the previous score');
+    await seed(page);await page.evaluate(()=>{for(const rows of Object.values(weeks))for(const row of rows)row.evaluation.unavailable={message:'データ不足'};render();});
     assert((await page.locator('#bestNote').innerText()).includes('判断できる予測がありません'),'missing predictions are not a poor-sky forecast');
     assert(!(await page.locator('#bestNote').innerText()).includes('見に行くほど'),'missing data does not rule out a worthwhile sky');
     assert((await page.locator('#cards .mxout').innerText()).includes('データ不足'),'all unavailable retains the reasons in the list');
