@@ -297,6 +297,8 @@ function drawTarget(ctx,{project,width,height}){
  // 記録の地点: その日に実際に重なる地点は金の縁と最初の時刻
  const records=recordsFor(h);
  for(const p of recordPlaces()){const [x,y]=project(p.latitude,p.longitude);if(x<-20||y<-20||x>width+20||y>height+20)continue;const row=records?.find(r=>r.place.id===p.id),on=!!row?.windows?.length;
+  // 2026-11-26 ユーザー「ラインに重なるところだけ出して欲しい」: その日重なる地点と、いま選んでいる地点だけ描く
+  if(!on&&!(targetSel?.kind==='record'&&targetSel.place?.id===p.id))continue;
   if(on){ctx.beginPath();ctx.arc(x,y,11,0,Math.PI*2);ctx.strokeStyle=GOLD;ctx.lineWidth=2.5;ctx.stroke();labelAt(ctx,fmtAt(row.windows[0].from),x+14,y+1,GOLD,'left',11);}
   pinAt(ctx,x,y,RECORD_PIN,5.5);tapHits.push({kind:'record',x,y,place:p,row});}
  // 新しい地点（新規探索の結果）

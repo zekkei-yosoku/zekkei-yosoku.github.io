@@ -6,6 +6,7 @@ const {chromium,webkit}=require('playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const base=process.env.TARGET_MODE_BASE||'http://127.0.0.1:8992/trial/';
 const out=process.env.TARGET_MODE_OUT||'/tmp/astronotes-target-mode';
+let offChecked=0;
 const tools=['records','tower','diamond','pearl','skymap','multiscene'];
 const engines=(process.env.TARGET_MODE_ENGINES||'chrome,webkit').split(',');
 const widths=(process.env.TARGET_MODE_WIDTHS||'320,390').split(',').map(Number);
@@ -72,6 +73,10 @@ async function records(type,engine,width,theme,results){
    assert(Math.abs(near.windows[0].from-Math.ceil(expected/60000)*60000)<=60000,label+': 記録の重なりの始まり '+JSON.stringify({near,expected}));
    assert.match(await page.locator('#mapWsCardOverlap').innerText(),/^この日重なる記録の地点 1件（確認地点の記録 \d\d:\d\d）$/);
    await page.screenshot({path:`${out}/${label}-target.png`});
+   // 重ならない記録の地点（北の記録）はピンを出さない＝押しても選べない（2026-11-26 ユーザー「ラインに重なるところだけ」）
+   const offPin=await screenPoint(page,FAVORITES[1]);
+   if(offPin.inside){await page.mouse.click(offPin.x,offPin.y);await page.waitForTimeout(300);const picked=(await state(page)).selection;assert(!(picked?.kind==='record'&&picked.name==='北の記録'),label+': 重ならない記録の地点は出さない '+JSON.stringify(picked));
+    if(picked)await page.locator('#mapWsCardSecond').click();await page.waitForFunction(()=>!AstroNotesMapWorkspace.targetState().selection);offChecked++;}else console.log('SKIP off-pin outside',label);
    // 記録のピンをタップ→その地点のカード（重なる時間）→戻す。
    const pin=await screenPoint(page,FAVORITES[0]);
    if(pin.inside){await page.mouse.click(pin.x,pin.y);await page.waitForFunction(()=>AstroNotesMapWorkspace.targetState().selection?.kind==='record');
@@ -144,5 +149,6 @@ async function newPlaces(type,engine){
   for(const width of widths)for(const theme of themes)await records(type,engine,width,theme,results);
   await newPlaces(type,engine);results.push({label:engine+'-new-places'});
  }
+ assert(offChecked>0,'重ならない記録の地点を少なくとも1回は押して確かめた');
  console.log(JSON.stringify(results));
 })().catch(e=>{console.error(e);process.exit(1);});
