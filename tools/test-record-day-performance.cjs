@@ -7,7 +7,7 @@ const out=process.env.RECORD_DAY_OUT||'/tmp/astronotes-record-day-performance.js
 const grants=['records','tower','diamond','pearl','skymap','multiscene'],at=Date.parse('2026-11-25T00:00:00+09:00');
 async function fixture(browser,url){
  const c=await browser.newContext({locale:'ja-JP',timezoneId:'Asia/Tokyo',viewport:{width:390,height:900},reducedMotion:'reduce'});
- let writes=0;await c.addInitScript(grants=>{sessionStorage.setItem('sorami.token',JSON.stringify({token:'synthetic-day-perf',loginId:'daily-perf',tools:grants}));Date.now=()=>Date.parse('2026-11-06T09:02:00+09:00');},grants);
+ let writes=0;await c.addInitScript(grants=>{globalThis.AstroNotesOpportunityAir='off';/* 2026-11-26 段階③b: 1段目の速さの検査 */sessionStorage.setItem('sorami.token',JSON.stringify({token:'synthetic-day-perf',loginId:'daily-perf',tools:grants}));Date.now=()=>Date.parse('2026-11-06T09:02:00+09:00');},grants);
  await c.route('**/*',r=>{const u=new URL(r.request().url());if(u.origin===new URL(url).origin)return r.continue();if(/zekkei-api|localhost:8787/.test(u.origin)){if(!['GET','OPTIONS'].includes(r.request().method()))writes++;return r.fulfill({json:{allowed:true,tool:'skymap',loginId:'daily-perf',tools:grants,favorites:[],records:[],sightings:[],rev:1}});}return r.abort();});
  const page=await c.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(35000);
  await page.goto(url+'#/records');await page.waitForFunction(()=>typeof MyPlacesUI==='object'&&typeof SkyMapUI==='object');

@@ -3257,7 +3257,8 @@ function opportunityPairSet(signature,bodies){
 function opportunityRemember(job){
  if(!job?.scan||job.signature!==opportunitySignature())return;
  const {state}=job.scan;
- opportunityCache.set(job.key,job.remote?{remote:true,through:state.through}:{...state,rows:state.rows.slice(),pending:state.pending.slice(),failures:state.failures.slice()});
+ const air=job.verify?{key:job.verifyAir,verify:new Map(job.verify),airRows:job.airRows.slice(),probed:new Set(job.probed)}:null;
+ opportunityCache.set(job.key,job.remote?{remote:true,through:state.through,air}:{state:{...state,rows:state.rows.slice(),pending:state.pending.slice(),failures:state.failures.slice()},air});
  while(opportunityCache.size>4)opportunityCache.delete(opportunityCache.keys().next().value);
 }
 function opportunityCancel(clear=false){if(clear)opportunityClosePicker();if(!clear)opportunityRemember(opportunityJob);opportunityJob?.scan?.cancel?.();opportunityJob?.controller?.abort();opportunityEpoch.cancel();opportunityJob=null;if(clear){opportunityPairMemo=null;opportunityCache.clear();
@@ -3322,7 +3323,7 @@ function opportunityBuild(){
  scopeBack.setAttribute('aria-label','撮影地点へ戻る');scopeBack.onclick=()=>{const id=opportunityFilters.placeId;setNotebookTab('points');requestAnimationFrame(()=>document.querySelector(`[data-notebook-place="${CSS.escape(id)}"]`)?.scrollIntoView({block:'center'}));};
  scopeClear.setAttribute('aria-label','撮影地点の絞り込みを外す');scopeClear.onclick=()=>{opportunitySet({placeId:''});requestAnimationFrame(()=>el('recordOpportunityTarget')?.focus({preventScroll:true}));};scope.append(scopeBack,scopeName,scopeClear);
  const notice=opportunityNode('p',{id:'recordOpportunityNotice',className:'tiny'});notice.setAttribute('role','status');
- const modelNotice=opportunityNode('p',{id:'recordOpportunityModelNotice',className:'tiny',hidden:true},'軌道上の候補。大気差は見え方で確認');
+ const modelNotice=opportunityNode('p',{id:'recordOpportunityModelNotice',className:'tiny',hidden:true},'軌道で拾った候補を、大気差込みで確かめてから確定します');
  const status=opportunityNode('div',{id:'recordOpportunityStatus',className:'tiny'});status.setAttribute('role','status');
  const list=opportunityNode('div',{id:'recordOpportunityList'}),pending=opportunityNode('div',{id:'recordOpportunityPending'}),actions=opportunityNode('div',{className:'record-opportunity-actions'});
  const through=opportunityNode('p',{id:'recordOpportunityThrough',className:'tiny record-opportunity-through'});
@@ -3354,7 +3355,7 @@ function opportunityRenderRows(box,rows,job,confirmed){
  async function flushOpportunityRows(){
   try{while(current()&&job.rowRequest){const request=job.rowRequest;job.rowRequest=null;
    await AstroNotesCandidatePicker.renderRecorded(box,request.rows,null,{current,context:true,rowClass:'record-opportunity-row',rowId:r=>r.id,heightRows:job.pairs,
-    heading:r=>dayText(r.spatialWindow?.fromAt??r.event.at)+(request.confirmed.has(r)?'':'（確認中）'),select:r=>openOpportunity(r,job),
+    heading:r=>dayText(r.spatialWindow?.fromAt??r.event.at)+(request.confirmed.has(r)?'':job.verify?.get(r.id)?.state==='unknown'?'（大気差未確認）':'（確認中）'),select:r=>openOpportunity(r,job),
     // 地点の一覧では地点名・住所・種類は見出しで分かるので、行は「天体 × 対象」と時刻を主にする
     // 2026-11-25 仰角と通過する部位は1行にまとめて詰める（ユーザー「余白を詰めて」）
     decorate:button=>{const meta=button.querySelector('[data-candidate-meta]'),passage=button.querySelector('[data-candidate-passage]');if(meta&&passage&&passage.parentElement!==meta)meta.append(passage);
@@ -3372,17 +3373,119 @@ function opportunityProgress(job,s){
  if(job.remote){job.progressUi.update(s.checked,s.total);return;}
  const n=job.pairs.length;job.progressUi.update(Math.max(0,Math.min(n,s.index|0)),n,dayText(s.day)+'を確認中');
 }
+// 2026-11-26 trial（段階③b）: 2段の計算。1段目（サーバー/端末の軌道、大気差0）で拾った行を、その地点×対象×天体×記録の重ね方で
+// その日を大気込みの判定（discoverySearch＝見え方・探すと同じ）で確かめる。確かめる前は「確認中」、重なれば大気込みの時刻で確定、
+// 外れたら消す。大気差で日がずれる分は、軌道の行の前後の日も同じ判定で確かめて足す（足した行からさらに外へ最大3日）。
+// 利用者には選ばせない。
+const OPPORTUNITY_AIR_NEAR=2*3600000,OPPORTUNITY_AIR_DEPTH=3,opportunityAirMemo=new Map();
+const opportunityRowAt=r=>r.spatialWindow?.fromAt??r.event.at;
+// サーバーの行の pairId は端末の組の id と同じとは限らないので、地点・対象・天体・立ち位置でも引き当てる
+function opportunityAirPair(job,row){
+ if(row.airPairId)return job.pairs.find(p=>p.id===row.airPairId)||null;
+ const same=p=>p.sourcePlaceId===(row.sourcePlaceId??row.place?.id)&&p.target?.id===row.target?.id&&p.body===row.body;
+ const exact=job.pairs.find(p=>p.id===row.pairId);if(exact)return exact;
+ // 立ち位置が違う組が複数あるときは近いものだけ（50m以内）。決められなければ判定しない（未確認）
+ const near=job.pairs.filter(same).map(p=>[p,AstroNotesTerrain.distanceKm(p.place.latitude,p.place.longitude,row.place.latitude,row.place.longitude)+Math.abs((p.place.eyeHeightAGL??1.5)-(row.place.eyeHeightAGL??1.5))/1000]).sort((a,b)=>a[1]-b[1]);
+ return near.length===1||near[0]?.[1]<=.05?near[0][0]:null;
+}
+function opportunityAirReset(job){const key=AstroNotesAtmosphere.dataKey();if(job.verifyAir===key&&job.verify)return;job.verifyAir=key;job.verify=new Map();job.airRows=[];job.probed=new Set();job.airTries=new Map();}
+function opportunityVisibleRows(job){
+ const s=job.scan.state,v=job.verify;
+ return [...s.rows.filter(r=>v?.get(r.id)?.state!=='gone').map(r=>v?.get(r.id)?.row||r),...(job.airRows||[])].sort((a,b)=>opportunityRowAt(a)-opportunityRowAt(b));
+}
+function opportunityAirOwns(job,row){return job.scan.state.rows.includes(row)&&job.verify?.get(row.id)?.state!=='gone'||job.airRows?.includes(row)||[...(job.verify?.values()||[])].some(v=>v.row===row);}
+async function opportunityAirCheck(job,pair,day){
+ job.airSignature??=recordHash(job.signature);const memo=recordHash(JSON.stringify([job.airSignature,job.air,AstroNotesAtmosphere.dataKey(),store.get('sorami.aimHeights',{}),pair.id,day]));
+ if(opportunityAirMemo.has(memo))return opportunityAirMemo.get(memo);
+ const value=await opportunityAirSolve(job,pair,day);
+ if(value&&!value.cancelled){opportunityAirMemo.set(memo,value);while(opportunityAirMemo.size>600)opportunityAirMemo.delete(opportunityAirMemo.keys().next().value);}
+ return value;
+}
+async function opportunityAirSolve(job,pair,day){
+ const plan=AstroNotesShooting.conditions({target:pair.target,body:pair.body,partId:pair.partId??null,limb:pair.limb,matchMode:pair.matchMode,at:day});
+ if(!plan)return null;
+ const search=globalThis.MyPlacesUI?.discoverySearch||discoverySearch;
+ const r=await search({...plan,observer:null},[{place:pair.place,record:pair.record||{result:'seen'}}],()=>opportunityCurrent(job));
+ if(!r||r.cancelled)return {cancelled:true};
+ return r.failed?null:{rows:(r.rows||[]).filter(f=>Number.isFinite(f?.event?.at))};
+}
+// 見え方で開くときの重ね方は行の event から読むので、大気込みの event にも記録の重ね方を残す
+// 線・範囲の地点や高さの範囲では、大気込みの結果が自分の立ち位置を持つ。見え方はその立ち位置で開く
+function opportunityAirPlace(template,f){return f.place?{...template,...f.place,name:template?.name??f.place.name,id:template?.id??f.place.id}:template;}
+function opportunityAirEvent(pair,base,f){return {...f.event,partId:f.event.partId??base?.partId??pair.partId??null,limb:f.event.limb||base?.limb||pair.limb||'center',matchMode:f.event.matchMode||base?.matchMode||pair.matchMode||'overlap'};}
+function opportunityAirAdd(job,pair,template,found,depth,dir){
+ const own=[...job.scan.state.rows.filter(r=>job.verify.get(r.id)?.state!=='gone'&&opportunityAirPair(job,r)?.id===pair.id).map(r=>job.verify.get(r.id)?.row||r),...job.airRows.filter(r=>r.airPairId===pair.id)];
+ for(const f of found){
+  if(own.some(r=>Math.abs(r.event.at-f.event.at)<=OPPORTUNITY_AIR_NEAR))continue;
+  const row={...template,id:JSON.stringify([pair.id,f.event.at,'air']),place:opportunityAirPlace(template.place,f),event:opportunityAirEvent(pair,template.event,f),spatialWindow:f.spatialWindow,heightSearch:f.heightSearch??template.heightSearch,airOnly:true,airPairId:pair.id,airDepth:depth,airDir:dir};
+  job.airRows.push(row);own.push(row);
+ }
+}
+function opportunityAirTask(job){
+ const s=job.scan.state,day=at=>AstroNotesShooting.day(at);
+ const row=s.rows.find(r=>!job.verify.has(r.id));
+ if(row)return {row};
+ const inRange=d=>d>=job.start&&d<s.through;
+ const probe=(r,pairId,dir,depth)=>{const d=day(r.event.at)+dir*86400000,key=pairId+'|'+d;if(job.probed.has(key)||!inRange(d))return null;
+  if(s.rows.some(x=>day(x.event.at)===d&&opportunityAirPair(job,x)?.id===pairId))return null;return {probe:{pairId,template:r,day:d,dir,depth,key}};};
+ for(const r of s.rows){const v=job.verify.get(r.id),pair=opportunityAirPair(job,r);if(v?.state==='unknown'||!pair)continue;for(const dir of [-1,1]){const t=probe(v.row||r,pair.id,dir,1);if(t)return t;}}
+ for(const r of job.airRows){if(r.airDepth>=OPPORTUNITY_AIR_DEPTH)continue;const t=probe(r,r.airPairId,r.airDir,r.airDepth+1);if(t)return t;}
+ return null;
+}
+// 2段目で減った分も、1段目と同じく31日分までは自動で先へ進める（全部外れても見つかるまで）
+function opportunityAirExtend(job){
+ const st=job.scan.state;if(!st.done||st.running||st.error||st.failures.length||!job.pairs.length||st.through>=aimCandidateSearchEnd())return;
+ // 1段目より先へは31日分まで（大気込みで系統的に外れる組で、検索の終わりまで判定を続けない）
+ const n=opportunityVisibleRows(job).length;if(n>=opportunityPageRows||st.through>=job.start+31*DAY)return;
+ if(job.scan.extend(opportunityPageEnd(st.through),opportunityPageRows)){job.autoMore=true;void opportunityAdvance(job);}
+}
+// 見え方から戻った時などは、確かめた結果も一緒に戻す（全行が確認中に戻ってスクロールの位置がずれないように）
+function opportunityAirRestore(job,air){if(!air||air.key!==AstroNotesAtmosphere.dataKey())return;Object.assign(job,{verifyAir:air.key,verify:new Map(air.verify),airRows:air.airRows.slice(),probed:new Set(air.probed),airTries:new Map()});}
+function opportunityVerify(job){
+ if(job.verifying||!opportunityCurrent(job))return;
+ opportunityAirReset(job);
+ const task=opportunityAirTask(job);if(!task){opportunityAirExtend(job);return;}
+ job.verifying=true;
+ void (async()=>{
+  let retry=false;
+  try{
+   if(task.row){
+    const row=task.row,pair=opportunityAirPair(job,row);
+    if(!pair){job.verify.set(row.id,{state:'unknown'});return;}
+    const r=await opportunityAirCheck(job,pair,AstroNotesShooting.day(row.event.at));if(r?.cancelled||!opportunityCurrent(job)){retry=true;return;}
+    if(!r){job.verify.set(row.id,{state:'unknown'});return;}
+    const near=r.rows.filter(f=>Math.abs(f.event.at-row.event.at)<=OPPORTUNITY_AIR_NEAR).sort((a,b)=>Math.abs(a.event.at-row.event.at)-Math.abs(b.event.at-row.event.at))[0];
+    job.verify.set(row.id,near?{state:'ok',row:{...row,place:opportunityAirPlace(row.place,near),event:opportunityAirEvent(pair,row.event,near),spatialWindow:near.spatialWindow??row.spatialWindow,heightSearch:near.heightSearch??row.heightSearch}}:{state:'gone'});
+    opportunityAirAdd(job,pair,row,r.rows,0,0);
+   }else{
+    const t=task.probe,pair=job.pairs.find(p=>p.id===t.pairId);if(!pair){job.probed.add(t.key);return;}
+    const r=await opportunityAirCheck(job,pair,t.day);if(r?.cancelled||!opportunityCurrent(job)){retry=true;return;}
+    job.probed.add(t.key);if(r)opportunityAirAdd(job,pair,t.template,r.rows,t.depth,t.dir);
+   }
+  }catch(error){if(task.row)job.verify.set(task.row.id,{state:'unknown'});else job.probed.add(task.probe.key);globalThis.AstroNotesErrors?.note('records.opportunity-air',error);}
+  finally{
+   job.verifying=false;
+   // 中止された判定は数回までだけやり直す（同じ行で回り続けない）
+   const key=task.row?task.row.id:task.probe.key,tries=retry?(job.airTries.get(key)||0)+1:0;if(retry)job.airTries.set(key,tries);
+   if(tries>3){if(task.row&&!job.verify.has(key))job.verify.set(key,{state:'unknown'});if(task.probe)job.probed.add(key);}
+   if(opportunityCurrent(job)){job.verifyRev=(job.verifyRev||0)+1;opportunityDraw(job);}
+  }
+ })();
+}
 // Confirmed and pending rows commit together. A fast scan queues only the newest
 // projection while one render completes; progress cannot repeatedly cancel it.
 function opportunityDraw(job){
  if(!opportunityCurrent(job)||!opportunityDom)return;
- const d=opportunityDom,s=job.scan.state,rows=s.rows;
+ const d=opportunityDom,s=job.scan.state;
+ // 検査で一覧の仕組みだけを確かめる時は2段目を止める（'off'）。利用者の切替ではない
+ const air=globalThis.AstroNotesOpportunityAir!=='off';if(air)opportunityVerify(job);
+ const rows=air?opportunityVisibleRows(job):s.rows,drawn=s.rows.length+'|'+(air?job.verifyRev||0:'off');
  d.modelNotice.hidden=false;
- d.host.setAttribute('aria-busy',String(s.running&&!s.done||!!job.rendering||!!job.autoMore));
+ d.host.setAttribute('aria-busy',String(s.running&&!s.done||!!job.rendering||!!job.autoMore||!!job.verifying));
  if(d.rendered<0){d.list.replaceChildren();d.rendered=0;d.lastDay=null;}
  const pending=!s.done&&!job.remote?s.pending||[]:[];
- if(d.rendered!==s.rows.length||job.pendingDrawn!==pending.length){d.rendered=s.rows.length;job.pendingDrawn=pending.length;
-  opportunityRenderRows(d.list,[...s.rows,...pending],job,new Set(s.rows));}
+ if(d.rendered!==drawn||job.pendingDrawn!==pending.length){d.rendered=drawn;job.pendingDrawn=pending.length;
+  opportunityRenderRows(d.list,[...rows,...pending],job,new Set(air?rows.filter(r=>r.airOnly||job.verify?.get(r.id)?.state==='ok'):rows));}
  const failures=s.failures.length+job.unavailable;
  d.notice.textContent=opportunityNotice;
  if(s.error){job.progressUi=null;d.status.textContent=s.error.message||'サーバーに接続できません。再試行してください。';}
@@ -3459,7 +3562,7 @@ async function opportunityStart(job,end,retryEnd){
   // signature. Rebuild pair metadata before accepting any server results.
   if(job.signature!==opportunitySignature()){opportunityCancel();renderOpportunities(retryEnd);return;}
   job.remote=prefs.enabled;job.air=opportunityAirKey(job.remote);
-  if(job.remote){const cached=opportunityCache.get(job.key);if(cached?.remote){job.restoreThrough=cached.through;opportunityCache.delete(job.key);
+  if(job.remote){const cached=opportunityCache.get(job.key);if(cached?.remote){job.restoreThrough=cached.through;opportunityAirRestore(job,cached.air);opportunityCache.delete(job.key);
   }job.scan=createServerOpportunityScan({api:(...args)=>apiTransport(...args),start:job.start,end,bodies:opportunityFilters.bodies.slice(),placeIds:opportunityFilters.placeId?[opportunityFilters.placeId]:opportunityFilters.allPlaces?null:opportunityFilters.places.slice(),
   targetIds:opportunityFilters.allTargets?null:opportunityFilters.targets.slice(),sourceRev:prefs.sourceRev,isCurrent:()=>opportunityCurrent(job),
   onStart:()=>opportunityDraw(job),onDay:()=>opportunityDraw(job),onProgress:()=>opportunityDraw(job)});}
@@ -3467,7 +3570,7 @@ async function opportunityStart(job,end,retryEnd){
    const solve=(pair,day,isCurrent)=>opportunityDeviceSolve(pair,day,{isCurrent});
    job.scan=createOpportunityScan({pairs:job.pairs,start:job.start,end,notBefore:job.start,pageRows:Number.isFinite(retryEnd)?Infinity:opportunityPageRows,solve,ahead:()=>opportunityEngineSlots()*2,isCurrent:()=>opportunityCurrent(job),yieldTask:recordSearchYield,onStart:()=>opportunityDraw(job),
    onDay:()=>opportunityDraw(job),onProgress:s=>{if(!opportunityCurrent(job))return;opportunityProgress(job,s);if(s.pending.length!==job.pendingDrawn)opportunityDraw(job);}});
-   const cached=opportunityCache.get(job.key);if(cached){opportunityCache.delete(job.key);Object.assign(job.scan.state,cached,{running:false,cancelled:false});opportunityDraw(job);}
+   const cached=opportunityCache.get(job.key);if(cached?.state){opportunityCache.delete(job.key);Object.assign(job.scan.state,cached.state,{running:false,cancelled:false});opportunityAirRestore(job,cached.air);opportunityDraw(job);}
   }
   if(!job.scan.state.done)void opportunityAdvance(job);
  }catch(error){
@@ -3494,7 +3597,7 @@ function openOpportunityList(placeId='',bodies=null,{targets=null,date=null}={})
  requestAnimationFrame(()=>{el('recordOpportunities')?.scrollIntoView({block:'start'});el(placeId?'recordOpportunityScopeClear':'recordOpportunityTarget')?.focus({preventScroll:true});});
 }
 async function openOpportunity(row,job){
- if(!opportunityCurrent(job)){renderOpportunities();return;}if(!job.scan.state.rows.includes(row)&&!job.scan.state.pending?.includes(row)||!AstroNotesAccess.canFrame(toolAllowed,row.target.id,row.body))return;
+ if(!opportunityCurrent(job)){renderOpportunities();return;}if(!opportunityAirOwns(job,row)&&!job.scan.state.pending?.includes(row)||!AstroNotesAccess.canFrame(toolAllowed,row.target.id,row.body))return;
  opportunityNotice='';const ticket=opportunityOpenSeq.next(),owner=auth?.token,loginId=auth?.loginId,generation=accessState.generation,signature=job.signature,top=scrollY;
  try{
   await AstroNotesAssets.ensureModels();

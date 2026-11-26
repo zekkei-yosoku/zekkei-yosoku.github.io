@@ -9,7 +9,7 @@ async function listFor(type,mode){
  const browser=await type.launch(type===chromium?{channel:'chrome',headless:true}:{headless:true});
  try{
   const context=await browser.newContext({viewport:{width:390,height:900},locale:'ja-JP',timezoneId:'Asia/Tokyo'});
-  await context.addInitScript(({grants,mode})=>{
+  await context.addInitScript(({grants,mode})=>{globalThis.AstroNotesOpportunityAir='off';/* 2026-11-26 段階③b: 1段目（計算本体）の検査 */
    if(mode==='frame')globalThis.AstroNotesOverlapEngine='frame';
    sessionStorage.setItem('sorami.token',JSON.stringify({token:'synthetic-workers',loginId:'workers-test',tools:grants}));
    Date.now=()=>Date.parse('2026-12-20T09:00:00+09:00');
