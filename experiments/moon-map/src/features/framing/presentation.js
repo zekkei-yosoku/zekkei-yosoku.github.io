@@ -270,7 +270,12 @@ document.getElementById('skyMapBody').hidden=true;   // 地図の欄の CSS が 
  skySource.after(skyButton);
  // 複数選択は既存の複数モードを使う。先頭が主の対象。地図で置いた対象も外せるよう一覧に出す。
  const openSkyTargets=()=>{
-  const current=SkyMapUI?.selectionState?.()?.target,placed=current?.id==='custom'?[current]:[],choices=()=>[...placed,...aimTargetList().filter(t=>t.id!=='custom'&&(t.parts||[]).length)];
+  const current=SkyMapUI?.selectionState?.()?.target;
+  const choices=()=>{
+   // 地図で置いた対象は「重ねる対象」から外れても、追加対象として一覧に出す。
+   const placed=SkyMapUI?.workspaceHost?.()?.session.customTarget;
+   return [...(placed?[placed]:[]),...aimTargetList().filter(t=>t.id!=='custom'&&(t.parts||[]).length)];
+  };
   const selected=current?[current,...aimSceneExtraTargets(current.id)]:[];
   AstroTargetPicker.open(skySource,null,skyButton,{multiple:true,selected,getTargets:choices,keepCustom:true,doneLabel:'選択を適用',onDone:(targets,drafts)=>{
    for(const draft of drafts)persistTargetDraft(draft);if(drafts.length){aimFillSelects();SkyMapUI?.refreshTargets?.();}

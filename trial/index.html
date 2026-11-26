@@ -15,8 +15,8 @@
 <meta name="shape-tower" content="astronotes-tower-models.js?v=18096173220502742430">
 <meta name="shape-surface-integrity" content="sha256-KIoZP+4Nov6SYNEncGT6DRAzPZrVahtxa7scLtTCLcM=">
 <meta name="shape-surface" content="astronotes-scene-hulls.js?v=2921175070670693118">
-<meta name="app-version" content="4588095710267341268">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-56jmg3BuQK9ZbzaCr6EG5R+se0UIaJmcbxe0qnaV8D0=' 'sha256-XnkxL+31Hx09oZeO9sriA/FwZyogJfEg5OgDo5tTME0=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-MwjLJGQctfBxp1v+vOf/ApBArVEWBg1U1CwwDEWOdNI=' 'sha256-o8qxPJ2Rfhldd8+nmFPf9eYEPcQKKO5R3Z8LbO3wDfA=' 'sha256-xUHcPrfThiXMWYxWC4w097e26IcB59pQGoU+Ky/dimM=' 'sha256-MlImf4r72iuD0e8czwNHoZkcTUQ1hXPUyyT2NAAhaqw=' 'sha256-OJlkVP9hufrghSR3MJ27wX9WVke/fnQnW0IaBWJlsM8=' 'sha256-PXfRim6e5oUuXkRxfWkVR4w8BPzm/BAMc94/yPcXf0M=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://data.source.coop https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787 https://api.openstreetmap.org; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="16173552338088961840">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-56jmg3BuQK9ZbzaCr6EG5R+se0UIaJmcbxe0qnaV8D0=' 'sha256-XnkxL+31Hx09oZeO9sriA/FwZyogJfEg5OgDo5tTME0=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-MwjLJGQctfBxp1v+vOf/ApBArVEWBg1U1CwwDEWOdNI=' 'sha256-o8qxPJ2Rfhldd8+nmFPf9eYEPcQKKO5R3Z8LbO3wDfA=' 'sha256-O3f5rX1LV/jmUxj5kVbo0MK9GMAMfOfGBZ+CjYLy0G8=' 'sha256-MlImf4r72iuD0e8czwNHoZkcTUQ1hXPUyyT2NAAhaqw=' 'sha256-OJlkVP9hufrghSR3MJ27wX9WVke/fnQnW0IaBWJlsM8=' 'sha256-PXfRim6e5oUuXkRxfWkVR4w8BPzm/BAMc94/yPcXf0M=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://data.source.coop https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787 https://api.openstreetmap.org; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=17512682572335991690">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -16017,7 +16017,12 @@ document.getElementById('skyMapBody').hidden=true;   // 地図の欄の CSS が 
  skySource.after(skyButton);
  // 複数選択は既存の複数モードを使う。先頭が主の対象。地図で置いた対象も外せるよう一覧に出す。
  const openSkyTargets=()=>{
-  const current=SkyMapUI?.selectionState?.()?.target,placed=current?.id==='custom'?[current]:[],choices=()=>[...placed,...aimTargetList().filter(t=>t.id!=='custom'&&(t.parts||[]).length)];
+  const current=SkyMapUI?.selectionState?.()?.target;
+  const choices=()=>{
+   // 地図で置いた対象は「重ねる対象」から外れても、追加対象として一覧に出す。
+   const placed=SkyMapUI?.workspaceHost?.()?.session.customTarget;
+   return [...(placed?[placed]:[]),...aimTargetList().filter(t=>t.id!=='custom'&&(t.parts||[]).length)];
+  };
   const selected=current?[current,...aimSceneExtraTargets(current.id)]:[];
   AstroTargetPicker.open(skySource,null,skyButton,{multiple:true,selected,getTargets:choices,keepCustom:true,doneLabel:'選択を適用',onDone:(targets,drafts)=>{
    for(const draft of drafts)persistTargetDraft(draft);if(drafts.length){aimFillSelects();SkyMapUI?.refreshTargets?.();}

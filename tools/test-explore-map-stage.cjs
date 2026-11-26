@@ -30,6 +30,58 @@ async function open(browser,width,theme){
  return {context,page,errors};
 }
 
+async function deselectPlacedTarget(browser,engine){
+ const {context,page,errors}=await open(browser,390,'dark');
+ try{
+  const targetDialog=page.locator('#previewTargetDialog[open]');
+  const row=id=>targetDialog.locator(`[data-target-key="${id}"]`);
+  const openTargets=async()=>{await page.locator('#skyMapTargetOpen').click();await targetDialog.waitFor();};
+  const apply=async()=>{await targetDialog.getByRole('button',{name:'選択を適用'}).click();await targetDialog.waitFor({state:'hidden'});};
+  const members=()=>page.evaluate(()=>AstroNotesTrialOverlap.members().map(t=>t.id));
+  await page.evaluate(()=>{
+   AstroNotesTerrain.groundElevation=async()=>30;
+   SkyMapUI.workspaceHost().map.setCenter(35.653,139.683);
+  });
+  await page.locator('#skyMapTargetTool').click();
+  await page.waitForFunction(()=>SkyMapUI.selectionState()?.target?.id==='custom');
+  await page.locator('#mapWsTitle').click();
+  await openTargets();
+  assert.equal(await row('custom').getAttribute('aria-checked'),'true');
+  await row('skytree').click();
+  await apply();
+  await page.locator('#skyMapOverlapTarget').selectOption('skytree');
+  assert.deepEqual(await members(),['skytree','custom']);
+  await openTargets();
+  assert.equal(await row('custom').getAttribute('aria-checked',{timeout:2000}),'true',engine+': 追加対象にした地図の対象も解除できる');
+  await row('custom').click();
+  await targetDialog.getByRole('button',{name:'戻る',exact:true}).click();
+  await targetDialog.waitFor({state:'hidden'});
+  assert.deepEqual(await members(),['skytree','custom']);
+  await openTargets();
+  await row('custom').click();
+  assert.equal(await row('custom').getAttribute('aria-checked'),'false');
+  await apply();
+  assert.deepEqual(await members(),['skytree']);
+  assert.match(await page.locator('#skyMapTargetOpen').innerText(),/^東京スカイツリー$/);
+  assert(await page.locator('#skyMapOverlapField').isHidden());
+  await page.locator('#mapWsTitle').click();
+  await page.locator('#mapWsCardView').click();
+  await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='preview');
+  assert.deepEqual(await members(),['skytree']);
+  await page.locator('#exploreBackToCandidates').click();
+  assert.equal(await stage(page),'map');
+  assert.deepEqual(await members(),['skytree']);
+  await page.reload();
+  await page.waitForFunction(()=>document.getElementById('skyMapView').classList.contains('map-ws')&&SkyMapUI.selectionState()?.target?.id==='skytree');
+  assert.deepEqual(await members(),['skytree']);
+  await page.locator('#mapWsTitle').click();
+  await openTargets();
+  assert.equal(await row('custom').getAttribute('aria-checked'),'false');
+  await targetDialog.getByRole('button',{name:'戻る',exact:true}).click();
+  assert.deepEqual(errors,[],engine+': page errors');
+ }finally{await context.close();}
+}
+
 // 時刻の点と目標方位の通過は、どれも出→最高点→入を通る1つの円の上にある。
 async function arcResidual(page){
  return page.evaluate(()=>{const p=AstroNotesMapWorkspace.hits().map(h=>[h.x,h.y]);if(p.length<4)return {count:p.length,residual:Infinity};
@@ -77,6 +129,7 @@ async function reopenKeepsSearch(type,engine){
  for(const [engine,type] of [['chrome',chromium],['webkit',webkit]].filter(([name])=>engines.includes(name))){
   const browser=await type.launch(engine==='chrome'?{channel:'chrome',headless:true}:{headless:true});
   try{
+   await deselectPlacedTarget(browser,engine);
    for(const width of widths)for(const theme of themes){
     const label=`${engine}-${width}-${theme}`,{context,page,errors}=await open(browser,width,theme);
     try{
