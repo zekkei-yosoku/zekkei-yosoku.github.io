@@ -105,6 +105,7 @@ ctx.lineWidth=1;
    mapLabel(ctx,q[0],q[1]-25,t.name,'#fff',width,height,'center');
   }
   workspace?.overlay(ctx,x,y,r);
+  if(workspace)globalThis.AstroNotesMapWorkspace.drawObsRecords?.(ctx,{project,width,height});
   if(workspace)workspace.center(ctx,x,y);else{
   ctx.lineWidth=3;ctx.strokeStyle='#111';ctx.beginPath();ctx.moveTo(x-8,y);ctx.lineTo(x-2,y);ctx.moveTo(x+2,y);ctx.lineTo(x+8,y);ctx.moveTo(x,y-8);ctx.lineTo(x,y-2);ctx.moveTo(x,y+2);ctx.lineTo(x,y+8);ctx.stroke();ctx.lineWidth=1;ctx.strokeStyle='#fff';ctx.stroke();ctx.beginPath();
   ctx.arc(x,y,1,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();mapLabel(ctx,x,y+20,pickMode==='target'?'対象':'撮影地点','#fff',width,height,'center');

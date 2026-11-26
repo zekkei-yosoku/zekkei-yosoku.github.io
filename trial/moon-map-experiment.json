@@ -33,8 +33,8 @@
     "src/features/framing/scene/render.js": "6af9fe3e6225565942c09668056549f68966838befb548d7a2ab93848a677ed9",
     "src/features/framing/presentation.js": "2a024011759988117a5b7d29747448fce46c6c9aca23a9429f618296ef4f974a",
     "src/features/explore/controller.js": "fbf49ca680e64cc4cdac5c20c5feae2ed9e034d06e43c370ecebaab33a9fd3c2",
-    "src/features/explore/map-presentation.js": "2abf8b8aff87bb6f993fd229b1ed9d189209895b979303091496c13a82e936d3",
-    "astronotes-map-workspace.js": "bba3bbbd0dcb50347b882a2c1c6cd595bdc9fde6f98d6a7328cb0eb7e2a29bba",
+    "src/features/explore/map-presentation.js": "0ab302dd79ade03419fdba990d32ef6cb06e09716d23c3ab4ae41d5f448833ad",
+    "astronotes-map-workspace.js": "b5f5abb657c777796b7f7496311994ac81a1a35f78bcdecf160e29073d11f466",
     "astronotes-map-workspace.css": "36a9057471f70b8de10a290010e42184816b52f9367f788538cdd5628acc2c50",
     "src/features/candidates/ui.js": "8ec43f27e103e7de9f72b7056459cee4d35e39570458205b53fe9e2739b3cd83",
     "src/features/candidates/generic-search.js": "c9396484cc7caf42952202922e597f10c2b1de2ac3a0f2d5633a6ec0ac1e0e04"
@@ -44,11 +44,11 @@
     "astronotes-routes.js": "fc099255874d597c8ee2146d8ac611cb5f3613c20c6621d223be6422365bb000",
     "astronotes-datetime-ui.css": "8d4714f564c8ea9bd687e9a16dcc8c4915513c2becdbf4550e012fd8a01ae32e",
     "astronotes-myplaces.js": "f2617b8916fb2e285e119bdb117c95c37d612ee5282b7ccf711c60d08bf2ba0b",
-    "astronotes-map-workspace.js": "bba3bbbd0dcb50347b882a2c1c6cd595bdc9fde6f98d6a7328cb0eb7e2a29bba",
+    "astronotes-map-workspace.js": "b5f5abb657c777796b7f7496311994ac81a1a35f78bcdecf160e29073d11f466",
     "astronotes-map-workspace.css": "36a9057471f70b8de10a290010e42184816b52f9367f788538cdd5628acc2c50",
     "astronotes-explore-simple.js": "66487453c7d302d85a7fe1bbd443253ca5de44644f8d099fb648f4fb6135b49d",
     "astronotes-candidate-search.js": "3344929afd867c498948896b8354df6b37b722cf19ffc206d7ebae30b4867aee",
-    "index.html": "f8844995c0e38c702baf24afbea45b835c3139a013d5c118d53aacaae63a21dc",
-    "app-version.txt": "166abefb34585843fa7fac5fce784069c5fa6920eefc22427e4baa33e36e9cab"
+    "index.html": "341dcffbea1ef80f039a5f9e093dc809de2838a1facc11d03dc48062ca91e563",
+    "app-version.txt": "b9c896a3c034acf9f31327b14aa5f34013082d7adbe86cf78910eefe77984745"
   }
 }
