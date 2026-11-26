@@ -160,7 +160,7 @@ html:has(#skyMapView[data-explore-sheet].map-ws:not([hidden])),body:has(#skyMapV
 #skyMapView[data-map-center=target].map-ws .sky-map-footer .sky-map-candidates{display:none!important}
 /* 下部シートの間は中心の切替を出さない（探している範囲が変わってしまうため） */
 #skyMapView[data-explore-sheet].map-ws .map-ws-mode{display:none!important}
-.map-ws-card-view[disabled]{opacity:.55;cursor:default}
+.map-ws-card-view[disabled],#mapWsCardSecond[disabled]{opacity:.55;cursor:default}
 /* 2026-11-26: 条件帯をその場で展開する。帯の直下に条件だけを地図へ重ね、下部（日時バー）は見えたまま */
 #skyMapView[data-explore-stage=map][data-explore-dropdown].map-ws #exploreConditions{display:block!important;position:fixed;z-index:38;top:var(--ws-top);left:max(6px,env(safe-area-inset-left));right:max(6px,env(safe-area-inset-right));max-width:640px;margin:0 auto;max-height:calc(100dvh - var(--ws-top) - var(--ws-footer-h,160px) - 10px);overflow:auto;overscroll-behavior:contain;box-sizing:border-box;border:1px solid var(--line);border-top:0;border-radius:0 0 16px 16px;background:var(--card);box-shadow:0 10px 28px #0006}
 #skyMapView[data-explore-dropdown].map-ws #exploreConditions>summary,#skyMapView[data-explore-dropdown].map-ws #exploreConditions :is(#exploreSearchHeading,#exploreShowResult,#candidateWorkspaceAction){display:none!important}

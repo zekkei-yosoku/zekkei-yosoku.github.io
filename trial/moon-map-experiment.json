@@ -35,7 +35,7 @@
     "src/features/explore/controller.js": "fbf49ca680e64cc4cdac5c20c5feae2ed9e034d06e43c370ecebaab33a9fd3c2",
     "src/features/explore/map-presentation.js": "2abf8b8aff87bb6f993fd229b1ed9d189209895b979303091496c13a82e936d3",
     "astronotes-map-workspace.js": "a6f0ad9df7cc2f6cf0ef24f53328154ffc4eaacb7d2639ec294cbd7f15599bf5",
-    "astronotes-map-workspace.css": "e3cf45d7854b867b54d4d2a9dafdf4d1e2693faffb2221ce12a4b7597b9dea5e",
+    "astronotes-map-workspace.css": "36a9057471f70b8de10a290010e42184816b52f9367f788538cdd5628acc2c50",
     "src/features/candidates/ui.js": "8ec43f27e103e7de9f72b7056459cee4d35e39570458205b53fe9e2739b3cd83",
     "src/features/candidates/generic-search.js": "c9396484cc7caf42952202922e597f10c2b1de2ac3a0f2d5633a6ec0ac1e0e04"
   },
@@ -45,10 +45,10 @@
     "astronotes-datetime-ui.css": "8d4714f564c8ea9bd687e9a16dcc8c4915513c2becdbf4550e012fd8a01ae32e",
     "astronotes-myplaces.js": "c4c4c90d992c33608a9684530ece5f90aeb55471ad4f5be38af8786caf7a1315",
     "astronotes-map-workspace.js": "a6f0ad9df7cc2f6cf0ef24f53328154ffc4eaacb7d2639ec294cbd7f15599bf5",
-    "astronotes-map-workspace.css": "e3cf45d7854b867b54d4d2a9dafdf4d1e2693faffb2221ce12a4b7597b9dea5e",
+    "astronotes-map-workspace.css": "36a9057471f70b8de10a290010e42184816b52f9367f788538cdd5628acc2c50",
     "astronotes-explore-simple.js": "66487453c7d302d85a7fe1bbd443253ca5de44644f8d099fb648f4fb6135b49d",
     "astronotes-candidate-search.js": "3344929afd867c498948896b8354df6b37b722cf19ffc206d7ebae30b4867aee",
-    "index.html": "ba02d47df55730976bafa8a2df471892cc004ef8a0efa39a5eaaf3d9275c9530",
-    "app-version.txt": "529bb31430b9cc2cf9385c27814bfee8854333533a56ff6c745b06e88ee65b0a"
+    "index.html": "52ac75555e600baf9e0bb11f74ed552a2aa8c98c57400ae358b0e4e0ca1c0718",
+    "app-version.txt": "8c7740a40d5315f1be343f94565e5a1c57c584be4c8f5dc9bb0437cadeb707a8"
   }
 }
