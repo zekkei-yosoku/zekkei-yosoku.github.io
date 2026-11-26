@@ -1,4 +1,4 @@
-// 2026-11-26 trial 探すの全画面地図（段階①）の受入: 探すは地図が既定、条件帯→撮影条件ポップアップ→地図へ、
+// 2026-11-26 trial 探すの全画面地図（段階①）の受入: 探すは地図が既定、条件帯→その場で展開（撮影地点を探す→下部シート）、
 // カードに実際に重なる時間、選んだ天体だけ・軌道は3点円弧、見え方は来た所へ戻る。
 require('./no-open-meteo.cjs');
 const {chromium,webkit}=require('playwright');
@@ -38,7 +38,8 @@ async function arcResidual(page){
   return {count:p.length,residual:Math.max(...p.map(q=>Math.abs(Math.hypot(q[0]-ux,q[1]-uy)-R)))};});
 }
 
-// 撮影条件のポップアップを閉じて開き直す: 探し終えた候補は残り、探している途中なら止めたと伝える。
+// 撮影地点を探すのシートを閉じて開き直す: 探し終えた候補は残る。探している途中で閉じると、その検索は止まり、開き直すと
+// 止めた旨（0件）か、既存の続き探索で残った途中の候補（または閉じる直前に届いて終わった結果）のどちらか一方を出す。
 async function reopenKeepsSearch(type,engine){
  const {fixture}=require('./candidate-date-fixture.cjs');
  const browser=await type.launch(engine==='chrome'?{channel:'chrome',headless:true}:{headless:true});
@@ -51,14 +52,17 @@ async function reopenKeepsSearch(type,engine){
    await page.goto(base+'#/explore');await page.waitForFunction(()=>typeof SkyMapUI==='object'&&typeof AstroNotesCandidatePicker==='object');
    await page.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>25;aimBuildingDays=async()=>[];navigationHistory.pushRoute('#/explore');SkyMapUI.setTarget('skytree');const b=document.getElementById('skyMapBody');b.value='moon';b.onchange();SkyMapUI.setTime(Date.parse('2026-11-05T03:58:31+09:00'));});
    await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='map');
-   await page.locator('#mapWsTitle').click();await page.locator('#exploreDiscovery-new').click();
+   await page.locator('#mapWsTitle').click();await page.locator('#exploreFindFromMap').click();await page.locator('#exploreDiscovery-new').click();
    if(interrupted){await page.evaluate(()=>dateFixture.holdNext=true);await page.locator('#candidateSearchAction').click();await page.waitForFunction(()=>dateFixture.holds.length===1);}
    else{await page.locator('#candidateSearchAction').click();await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2&&document.getElementById('candidateSearchAction').dataset.state==='idle');}
    await page.locator('#exploreBackToMap').click();assert.equal(await stage(page),'map');
    if(interrupted){await page.evaluate(()=>dateFixture.holds.shift().release());await page.waitForTimeout(300);}
-   await page.locator('#mapWsTitle').click();assert.equal(await stage(page),'search');
+   await page.locator('#mapWsTitle').click();await page.locator('#exploreFindFromMap').click();assert.equal(await stage(page),'search');
    if(interrupted){await page.waitForFunction(()=>document.getElementById('candidateSearchAction')?.dataset.state==='idle');
-    assert.equal(await page.locator('#candidateSearchEmpty').innerText(),'地図へ戻ったため候補探しを止めました。もう一度「候補を探す」を押してください。');assert.equal(await page.evaluate(()=>AstroNotesCandidatePicker.visibleRows().length),0);}
+    // 途中で閉じた検索は「止めた（0件）」か、候補の一覧（既存の続き探索で残った途中の候補、または裏で終わった結果）のどちらか一方で、両方は出さない。
+    const shown=await page.evaluate(()=>{const empty=document.getElementById('candidateSearchEmpty');return {stopped:!empty.hidden&&!!empty.offsetParent&&empty.textContent==='地図へ戻ったため候補探しを止めました。もう一度「候補を探す」を押してください。',list:!!document.getElementById('recentCandidates').offsetParent,
+     rows:document.querySelectorAll('#candidateUnifiedResults>.list-item:not([hidden])').length,feedback:document.getElementById('candidateSearchFeedback')?.innerText||''};});
+    assert(shown.stopped&&!shown.list||!shown.stopped&&shown.list&&shown.rows>0,JSON.stringify(shown));}
    else{await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2);assert(await page.locator('#candidateUnifiedResults>.list-item').first().isVisible());}
    assert.deepEqual(errors,[]);
   }finally{await context.close();}
@@ -109,13 +113,31 @@ async function reopenKeepsSearch(type,engine){
      await page.evaluate(()=>{const b=document.getElementById('skyMapBody');b.value='moon';b.dispatchEvent(new Event('change',{bubbles:true}));SkyMapUI.setTime(Date.parse('2026-12-24T16:41:00+09:00'));});
      await page.waitForFunction(()=>document.querySelector('#mapWsTitle [data-chip=body]').textContent==='月'&&/^重なる /.test(document.getElementById('mapWsCardOverlap').textContent));
      await page.screenshot({path:`${out}/${label}-map.png`});
-     // 条件帯→ポップアップ（撮影条件と撮影地点を探す）→地図へ。
-     await page.locator('#mapWsTitle').click();assert.equal(await stage(page),'search');
-     const popup=await page.evaluate(()=>{const back=document.getElementById('exploreBackToMap').getBoundingClientRect(),visible=id=>{const n=document.getElementById(id);return !!(n?.closest('.condition-field')||n)?.offsetParent;};
-      return {back:back.height,mapHidden:!document.getElementById('skyMapCanvas').offsetParent,fields:['skyMapBody','skyMapTarget','skyMapChoose','exploreShowResult','candidateWorkspaceAction'].every(visible),overflowX:document.documentElement.scrollWidth>innerWidth+1,
-      footer:!!document.getElementById('skyMapCalendarOpen').offsetParent,ws:document.getElementById('skyMapView').classList.contains('map-ws')};});
-     assert(popup.back>=44&&popup.mapHidden&&popup.fields&&!popup.overflowX&&popup.footer&&!popup.ws,label+': '+JSON.stringify(popup));
+     // 条件帯→その場で展開（地図は見えたまま、段は地図のまま）。条件を変えると即反映、帯・Escape・外側で畳む。
+     const dropdown=()=>page.evaluate(()=>document.getElementById('skyMapView').hasAttribute('data-explore-dropdown'));
+     await page.locator('#mapWsTitle').click();assert.equal(await stage(page),'map');assert(await dropdown(),label+': 帯で展開');
+     assert.equal(await page.locator('#mapWsTitle').getAttribute('aria-expanded'),'true');
+     assert.equal(await page.locator('#mapWsTitle').getAttribute('aria-controls'),'exploreConditions');assert.match(await page.locator('#mapWsTitle').getAttribute('aria-label'),/^撮影条件を閉じる：/);
+     const panel=await page.evaluate(()=>{const r=n=>n.getBoundingClientRect(),visible=id=>{const n=document.getElementById(id);return !!(n?.closest('.condition-field')||n)?.offsetParent;},p=r(document.getElementById('exploreConditions')),top=r(document.getElementById('mapWsTop')),footer=r(document.querySelector('#skyMapView .sky-map-footer')),find=r(document.getElementById('exploreFindFromMap'));
+      return {top:Math.abs(p.top-top.bottom)<=1,aboveFooter:p.bottom<=footer.top+1,fields:['skyMapBody','skyMapTarget','skyMapChoose'].every(visible),hidden:['exploreShowResult','candidateWorkspaceAction'].every(id=>!visible(id)),find:find.height,findInside:find.bottom<=p.bottom+1&&find.top>=p.top,
+      map:!!document.getElementById('skyMapCanvas').offsetParent,ws:document.getElementById('skyMapView').classList.contains('map-ws'),overflowX:document.documentElement.scrollWidth>innerWidth+1,footer:!!document.getElementById('skyMapCalendarOpen').offsetParent};});
+     assert(panel.top&&panel.aboveFooter&&panel.fields&&panel.hidden&&panel.find>=44&&panel.findInside&&panel.map&&panel.ws&&!panel.overflowX&&panel.footer,label+': '+JSON.stringify(panel));
      await page.screenshot({path:`${out}/${label}-conditions.png`});
+     await page.evaluate(()=>{const b=document.getElementById('skyMapBody');b.value='sun';b.dispatchEvent(new Event('change',{bubbles:true}));});
+     await page.waitForFunction(()=>document.querySelector('#mapWsTitle [data-chip=body]').textContent==='太陽'&&AstroNotesMapWorkspace.onlyBody()==='sun');assert(await dropdown(),label+': 変えても展開は開いたまま');
+     await page.evaluate(()=>{const b=document.getElementById('skyMapBody');b.value='moon';b.dispatchEvent(new Event('change',{bubbles:true}));SkyMapUI.setTime(Date.parse('2026-12-24T16:41:00+09:00'));});
+     await page.locator('#mapWsTitle').click();assert(!await dropdown(),label+': 帯で畳む');assert.equal(await page.locator('#mapWsTitle').getAttribute('aria-expanded'),'false');
+     await page.locator('#mapWsTitle').click();await page.keyboard.press('Escape');assert(!await dropdown(),label+': Escapeで畳む');
+     await page.locator('#mapWsTitle').click();const mapPoint=await page.evaluate(()=>{const c=document.getElementById('skyMapCanvas').getBoundingClientRect(),p=document.getElementById('exploreConditions').getBoundingClientRect();return {x:c.left+c.width/2,y:Math.min(c.bottom-8,p.bottom+(c.bottom-p.bottom)/2),below:c.bottom-p.bottom};});
+     assert(mapPoint.below>=10,label+': 展開の下に地図が見える '+JSON.stringify(mapPoint));
+     // 日時バーは展開を開いたまま使える（時刻を動かして見比べる）
+     await page.locator('#skyMapNext').click();assert(await dropdown(),label+': 日時バーでは畳まない');await page.locator('#skyMapPrev').click();
+     const outside=await page.evaluate(()=>{const c=document.getElementById('skyMapCanvas').getBoundingClientRect(),p=document.getElementById('exploreConditions').getBoundingClientRect();return {x:c.left+c.width/2,y:(p.bottom+c.bottom)/2};});
+     await page.mouse.click(outside.x,outside.y);assert(!await dropdown(),label+': 外側（地図）を押すと畳む');
+     // 展開の下端「撮影地点を探す」→下部シート→閉じると地図。
+     await page.locator('#mapWsTitle').click();await page.locator('#exploreFindFromMap').click();
+     await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet'));assert.equal(await stage(page),'search');assert(!await dropdown());
+     assert(await page.evaluate(()=>!!document.getElementById('skyMapCanvas').offsetParent&&!!document.getElementById('candidateWorkspaceAction').offsetParent),label+': シートは地図を残して撮影地点を探すを出す');
      await page.locator('#exploreBackToMap').click();assert.equal(await stage(page),'map');
      // 地図のカードから見え方→戻ると地図。
      await page.locator('#mapWsCardView').click();assert.equal(await stage(page),'preview');
@@ -125,8 +147,12 @@ async function reopenKeepsSearch(type,engine){
      await page.screenshot({path:`${out}/${label}-view.png`});
      await page.locator('#exploreBackToCandidates').click();assert.equal(await stage(page),'map');
      assert(await page.evaluate(()=>document.getElementById('skyMapView').classList.contains('map-ws')));
-     // ポップアップの検索から見え方→戻るとポップアップ。
-     await page.locator('#mapWsTitle').click();await page.locator('#exploreShowResult').click();assert.equal(await stage(page),'preview');
+     // 全画面の撮影条件は、シートの条件帯から。そこでの検索から見え方→戻ると撮影条件。
+     await page.locator('#mapWsTitle').click();await page.locator('#exploreFindFromMap').click();await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet'));
+     await page.locator('#mapWsTitle').click();await page.waitForFunction(()=>!document.getElementById('skyMapView').hasAttribute('data-explore-sheet'));assert.equal(await stage(page),'search');
+     const popup=await page.evaluate(()=>{const visible=id=>{const n=document.getElementById(id);return !!(n?.closest('.condition-field')||n)?.offsetParent;};return {back:document.getElementById('exploreBackToMap').getBoundingClientRect().height,mapHidden:!document.getElementById('skyMapCanvas').offsetParent,fields:['skyMapBody','skyMapTarget','skyMapChoose','exploreShowResult','candidateWorkspaceAction'].every(visible),overflowX:document.documentElement.scrollWidth>innerWidth+1};});
+     assert(popup.back>=44&&popup.mapHidden&&popup.fields&&!popup.overflowX,label+': '+JSON.stringify(popup));
+     await page.locator('#exploreShowResult').click();assert.equal(await stage(page),'preview');
      assert.notEqual(await page.locator('#exploreBackToCandidates').getAttribute('aria-label'),'地図へ戻る');
      await page.locator('#exploreBackToCandidates').click();assert.equal(await stage(page),'search');
      await page.locator('#exploreBackToMap').click();assert.equal(await stage(page),'map');
@@ -137,7 +163,9 @@ async function reopenKeepsSearch(type,engine){
      await page.locator('#exploreBackToCandidates').click();assert.equal(await stage(page),'map');
      // 地図を動かしてからポップアップを開閉しても、同じ撮影地点と対象なら位置と縮尺は保つ。
      const before=await page.evaluate(()=>{const m=SkyMapUI.workspaceHost().map;m.setView(35.6,139.6,12.5);return {c:m.center(),z:m.zoom()};});
-     await page.locator('#mapWsTitle').click();await page.locator('#exploreBackToMap').click();
+     await page.locator('#mapWsTitle').click();await page.locator('#exploreFindFromMap').click();await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet'));
+     await page.locator('#mapWsTitle').click();await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='search'&&!document.getElementById('skyMapView').hasAttribute('data-explore-sheet'));
+     await page.locator('#exploreBackToMap').click();
      const after=await page.evaluate(()=>{const m=SkyMapUI.workspaceHost().map;return {c:m.center(),z:m.zoom()};});
      assert(Math.abs(after.z-before.z)<1e-6&&Math.abs(after.c.latitude-before.c.latitude)<1e-6&&Math.abs(after.c.longitude-before.c.longitude)<1e-6,label+': '+JSON.stringify({before,after}));
      // ☰はアプリのメニュー（無い利用者はホーム）。

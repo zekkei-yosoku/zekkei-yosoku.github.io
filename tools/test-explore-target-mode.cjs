@@ -110,9 +110,9 @@ async function records(type,engine,width,theme,results){
    assert(!(await page.locator('#exploreRecordedPlaces').innerText()).includes('北の記録'),label+': 重ならない記録の地点は挙げない');
    await page.screenshot({path:`${out}/${label}-sheet.png`});
    await page.locator('#exploreBackToMap').click();assert.deepEqual(await view(page),{stage:'map',sheet:false,center:'target'});
-   // 条件帯からはいつもの撮影条件（全画面）。地図へ戻ると目標物が中心のまま。
-   await page.locator('#mapWsTitle').click();assert.deepEqual(await view(page),{stage:'search',sheet:false,center:'target'});
-   await page.locator('#exploreBackToMap').click();assert.deepEqual(await view(page),{stage:'map',sheet:false,center:'target'});
+   // 条件帯はその場で展開し、目標物が中心のまま。帯で畳む。
+   await page.locator('#mapWsTitle').click();assert.deepEqual(await view(page),{stage:'map',sheet:false,center:'target'});assert(await page.evaluate(()=>document.getElementById('skyMapView').hasAttribute('data-explore-dropdown')));
+   await page.locator('#mapWsTitle').click();assert(!await page.evaluate(()=>document.getElementById('skyMapView').hasAttribute('data-explore-dropdown')));
    assert.deepEqual(errors,[],label);
    results.push({label,inside,near:near.windows.length,line:sel.at});
   }finally{await context.close();}

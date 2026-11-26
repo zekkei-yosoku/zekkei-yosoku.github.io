@@ -440,6 +440,32 @@ function goBack(){
  return backToMap();
 }
 document.addEventListener('astronotes-explore-open-conditions',()=>openConditions());
+// 2026-11-26 trial（ユーザー「検索のところ開いたら展開して検索条件がひょいっと出るとかの方が良くない?」→「いいよ」）:
+// 地図の段では条件帯がその場で下へ開き、天体・対象・重ね方・撮影地点だけを地図に重ねる。段は map のまま。
+// 「撮影地点を探す（記録・新規）」は展開の下端から下部シートで開く。全画面の撮影条件はシートの条件帯から。
+let dropdownOpen=false;
+const dropdownFind=node('button',{id:'exploreFindFromMap',type:'button',className:'explore-find-from-map'});
+dropdownFind.innerHTML='<span>撮影地点を探す（記録・新規）</span><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>';
+dropdownFind.onclick=()=>{setDropdown(false);openSheet({tab:discoveryTab});};
+function setDropdown(open){
+ open=!!open&&layout.mounted&&active()&&stageOf()==='map';
+ if(open){layout.conditions.open=true;const fields=layout.conditions.querySelector('.explore-condition-fields');if(fields&&dropdownFind.parentNode!==fields)fields.append(dropdownFind);}
+ if(open===dropdownOpen)return;dropdownOpen=open;
+ if(!open&&document.activeElement?.closest?.('#exploreConditions'))$('mapWsTitle')?.focus({preventScroll:true});
+ if(open)mapView.dataset.exploreDropdown='';else delete mapView.dataset.exploreDropdown;
+ if(open)layout.conditions.scrollTop=0;
+ document.dispatchEvent(new CustomEvent('astronotes-explore-dropdown',{detail:{open}}));
+}
+document.addEventListener('astronotes-explore-toggle-conditions',()=>{if(stageOf()==='map')setDropdown(!dropdownOpen);else if(sheetOn())openConditions();});
+// 展開は帯・外側・Escapeで畳む（撮影地点の選択などの画面はそのまま操作できる）
+document.addEventListener('pointerdown',e=>{if(dropdownOpen&&!e.target.closest?.('#exploreConditions,#mapWsTitle,dialog,.sky-map-footer'))setDropdown(false);},true);
+// 地図の全画面表示のキーボード処理（window の捕捉段階、地図を作る時に登録）より先に受ける。畳んだら全画面は抜けない。
+document.defaultView.addEventListener('keydown',e=>{
+ if(!dropdownOpen||e.key!=='Escape'||e.isComposing||e.defaultPrevented||document.querySelector('dialog[open]'))return;
+ const focus=document.activeElement;if(!(focus===document.body||focus?.closest?.('#exploreConditions,#mapWsTitle')))return;
+ // 開いているメニュー（☰・共有・地図の種類）があればそちらの Escape に任せる
+ if(!$('toolsMenu')?.hidden||$('mapWsMenu')&&!$('mapWsMenu').hidden||mapView.querySelector('.map-layer-menu:not([hidden])'))return;
+ e.preventDefault();e.stopImmediatePropagation();setDropdown(false);$('mapWsTitle')?.focus();},true);
 // 下部シート: 撮影地点を探す（記録/新規）だけを地図の上に出す。search なら新規探索を始め、candidateId ならその候補を開く。
 let sheetTask=0;
 function openSheet({tab='new',search=false,candidateId=null}={}){
@@ -459,7 +485,7 @@ document.addEventListener('astronotes-explore-open-view',()=>showViewFromMap());
 function syncWorkspace(){
  if(!layout.mounted)return;ensureSearchRoot();
  if(flowOwner!==auth?.loginId||flowGeneration!==accessState.generation){resultRequested=false;selectionPending=false;searchStarted=false;returnIntent=null;pendingScroll=null;$('candidateSearchEmpty').textContent='';flowOwner=auth?.loginId;flowGeneration=accessState.generation;invalidate();}
- mapView.dataset.exploreStage=stageOf();if(mapReturn.nextSibling!==layout.conditions)layout.conditions.before(mapReturn);if(sheetOn())mapView.dataset.exploreSheet='';else delete mapView.dataset.exploreSheet;mapReturn.hidden=stageOf()!=='search';{const label=sheetOn()?'閉じる':'地図へ';if(mapReturn.lastChild.textContent!==label)mapReturn.lastChild.textContent=label;}
+ mapView.dataset.exploreStage=stageOf();if(dropdownOpen&&stageOf()!=='map')setDropdown(false);if(mapReturn.nextSibling!==layout.conditions)layout.conditions.before(mapReturn);if(sheetOn())mapView.dataset.exploreSheet='';else delete mapView.dataset.exploreSheet;mapReturn.hidden=stageOf()!=='search';{const label=sheetOn()?'閉じる':'地図へ';if(mapReturn.lastChild.textContent!==label)mapReturn.lastChild.textContent=label;}
  const nextMode=mapStage()?'map':'scene';if(nextMode!==mode)choose(nextMode);
  layout.conditions.hidden=false;if(!resultRequested)layout.conditions.open=true;placeBack();
  searchRoot.hidden=resultRequested;scene.hidden=!resultRequested;candidateBack.hidden=!resultRequested;
@@ -558,7 +584,7 @@ function leaveSearchFlow(){
  recordSeq.cancel();recordCalendarSeq.cancel();if(recordTimer!==null)clearTimeout(recordTimer);recordTimer=null;recordState={key:'',status:'idle'};recordPane?.replaceChildren();recordCache.clear();recordJobs.clear();recordMemo=null;recordCalendarArgs=null;
  previewBackEpoch.cancel();
  document.dispatchEvent(new Event('astronotes-preview-leave'));
- resultRequested=false;selectionPending=false;searchStarted=false;returnIntent=null;pendingScroll=null;candidateBack.hidden=true;conditionsOpen=false;sheetMode=false;previewFrom='map';mapReturn.remove();
+ resultRequested=false;selectionPending=false;searchStarted=false;returnIntent=null;pendingScroll=null;candidateBack.hidden=true;conditionsOpen=false;sheetMode=false;previewFrom='map';mapReturn.remove();if(dropdownOpen){dropdownOpen=false;document.dispatchEvent(new CustomEvent('astronotes-explore-dropdown',{detail:{open:false}}));}delete mapView.dataset.exploreDropdown;dropdownFind.remove();
  const panel=$('recentCandidates');if(candidatePanelHome&&panel){candidatePanelHome.parent.insertBefore(panel,candidatePanelHome.next?.parentNode===candidatePanelHome.parent?candidatePanelHome.next:null);panel.setAttribute('role','tabpanel');
  panel.setAttribute('aria-labelledby','placeTab-candidates');panel.removeAttribute('aria-label');candidatePanelHome=null;}
  searchRoot?.remove();delete mapView.dataset.exploreStage;
