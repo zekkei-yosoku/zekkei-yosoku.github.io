@@ -75,6 +75,8 @@ async function reopenKeepsSearch(type,engine){
     const label=`${engine}-${width}-${theme}`,{context,page,errors}=await open(browser,width,theme);
     try{
      assert.equal(await stage(page),'map',label+': 探すは地図の段で始まる');
+     // 下部（カード）の高さは重なる時間が出ると変わり、地図の下端は ResizeObserver で次のフレームに追いつく。揃うのを待ってから測る（揃わなければ下で失敗）。
+     await page.waitForFunction(()=>{const c=document.getElementById('skyMapCanvas').getBoundingClientRect(),f=document.querySelector('#skyMapView .sky-map-footer').getBoundingClientRect();return Math.abs(c.bottom-f.top)<=1;},null,{timeout:3000}).catch(()=>{});
      const layout=await page.evaluate(()=>{const r=n=>n.getBoundingClientRect(),top=r(document.getElementById('mapWsTop')),canvas=r(document.getElementById('skyMapCanvas')),footer=r(document.querySelector('#skyMapView .sky-map-footer')),band=r(document.getElementById('mapWsTitle')),view=r(document.getElementById('mapWsCardView'));
       return {top:top.bottom,canvasTop:canvas.top,canvasBottom:canvas.bottom,footerTop:footer.top,footerBottom:footer.bottom,height:innerHeight,overflowX:document.documentElement.scrollWidth>innerWidth+1,scrollable:document.scrollingElement.scrollHeight>innerHeight+1&&getComputedStyle(document.documentElement).overflow!=='hidden',
       band:{h:band.height,w:band.width},view:{h:view.height,w:view.width},chips:[...document.querySelectorAll('#mapWsTitle [data-chip]')].map(n=>n.textContent),date:!!document.getElementById('skyMapCalendarOpen').offsetParent,time:!!document.getElementById('skyMapTimeline').offsetParent,
