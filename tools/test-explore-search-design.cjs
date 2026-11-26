@@ -1,6 +1,7 @@
 // Search-design acceptance against the real trial UI, with isolated synthetic IO.
 require('./no-open-meteo.cjs');
 require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
+const {recordsTabRetired,assertOpportunityEntry}=require('./explore-records-tab.cjs'); // 2026-11-26 段階③: 記録タブは trial で廃止
 const {chromium,webkit}=require('playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const {fixture}=require('./candidate-date-fixture.cjs');
@@ -192,12 +193,14 @@ async function assertFooterClearance(page,selector='#candidateUnifiedResults>.li
     // Record failures belong to the dedicated record tab, never the new-place panel.
     // One recorded place so the record tab searches (it runs in the workers since C20; keep it on this page for the stub).
     await page.evaluate(()=>{globalThis.AstroNotesDiscoveryEngine='page';MyPlacesUI.discoveryPoints=()=>[{place:{id:'registered-failure',name:'登録した地点',latitude:35.692,longitude:139.732,elevation:25,eyeHeightAGL:2},record:{result:'seen'}}];window.registeredFailureCalls=0;MyPlacesUI.discoverySearch=async()=>{registeredFailureCalls++;return {rows:[],failed:1};};MyPlacesUI.imported();});
+    if(await recordsTabRetired(page))await assertOpportunityEntry(page);else{
     await page.locator('#exploreDiscovery-records').click();const registered=page.locator('#exploreRecordedPlaces');
     await page.waitForFunction(()=>registeredFailureCalls===1&&document.getElementById('exploreRecordedPlaces').getAttribute('aria-busy')==='false');
     assert((await registered.innerText()).includes('記録の撮影地点を確認できませんでした'));assert(await registered.getByRole('button',{name:'再試行',exact:true}).isVisible());
     await page.evaluate(()=>{MyPlacesUI.discoverySearch=async()=>{registeredFailureCalls++;throw Error('synthetic registered failure');};MyPlacesUI.imported();});
     await page.waitForFunction(()=>registeredFailureCalls===2&&document.getElementById('exploreRecordedPlaces').getAttribute('aria-busy')==='false');
     assert((await registered.innerText()).includes('記録の撮影地点を確認できませんでした'));assert(await registered.getByRole('button',{name:'再試行',exact:true}).isVisible());
+    }
     // The summit keeps its ridge contact policy and describes the centre to its left/right.
     await page.evaluate(()=>SkyMapUI.setTarget('fuji'));await page.locator('#exploreDiscovery-new').click();
     await page.locator('#candidateSearchAction').click();await settled(page,2);

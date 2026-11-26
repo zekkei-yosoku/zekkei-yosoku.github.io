@@ -1,6 +1,7 @@
 // R04: real selection, surface picking and search UI; synthetic engine completion and account, no external writes.
 require('./no-open-meteo.cjs');
 require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
+const {recordsTabRetired,assertOpportunityEntry}=require('./explore-records-tab.cjs'); // 2026-11-26 段階③: 記録タブは trial で廃止
 const {chromium,webkit}=require('playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const base=process.env.COMPOSITION_ENTRY_BASE||'http://127.0.0.1:8992/trial/index.html';
@@ -138,8 +139,9 @@ async function complete(page,kind){
     await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='search');
     assert.deepEqual(await selection(page),current,'editing keeps the current time and place, not the old return intent');
     stage('recorded-places');
+    if(await recordsTabRetired(page)){result.records=await assertOpportunityEntry(page);}else{
     await page.locator('#exploreDiscovery-records').click();await page.waitForFunction(()=>document.getElementById('exploreRecordedPlaces').textContent.trim().length>0);
-    result.recordsText=await page.locator('#exploreRecordedPlaces').innerText();assert.match(result.recordsText,/記録の撮影地点/);await page.screenshot({path:prefix+'-records.png',fullPage:true});
+    result.recordsText=await page.locator('#exploreRecordedPlaces').innerText();assert.match(result.recordsText,/記録の撮影地点/);await page.screenshot({path:prefix+'-records.png',fullPage:true});}
     stage('new-places-idle');
     await page.locator('#exploreDiscovery-new').click();await page.locator('#candidateSearchAction').waitFor({state:'visible'});assert(await page.locator('#candidateSearchAction').isEnabled());
     assert.equal(await page.evaluate(()=>compositionEntryFixture.searches.length),0,'opening conditions never starts a search by itself');

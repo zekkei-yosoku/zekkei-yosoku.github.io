@@ -349,7 +349,7 @@ function updateTargetCard(h){
   if(sel.kind==='line'){set(meta,bodyName+'の中心が先端に来るのは '+fmtAt(sel.at));overlap.hidden=true;}
   else if(sel.kind==='record'){set(meta,'記録の地点');const w=recordState.key.startsWith(targetKey(h))?recordState.rows?.find(r=>r.place.id===sel.place.id)?.windows:undefined;overlap.hidden=false;set(overlap,w===null||w===undefined?'重なる時間を調べています…':w.length?'重なる '+w.map(x=>x.brief?fmtAt(x.from)+'頃':fmtAt(x.from)+'〜'+fmtAt(x.to)).join('・'):'この日は'+bodyName+'が対象に重ならない');overlap.dataset.at=w?.length?String(w[0].from):'';overlap.disabled=!w?.length;overlap.classList.toggle('map-ws-card-hit',!!w?.length);}
   else{set(meta,'新しい地点（新規探索）'+(Number.isFinite(sel.at)?' ・ '+fmtAt(sel.at):''));overlap.hidden=true;}
-  view.firstElementChild.textContent=sel.kind==='new'?'見え方':'ここを撮影地点にする';view.dataset.action=sel.kind==='new'?'candidate':'use';view.disabled=false;view.setAttribute('aria-label',sel.kind==='new'?'この新しい地点の見え方を開く':'この地点を撮影地点にして、撮影地点が中心へ切り替える');second.firstElementChild.textContent='戻す';second.dataset.action='clear';second.setAttribute('aria-label','選んだ地点を外す');
+  view.firstElementChild.textContent=sel.kind==='new'?'見え方':'ここを撮影地点にする';view.dataset.action=sel.kind==='new'?'candidate':'use';view.disabled=false;view.setAttribute('aria-label',sel.kind==='new'?'この新しい地点の見え方を開く':'この地点を撮影地点にして、撮影地点が中心へ切り替える');second.firstElementChild.textContent='戻す';second.dataset.action='clear';second.disabled=false;second.setAttribute('aria-label','選んだ地点を外す');
   return;
  }
  set(place,(s.target.name||'対象')+'を中心に（'+bodyName+'）');
@@ -360,7 +360,7 @@ function updateTargetCard(h){
  overlap.hidden=!recordPlaces().length;overlap.disabled=!on.length;overlap.classList.toggle('map-ws-card-hit',!!on.length);overlap.dataset.at=on.length?String(on[0].windows[0].from):'';
  set(overlap,!records?'記録の地点を調べています…':on.length?'この日重なる記録の地点 '+on.length+'件（'+on.slice(0,2).map(r=>r.place.name+' '+fmtAt(r.windows[0].from)).join('・')+(on.length>2?' ほか':'')+'）':'記録の地点はこの日重ならない');
  // 探す範囲（帯）は線が揃ってから固まる。それまでは押せない（途中で範囲が変わって探索が捨てられるのを防ぐ）
- const ready=!!lines&&bandState.key===targetKey(h)+'|line';view.disabled=!ready;view.firstElementChild.textContent=ready?'新しい地点を探す':'範囲を計算中…';view.dataset.action='search';view.setAttribute('aria-label','重なる範囲の中で新しい撮影地点を探す');second.firstElementChild.textContent='一覧';second.dataset.action='list';second.setAttribute('aria-label','記録の地点と新しい地点の一覧を開く');
+ const ready=!!lines&&bandState.key===targetKey(h)+'|line';view.disabled=!ready;view.firstElementChild.textContent=ready?'新しい地点を探す':'範囲を計算中…';view.dataset.action='search';view.setAttribute('aria-label','重なる範囲の中で新しい撮影地点を探す');second.firstElementChild.textContent='重なる日';second.dataset.action='list';second.disabled=!globalThis.MyPlacesUI?.opportunities?.covers?.(s.target.id,s.body);second.setAttribute('aria-label','記録の地点の重なる日を今の条件で開く');
 }
 const api={
  hourPixels:()=>active?hourPixels:0,
@@ -420,6 +420,9 @@ function build(){
  const mode=document.createElement('div');mode.id='mapWsMode';mode.className='map-ws-mode';mode.setAttribute('role','group');mode.setAttribute('aria-label','地図の中心');
  mode.innerHTML='<button type="button" data-mode="obs" aria-pressed="true">撮影地点が中心</button><button type="button" data-mode="target" aria-pressed="false">目標物が中心</button>';
  for(const b of mode.querySelectorAll('button'))b.onclick=()=>setViewMode(b.dataset.mode);wrap.append(mode);
+ // 2026-11-26: 新しい地点は地図のボタンから（撮影地点が中心の時。目標物が中心ではカードの「新しい地点を探す」）
+ const findNew=document.createElement('button');findNew.type='button';findNew.id='mapWsNewPlaces';findNew.className='map-ws-new';findNew.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><span>新しい地点を探す</span>';
+ findNew.setAttribute('aria-label','新しい撮影地点を探す');findNew.onclick=()=>document.dispatchEvent(new CustomEvent('astronotes-explore-open-sheet',{detail:{tab:'new',search:true}}));wrap.append(findNew);
  const home=document.createElement('button');home.type='button';home.id='mapWsHome';home.className='map-ws-home';home.hidden=true;home.textContent='撮影地点へ戻る';home.onclick=()=>{const h=host(),o=h?.session.observer;if(validPoint(o))h.map.setCenter(o.latitude,o.longitude);};wrap.append(home);
 
  const info=document.createElement('div');info.id='mapWsInfo';info.className='map-ws-info';info.tabIndex=0;info.setAttribute('aria-label','天体と対象の情報。横にスワイプ');
@@ -436,7 +439,7 @@ function build(){
  // 条件帯を押すと探すの撮影条件（ポップアップ）を開く。段の持ち主は探すのcontroller。
  // 2026-11-26: 条件帯はその場で展開する（段の持ち主は探すのcontroller）。シート中は全画面の撮影条件へ。
  $('mapWsTitle').onclick=()=>document.dispatchEvent(new Event('astronotes-explore-toggle-conditions'));
- $('mapWsTitle').setAttribute('aria-expanded','false');document.addEventListener('astronotes-explore-dropdown',e=>{if(e.detail?.open)cloneFormStyles();$('mapWsTitle')?.setAttribute('aria-expanded',String(!!e.detail?.open));const h=host();if(h)setTitle(h);h?.redraw();});
+ $('mapWsTitle').setAttribute('aria-expanded','false');document.addEventListener('astronotes-records-change',()=>queueMicrotask(schedule));document.addEventListener('astronotes-explore-dropdown',e=>{if(e.detail?.open)cloneFormStyles();$('mapWsTitle')?.setAttribute('aria-expanded',String(!!e.detail?.open));const h=host();if(h)setTitle(h);h?.redraw();});
  $('mapWsMenuButton').onclick=()=>{const tools=$('toolsButton');(tools&&!tools.hidden?tools:$('homeLink'))?.click();};
  $('mapWsCardView').onclick=()=>{const h=host(),action=viewMode==='target'?$('mapWsCardView').dataset.action:'view';
   if(action==='conditions'||h&&action==='view'&&(!validPoint(h.session.observer)||!h.session.target)){document.dispatchEvent(new Event('astronotes-explore-open-conditions'));return;}
@@ -445,7 +448,8 @@ function build(){
   if(action==='candidate'){const id=targetSel?.row?.id;targetSel=null;document.dispatchEvent(new CustomEvent('astronotes-explore-open-sheet',{detail:{tab:'new',search:false,candidateId:id}}));return;}
   document.dispatchEvent(new Event('astronotes-explore-open-view'));};
  $('mapWsCardSecond').onclick=()=>{const action=$('mapWsCardSecond').dataset.action;if(action==='clear'){targetSel=null;host()?.redraw();schedule();return;}
-  if(action==='list')document.dispatchEvent(new CustomEvent('astronotes-explore-open-sheet',{detail:{tab:'records',search:false}}));};
+  // 段階③: 記録の地点の一覧は「重なる日」（今の条件で絞る）
+  if(action==='list')document.dispatchEvent(new Event('astronotes-explore-open-opportunities'));};
  $('mapWsCardOverlap').onclick=e=>{const at=+e.currentTarget.dataset.at;if(Number.isFinite(at)&&at)host()?.setTime(at);};
  $('mapWsShare').onclick=e=>{e.stopPropagation();const row=$('skyMapShareRow');openMenu(e.currentTarget,[...row.querySelectorAll('button')].filter(b=>!b.hidden));};
  bodies.onclick=e=>{e.stopPropagation();openMenu(e.currentTarget,[$('skyMapShowSun'),$('skyMapShowMoon'),$('skyMapMoreBodies')]);};

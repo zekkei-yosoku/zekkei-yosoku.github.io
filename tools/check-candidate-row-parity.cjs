@@ -48,14 +48,19 @@ module.exports=async function checkParity(page,ready,path){
   },dayAt);
   await page.waitForFunction(()=>globalThis.TrialExplore?.active());
   await page.evaluate(at=>{SkyMapUI.setTarget('skytree');const b=document.getElementById('skyMapBody');b.value='moon';b.dispatchEvent(new Event('change',{bubbles:true}));SkyMapUI.setAlignment('__whole','center','overlap');SkyMapUI.setTime(at);TrialExplore.render();},dayAt);
+  // 2026-11-26 trial（段階③）: 探すの記録タブは廃止。記録の地点は重なる日（上の NOTES の行）だけで見るので、行の照合は記録タブがある版だけ。
+  const {recordsTabRetired,assertOpportunityEntry}=require('./explore-records-tab.cjs');
+  await require('./explore-open-conditions.cjs').openExploreConditions(page);
+  let retired=false;
+  if(await recordsTabRetired(page)){retired=true;await assertOpportunityEntry(page);}else{
   await page.locator('#exploreDiscovery-records').click();
   await page.waitForFunction(()=>document.getElementById('exploreRecordedPlaces').getAttribute('aria-busy')==='false'&&document.querySelectorAll('#exploreRecordedResults .candidate-record-row').length===5);
   const explore=await read('#exploreRecordedResults .candidate-record-row');assert.deepEqual(explore,notes);
   assert.equal(await page.evaluate(()=>parityFixture.calls),before,'NOTES redraw and route restoration reuse its solved fixture rows');
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
-  await page.screenshot({path:path+'-explore.png',fullPage:true});
+  await page.screenshot({path:path+'-explore.png',fullPage:true});}
   await page.evaluate(()=>navigationHistory.pushRoute('#/records'));await ready(page);
   assert(await page.locator('#recordOpportunityList [data-opportunity-id]').count()>0);
-  return {sharedFields:true,angleGlyphs:true,stableAngleDom:true,lineAndAreaRanges:true,separateRuns:true,separateHeights:true,point:true,notesPositionChoices:true,return:true,stableButton:true,noExtraSolve:true};
+  return {exploreRecordsTab:retired?'retired':'parity',sharedFields:true,angleGlyphs:true,stableAngleDom:true,lineAndAreaRanges:true,separateRuns:true,separateHeights:true,point:true,notesPositionChoices:true,return:true,stableButton:true,noExtraSolve:true};
  }finally{await page.evaluate(()=>{parityFixture.frame.AstroNotesShooting.candidates=parityFixture.solver;MyPlacesUI.discoveryPoints=parityFixture.points;MyPlacesUI.discoverySearch=parityFixture.search;});}
 };

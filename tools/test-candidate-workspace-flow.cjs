@@ -1,5 +1,6 @@
 require('./no-open-meteo.cjs');
 require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
+const {recordsTabRetired,assertOpportunityEntry}=require('./explore-records-tab.cjs'); // 2026-11-26 段階③: 記録タブは trial で廃止
 const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs');
 const {fixture}=require('./candidate-date-fixture.cjs');
 const base=process.env.CANDIDATE_FLOW_BASE||'http://127.0.0.1:8986/trial/';
@@ -61,9 +62,10 @@ async function assertIdleSearch(page){
     if(process.env.CANDIDATE_FLOW_LENS!=='manual'){
     // The records tab runs in the calculation workers (C20); keep it on this page so the stub below is used.
     await page.evaluate(()=>{globalThis.AstroNotesDiscoveryEngine='page';AstroNotesShooting.candidates=async plan=>({failed:0,rows:plan.target.id==='skytree'?[{id:'registered-flow',record:{result:'seen'},placeKind:'park',quality:{photographyClass:'normal'},place:{name:'登録した公園',latitude:35.692,longitude:139.732,elevation:25,groundManualM:25,eyeHeightAGL:2,decks:[]},assumedObserver:{latitude:35.692,longitude:139.732,elevation:25,eyeM:2},event:{at:AstroNotesCandidateDiscovery.day(plan.at)+13*3600000,side:'rise'}}]:[]});MyPlacesUI.discoveryPoints=()=>[{place:{id:'registered-flow',name:'登録した公園',latitude:35.692,longitude:139.732,elevation:25,eyeHeightAGL:2},record:{result:'seen'}}];MyPlacesUI.imported();});
+    if(await recordsTabRetired(page)){await assertOpportunityEntry(page);await page.locator('#exploreDiscovery-new').click();await page.locator('#candidateSearchAction').waitFor({state:'visible'});}else{
     await page.locator('#exploreDiscovery-records').click();await page.locator('#exploreRecordedResults .explore-record-row').filter({hasText:'登録した公園'}).click();await page.waitForFunction(()=>!document.getElementById('placeSheet').open);
     assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().observer.name),'登録した公園');assert(await page.locator('#exploreBackToCandidates').isVisible());
-    await page.locator('#exploreBackToCandidates').click();await require('./check-recorded-candidate-ranges.cjs')(page,out+'/'+engine+'-'+width);await page.locator('#exploreDiscovery-new').click();await page.locator('#candidateSearchAction').waitFor({state:'visible'});assert.equal(await page.locator('#skyMapCalendarOpen').getAttribute('data-display-date'),'2026-11-16');
+    await page.locator('#exploreBackToCandidates').click();await require('./check-recorded-candidate-ranges.cjs')(page,out+'/'+engine+'-'+width);await page.locator('#exploreDiscovery-new').click();await page.locator('#candidateSearchAction').waitFor({state:'visible'});assert.equal(await page.locator('#skyMapCalendarOpen').getAttribute('data-display-date'),'2026-11-16');}
     }
     // A named part makes the lens part of the search. The preview changes the
     // focal length automatically when a candidate is selected.

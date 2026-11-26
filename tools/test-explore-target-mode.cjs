@@ -1,6 +1,6 @@
 // 2026-11-26 trial 探すの全画面地図（段階②）の受入: 撮影地点が中心／目標物が中心の切替、目標物中心の方位リング・
 // 重なる範囲（帯）・天体の中心が先端に来る線と時刻、記録の地点のその日の重なり、線のタップ→「ここを撮影地点にする」、
-// 一覧と「新しい地点を探す」の下部シート（地図のピン、候補→見え方→シートへ戻る）。
+// 「新しい地点を探す」の下部シート（地図のピン、候補→見え方→シートへ戻る）と、記録の地点の「重なる日」（今の条件で絞る）。
 require('./no-open-meteo.cjs');
 const {chromium,webkit}=require('playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs');
@@ -57,7 +57,7 @@ async function records(type,engine,width,theme,results){
     return {overlapNorth:mode.left<north.right-1,overlapRail:mode.right>rail+1,buttons,overflowX:document.documentElement.scrollWidth>innerWidth+1};});
    assert(!layout.overlapNorth&&!layout.overlapRail&&!layout.overflowX&&layout.buttons.every(h=>h>=40),label+': '+JSON.stringify(layout));
    const card=await page.evaluate(()=>[document.getElementById('mapWsCardPlace').textContent,document.getElementById('mapWsCardMeta').textContent,document.getElementById('mapWsCardView').innerText.trim(),document.getElementById('mapWsCardSecond').innerText.trim()]);
-   assert.equal(card[0],'東京スカイツリーを中心に（月）');assert.match(card[1],/^中心が先端に来る線: 月の出側 \d\d:\d\d〜\d\d:\d\d ・ 月の入側 \d\d:\d\d〜\d\d:\d\d$/);assert.deepEqual(card.slice(2),['新しい地点を探す','一覧']);
+   assert.equal(card[0],'東京スカイツリーを中心に（月）');assert.match(card[1],/^中心が先端に来る線: 月の出側 \d\d:\d\d〜\d\d:\d\d ・ 月の入側 \d\d:\d\d〜\d\d:\d\d$/);assert.deepEqual(card.slice(2),['新しい地点を探す','重なる日']);
    const s=await state(page);assert.equal(s.line.length,2,label+': 月の出側と入側の線');assert(s.band>0,label+': 重なる範囲がある');
    // 中心が先端に来る線は、重なる範囲（全体の帯）の中にある（帯は下端まで・大気差ぶん広い）。
    const inside=await page.evaluate(async()=>{const lines=await AstroNotesAlign.line(SkyMapUI.selectionState().target,'moon',AstroNotesSkyMap.dayStart(SkyMapUI.selectionState().at),{partId:'__whole',limb:'center',eyeM:1.5,elevationAt:async()=>30});
@@ -97,22 +97,14 @@ async function records(type,engine,width,theme,results){
    const minute=new Date(after.at+32400000),m=minute.getUTCHours()*60+minute.getUTCMinutes();
    await page.waitForFunction(m=>{const ov=document.getElementById('mapWsCardOverlap').textContent.match(/重なる (\d\d):(\d\d)〜(\d\d):(\d\d)/);return !!ov&&+ov[1]*60+ +ov[2]<=m+1&&m-1<=+ov[3]*60+ +ov[4];},m,{timeout:15000})
     .catch(async()=>assert.fail(label+': 線上の点ではその時刻に重なる '+JSON.stringify({ov:await page.locator('#mapWsCardOverlap').innerText(),m})));
-   // 一覧→下部シート（記録）。地図は上に残り、閉じると目標物が中心の地図。
-   await toTarget(page);await page.locator('#mapWsCardSecond').click();
-   await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet'));
-   assert.deepEqual(await view(page),{stage:'search',sheet:true,center:'target'});
-   const sheet=await page.evaluate(()=>{const r=n=>n.getBoundingClientRect(),c=r(document.getElementById('skyMapCanvas')),content=r(document.getElementById('skyMapContent'));
-    return {mapH:c.height,mapBottom:c.bottom,sheetTop:content.top,records:document.getElementById('exploreDiscovery-records')?.getAttribute('aria-selected'),close:r(document.getElementById('exploreBackToMap')).height,conditionsHidden:!document.getElementById('skyMapBody').closest('.condition-field').offsetParent,
-    docScroll:document.scrollingElement.scrollHeight>innerHeight+1&&getComputedStyle(document.documentElement).overflow!=='hidden'};});
-   assert(sheet.mapH>=120&&Math.abs(sheet.mapBottom-sheet.sheetTop)<=2&&sheet.records==='true'&&sheet.close>=44&&sheet.conditionsHidden&&!sheet.docScroll,label+': '+JSON.stringify(sheet));
-   // 下部シートの記録タブも同じ地点（その日重なる記録の地点）を挙げる。
-   await page.waitForFunction(()=>document.getElementById('exploreRecordedPlaces')?.textContent.includes('確認地点の記録'),null,{timeout:30000});
-   assert(!(await page.locator('#exploreRecordedPlaces').innerText()).includes('北の記録'),label+': 重ならない記録の地点は挙げない');
-   await page.screenshot({path:`${out}/${label}-sheet.png`});
-   await page.locator('#exploreBackToMap').click();assert.deepEqual(await view(page),{stage:'map',sheet:false,center:'target'});
+   await toTarget(page);
    // 条件帯はその場で展開し、目標物が中心のまま。帯で畳む。
    await page.locator('#mapWsTitle').click();assert.deepEqual(await view(page),{stage:'map',sheet:false,center:'target'});assert(await page.evaluate(()=>document.getElementById('skyMapView').hasAttribute('data-explore-dropdown')));
    await page.locator('#mapWsTitle').click();assert(!await page.evaluate(()=>document.getElementById('skyMapView').hasAttribute('data-explore-dropdown')));
+   // 記録の地点は「重なる日」へ（段階③）。この確認は記録が目標物に登録されていない（地点だけ）ので押せない。
+   // 押せる場合の行き先と絞り込みは test-record-discovery（探すの入口と同じ処理）で確かめる。
+   const second=await page.evaluate(()=>{const b=document.getElementById('mapWsCardSecond');return {text:b.textContent.trim(),action:b.dataset.action,disabled:b.disabled,view:document.getElementById('mapWsCardView').textContent.trim()};});
+   assert.deepEqual(second,{text:'重なる日',action:'list',disabled:true,view:'新しい地点を探す'},label+' '+JSON.stringify(second));
    assert.deepEqual(errors,[],label);
    results.push({label,inside,near:near.windows.length,line:sel.at});
   }finally{await context.close();}

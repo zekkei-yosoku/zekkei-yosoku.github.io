@@ -1068,7 +1068,7 @@ style.textContent+=`
 .record-opportunity-date{position:relative;display:grid;place-items:center;min-width:0;height:44px;font-size:16px;font-weight:600;white-space:nowrap;border:1px solid var(--line);border-radius:10px;background:var(--card)}
 .record-opportunity-date input{position:absolute;inset:0;width:100%;height:44px;min-width:0;margin:0;opacity:0;font-size:16px;cursor:pointer}
 .record-opportunity-date:focus-within{outline:2px solid var(--accent);outline-offset:2px}
-.record-opportunity-filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.record-opportunity-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .record-opportunity-filter{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}
 .record-opportunity-filters .record-opportunity-select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;font-size:16px;margin:0;background-color:var(--card)}
 .record-opportunity-scope{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;min-width:0}
@@ -3268,21 +3268,24 @@ job.air===opportunityAirKey(job.remote);
 function opportunityNode(tag,attrs={},text=''){const n=document.createElement(tag);Object.assign(n,attrs);n.textContent=text;return n;}
 function opportunityClosePicker(){const picker=opportunityPicker;if(!picker)return;opportunityPicker=null;if(picker.dialog.open)picker.dialog.close();picker.dialog.remove();picker.trigger.setAttribute('aria-expanded','false');
 if(picker.trigger.isConnected&&opportunityActive())picker.trigger.focus({preventScroll:true});}
-function opportunityPickerOptions(kind){return kind==='bodies'?AstroNotesBodies.definitions.filter(b=>opportunityPermittedBodies.includes(b.id)).map(b=>[b.id,b.name]):opportunityTargets;}
+function opportunityPickerOptions(kind){return kind==='bodies'?AstroNotesBodies.definitions.filter(b=>opportunityPermittedBodies.includes(b.id)).map(b=>[b.id,b.name]):kind==='places'?opportunityPlaces:opportunityTargets;}
+// 2026-11-26 trial（段階③）: 重なる日に「地点」の絞り込みを足す（天体・対象と同じ選択画面）。kind ごとの選択の持ち場所。
+const OPPORTUNITY_KINDS={bodies:['bodies','allBodies','天体','天体'],targets:['targets','allTargets','対象','対象'],places:['places','allPlaces','地点','地点']};
+const opportunityIds=kind=>opportunityFilters[OPPORTUNITY_KINDS[kind][0]]||[],opportunityAll=kind=>!!opportunityFilters[OPPORTUNITY_KINDS[kind][1]];
 function opportunityFilterLabel(kind){
- const options=opportunityPickerOptions(kind),all=kind==='bodies'?opportunityFilters.allBodies:opportunityFilters.allTargets,ids=kind==='bodies'?opportunityFilters.bodies:opportunityFilters.targets,selected=options.filter(([id])=>ids.includes(id));
+ const options=opportunityPickerOptions(kind),all=opportunityAll(kind),ids=opportunityIds(kind),selected=options.filter(([id])=>ids.includes(id));
  if(all)return 'すべて';
  if(!selected.length)return '選び直してください';
  if(selected.length===1)return selected[0][1];
- return kind==='bodies'&&selected.length===2?selected[0][1]+'・'+selected[1][1]:selected.length+(kind==='bodies'?'天体':'対象');
+ return kind==='bodies'&&selected.length===2?selected[0][1]+'・'+selected[1][1]:selected.length+OPPORTUNITY_KINDS[kind][3];
 }
 function opportunityPickerKey(kind){return JSON.stringify([auth?.loginId,accessState.generation,version,favorites,load(),shapeData(),aimTargetList(),auth?.tools,opportunityPickerOptions(kind)]);}
 function opportunityOpenPicker(kind,trigger){
  if(!opportunityActive())return;opportunityClosePicker();opportunityNotice='';if(opportunityJob)opportunityDraw(opportunityJob);
- const options=opportunityPickerOptions(kind),ids=kind==='bodies'?opportunityFilters.bodies:opportunityFilters.targets,all=kind==='bodies'?opportunityFilters.allBodies:opportunityFilters.allTargets;
- const draft=new Set(all?options.map(([id])=>id):ids.filter(id=>options.some(([key])=>key===id))),dialog=opportunityNode('dialog',{id:'recordOpportunityPicker',className:'record-opportunity-picker'}),heading=opportunityNode('h2',{id:'recordOpportunityPickerTitle'},kind==='bodies'?'天体':'対象'),
+ const options=opportunityPickerOptions(kind),ids=opportunityIds(kind),all=opportunityAll(kind);
+ const draft=new Set(all?options.map(([id])=>id):ids.filter(id=>options.some(([key])=>key===id))),dialog=opportunityNode('dialog',{id:'recordOpportunityPicker',className:'record-opportunity-picker'}),heading=opportunityNode('h2',{id:'recordOpportunityPickerTitle'},OPPORTUNITY_KINDS[kind][2]),
  close=opportunityNode('button',{type:'button',className:'chip',id:'recordOpportunityPickerClose'},'取消'),header=opportunityNode('div',{className:'record-opportunity-picker-head'});dialog.setAttribute('aria-labelledby',heading.id);header.append(heading,close);
- const search=opportunityNode('input',{type:'search',id:'recordOpportunityPickerSearch',className:'fav-in',placeholder:'対象の名前で検索'});search.setAttribute('aria-label','対象を名前で検索');search.hidden=kind!=='targets'||options.length<=8;
+ const search=opportunityNode('input',{type:'search',id:'recordOpportunityPickerSearch',className:'fav-in',placeholder:'対象の名前で検索'});search.placeholder=kind==='places'?'地点の名前で検索':'対象の名前で検索';search.setAttribute('aria-label',kind==='places'?'地点を名前で検索':'対象を名前で検索');search.hidden=kind==='bodies'||options.length<=8;
  const tools=opportunityNode('div',{className:'record-opportunity-picker-tools'}),selectAll=opportunityNode('button',{type:'button',className:'chip',id:'recordOpportunitySelectAll'},'全選択'),clear=opportunityNode('button',{type:'button',className:'chip',id:'recordOpportunityClearAll'},'全解除');
  tools.append(selectAll,clear);
  const list=opportunityNode('div',{className:'record-opportunity-picker-list',id:'recordOpportunityPickerList'}),footer=opportunityNode('div',{className:'record-opportunity-picker-foot'}),count=opportunityNode('span',{className:'tiny',id:'recordOpportunityPickerCount'}),
@@ -3290,10 +3293,10 @@ function opportunityOpenPicker(kind,trigger){
  const update=()=>{count.textContent=draft.size+' / '+options.length+'件を選択';apply.disabled=!draft.size;selectAll.disabled=!options.length||draft.size===options.length;clear.disabled=!draft.size;};
  const draw=()=>{list.replaceChildren();const query=search.value.trim().normalize('NFKC').toLocaleLowerCase('ja');for(const [id,name]of options){if(query&&!name.normalize('NFKC').toLocaleLowerCase('ja').includes(query))continue;
  const label=opportunityNode('label',{className:'record-opportunity-picker-item'}),input=opportunityNode('input',{type:'checkbox',value:id,checked:draft.has(id)});input.onchange=()=>{if(input.checked)draft.add(id);else draft.delete(id);update();};label.append(input,opportunityNode('span',{},name));
- list.append(label);}if(!list.firstChild)list.append(opportunityNode('p',{className:'tiny'},options.length?'該当する対象がありません':'選択できる項目がありません'));update();};
+ list.append(label);}if(!list.firstChild)list.append(opportunityNode('p',{className:'tiny'},options.length?(kind==='places'?'該当する地点がありません':'該当する対象がありません'):'選択できる項目がありません'));update();};
  selectAll.onclick=()=>{for(const [id]of options)draft.add(id);draw();};clear.onclick=()=>{draft.clear();draw();};search.oninput=draw;close.onclick=opportunityClosePicker;dialog.addEventListener('cancel',e=>{e.preventDefault();opportunityClosePicker();});
  apply.onclick=()=>{if(!opportunityPicker||opportunityPicker.signature!==opportunityPickerKey(opportunityPicker.kind)||!opportunityActive()){opportunityClosePicker();opportunityNotice='登録内容や利用条件が変わりました。選択を開き直してください。';renderOpportunities();return;
- }const chosen=options.map(([id])=>id).filter(id=>draft.has(id));if(!chosen.length)return;const patch=kind==='bodies'?{bodies:chosen,allBodies:chosen.length===options.length}:{targets:chosen,allTargets:chosen.length===options.length};opportunityClosePicker();
+ }const chosen=options.map(([id])=>id).filter(id=>draft.has(id));if(!chosen.length)return;const [idsKey,allKey]=OPPORTUNITY_KINDS[kind],patch={[idsKey]:chosen,[allKey]:chosen.length===options.length};opportunityClosePicker();
  // 撮影地点の一覧の対象の絞り込みへも引き継ぐ（1つならその対象、それ以外はすべて）
  if(kind==='targets'){const next=chosen.length===1?chosen[0]:'';if(next!==recordsTargetFilter){recordsTargetFilter=next;renderRecordsHub();}opportunityTargetSync=recordsTargetFilter;}
  if(Object.entries(patch).every(([key,value])=>JSON.stringify(opportunityFilters[key])===JSON.stringify(value)))return;opportunitySet(patch);};
@@ -3309,8 +3312,8 @@ function opportunityBuild(){
  today.onclick=()=>opportunitySet({date:opportunityDateAt(Date.now())});const dateWrap=opportunityNode('label',{className:'record-opportunity-date'}),dateLabel=opportunityNode('span');dateLabel.setAttribute('aria-hidden','true');dateWrap.append(dateLabel,date);
  period.append(dateWrap,today);
  const filters=opportunityNode('div',{className:'record-opportunity-filters'}),body=opportunityNode('button',{type:'button',id:'recordOpportunityBody',className:'fav-in record-opportunity-select'}),target=opportunityNode('button',{type:'button',id:'recordOpportunityTarget',
- className:'fav-in record-opportunity-select'});
- for(const [control,label,kind]of [[body,'天体','bodies'],[target,'対象','targets']]){const wrap=opportunityNode('div',{className:'record-opportunity-filter'}),caption=opportunityNode('span',{id:control.id+'Label'},label);control.setAttribute('aria-labelledby',caption.id+' '+control.id);
+ className:'fav-in record-opportunity-select'}),place=opportunityNode('button',{type:'button',id:'recordOpportunityPlace',className:'fav-in record-opportunity-select'});
+ for(const [control,label,kind]of [[body,'天体','bodies'],[target,'対象','targets'],[place,'地点','places']]){const wrap=opportunityNode('div',{className:'record-opportunity-filter'}),caption=opportunityNode('span',{id:control.id+'Label'},label);control.setAttribute('aria-labelledby',caption.id+' '+control.id);
  control.setAttribute('aria-haspopup','dialog');control.setAttribute('aria-expanded','false');control.onclick=()=>opportunityOpenPicker(kind,control);wrap.append(caption,control);filters.append(wrap);}
  const scope=opportunityNode('div',{id:'recordOpportunityScope',className:'record-opportunity-scope',hidden:true}),scopeName=opportunityNode('span',{id:'recordOpportunityScopeName'}),
  scopeClear=opportunityNode('button',{type:'button',id:'recordOpportunityScopeClear',className:'chip'},'すべての地点');
@@ -3336,7 +3339,7 @@ function opportunityBuild(){
   if(job.scan.extend(opportunityPageEnd(job.scan.state.through),opportunityPageRows))void opportunityAdvance(job);
  };
  actions.append(retry,more);controls.append(scope,period,filters);host.append(controls,modelNotice,notice,status,list,pending,through,actions);
- opportunityDom={host,period,date,dateLabel,today,body,target,scope,scopeName,modelNotice,notice,status,list,pending,through,retry,more,rendered:0,lastDay:null};return true;
+ opportunityDom={host,period,date,dateLabel,today,body,target,place,scope,scopeName,modelNotice,notice,status,list,pending,through,retry,more,rendered:0,lastDay:null};return true;
 }
 function opportunitySet(patch){
  if(!opportunityAllowed())return;opportunityClosePicker();
@@ -3418,7 +3421,7 @@ function renderOpportunities(retryEnd){
  recordSearchReset();
  const owner=auth?.token;
  if(opportunityOwner!==owner||opportunityOwnerId!==auth?.loginId){if(opportunityOwnerId&&opportunityOwnerId!==auth?.loginId){opportunityBackgroundFlight=null;opportunityDeviceFlights.clear();opportunityDeviceForget();}opportunityCancel(true);opportunityServer.cancel();opportunityWarmupKey='';
- opportunityOwner=owner;opportunityOwnerId=auth?.loginId;opportunityDateChosen=false;opportunityTargetSync=null;opportunityFilters={date:opportunityDateAt(Date.now()),bodies:['sun','moon'],allBodies:false,targets:[],allTargets:true,placeId:''};}
+ opportunityOwner=owner;opportunityOwnerId=auth?.loginId;opportunityDateChosen=false;opportunityTargetSync=null;opportunityFilters={date:opportunityDateAt(Date.now()),bodies:['sun','moon'],allBodies:false,targets:[],allTargets:true,places:[],allPlaces:true,placeId:''};}
  if(!opportunityActive()){el('recordsView')?.removeAttribute('data-place-list');if(opportunityAllowed())setTimeout(opportunityWarmup,0);opportunityClosePicker();if(opportunityJob)opportunityCancel();if(opportunityHost?.firstChild){opportunityHost.replaceChildren();opportunityDom=null;}return;}
  if(!opportunityDateChosen){opportunityFilters.date=opportunityDateAt(Date.now());opportunityDateChosen=true;}
  if(!opportunityBuild())return;
@@ -3430,15 +3433,18 @@ function renderOpportunities(retryEnd){
  if(opportunityTargetSync!==recordsTargetFilter){opportunityTargetSync=recordsTargetFilter;const one=recordsTargetFilter&&opportunityTargets.some(([id])=>id===recordsTargetFilter);opportunityFilters={...opportunityFilters,targets:one?[recordsTargetFilter]:[],allTargets:!one};}
  if(opportunityFilters.allTargets)opportunityFilters.targets=opportunityTargets.map(([id])=>id);else opportunityFilters.targets=opportunityFilters.targets.filter(id=>opportunityTargets.some(([key])=>key===id));
  if(opportunityFilters.placeId&&!opportunityPlaces.some(([id])=>id===opportunityFilters.placeId))opportunityFilters.placeId='';
+ opportunityPlaces.sort((a,b)=>String(a[1]).localeCompare(String(b[1]),'ja'));if(!Array.isArray(opportunityFilters.places))opportunityFilters={...opportunityFilters,places:[],allPlaces:true};
+ if(!opportunityFilters.allPlaces){const kept=opportunityFilters.places.filter(id=>opportunityPlaces.some(([key])=>key===id));opportunityFilters={...opportunityFilters,places:kept,allPlaces:!kept.length};}
+ if(opportunityFilters.allPlaces)opportunityFilters.places=opportunityPlaces.map(([id])=>id);
  const scopeName=opportunityPlaces.find(([id])=>id===opportunityFilters.placeId)?.[1];d.scope.hidden=!scopeName;d.period.hidden=!!scopeName;
  d.host.classList.toggle('record-opportunity-place-mode',!!scopeName);el('recordsView')?.toggleAttribute('data-place-list',!!scopeName);d.scopeName.textContent=scopeName?scopeName+'の重なる日':'';
  d.body.textContent=opportunityFilterLabel('bodies');d.target.textContent=opportunityFilterLabel('targets');d.body.dataset.values=JSON.stringify(opportunityFilters.bodies);d.target.dataset.values=JSON.stringify(opportunityFilters.targets);d.body.disabled=!opportunityPermittedBodies.length;
- d.target.disabled=!opportunityTargets.length;
+ d.target.disabled=!opportunityTargets.length;d.place.textContent=opportunityFilterLabel('places');d.place.dataset.values=JSON.stringify(opportunityFilters.places);d.place.disabled=!opportunityPlaces.length;d.place.closest('.record-opportunity-filter').hidden=!!scopeName;
  d.date.value=opportunityFilters.date;d.dateLabel.textContent=opportunityFilters.date.replaceAll('-','/')+'から';d.date.min='1900-01-01';d.date.max='2100-12-31';d.today.hidden=opportunityFilters.date===opportunityDateAt(Date.now());
  const [start]=opportunityBounds(opportunityFilters.date),end=Number.isFinite(retryEnd)?retryEnd:opportunityPageEnd(start),key=JSON.stringify([signature,opportunityFilters]);
  if(opportunityJob?.key===key&&opportunityCurrent(opportunityJob)){opportunityDraw(opportunityJob);return;}
  opportunityCancel();d.list.replaceChildren();d.rendered=-1;
- const includesPlace=p=>opportunityFilters.targets.includes(p.target?.id??p.targetKey)&&(!opportunityFilters.placeId||(p.sourcePlaceId??p.placeId)===opportunityFilters.placeId),pairs=allPairs.filter(includesPlace),missing=unavailable.filter(includesPlace).length;
+ const includesPlace=p=>opportunityFilters.targets.includes(p.target?.id??p.targetKey)&&(opportunityFilters.placeId?(p.sourcePlaceId??p.placeId)===opportunityFilters.placeId:opportunityFilters.allPlaces||opportunityFilters.places.includes(p.sourcePlaceId??p.placeId)),pairs=allPairs.filter(includesPlace),missing=unavailable.filter(includesPlace).length;
  const scanStart=start,job={remote:opportunityServer.state.enabled!==false,key,signature,owner,loginId:auth?.loginId,generation:accessState.generation,epoch:opportunityEpoch.ticket(),inputEpoch:opportunityInputEpoch.ticket(),revision:version,
  air:opportunityAirKey(opportunityServer.state.enabled!==false),pairs,unavailable:missing,accessUnavailable:unavailable.filter(p=>includesPlace(p)&&p.reason==='access').length,policyUnavailable:unavailable.filter(p=>includesPlace(p)&&['height','alignment'].includes(p.reason)).length,
  start:scanStart,placeMode:!!opportunityFilters.placeId};opportunityJob=job;
@@ -3454,7 +3460,7 @@ async function opportunityStart(job,end,retryEnd){
   if(job.signature!==opportunitySignature()){opportunityCancel();renderOpportunities(retryEnd);return;}
   job.remote=prefs.enabled;job.air=opportunityAirKey(job.remote);
   if(job.remote){const cached=opportunityCache.get(job.key);if(cached?.remote){job.restoreThrough=cached.through;opportunityCache.delete(job.key);
-  }job.scan=createServerOpportunityScan({api:(...args)=>apiTransport(...args),start:job.start,end,bodies:opportunityFilters.bodies.slice(),placeIds:opportunityFilters.placeId?[opportunityFilters.placeId]:null,
+  }job.scan=createServerOpportunityScan({api:(...args)=>apiTransport(...args),start:job.start,end,bodies:opportunityFilters.bodies.slice(),placeIds:opportunityFilters.placeId?[opportunityFilters.placeId]:opportunityFilters.allPlaces?null:opportunityFilters.places.slice(),
   targetIds:opportunityFilters.allTargets?null:opportunityFilters.targets.slice(),sourceRev:prefs.sourceRev,isCurrent:()=>opportunityCurrent(job),
   onStart:()=>opportunityDraw(job),onDay:()=>opportunityDraw(job),onProgress:()=>opportunityDraw(job)});}
   else{
@@ -3472,11 +3478,18 @@ async function opportunityStart(job,end,retryEnd){
  }
 
 }
-function openOpportunityList(placeId='',bodies=null){
+function openOpportunityList(placeId='',bodies=null,{targets=null,date=null}={}){
  if(!opportunityAllowed())return;
  // 地点から来たときは、その地点に絞る。対象は撮影地点の一覧の絞り込みのまま（次の描画で引き継ぐ）
- opportunityOpenSeq.cancel();opportunityNotice='';opportunityTargetSync=null;opportunityFilters={...opportunityFilters,placeId:placeId||'',...(placeId?{date:opportunityDateAt(Date.now())}:{}),
- ...(bodies?.length?{bodies:bodies.filter(b=>AstroNotesBodies.definition(b)),allBodies:false}:{})};opportunityCancel();
+ // 2026-11-26 trial（段階③）: 探すからは今の条件（天体・対象・日）で絞って開く。地点はすべて
+ const validDate=typeof date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(date);
+ // 持ち主が替わった直後の描画で既定に戻されないよう、先にその切り替えを済ませておく
+ if(opportunityOwner!==auth?.token||opportunityOwnerId!==auth?.loginId)renderOpportunities();
+ // 対象1つで来たときは、撮影地点の一覧の対象も合わせる（選択画面で選んだときと同じ）
+ if(targets?.length===1&&recordsTargetFilter!==targets[0]){recordsTargetFilter=targets[0];renderRecordsHub();}
+ opportunityOpenSeq.cancel();opportunityNotice='';opportunityTargetSync=targets?.length?recordsTargetFilter:null;opportunityFilters={...opportunityFilters,placeId:placeId||'',...(placeId?{date:opportunityDateAt(Date.now())}:{}),
+ ...(bodies?.length?{bodies:bodies.filter(b=>AstroNotesBodies.definition(b)),allBodies:false}:{}),...(targets?.length?{targets:targets.slice(),allTargets:false,places:[],allPlaces:true}:{}),...(validDate?{date}:{})};
+ if(validDate)opportunityDateChosen=true;opportunityCancel();
  if(sheet?.open)sheet.close();setNotebookTab('opportunities');if(!viewState.records)navigationHistory.pushRoute('#/records');renderOpportunities();
  requestAnimationFrame(()=>{el('recordOpportunities')?.scrollIntoView({block:'start'});el(placeId?'recordOpportunityScopeClear':'recordOpportunityTarget')?.focus({preventScroll:true});});
 }
@@ -3508,7 +3521,11 @@ if(opportunityActive())renderOpportunities();else opportunityWarmup();});window.
 window.addEventListener('pagehide',()=>{if(opportunityJob)opportunityCancel();});window.addEventListener('pageshow',renderOpportunities);
 window.addEventListener('hashchange',()=>{if(viewState.records&&opportunityHasReturn()){opportunityRestore=opportunityReturn.top;opportunityRestoreUntil=0;opportunityReturn=null;}else if(!viewState.records&&!globalThis.TrialExplore?.active())opportunityReturn=null;renderOpportunities();});
 setTimeout(()=>{startupSessionReady.then(opportunityWarmup);},0);
-const opportunities={render:renderOpportunities,open:openOpportunityList,hasReturn:opportunityHasReturn,returnFromPreview:opportunityReturnFromPreview};
+// 2026-11-26 trial（段階③）: 探すの入口が、その天体・対象で確かめられる記録の組があるかを先に知るため。
+let opportunityCoverMemo={key:'',value:false};
+function opportunityCovers(targetId,body){if(!auth?.token||!opportunityAllowed())return false;const key=JSON.stringify([auth.loginId,accessState.generation,version,auth.tools,targetId,body,aimTargetList().map(t=>[t.id,t.latitude,t.longitude])]);
+ if(opportunityCoverMemo.key!==key)opportunityCoverMemo={key,value:opportunityPairSet(opportunitySignature(),[body]).pairs.some(p=>p.target?.id===targetId)};return opportunityCoverMemo.value;}
+const opportunities={render:renderOpportunities,open:openOpportunityList,covers:opportunityCovers,hasReturn:opportunityHasReturn,returnFromPreview:opportunityReturnFromPreview};
 
 renderRecordsHub();
 
