@@ -21,7 +21,9 @@ const allowed=new Map([
  // 2026-11-26 段階②: 目標物が中心から探す新しい地点は、探索の種を重なる範囲（帯）に絞る
  ['src/features/candidates/ui.js',false],['src/features/candidates/generic-search.js',false],
  // 2026-11-26 段階④: 点天体の夜間条件を地図と候補の最終判定で共有する
- ['astronotes-shooting.js',false]
+ ['astronotes-shooting.js',false],
+ // 2026-11-27 対象を追加する入口を試用版の共通対象選択に出す
+ ['astronotes-target-ui.js',false]
 ]);
 const guarded=['index.html','app-version.txt',...allowed.keys()];
 const digest=value=>createHash('sha256').update(value).digest('hex');
