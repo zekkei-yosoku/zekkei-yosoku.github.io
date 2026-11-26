@@ -36,7 +36,7 @@ html:has(#skyMapView.map-ws-scene){scrollbar-gutter:auto}
 #skyMapView.map-ws .sky-map-wide .map-layers-btn{top:148px;right:var(--ws-rail-right);bottom:auto}
 #skyMapView.map-ws .sky-map-wide .map-layer-menu{top:148px;right:calc(var(--ws-rail-right) + 50px);bottom:auto}
 #skyMapView.map-ws .map-ws-bodies{display:grid;place-items:center;position:absolute;top:194px;right:var(--ws-rail-right);width:44px;height:44px;padding:0;font-size:11px;font-weight:700;z-index:4;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text)}
-#skyMapView.map-ws .sky-map-wide .sky-map-point-tools{top:240px;left:auto;right:var(--ws-rail-right);gap:2px}
+#skyMapView.map-ws .sky-map-wide .sky-map-point-tools{top:194px;left:auto;right:var(--ws-rail-right);gap:2px}
 #skyMapView.map-ws .sky-map-wide .mapattr{bottom:6px;left:8px;right:auto}
 #skyMapView.map-ws .map-ws-menu:not([hidden]){display:grid;position:fixed;z-index:37;min-width:200px;max-width:calc(100vw - 16px);background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px #0005;overflow:hidden}
 .map-ws-menu button{min-height:44px;padding:0 14px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--text);text-align:left;font:inherit;font-size:14px;cursor:pointer}
@@ -84,7 +84,11 @@ html:has(#skyMapView.map-ws-scene){scrollbar-gutter:auto}
 #skyMapView.map-ws #skyMapScrubMode[data-mode=hour]::after{content:"24時間";font-size:11px;font-weight:700}
 /* 小さい画面: 拡大と縮小は2本指に任せる */
 @media(max-height:640px){#skyMapView.map-ws .sky-map-wide .mapzoom :is(#skyMapIn,#skyMapOut){display:none}
- #skyMapView.map-ws .sky-map-wide .map-layers-btn{top:54px}#skyMapView.map-ws .sky-map-wide .map-layer-menu{top:54px}#skyMapView.map-ws .map-ws-bodies{top:100px}#skyMapView.map-ws .sky-map-wide .sky-map-point-tools{top:146px}}
+ #skyMapView.map-ws .sky-map-wide .map-layers-btn{top:54px}#skyMapView.map-ws .sky-map-wide .map-layer-menu{top:54px}#skyMapView.map-ws .map-ws-bodies{top:100px}#skyMapView.map-ws .sky-map-wide .sky-map-point-tools{top:100px}}
+/* 標高の再試行行で地図が縮んでも、地点操作の44pxを地図内に残す。 */
+@media(max-width:899px) and (max-height:640px) and (orientation:portrait){
+ #skyMapView.map-ws .sky-map-wide .sky-map-point-tools{top:auto;bottom:6px;flex-direction:row}
+}
 /* PC・スマホ横向き: 右の列に情報を置く */
 @media(min-width:900px),(max-height:500px) and (orientation:landscape){
  #skyMapView.map-ws{--ws-side:min(380px,46vw)}
@@ -185,3 +189,14 @@ html:has(#skyMapView[data-explore-sheet].map-ws:not([hidden])),body:has(#skyMapV
 @media(max-width:359px){#skyMapView.map-ws .map-ws-new{padding:0;width:44px;justify-content:center;border-radius:50%}#skyMapView.map-ws .map-ws-new>span{display:none}}
 /* 左下の「新しい地点を探す」と重ならないよう「撮影地点へ戻る」は少し上に */
 #skyMapView.map-ws:not([data-map-center=target]) .map-ws-home:not([hidden]){bottom:80px}
+/* 段階④: 天体の選択は情報ページと分離し、短い画面にも常に残す。 */
+.map-ws-body-picker{display:none}
+#skyMapView.map-ws .map-ws-body-picker{display:grid;grid-template-columns:44px 44px minmax(52px,1fr) 44px minmax(72px,1.2fr);gap:2px;position:fixed;z-index:35;top:var(--ws-top);left:0;right:0;height:48px;box-sizing:border-box;padding:2px max(6px,env(safe-area-inset-right)) 2px max(6px,env(safe-area-inset-left));background:var(--card);border-bottom:1px solid var(--line)}
+.map-ws-body-picker :is(button,select){min-width:0;width:100%;min-height:44px;margin:0;padding:0 4px;border:0;border-radius:8px;background:var(--card);color:var(--text);font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.map-ws-body-picker :is([aria-pressed=true],[data-active=true]){background:var(--accent);color:var(--on-accent)}
+.map-ws-body-picker [data-map-body=sirius],.map-ws-body-picker select{border-left:1px solid var(--line)}
+.map-ws-body-picker [disabled]{opacity:.45;cursor:default}
+#skyMapView.map-ws .sky-map-wrap.sky-map-wide{top:calc(var(--ws-top) + 48px)!important}
+.map-ws-body-retry{min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);font:inherit;font-size:13px}
+.map-ws-body-retry[hidden]{display:none}
+@media(min-width:900px),(max-height:500px) and (orientation:landscape){#skyMapView.map-ws .sky-map-footer{top:calc(var(--ws-top) + 48px)}}

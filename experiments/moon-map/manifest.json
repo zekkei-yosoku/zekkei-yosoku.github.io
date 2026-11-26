@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "20261124-moon-route-map",
-  "revision": 4,
+  "revision": 5,
   "baselineCommit": "f4f35b61359ba5ec8f9da057cf3026902a0402a4",
   "baselineSha256": {
     "index.html": "feb5e6c31bbb6014c66615a414cca2477296b89ab8e6a95ba1e98c07907a29c3",
@@ -20,7 +20,8 @@
     "astronotes-map-workspace.css": "d4eeb9d339c58862bfbbff1d858f688a1fe2a5b1651723b94e71b26d94515bdc",
     "src/features/explore/map-presentation.js": "17dda27eb8d647e1243b1c799eb8de82fefa1da22c9d9ed08fa1f2855130c80c",
     "src/features/candidates/ui.js": "d6d2474ee263a8b590be401779557615cddf9d5c202a3860b715be2b79be1b4b",
-    "src/features/candidates/generic-search.js": "194590745bc5aeaf5221bbb6480740afdc14ced1634311a2bf46456a74416664"
+    "src/features/candidates/generic-search.js": "194590745bc5aeaf5221bbb6480740afdc14ced1634311a2bf46456a74416664",
+    "astronotes-shooting.js": "58dd86c5d5dc697ded5c5a5a4c5800818f9a16a4f21ecabe570fa175ebddd16c"
   },
   "overlays": [
     {
@@ -81,6 +82,10 @@
     },
     {
       "path": "src/features/candidates/generic-search.js",
+      "required": false
+    },
+    {
+      "path": "astronotes-shooting.js",
       "required": false
     }
   ]

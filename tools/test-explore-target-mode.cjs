@@ -48,6 +48,21 @@ async function toTarget(page){
 }
 // 地図上の緯度経度を画面の点へ。
 const screenPoint=(page,p)=>page.evaluate(p=>{const m=SkyMapUI.workspaceHost().map,[x,y]=m.project(p.latitude,p.longitude),r=document.getElementById('skyMapCanvas').getBoundingClientRect();return {x:r.left+x,y:r.top+y,inside:x>8&&y>8&&x<r.width-8&&y<r.height-8};},p);
+async function positionOnCanvas(page,p){
+ await page.waitForFunction(()=>{const h=SkyMapUI.workspaceHost(),s=h?.session;return !!s?.eye&&!s.timelinePending&&Math.abs(s.eye.latitude-s.observer.latitude)<1e-7&&Math.abs(s.eye.longitude-s.observer.longitude)<1e-7;});
+ await page.evaluate(async p=>{await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const h=SkyMapUI.workspaceHost(),c=document.getElementById('skyMapCanvas'),box=c.getBoundingClientRect(),w=c.clientWidth,ht=c.clientHeight,candidates=[];
+  for(let y=24;y<ht-24;y+=16)for(let x=24;x<w-64;x+=16)if([[-14,-14],[54,-14],[-14,14],[54,14],[0,0]].every(([dx,dy])=>document.elementFromPoint(box.left+x+dx,box.top+y+dy)===c))candidates.push({x,y,d:Math.hypot(x-w*.23,y-ht*.45)});
+  candidates.sort((a,b)=>a.d-b.d);if(!candidates.length)throw new Error('記録ピンを操作できる地図の空きがない');const pos=candidates[0];
+  h.map.setCenter(p.latitude,p.longitude);
+  // 対象を富士山から戻した直後などの広域倍率では、記録が主ピン22px内に入り省略される。
+  // 実際の地図を拡大し、別地点のピンとして区別できる状態でタップする。
+  if(document.getElementById('skyMapView').dataset.mapCenter==='obs')for(let z=h.map.zoom();z<19;z++){
+   const a=h.map.project(p.latitude,p.longitude),others=[h.session.observer,h.session.target].filter(q=>q&&Math.hypot(q.latitude-p.latitude,q.longitude-p.longitude)>1e-8),near=others.some(q=>{const b=h.map.project(q.latitude,q.longitude);return Math.hypot(a[0]-b[0],a[1]-b[1])<44;});
+   if(!near)break;h.map.setView(p.latitude,p.longitude,z+1);
+  }
+  const q=h.map.coordinateAt(w-pos.x,ht-pos.y);h.map.setCenter(q.latitude,q.longitude);h.redraw();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+ },p);
+}
 
 async function records(type,engine,width,theme,results){
  const browser=await type.launch(engine==='chrome'?{channel:'chrome',headless:true}:{headless:true});const label=`${engine}-${width}-${theme}`;
@@ -76,15 +91,20 @@ async function records(type,engine,width,theme,results){
    assert(Math.abs(near.windows[0].from-Math.ceil(expected/60000)*60000)<=60000,label+': 記録の重なりの始まり '+JSON.stringify({near,expected}));
    assert.match(await page.locator('#mapWsCardOverlap').innerText(),/^この日重なる記録の地点 1件（確認地点の記録 \d\d:\d\d）$/);
    await page.screenshot({path:`${out}/${label}-target.png`});
+   const savedCenter=await page.evaluate(()=>{const h=SkyMapUI.workspaceHost(),c=document.getElementById('skyMapCanvas');return h.map.coordinateAt(c.clientWidth/2,c.clientHeight/2);});
    // 重ならない記録の地点（北の記録）はピンを出さない＝押しても選べない（2026-11-26 ユーザー「ラインに重なるところだけ」）
+   await positionOnCanvas(page,FAVORITES[1]);await page.waitForTimeout(520);
    const offPin=await screenPoint(page,FAVORITES[1]);
-   if(offPin.inside){await page.mouse.click(offPin.x,offPin.y);await page.waitForTimeout(300);const picked=(await state(page)).selection;assert(!(picked?.kind==='record'&&picked.name==='北の記録'),label+': 重ならない記録の地点は出さない '+JSON.stringify(picked));
-    if(picked)await page.locator('#mapWsCardSecond').click();await page.waitForFunction(()=>!AstroNotesMapWorkspace.targetState().selection);offChecked++;}else console.log('SKIP off-pin outside',label);
+   assert(offPin.inside);assert.equal(await page.evaluate(p=>document.elementFromPoint(p.x,p.y)?.id,offPin),'skyMapCanvas');
+   await page.mouse.click(offPin.x,offPin.y);await page.waitForTimeout(300);const picked=(await state(page)).selection;assert.equal((await view(page)).center,'target',label+': ピン検査で中心modeを誤操作しない');assert(!(picked?.kind==='record'&&picked.name==='北の記録'),label+': 重ならない記録の地点は出さない '+JSON.stringify(picked));
+   if(picked)await page.locator('#mapWsCardSecond').click();await page.waitForFunction(()=>!AstroNotesMapWorkspace.targetState().selection);offChecked++;
    // 記録のピンをタップ→その地点のカード（重なる時間）→戻す。
+   await positionOnCanvas(page,FAVORITES[0]);await page.waitForTimeout(520);
    const pin=await screenPoint(page,FAVORITES[0]);
-   if(pin.inside){await page.mouse.click(pin.x,pin.y);await page.waitForFunction(()=>AstroNotesMapWorkspace.targetState().selection?.kind==='record');
-    await page.waitForFunction(()=>document.getElementById('mapWsCardPlace').textContent==='確認地点の記録');assert.match(await page.locator('#mapWsCardOverlap').innerText(),/^重なる \d\d:\d\d〜\d\d:\d\d$/);
-    await page.locator('#mapWsCardSecond').click();await page.waitForFunction(()=>!AstroNotesMapWorkspace.targetState().selection);}
+   assert(pin.inside);assert.equal(await page.evaluate(p=>document.elementFromPoint(p.x,p.y)?.id,pin),'skyMapCanvas');await page.mouse.click(pin.x,pin.y);await page.waitForFunction(()=>AstroNotesMapWorkspace.targetState().selection?.kind==='record');
+   await page.waitForFunction(()=>document.getElementById('mapWsCardPlace').textContent==='確認地点の記録');assert.match(await page.locator('#mapWsCardOverlap').innerText(),/^重なる \d\d:\d\d〜\d\d:\d\d$/);
+   await page.locator('#mapWsCardSecond').click();await page.waitForFunction(()=>!AstroNotesMapWorkspace.targetState().selection);
+   await page.evaluate(async p=>{const h=SkyMapUI.workspaceHost();h.map.setCenter(p.latitude,p.longitude);h.redraw();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));},savedCenter);
    // 線の近くをタップ→線上に吸着→「ここを撮影地点にする」→撮影地点が中心、名前は線上の地点、時刻はその点の時刻。
    const target=await page.evaluate(()=>{const m=SkyMapUI.workspaceHost().map,c=document.getElementById('skyMapCanvas'),w=c.clientWidth,h=c.clientHeight;
     return AstroNotesMapWorkspace.targetState().line.length&&null;});void target;
@@ -132,21 +152,16 @@ async function recordTimeFollow(page,near,label){
  const setAt=at=>page.evaluate(at=>SkyMapUI.setTime(at),at);
  const fade=()=>page.evaluate(name=>AstroNotesMapWorkspace.targetState().obsRecordFades?.find(r=>r.name===name)||null,name);
  const waitAlpha=async(expected)=>{
-  await page.waitForFunction(({name,expected})=>{const s=AstroNotesMapWorkspace.targetState(),r=s.obsRecordFades?.find(r=>r.name===name);return !s.obsRecordsPending&&(expected===0?(!r||r.alpha<=.015&&r.targetAlpha===0):r&&Math.abs(r.alpha-expected)<.015&&Math.abs(r.targetAlpha-expected)<.001);},{name,expected},{timeout:5000});
+  // alphaが僅かに残る追従中は、描画もhitもまだ有効。不可視の確認は厳密な0まで待つ。
+  await page.waitForFunction(({name,expected})=>{const s=AstroNotesMapWorkspace.targetState(),r=s.obsRecordFades?.find(r=>r.name===name);return !s.obsRecordsPending&&(expected===0?(!r||r.alpha===0&&r.targetAlpha===0):r&&Math.abs(r.alpha-expected)<.015&&Math.abs(r.targetAlpha-expected)<.001);},{name,expected},{timeout:5000});
   return fade();
  };
- const positionPin=async()=>{
-  await page.waitForFunction(()=>{const h=SkyMapUI.workspaceHost(),s=h?.session;return !!s?.eye&&!s.timelinePending&&Math.abs(s.eye.latitude-s.observer.latitude)<1e-7&&Math.abs(s.eye.longitude-s.observer.longitude)<1e-7;});
-  await page.evaluate(async p=>{await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const h=SkyMapUI.workspaceHost(),c=document.getElementById('skyMapCanvas'),box=c.getBoundingClientRect(),w=c.clientWidth,ht=c.clientHeight,candidates=[];
-   // 320pxでは中央の「撮影地点へ戻る」がピンを隠す。ボタンを避けた実画面の空きへ地図を動かす。
-   for(let y=24;y<ht-24;y+=16)for(let x=24;x<w-64;x+=16)if([[-14,-14],[54,-14],[-14,14],[54,14],[0,0]].every(([dx,dy])=>document.elementFromPoint(box.left+x+dx,box.top+y+dy)===c))candidates.push({x,y,d:Math.hypot(x-w*.23,y-ht*.45)});
-   candidates.sort((a,b)=>a.d-b.d);if(!candidates.length)throw new Error('記録ピンを操作できる地図の空きがない');const pos=candidates[0];
-   h.map.setCenter(p.latitude,p.longitude);const q=h.map.coordinateAt(w-pos.x,ht-pos.y);h.map.setCenter(q.latitude,q.longitude);h.redraw();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-  },FAVORITES[0]);
- };
- const tapPin=async()=>{
+ const positionPin=()=>positionOnCanvas(page,FAVORITES[0]);
+ const tapPin=async(visible=true)=>{
   // 地図は同座標500ms以内をダブルタップと解釈する。ここでは独立した選択操作を確かめる。
   await page.waitForTimeout(520);
+  // 対象復元のfit/標高表示によるlayoutが落ち着いた後の露出位置を使う。
+  await positionPin();if(visible)await page.waitForFunction(name=>AstroNotesMapWorkspace.targetState().obsRecords.includes(name),name,{timeout:3000});
   const p=await screenPoint(page,FAVORITES[0]);assert(p.inside,label+': 記録ピンは実際に操作できる画面内');
   const owner=await page.evaluate(({x,y})=>document.elementFromPoint(x,y)?.id,p);assert.equal(owner,'skyMapCanvas',label+': 記録ピンが別のボタンに隠れていない');
   await page.mouse.click(p.x,p.y);
@@ -166,7 +181,7 @@ async function recordTimeFollow(page,near,label){
   }
   // 日中で朝夕どちらにも近くなければ、近い回のピンを無理に出さない。
   await setAt(Date.parse('2026-12-24T12:00:00+09:00'));await waitAlpha(0);
-  await tapPin();assert(!(await state(page)).selection,label+': 不可視ピンの位置を押しても記録を選ばない');
+  await tapPin(false);assert(!(await state(page)).selection,label+': 不可視ピンの位置を押しても記録を選ばない');
   // 半透明の時刻とピンが一緒に薄くなることを、描画先から確認。
   await setAt(w.from-55*minute);await waitAlpha(.5);
   const drawn=await page.evaluate(p=>{const h=SkyMapUI.workspaceHost(),source=document.getElementById('skyMapCanvas'),c=document.createElement('canvas');c.width=source.clientWidth;c.height=source.clientHeight;

@@ -39,6 +39,8 @@ run search-design SEARCH_DESIGN_BASE=$B node tools/test-explore-search-design.cj
 run map-stage MAP_STAGE_BASE=$B MAP_STAGE_OUT="$OUT/map-stage" node tools/test-explore-map-stage.cjs
 # 2026-11-26 trial（段階②）: 目標物が中心・帯・線・記録の重なり・下部シート
 run target-mode TARGET_MODE_BASE=$B TARGET_MODE_OUT="$OUT/target-mode" node tools/test-explore-target-mode.cjs
+# 段階④: 8天体×両中心×8画面、初回engine/再試行と実計算の夜間記録。
+CHECK_TIMEOUT_SECONDS=${MAP_BODIES_TIMEOUT_SECONDS:-600} run map-bodies MAP_BODIES_BASE=$B MAP_BODIES_OUT="$OUT/map-bodies" node tools/test-explore-map-bodies.cjs
 run preview-swipe PREVIEW_SWIPE_BASE=${B}index.html node tools/test-explore-preview-swipe.cjs
 run bar-layout BAR_LAYOUT_BASE=${B}index.html BAR_LAYOUT_OUT="$OUT/bar" node tools/test-explore-bar-layout.cjs
 run real-map CANDIDATE_MAP_OUT="$OUT/map" node tools/test-candidate-real-map.cjs

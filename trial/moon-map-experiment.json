@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "20261124-moon-route-map",
-  "revision": 4,
+  "revision": 5,
   "baselineCommit": "f4f35b61359ba5ec8f9da057cf3026902a0402a4",
   "productionSha256": {
     "index.html": "feb5e6c31bbb6014c66615a414cca2477296b89ab8e6a95ba1e98c07907a29c3",
@@ -20,7 +20,8 @@
     "astronotes-map-workspace.css": "d4eeb9d339c58862bfbbff1d858f688a1fe2a5b1651723b94e71b26d94515bdc",
     "src/features/explore/map-presentation.js": "17dda27eb8d647e1243b1c799eb8de82fefa1da22c9d9ed08fa1f2855130c80c",
     "src/features/candidates/ui.js": "d6d2474ee263a8b590be401779557615cddf9d5c202a3860b715be2b79be1b4b",
-    "src/features/candidates/generic-search.js": "194590745bc5aeaf5221bbb6480740afdc14ced1634311a2bf46456a74416664"
+    "src/features/candidates/generic-search.js": "194590745bc5aeaf5221bbb6480740afdc14ced1634311a2bf46456a74416664",
+    "astronotes-shooting.js": "58dd86c5d5dc697ded5c5a5a4c5800818f9a16a4f21ecabe570fa175ebddd16c"
   },
   "overlaySha256": {
     "src/index.html": "cd655d25d6847425bbbdd408cf25c5d524289931909f767769d49a2a3bb4153e",
@@ -33,22 +34,24 @@
     "src/features/framing/scene/render.js": "6af9fe3e6225565942c09668056549f68966838befb548d7a2ab93848a677ed9",
     "src/features/framing/presentation.js": "2a024011759988117a5b7d29747448fce46c6c9aca23a9429f618296ef4f974a",
     "src/features/explore/controller.js": "fbf49ca680e64cc4cdac5c20c5feae2ed9e034d06e43c370ecebaab33a9fd3c2",
-    "src/features/explore/map-presentation.js": "0ab302dd79ade03419fdba990d32ef6cb06e09716d23c3ab4ae41d5f448833ad",
-    "astronotes-map-workspace.js": "b5f5abb657c777796b7f7496311994ac81a1a35f78bcdecf160e29073d11f466",
-    "astronotes-map-workspace.css": "36a9057471f70b8de10a290010e42184816b52f9367f788538cdd5628acc2c50",
-    "src/features/candidates/ui.js": "8ec43f27e103e7de9f72b7056459cee4d35e39570458205b53fe9e2739b3cd83",
-    "src/features/candidates/generic-search.js": "c9396484cc7caf42952202922e597f10c2b1de2ac3a0f2d5633a6ec0ac1e0e04"
+    "src/features/explore/map-presentation.js": "889ec684d90dc84dc1df80ac682e9b40be05ab9a4619ea0e2df8b5d1b3dd1006",
+    "astronotes-map-workspace.js": "b03e975d490c542b097f30d0a85416a4b69084ef3b1f16930764ca46c3bec79b",
+    "astronotes-map-workspace.css": "452ed6249a3ec3e52a73a131bbb82a0550c1cea6b9049eec5b5a02b53b108f19",
+    "src/features/candidates/ui.js": "4d9039f3702e13d2eddb4b8b925b7cfd548eebf68d39925cdce6005055639187",
+    "src/features/candidates/generic-search.js": "0f78f4fe1e6924997dd96edf4787e4612e1721f3ede20522fe05bce2b21be727",
+    "astronotes-shooting.js": "33c1a6511b76ed0929a2dd38babcd2f72465668aba59af3ddbfe2e171172a393"
   },
   "files": {
     "astronotes-plane.js": "20ca336df57c9b0fc6411176c7393c9db4cee7dcf587be4a0a26608c54e59916",
     "astronotes-routes.js": "fc099255874d597c8ee2146d8ac611cb5f3613c20c6621d223be6422365bb000",
     "astronotes-datetime-ui.css": "8d4714f564c8ea9bd687e9a16dcc8c4915513c2becdbf4550e012fd8a01ae32e",
     "astronotes-myplaces.js": "f2617b8916fb2e285e119bdb117c95c37d612ee5282b7ccf711c60d08bf2ba0b",
-    "astronotes-map-workspace.js": "b5f5abb657c777796b7f7496311994ac81a1a35f78bcdecf160e29073d11f466",
-    "astronotes-map-workspace.css": "36a9057471f70b8de10a290010e42184816b52f9367f788538cdd5628acc2c50",
+    "astronotes-map-workspace.js": "b03e975d490c542b097f30d0a85416a4b69084ef3b1f16930764ca46c3bec79b",
+    "astronotes-map-workspace.css": "452ed6249a3ec3e52a73a131bbb82a0550c1cea6b9049eec5b5a02b53b108f19",
+    "astronotes-shooting.js": "33c1a6511b76ed0929a2dd38babcd2f72465668aba59af3ddbfe2e171172a393",
     "astronotes-explore-simple.js": "66487453c7d302d85a7fe1bbd443253ca5de44644f8d099fb648f4fb6135b49d",
-    "astronotes-candidate-search.js": "3344929afd867c498948896b8354df6b37b722cf19ffc206d7ebae30b4867aee",
-    "index.html": "341dcffbea1ef80f039a5f9e093dc809de2838a1facc11d03dc48062ca91e563",
-    "app-version.txt": "b9c896a3c034acf9f31327b14aa5f34013082d7adbe86cf78910eefe77984745"
+    "astronotes-candidate-search.js": "0c13784660aa62751b3d418eab8fd60dec33082eeb65c51c9a96491cc21d74bf",
+    "index.html": "0feae62f723db53bfc30c4984d56df21e827490f513ccebc46c4938f3ad726c0",
+    "app-version.txt": "836630b258045fed0ac92e828f4cf7b0cfff076ae559fd55aa77b44bdfc449fa"
   }
 }

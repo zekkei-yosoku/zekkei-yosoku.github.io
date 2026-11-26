@@ -28,7 +28,8 @@ function installFixture(granted){
    // Synthetic places: the real visibility map (2026-11-13) is left out.
    return original({...options,prefilter:null,provider:{load:async plan=>{candidateFixture.loads++;candidateFixture.plans.push(structuredClone(plan));return {points:candidateFixture.riverRows?riverPoints:points,coverage:{nextCursor:null},partial:false};}},evaluate:async(plan,point)=>{
     if(candidateFixture.holdSecond&&point.id==='deck-high')await new Promise(resolve=>{candidateFixture.releaseSecond=resolve;});
-    const range=AstroNotesCandidateComposition.timeRange(plan),at=range.start===range.end?range.start:Math.min(range.end,range.start+12*3600000);
+    // trial段階④は点天体の昼を除外する。UI検査の合成候補も有効な夜の時刻に置く。
+    const range=AstroNotesCandidateComposition.timeRange(plan),at=range.start===range.end?range.start:Math.min(range.end,range.start+(plan.pointNight?23:12)*3600000);
     const row={id:plan.body+'-'+point.id+'-'+at,requestKey:plan.requestKey,recommend:true,aligned:true,status:'model-visible',placeKind:point.placeKind,surfaceId:point.surfaceId,rank:point.rank,
      place:{name:point.name,latitude:point.latitude,longitude:point.longitude,elevation:point.groundM,groundManualM:point.groundM,standAglM:point.eyeM,eyeHeightAGL:point.eyeM,decks:[],stand:'ground'},
      assumedObserver:{latitude:point.latitude,longitude:point.longitude,elevation:point.groundM,eyeM:point.eyeM},
@@ -112,7 +113,8 @@ async function assertSelected(p,row,before,body,target='custom'){
      const beforeLoads=await p.evaluate(()=>candidateFixture.loads);await search(p,3,index===0,index===0?releaseLabels:null);assert.equal(await p.evaluate(()=>candidateFixture.loads),beforeLoads+1);
      if(index===0)await labelsFailed;
      if(index===1){await labelsRecovered;assert.equal(recoveredLabels.size,2,'next search retries both missing optional label files');}
-     const names=await p.locator('#candidateUnifiedResults .list-item').evaluateAll(ns=>ns.map(n=>n.firstElementChild.textContent));// The list opens in time order (all three at 12:00 here); standard scope excludes independent roads.
+     const names=await p.locator('#candidateUnifiedResults .list-item').evaluateAll(ns=>ns.map(n=>n.firstElementChild.textContent));// All three share one eligible event time; standard scope excludes independent roads.
+     if(await p.evaluate(()=>candidateFixture.plans.at(-1)?.pointNight===true))assert(await p.evaluate(()=>AstroNotesCandidatePicker.visibleRows().every(r=>AstroNotesBodies.state('sun',r.event.at,r.assumedObserver,{refraction:false}).altitude<=-6)),'point-body UI fixtures satisfy the actual night condition');
      assert.deepEqual([...names].sort(),['任意対象の公園','同じ展望地点 下層','同じ展望地点 上層'].sort(),'standard scope excludes independent roads');
      assert.equal(await p.evaluate(()=>AstroNotesCandidatePicker.visibleRows().filter(r=>r.place.latitude===35.6906).length),2,'same point different height preserved');
      const metrics=await p.locator('#candidateListControls').evaluate(n=>({overflow:n.scrollWidth>n.clientWidth+1,bodyOverflow:document.documentElement.scrollWidth>innerWidth+1}));assert(!metrics.overflow&&!metrics.bodyOverflow,JSON.stringify(metrics));

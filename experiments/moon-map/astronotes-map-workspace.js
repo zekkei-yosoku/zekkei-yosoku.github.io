@@ -6,7 +6,7 @@
 (function(g){
 'use strict';
 const $=id=>document.getElementById(id),JST=32400000,HOUR=3600000,RAD=Math.PI/180,LOW_SKY=.6,PASS_STEP=300000,PASS_REACH=288,EYE_HEIGHT=1.5;
-let keptView=null,overlapCache={key:'',windows:null,pending:'',ready:'',timer:0},active=false,wanted=false,selfClick=false,fittedKey=null,emphasis=null,hits=[],built=false,scrubBefore=null,infoFrame=0,bearingCache=null,colours=null,hourPixels=16,passCache=new Map(),labels=[],sceneFull=false,sceneHidden=[],noticeTimer=0,lastBody=null;
+let keptView=null,overlapCache={key:'',windows:null,pending:'',ready:'',timer:0},active=false,wanted=false,selfClick=false,fittedKey=null,hits=[],built=false,scrubBefore=null,infoFrame=0,bearingCache=null,colours=null,hourPixels=16,passCache=new Map(),labels=[],sceneFull=false,sceneHidden=[],noticeTimer=0,lastBody=null;
 const pad=n=>String(n).padStart(2,'0');
 const hhmm=at=>{const d=new Date(at+JST);return pad(d.getUTCHours())+':'+pad(d.getUTCMinutes());};
 const monthDay=at=>{const d=new Date(at+JST);return (d.getUTCMonth()+1)+'/'+d.getUTCDate();};
@@ -31,22 +31,16 @@ function targetGeometry(h){
  let value=null;try{const geo=AstroNotesAlign.geometryFrom(s.eye,t,{partId:s.partId,eyeM:0});if(geo)value={azimuth:geo.azimuth,distanceKm:geo.distanceKm,elevation:AstroNotesAstro.targetElevationAngle(geo.distanceKm,s.eye.elevation,geo.topM,{k:1})};}catch{value=null;}
  bearingCache={key,value};return value;
 }
-// 地図と情報欄の主役。探す条件の天体は変えない（変えると重なる日時の計算をやり直すことになる）。
-const mainBody=h=>emphasis||h.session.body;
-const orbitSwitch=body=>$(body==='sun'?'skyMapShowSun':'skyMapShowMoon');
-// 情報欄の天体の枠を押すと軌道を出し入れする。縦に並ぶ広い画面では主役でない天体を先に主役にする。
-function pressOrbit(body){
- const h=host(),toggle=orbitSwitch(body);if(!h)return;
- if(active){chooseBody(body);return;}// 地図の段は条件の天体だけを描く。表示の切替は効かないので押しても切り替えない
- if(body!==mainBody(h)&&getComputedStyle($('mapWsInfo')).flexDirection==='column'){if(toggle.getAttribute('aria-pressed')==='false')toggle.click();chooseBody(body);return;}
- toggle.click();
-}
+// 選択の正本は撮影条件。地図の釦も既存selectの変更処理（権限・保存・再計算）を通す。
+const mainBody=h=>h.session.body;
 function chooseBody(body){
- const h=host();if(!h||body===mainBody(h))return;emphasis=body;
- for(const page of $('mapWsInfo').children)page.classList.toggle('map-ws-current',page.dataset.body===body);
- h.redraw();schedule();
+ const h=host(),select=$('skyMapBody'),option=select&&[...select.options].find(o=>o.value===body);if(!h||!option||option.disabled||option.hidden)return;
+ if(h.session.body!==body){select.value=body;select.dispatchEvent(new Event('change',{bubbles:true}));}
+ $('mapWsInfo').scrollLeft=0;schedule();
 }
-function dailyOf(h,body){const s=h.session;if(s.dailies?.[body])return s.dailies[body];if(!s.eye||s.timelinePending)return null;try{return AstroNotesSkyMap.daily(body,AstroNotesSkyMap.dayStart(s.at),s.eye,h.skyState);}catch{return null;}}
+const pointBody=body=>!!AstroNotesBodies.definition(body)&&!AstroNotesBodies.definition(body).limbs;
+const nightAllowed=(body,at,observer,angularMargin=0)=>AstroNotesShooting.nightAllowed(body,at,observer,AstroNotesBodies,angularMargin);
+function dailyOf(h,body){const s=h.session;if(s.dailies?.[body])return s.dailies[body];if(!s.eye||s.timelinePending||body===s.body&&!s.dailies?.[body]||pointBody(body)&&!AstroNotesBodies.ready())return null;try{return AstroNotesSkyMap.daily(body,AstroNotesSkyMap.dayStart(s.at),s.eye,h.skyState);}catch{return null;}}
 // 日付で切らず、地平線から地平線までの1回の通り道を返す。日をまたぐ月でも軌道が円の縁まで届く。
 function passesOf(h,body,data){
  const s=h.session,day=data.points[0].at,key=[body,day,s.eye.latitude,s.eye.longitude,s.eye.elevation].join();let list=passCache.get(key);if(list)return list;
@@ -174,11 +168,13 @@ function targetKey(h){const s=h.session,t=s.target;return JSON.stringify([s.body
 // 天体の中心が対象の先端（全体なら上端）に来る線。地形の標高をならして解く（構図の地図と同じ解き方）。
 function lineFor(h){
  const s=h.session,key=targetKey(h);if(lineState.key===key)return lineState.lines;
- lineState={key,lines:null,busy:true};const day=AstroNotesSkyMap.dayStart(s.at),target=s.target,body=s.body,eyeM=Number.isFinite(s.eyeM)?s.eyeM:EYE_HEIGHT;
+ const job={key,lines:null,busy:true,body:s.body};lineState=job;const day=AstroNotesSkyMap.dayStart(s.at),target=s.target,body=s.body,partId=linePart(s),eyeM=Number.isFinite(s.eyeM)?s.eyeM:EYE_HEIGHT;
  const elevationAt=typeof groundAt==='function'?(lat,lon)=>groundAt(lat,lon):null;
- Promise.resolve().then(()=>AstroNotesBodies.ensure?.(body)).then(()=>AstroNotesAlign.line(target,body,day,{partId:linePart(s),limb:'center',eyeM,elevationAt,isCurrent:()=>lineState.key===key}))
-  .then(lines=>{if(lineState.key!==key)return;lineState={key,lines:(lines||[]).map(l=>({side:l.side,points:l.points.filter(p=>Number.isFinite(p.at))})).filter(l=>l.points.length>1),busy:false};bandState.key='';host()?.redraw();schedule();})
-  .catch(e=>{if(lineState.key!==key)return;globalThis.AstroNotesErrors?.note('map.targetLine',e);lineState={key,lines:[],busy:false,error:true};host()?.redraw();schedule();});
+ Promise.resolve().then(()=>AstroNotesBodies.ensure(body)).then(()=>lineState===job?AstroNotesAlign.line(target,body,day,{partId,limb:'center',eyeM,elevationAt,isCurrent:()=>lineState===job}):[])
+  .then(lines=>{if(lineState!==job)return;const visible=[];for(const l of lines||[]){let run=null;for(const p of l.points){const observer={latitude:p.latitude,longitude:p.longitude,elevation:(p.elevationM??p.groundM??0)+eyeM};
+    if(Number.isFinite(p.at)&&nightAllowed(body,p.at,observer))(run||(visible.push(run={side:l.side,points:[]}),run)).points.push(p);else run=null;}}
+   lineState={key,body,lines:visible.filter(l=>l.points.length>1),busy:false};bandState.key='';host()?.redraw();schedule();})
+  .catch(e=>{if(lineState!==job)return;globalThis.AstroNotesErrors?.note('map.targetLine',e);lineState={key,body,lines:[],busy:false,error:true};host()?.redraw();schedule();});
  return null;
 }
 // 大気差の余裕（Bennett式。地平線付近で約0.5°、最大0.6°）。幾何で拾う時だけ広めに取るために使う。
@@ -198,8 +194,21 @@ function bandTopM(s){const t=s.target;if(linePart(s)==='__whole'){const v=(t.par
 function bandHalfWidthKm(s,topM){
  const t=s.target;if(typeof aimIsMountain==='function'&&aimIsMountain(t))return .5;
  try{const sample=AstroNotesTerrain.destination(t.latitude,t.longitude,180,10),v=AstroNotesAlign.heightVertices?.({...sample,elevation:0},t,{partId:linePart(s),eyeM:EYE_HEIGHT})?.vertices||[];
-  const az=v.map(q=>q[0]).filter(Number.isFinite);if(az.length>1){const spread=Math.max(...az.map(a=>Math.abs(AstroNotesSkyMap.delta(a,az[0]))))*2;return Math.max(.02,Math.tan(spread/2*RAD)*10);}}catch{/* 外形の無い対象は細い柱として扱う */}
+  const az=v.map(q=>q[0]).filter(Number.isFinite);if(az.length>1){const spread=Math.max(...az.map(a=>Math.abs(AstroNotesSkyMap.delta(a,az[0]))))*2;return Math.max(pointBody(s.body)?0:.02,Math.tan(spread/2*RAD)*10);}}catch{/* 外形の無い対象は細い柱として扱う */}
  return .03;
+}
+// 探索用の帯は広めに保ち、表示だけを各地点・時刻の薄明境界で切る。
+// 1分の隣接扇形を小さな面に分けるので、対象が昼でも遠方の夜部分は残せる。
+function nightBandShape(body,target,raw,L,R,eyeM){
+ const vertex=(p,at)=>({latitude:p.latitude,longitude:p.longitude,at,elevation:eyeM}),inside=p=>nightAllowed(body,p.at,p);
+ const centers=raw.map(x=>vertex(target,x.at)),left=L.map((p,i)=>vertex(p,raw[i].at)),right=R.map((p,i)=>vertex(p,raw[i].at));
+ const states=new Map(),allowed=p=>{if(!states.has(p))states.set(p,inside(p));return states.get(p);};
+ const crossing=(a,b)=>{let yes=allowed(a)?a:b,no=allowed(a)?b:a;for(let k=0;k<20;k++){const longitude=yes.longitude+((no.longitude-yes.longitude+540)%360-180)/2,mid={latitude:(yes.latitude+no.latitude)/2,longitude:(longitude+540)%360-180,at:(yes.at+no.at)/2,elevation:eyeM};if(inside(mid))yes=mid;else no=mid;}return yes;};
+ const clip=points=>{const out=[];for(let i=0;i<points.length;i++){const a=points[i],b=points[(i+1)%points.length],aa=allowed(a),bb=allowed(b);if(aa)out.push(a);if(aa!==bb)out.push(crossing(a,b));}return out.length>=3?out:[];};
+ const polygons=[],outlines=[];
+ for(let i=1;i<raw.length;i++)for(const points of [[centers[i-1],left[i-1],left[i],centers[i]],[centers[i-1],right[i-1],right[i],centers[i]],[left[i-1],left[i],right[i],right[i-1]]]){const p=clip(points);if(p.length)polygons.push(p);}
+ const edge=[...left,...right.slice().reverse()];for(let i=0;i<edge.length;i++){const a=edge[i],b=edge[(i+1)%edge.length],aa=allowed(a),bb=allowed(b);if(aa||bb)outlines.push([aa?a:crossing(a,b),bb?b:crossing(a,b)]);}
+ return {polygons,outlines};
 }
 function computeBand(h,key){
  const s=h.session,t=s.target,day=AstroNotesSkyMap.dayStart(s.at),eyeM=Number.isFinite(s.eyeM)?s.eyeM:EYE_HEIGHT,lines=lineState.key===targetKey(h)?lineState.lines:null,runs=[],topM=bandTopM(s);
@@ -210,14 +219,17 @@ function computeBand(h,key){
  const back=(az,d)=>{let b=(az+180)%360;for(let k=0;k<3;k++){const p=AstroNotesTerrain.destination(t.latitude,t.longitude,b,d),seen=AstroNotesTerrain.bearing(p.latitude,p.longitude,t.latitude,t.longitude),miss=AstroNotesSkyMap.delta(az,seen);if(Math.abs(miss)<1e-4)break;b=(b+miss+360)%360;}return b;};
  for(let m=0;m<=1440;m+=1){
   const at=day+m*60000;let st;try{st=h.skyState(s.body,at,here);}catch{run=null;continue;}
-  const a=st.altitude,r=Number.isFinite(st.angularRadius)?st.angularRadius:0,margin=refraction(a),need=a-r-margin;let bearing=(st.azimuth+180)%360,d=null;
+  // 探索の種は最大距離ぶんの太陽高度差を許して拾う。実際の地点・時刻の最終判定はnightAllowed。
+  if(!nightAllowed(s.body,at,here,maxKm/6371/RAD)){run=null;continue;}
+  const a=st.altitude,r=pointBody(s.body)?0:Number.isFinite(st.angularRadius)?st.angularRadius:0,margin=refraction(a),need=a-r-margin;let bearing=(st.azimuth+180)%360,d=null;
   if(a+r+margin>=-.3&&tipAt(bearing,.3)>=need){if(tipAt(bearing,maxKm)>=need)d=maxKm;else{let lo=.3,hi=maxKm;for(let i=0;i<28;i++){const mid=(lo+hi)/2;if(tipAt(bearing,mid)>=need)lo=mid;else hi=mid;}d=lo;}}
-  if(d){bearing=back(st.azimuth,d);(run||(runs.push(run=[]),run)).push({at,bearing,d,w:r+margin*.2+.03,hw});}else run=null;
+  if(d){bearing=back(st.azimuth,d);(run||(runs.push(run=[]),run)).push({at,bearing,d,w:pointBody(s.body)?0:r+margin*.2+.03,hw});}else run=null;
  }
  const dest=(b,d)=>AstroNotesTerrain.destination(t.latitude,t.longitude,b,d),wAt=(x,d)=>x.w+Math.atan(x.hw/Math.max(d,.05))/RAD;
- return runs.filter(q=>q.length>1).map(q=>({t0:q[0].at,t1:q.at(-1).at,L:q.map(x=>dest(x.bearing-wAt(x,x.d),x.d)),R:q.map(x=>dest(x.bearing+wAt(x,x.d),x.d)),raw:q}));
+ return runs.filter(q=>q.length>1).map(q=>{const L=q.map(x=>dest(x.bearing-wAt(x,x.d),x.d)),R=q.map(x=>dest(x.bearing+wAt(x,x.d),x.d));return {t0:q[0].at,t1:q.at(-1).at,L,R,raw:q,...(pointBody(s.body)?nightBandShape(s.body,t,q,L,R,eyeM):{})};});
 }
 function bandFor(h){
+ if(lineState.key!==targetKey(h)||lineState.busy||lineState.error)return [];
  const base=targetKey(h),key=base+'|'+(lineState.key===base&&lineState.lines?'line':'flat');if(bandState.key===key)return bandState.runs;
  if(bandState.pending!==key){clearTimeout(bandState.timer);bandState.pending=key;bandState.timer=setTimeout(()=>{const hh=host();if(!hh||bandState.pending!==key||targetKey(hh)!==base)return;
   let runs=[];try{runs=computeBand(hh,key);}catch(e){globalThis.AstroNotesErrors?.note('map.band',e);}bandState={key,base,runs,pending:'',timer:0};hh.redraw();schedule();},160);}
@@ -236,32 +248,40 @@ function recordPlaces(){
   out.push({latitude:p.latitude,longitude:p.longitude,elevation:p.elevation,groundManualM:p.groundManualM,eyeHeightAGL:p.eyeHeightAGL,name:p.name||'記録の地点',id,source:p});}
  recordPlacesCache={revision,list:out};return out;
 }
+// 丸めた分が薄明境界を越える短い通過は、確認済み区間の中点を保持する。
+function displayWindow(w,body,observer){
+ const from=Math.ceil(w.from/60000)*60000,to=Math.floor(w.to/60000)*60000;if(from<=to)return {from,to};
+ const mid=(w.from+w.to)/2,rounded=Math.round(mid/60000)*60000,at=nightAllowed(body,rounded,observer)?rounded:mid;return {from:at,to:at,brief:true};
+}
 // その地点・その日に天体の円盤が対象の本体に掛かる時間（段階①のカードと同じ判定）。
 function windowsAt(h,place,demGround=null){
  const s=h.session,t=s.target,body=s.body,day=AstroNotesSkyMap.dayStart(s.at);
  const ground=Number.isFinite(place.groundManualM)?place.groundManualM:Number.isFinite(place.elevation)?place.elevation:Number.isFinite(demGround)?demGround:0,eye=Number.isFinite(place.eyeHeightAGL)?place.eyeHeightAGL:EYE_HEIGHT,o={latitude:place.latitude,longitude:place.longitude,elevation:ground+eye};
  const view=AstroNotesAlign.prepareDailyView(o,t,body,{partId:'__whole',eyeM:0}),geo=AstroNotesAlign.geometryFrom(o,t,{partId:s.partId,eyeM:0});if(!geo)return [];
- const data=AstroNotesSkyMap.daily(body,day,o,h.skyState),hit=at=>!!view(at,at)[0]?.intersects,windows=[];
+ const data=AstroNotesSkyMap.daily(body,day,o,h.skyState),hit=at=>nightAllowed(body,at,o)&&!!view(at,at)[0]?.intersects,windows=[];
  for(const point of AstroNotesSkyMap.passages(data,geo.azimuth,body,o,h.skyState)){const found=[];let cur=null;for(let at=point.at-2400000;at<=point.at+2400000;at+=20000){if(hit(at)){if(!cur)cur={from:at,to:at};cur.to=at;}else if(cur){found.push(cur);cur=null;}}if(cur)found.push(cur);
   // 段階①のカードと同じく、走査の端でもまだ重なっていれば外へ延ばす（幅の広い対象、最大±6時間）
   for(const w of found){if(w.from<=point.at-2400000)for(let at=w.from-20000;at>=point.at-21600000&&hit(at);at-=20000)w.from=at;if(w.to>=point.at+2400000)for(let at=w.to+20000;at<=point.at+21600000&&hit(at);at+=20000)w.to=at;}windows.push(...found);}
  windows.sort((a,b)=>a.from-b.from);const merged=[];for(const w of windows){const last=merged.at(-1);if(last&&w.from<=last.to+20000)last.to=Math.max(last.to,w.to);else merged.push({...w});}
- return merged.filter(w=>w.to>=day&&w.from<day+86400000).map(w=>{const from=Math.ceil(w.from/60000)*60000,to=Math.floor(w.to/60000)*60000;return from<=to?{from,to}:{from:Math.round((w.from+w.to)/120000)*60000,to:Math.round((w.from+w.to)/120000)*60000,brief:true};});
+ return merged.filter(w=>w.to>=day&&w.from<day+86400000).map(w=>displayWindow(w,body,o));
 }
 // 記録の地点は地点ごとに処理を譲って数える（日・天体・対象・地点の一覧で保存）。
 const recordPlaceKey=p=>JSON.stringify([p.id,p.latitude,p.longitude,p.groundManualM,p.elevation,p.eyeHeightAGL]);
 const recordConditionKey=h=>targetKey(h)+'|'+JSON.stringify(globalThis.AstroNotesAtmosphere?.dataKey?.()??null);
 function recordsFor(h){
  const places=recordPlaces(),base=recordConditionKey(h),key=base+'|'+JSON.stringify(places.map(recordPlaceKey));if(recordState.key===key)return recordState.rows;
- const job={key,rows:null,busy:true};recordState=job;const rows=[];
+ const body=h.session.body,job={key,body,rows:null,busy:true};recordState=job;const rows=[];
  // keyだけでなくjobそのものを所有者にする。同じ条件へ戻る間に新jobが始まっても、古いjobは結果や状態を上書きしない。
  const current=()=>{const hh=host();return hh&&targetReady(hh)&&recordState===job&&recordConditionKey(hh)===base?hh:null;};
  (async()=>{try{await new Promise(r=>setTimeout(r,300));// 日を送り続けている間は始めない
+  if(!current())return;
+  try{await AstroNotesBodies.ensure(body);}catch(e){if(recordState===job){recordState={key,body,rows:null,busy:false,error:true};globalThis.AstroNotesErrors?.note('map.recordBody',e);host()?.redraw();schedule();}return;}
+  if(!current())return;
   for(const place of places){if(!current())return;await new Promise(r=>setTimeout(r,0));const hh=current();if(!hh)return;
   // 標高の無い記録は段階①と同じく地形の標高で数える
   let dem=null;if(!Number.isFinite(place.groundManualM)&&!Number.isFinite(place.elevation)&&typeof groundAt==='function'){try{dem=await groundAt(place.latitude,place.longitude);}catch{dem=null;}if(!current())return;}
   let windows=null;try{windows=windowsAt(hh,place,dem);}catch(e){globalThis.AstroNotesErrors?.note('map.recordWindows',e);}rows.push({place,windows});}
-  if(!current())return;recordState={key,rows,busy:false};host()?.redraw();schedule();
+  if(!current())return;recordState={key,body,rows,busy:false};host()?.redraw();schedule();
  }finally{
   // 画面を離れた・条件が失効した途中結果をpendingのキャッシュにしない。同条件へ戻れば再計算できる。
   if(recordState===job)recordState={key:'',rows:null,busy:false};
@@ -293,7 +313,10 @@ function drawTarget(ctx,{project,width,height}){
  const h=host();tapHits=[];if(!h||!targetReady(h))return;const s=h.session,t=s.target,[tx,ty]=project(t.latitude,t.longitude),lines=lineFor(h)||[],runs=bandFor(h);
  fitTargetView(h);
  // 重なる範囲（全体）
- ctx.save();for(const run of runs){const L=run.L.map(p=>project(p.latitude,p.longitude)),R=run.R.map(p=>project(p.latitude,p.longitude));
+ ctx.save();for(const run of runs){
+  if(run.polygons){ctx.beginPath();for(const polygon of run.polygons){const pts=polygon.map(p=>project(p.latitude,p.longitude));let area=0;for(let i=0;i<pts.length;i++){const a=pts[i],b=pts[(i+1)%pts.length];area+=a[0]*b[1]-b[0]*a[1];}if(area<0)pts.reverse();pts.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();}ctx.fillStyle='rgba(242,195,94,.28)';ctx.fill();
+   ctx.beginPath();for(const edge of run.outlines){ctx.moveTo(...project(edge[0].latitude,edge[0].longitude));ctx.lineTo(...project(edge[1].latitude,edge[1].longitude));}ctx.setLineDash([4,3]);ctx.lineWidth=1.2;ctx.strokeStyle='rgba(242,195,94,.9)';ctx.stroke();ctx.setLineDash([]);continue;}
+  const L=run.L.map(p=>project(p.latitude,p.longitude)),R=run.R.map(p=>project(p.latitude,p.longitude));
   ctx.fillStyle='rgba(242,195,94,.28)';for(const edge of [L,R]){ctx.beginPath();ctx.moveTo(tx,ty);edge.forEach(q=>ctx.lineTo(...q));ctx.closePath();ctx.fill();}
   ctx.beginPath();[...L,...R.slice().reverse()].forEach((q,i)=>i?ctx.lineTo(...q):ctx.moveTo(...q));ctx.closePath();ctx.fill();ctx.setLineDash([4,3]);ctx.lineWidth=1.2;ctx.strokeStyle='rgba(242,195,94,.9)';ctx.stroke();ctx.setLineDash([]);}
  ctx.restore();
@@ -392,7 +415,8 @@ function useSelectionAsObserver(){
  const h=host();if(!h)return;clearStaleObsSelection(h);const sel=targetSel;if(!sel||sel.key!==targetKey(h))return;
  if(sel.kind==='record'&&sel.place?.source&&globalThis.AstroNotesShooting?.savedObserver){const o=AstroNotesShooting.savedObserver(sel.place.source);h.restoreObserver(o,Number.isFinite(sel.place.groundManualM)?sel.place.groundManualM:null);}
  else{placingName=sel.kind==='line'?'線上の地点':sel.name||PLACED;h.placePoint('observer',{latitude:sel.latitude,longitude:sel.longitude});placingName=null;}
- if(sel.kind==='line'&&Number.isFinite(sel.at))h.setTime(Math.round(sel.at/60000)*60000);
+ // 点天体は数十秒の丸めでも対象から外れるため、解いた時刻をそのまま渡す。
+ if(sel.kind==='line'&&Number.isFinite(sel.at))h.setTime(pointBody(h.session.body)?sel.at:Math.round(sel.at/60000)*60000);
  targetSel=null;setViewMode('obs');h.redraw();schedule();
 }
 function setViewMode(mode){
@@ -423,7 +447,7 @@ function updateTargetCard(h){
  overlap.hidden=!recordPlaces().length;overlap.disabled=!on.length;overlap.classList.toggle('map-ws-card-hit',!!on.length);overlap.dataset.at=on.length?String(on[0].windows[0].from):'';
  set(overlap,!records?'記録の地点を調べています…':on.length?'この日重なる記録の地点 '+on.length+'件（'+on.slice(0,2).map(r=>r.place.name+' '+fmtAt(r.windows[0].from)).join('・')+(on.length>2?' ほか':'')+'）':'記録の地点はこの日重ならない');
  // 探す範囲（帯）は線が揃ってから固まる。それまでは押せない（途中で範囲が変わって探索が捨てられるのを防ぐ）
- const ready=!!lines&&bandState.key===targetKey(h)+'|line';view.disabled=!ready;view.firstElementChild.textContent=ready?'新しい地点を探す':'範囲を計算中…';view.dataset.action='search';view.setAttribute('aria-label','重なる範囲の中で新しい撮影地点を探す');second.firstElementChild.textContent='重なる日';second.dataset.action='list';second.disabled=!globalThis.MyPlacesUI?.opportunities?.covers?.(s.target.id,s.body);second.setAttribute('aria-label','記録の地点の重なる日を今の条件で開く');
+ const error=lineState.key===targetKey(h)&&lineState.error,ready=!!lines&&!error&&bandState.key===targetKey(h)+'|line';view.disabled=!error&&(!ready||!bandState.runs.length);view.firstElementChild.textContent=error?'計算を再試行':ready?(bandState.runs.length?'新しい地点を探す':'この日は重なる範囲なし'):'範囲を計算中…';view.dataset.action=error?'retry':'search';view.setAttribute('aria-label',error?'天体の計算を再試行':'重なる範囲の中で新しい撮影地点を探す');second.firstElementChild.textContent='重なる日';second.dataset.action='list';second.disabled=!globalThis.MyPlacesUI?.opportunities?.covers?.(s.target.id,s.body);second.setAttribute('aria-label','記録の地点の重なる日を今の条件で開く');
 }
 const api={
  hourPixels:()=>active?hourPixels:0,
@@ -439,10 +463,12 @@ const api={
  inBand(p){const h=host();return h&&isTarget()&&validPoint(p)?inBand(h,p):null;},
  // 目標物が中心の下部シートから探す時の帯（新規探索の種を絞る）。それ以外は null で、通常の探索範囲のまま。
  // 目標物が中心の間に探す新しい地点の範囲（帯）。線が揃った帯を対象・日ごとに固定する（途中で範囲を変えない）。それ以外は null で通常の範囲。
- searchBand(s){const h=host();if(!h||viewMode!=='target'||!targetReady(h)||s?.target?.id!==h.session.target.id||AstroNotesSkyMap.dayStart(s.at)!==AstroNotesSkyMap.dayStart(h.session.at))return null;
-  const base=targetKey(h);if(searchBandCache.key===base)return searchBandCache.band;if(bandState.key!==base+'|line'||!bandState.runs.length)return null;
-  const t=h.session.target,band={key:base,target:{latitude:t.latitude,longitude:t.longitude},samples:bandState.runs.flatMap(r=>r.raw.map(q=>[+q.bearing.toFixed(3),+q.d.toFixed(3),+q.w.toFixed(3),+q.hw.toFixed(3)]))};searchBandCache={key:base,band};return band;},
- targetState(){return {line:lineState.lines?lineState.lines.map(l=>({side:l.side,n:l.points.length,from:l.points[0]?.at,to:l.points.at(-1)?.at})):null,band:bandState.runs.length,records:recordState.rows?recordState.rows.map(r=>({name:r.place.name,windows:r.windows})):null,selection:targetSel&&{kind:targetSel.kind,at:targetSel.at,name:targetSel.name,latitude:targetSel.latitude,longitude:targetSel.longitude},newPins:isTarget()?newCandidates().length:0,obsRecords:obsRecordHits.map(x=>x.place.name),obsRecordFades:[...obsFades.values()].map(f=>({id:f.row.place.id,name:f.row.place.name,alpha:f.alpha,targetAlpha:f.targetAlpha,at:f.window?.from??null,selected:f.selected})),obsRecordsPending,lineBusy:lineState.busy};},
+ searchBand(s){const h=host();if(viewMode!=='target')return null;
+  if(!h||!targetReady(h)||s?.body!==h.session.body||s?.target?.id!==h.session.target.id||AstroNotesSkyMap.dayStart(s.at)!==AstroNotesSkyMap.dayStart(h.session.at))return {status:'pending',key:'pending-condition',body:s?.body,target:s?.target,samples:[]};
+  const base=targetKey(h),status=lineState.key===base&&lineState.error?'error':lineState.key===base&&!lineState.busy&&bandState.key===base+'|line'?'ready':'pending',key=base+'|'+status;
+  if(searchBandCache.key===key)return searchBandCache.band;
+  const t=h.session.target,band={status,key,body:s.body,target:{latitude:t.latitude,longitude:t.longitude},samples:status==='ready'?bandState.runs.flatMap(r=>r.raw.map(q=>[+q.bearing.toFixed(3),+q.d.toFixed(3),+q.w.toFixed(3),+q.hw.toFixed(3)])):[]};if(status==='ready')searchBandCache={key,band};return band;},
+ targetState(){return {body:host()?.session.body,lineBody:lineState.body,recordBody:recordState.body,recordsPending:recordState.busy,recordsError:!!recordState.error,lineError:!!lineState.error,line:lineState.lines?lineState.lines.map(l=>({side:l.side,n:l.points.length,from:l.points[0]?.at,to:l.points.at(-1)?.at})):null,band:bandState.runs.length,records:recordState.rows?recordState.rows.map(r=>({name:r.place.name,windows:r.windows})):null,selection:targetSel&&{kind:targetSel.kind,at:targetSel.at,name:targetSel.name,latitude:targetSel.latitude,longitude:targetSel.longitude},newPins:isTarget()?newCandidates().length:0,obsRecords:obsRecordHits.map(x=>x.place.name),obsRecordFades:[...obsFades.values()].map(f=>({id:f.row.place.id,name:f.row.place.name,alpha:f.alpha,targetAlpha:f.targetAlpha,at:f.window?.from??null,selected:f.selected})),obsRecordsPending,lineBusy:lineState.busy};},
  tap(pixel){if(!active)return false;if(viewMode==='target')return tapTarget(pixel);
   // 主ピンを保護し、その次は上に描いた記録ピンを優先。記録ピンの下の時刻点へタップを流さない。
   if(pinNear(pixel)||tapObsRecord(pixel))return true;
@@ -481,7 +507,11 @@ function build(){
  top.innerHTML=`<button type="button" id="mapWsMenuButton" aria-label="メニュー">${svg(ICON.menu)}</button><button type="button" id="mapWsTitle" class="map-ws-title map-ws-band-conditions" aria-label="撮影条件を開く" aria-controls="exploreConditions" aria-expanded="false"><strong class="map-ws-chip-place" data-chip="observer"></strong><span class="map-ws-band-sub"><span class="map-ws-chip" data-chip="body"></span><span class="map-ws-chip" data-chip="target"></span><span class="map-ws-chip" data-chip="alignment"></span></span></button><button type="button" id="mapWsShare" aria-label="保存と共有" aria-haspopup="menu">${svg(ICON.share)}</button>`;
  view.append(top);
  const menu=document.createElement('div');menu.id='mapWsMenu';menu.className='map-ws-menu';menu.setAttribute('role','menu');menu.hidden=true;view.append(menu);
- const bodies=document.createElement('button');bodies.type='button';bodies.id='mapWsBodies';bodies.className='map-ctl map-ws-bodies';bodies.textContent='天体';bodies.setAttribute('aria-label','表示する天体を選ぶ');bodies.setAttribute('aria-haspopup','menu');wrap.append(bodies);
+ const bodies=document.createElement('div');bodies.id='mapWsBodyPicker';bodies.className='map-ws-body-picker';bodies.setAttribute('role','group');bodies.setAttribute('aria-label','撮影する天体');
+ for(const body of ['moon','sun','sirius','venus']){const b=document.createElement('button');b.type='button';b.dataset.mapBody=body;b.textContent=AstroNotesBodies.definition(body).name;b.setAttribute('aria-pressed','false');b.onclick=()=>chooseBody(body);bodies.append(b);}
+ const other=document.createElement('select');other.id='mapWsOtherBody';other.setAttribute('aria-label','その他の天体');other.innerHTML='<option value="">その他</option>'+['mercury','mars','jupiter','saturn'].map(id=>'<option value="'+id+'">'+AstroNotesBodies.definition(id).name+'</option>').join('');other.onchange=()=>{if(other.value)chooseBody(other.value);};bodies.append(other);view.append(bodies);
+ const retry=document.createElement('button');retry.type='button';retry.id='mapWsBodyRetry';retry.className='map-ws-body-retry';retry.hidden=true;retry.textContent='天体の計算を再試行';retry.onclick=()=>$('skyMapRetry').click();footer.prepend(retry);
+ $('skyMapRetry').addEventListener('click',resetBodyCalculations,true);
  const pick=document.createElement('div');pick.id='mapWsPick';pick.className='map-ws-pick';pick.hidden=true;pick.innerHTML='<span role="status"></span><button type="button" id="mapWsUndo" hidden>元に戻す</button>';wrap.append(pick);
  for(const [id,mode] of [['skyMapObserverTool','observer'],['skyMapTargetTool','target']])$(id).addEventListener('click',e=>{if(!active)return;e.stopImmediatePropagation();placeAtCenter(mode);},true);
  const north=document.createElement('button');north.type='button';north.id='mapWsNorth';north.className='map-ctl map-ws-north';north.setAttribute('aria-label','北を上に戻す');
@@ -496,11 +526,11 @@ function build(){
 
  const info=document.createElement('div');info.id='mapWsInfo';info.className='map-ws-info';info.tabIndex=0;info.setAttribute('aria-label','天体と対象の情報。横にスワイプ');
  const page=(body,cells)=>`<div class="map-ws-page"${body?` data-body="${body}"`:''}>${cells.join('')}</div>`;
- info.innerHTML=page('sun',[cell('wsSun','太陽',colour('sun'),1),cell('wsSunRise','日の出',RISE.sun,1),cell('wsSunSet','日の入',SET.sun,1)])
-  +page('moon',[cell('wsMoon','月',colour('moon'),1),cell('wsMoonRise','月の出',RISE.moon,1),cell('wsMoonSet','月の入',SET.moon,1)])
+ info.innerHTML=page('moon',[cell('wsBody','月',colour('moon')),cell('wsBodyRise','月の出',RISE.moon,1),cell('wsBodySet','月の入',SET.moon,1)])
   +page(null,[cell('wsTarget','対象','#c876ff'),cell('wsGap','ずれ（方位）','#c876ff'),cell('wsPass','対象の通過','#c876ff',1)])
   +page(null,[cell('wsDawn','朝の薄明','#7d8fe6',1),cell('wsGolden','夕方の低い光','var(--ray-sun)',1),cell('wsDusk','夕方の薄明','#7d8fe6',1)]);
- const dots=document.createElement('div');dots.id='mapWsDots';dots.className='map-ws-dots';dots.setAttribute('aria-hidden','true');dots.innerHTML='<span></span>'.repeat(4);
+ info.firstElementChild.id='mapWsSelectedBodyPage';
+ const dots=document.createElement('div');dots.id='mapWsDots';dots.className='map-ws-dots';dots.setAttribute('aria-hidden','true');dots.innerHTML='<span></span>'.repeat(3);
  const card=document.createElement('section');card.id='mapWsCard';card.className='map-ws-card';card.setAttribute('aria-label','撮影地点と対象');
  card.innerHTML='<div class="map-ws-card-text"><b id="mapWsCardPlace"></b><span id="mapWsCardMeta"></span><button type="button" id="mapWsCardOverlap" class="map-ws-card-overlap"></button></div><div class="map-ws-card-actions"><button type="button" id="mapWsCardView" class="map-ws-card-view"><span>見え方</span><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg></button><button type="button" id="mapWsCardSecond" class="map-ws-card-second" hidden><span></span></button></div>';
  footer.prepend(card,info,dots);placeInfo();
@@ -513,6 +543,7 @@ function build(){
  $('mapWsCardView').onclick=()=>{const h=host(),action=viewMode==='target'||targetSel?.kind==='record'?$('mapWsCardView').dataset.action:'view';
   if(action==='conditions'||h&&action==='view'&&(!validPoint(h.session.observer)||!h.session.target)){document.dispatchEvent(new Event('astronotes-explore-open-conditions'));return;}
   if(action==='use'){useSelectionAsObserver();return;}
+  if(action==='retry'){$('skyMapRetry').click();return;}
   if(action==='search'){document.dispatchEvent(new CustomEvent('astronotes-explore-open-sheet',{detail:{tab:'new',search:true}}));return;}
   if(action==='candidate'){const id=targetSel?.row?.id;targetSel=null;document.dispatchEvent(new CustomEvent('astronotes-explore-open-sheet',{detail:{tab:'new',search:false,candidateId:id}}));return;}
   document.dispatchEvent(new Event('astronotes-explore-open-view'));};
@@ -521,12 +552,10 @@ function build(){
   if(action==='list')document.dispatchEvent(new Event('astronotes-explore-open-opportunities'));};
  $('mapWsCardOverlap').onclick=e=>{const at=+e.currentTarget.dataset.at;if(Number.isFinite(at)&&at)host()?.setTime(at);};
  $('mapWsShare').onclick=e=>{e.stopPropagation();const row=$('skyMapShareRow');openMenu(e.currentTarget,[...row.querySelectorAll('button')].filter(b=>!b.hidden));};
- bodies.onclick=e=>{e.stopPropagation();openMenu(e.currentTarget,[$('skyMapShowSun'),$('skyMapShowMoon'),$('skyMapMoreBodies')]);};
- document.addEventListener('pointerdown',e=>{if(!menu.hidden&&!e.target.closest('#mapWsMenu,#mapWsShare,#mapWsBodies'))menu.hidden=true;});
- info.addEventListener('scroll',()=>{const pages=info.children,i=Math.round(info.scrollLeft/(info.clientWidth||1));[...dots.children].forEach((d,k)=>d.classList.toggle('on',k===i));if(pages[i]?.dataset.body)chooseBody(pages[i].dataset.body);},{passive:true});
+ document.addEventListener('pointerdown',e=>{if(!menu.hidden&&!e.target.closest('#mapWsMenu,#mapWsShare'))menu.hidden=true;});
+ info.addEventListener('scroll',()=>{const pages=info.children,i=Math.round(info.scrollLeft/(info.clientWidth||1));[...dots.children].forEach((d,k)=>d.classList.toggle('on',k===i));},{passive:true});
  info.addEventListener('click',e=>{if(e.target.closest('button'))return;const body=e.target.closest('[data-body]')?.dataset.body;if(body)chooseBody(body);});
  dots.firstElementChild.classList.add('on');
- for(const [id,body] of [['wsSun','sun'],['wsMoon','moon']]){$(id).dataset.orbit=body;$(id).onclick=()=>pressOrbit(body);}
  for(const button of info.querySelectorAll('button.map-ws-cell:not([data-orbit])'))button.addEventListener('click',()=>{const at=+button.dataset.at;if(Number.isFinite(at)&&at)host()?.setTime(at);});
  if(typeof ResizeObserver==='function')new ResizeObserver(()=>{if(!footer.offsetHeight)return;view.style.setProperty('--ws-footer-h',footer.offsetHeight+'px');if(active){const h=host();if(h&&measureHours()&&h.session.scrubMode==='hour')rebuildTimeline(h,'hour');h?.redraw();}}).observe(footer);
 }
@@ -540,10 +569,28 @@ function openMenu(anchor,buttons){
 function setCell(id,main,sub,sub2,at){const c=$(id);if(!c)return;const [b,i1,i2]=[c.querySelector('b'),...c.querySelectorAll('i')];if(b.textContent!==main)b.textContent=main;if(i1.textContent!==(sub||''))i1.textContent=sub||'';if(i2.textContent!==(sub2||''))i2.textContent=sub2||'';
 if(c.tagName==='BUTTON'&&!c.dataset.orbit){c.dataset.at=Number.isFinite(at)?String(at):'';c.disabled=!Number.isFinite(at);}}
 function crossing(points,level,rising){for(let i=1;i<points.length;i++){const a=points[i-1],b=points[i];if((a.altitude<level)===rising&&(b.altitude<level)!==rising)return a.at+(level-a.altitude)/(b.altitude-a.altitude)*(b.at-a.at);}return null;}
-function updateBody(h,body,prefix){
- const s=h.session,data=dailyOf(h,body),st=s.eye?h.skyState(body,s.at,s.eye):null;
- setCell(prefix,st?degrees(st.azimuth):'—',st?'高度 '+signed(st.altitude):'',body==='sun'?(st&&st.altitude>.5?'影 '+(1/Math.tan(st.altitude*RAD)).toFixed(1)+'倍':'影 —'):(st?'輝面 '+Math.round(st.illuminatedFraction*100)+'%':''));
- const pass=data?passAt(h,body,data):null;for(const [side,id] of [['rise',prefix+'Rise'],['set',prefix+'Set']]){const e=pass?.[side];setCell(id,e?hhmm(e.at):'—',e?degrees(e.azimuth):'',e&&AstroNotesSkyMap.dayStart(e.at)!==AstroNotesSkyMap.dayStart(s.at)?monthDay(e.at):'',e?.at);}
+const lightCache=new Map();
+function updateSelectedBody(h){
+ const s=h.session,body=s.body,def=AstroNotesBodies.definition(body),data=dailyOf(h,body),page=$('mapWsSelectedBodyPage'),prefix='wsBody';
+ page.dataset.body=body;page.classList.add('map-ws-current');page.style.setProperty('--ws-c',colour(body));
+ for(const b of $('mapWsBodyPicker').querySelectorAll('[data-map-body]')){const option=[...$('skyMapBody').options].find(o=>o.value===b.dataset.mapBody);b.disabled=!option||option.disabled||option.hidden;b.setAttribute('aria-pressed',String(b.dataset.mapBody===body));}
+ const other=$('mapWsOtherBody');for(const option of other.options){if(!option.value)continue;const source=[...$('skyMapBody').options].find(o=>o.value===option.value);option.disabled=!source||source.disabled||source.hidden;}
+ other.value=['mercury','mars','jupiter','saturn'].includes(body)?body:'';other.dataset.active=String(!!other.value);
+ let st=null;if(data&&s.eye)try{st=h.skyState(body,s.at,s.eye);}catch{/* 読込・計算の欠測は—にする */}
+ let light='';if(st){if(body==='sun')light=st.altitude>.5?'影 '+(1/Math.tan(st.altitude*RAD)).toFixed(1)+'倍':'影 —';
+  else if(body==='moon')light=Number.isFinite(st.illuminatedFraction)?'輝面 '+Math.round(st.illuminatedFraction*100)+'%':'輝面 —';
+  // Sirius V magnitude: SIMBAD https://simbad.cds.unistra.fr/simbad/sim-id?Ident=Sirius
+  else if(body==='sirius')light='明るさ −1.46等';
+  else{const key=body+'|'+Math.floor(s.at/60000);let value=lightCache.get(key);if(value===undefined){try{const magnitude=AstroNotesBodies.light(body,s.at).magnitude;value=Number.isFinite(magnitude)?magnitude:null;}catch{value=null;}lightCache.set(key,value);if(lightCache.size>32)lightCache.delete(lightCache.keys().next().value);}light=value===null?'明るさ —':'明るさ '+value.toFixed(1)+'等';}}
+ $('wsBody').querySelector('small').textContent=def?.name||'天体';
+ const failed=!!s.passError||targetReady(h)&&(recordState.key.startsWith(recordConditionKey(h))&&!!recordState.error||lineState.key===targetKey(h)&&!!lineState.error);
+ setCell(prefix,st?degrees(st.azimuth):'—',st?'高度 '+signed(st.altitude):!s.observer?'撮影地点を選ぶ':failed?'計算できません':'計算中…',light);
+ const pass=data?passAt(h,body,data):null;
+ for(const [side,id] of [['rise',prefix+'Rise'],['set',prefix+'Set']]){const e=pass?.[side];$(id).querySelector('small').textContent=body==='sun'?(side==='rise'?'日の出':'日の入'):(def?.name||'天体')+'の'+(side==='rise'?'出':'入');$(id).style.setProperty('--ws-c',(side==='rise'?RISE:SET)[body]||colour(body));setCell(id,e?hhmm(e.at):'—',e?degrees(e.azimuth):data?'この日は出入りなし':'',e&&AstroNotesSkyMap.dayStart(e.at)!==AstroNotesSkyMap.dayStart(s.at)?monthDay(e.at):'',e?.at);}
+ $('mapWsBodyPicker').setAttribute('aria-busy',String(!!s.observer&&!data&&!failed));$('mapWsBodyRetry').hidden=!failed;
+}
+function resetBodyCalculations(){
+ clearTimeout(bandState.timer);clearTimeout(overlapCache.timer);lineState={key:'',lines:null,busy:false};recordState={key:'',rows:null,busy:false};bandState={key:'',base:'',runs:[],pending:'',timer:0};searchBandCache={key:'',band:null};overlapCache={key:'',windows:null,pending:'',ready:'',timer:0};passCache.clear();lightCache.clear();resetObsRecords();targetSel=null;schedule();
 }
 // 上部の地点名を押すと、今の条件欄がそのまま地図の上に開く。検索の入口を1か所にする。
 const PLACED='地図で置いた地点';
@@ -579,8 +626,8 @@ $('mapWsHome').hidden=viewMode==='target'||!$('mapWsPick').hidden||!q||Math.hypo
 function drawBand(h){
  const c=$('mapWsBand'),s=h.session;if(s.scrubMode!=='hour'||!s.eye){c.hidden=true;return;}c.hidden=false;
  const width=c.clientWidth,height=c.clientHeight,ratio=Math.min(2,devicePixelRatio||1);if(!width)return;if(c.width!==Math.round(width*ratio)){c.width=Math.round(width*ratio);c.height=Math.round(height*ratio);}
- const ctx=c.getContext('2d');ctx.setTransform(ratio,0,0,ratio,0,0);ctx.clearRect(0,0,width,height);const per=hourPixels/HOUR,start=s.at-width/2/per,tint=colour('moon');
- for(let x=0;x<width;x+=4){const at=start+x/per;let up=false;try{up=h.skyState('moon',at,s.eye).altitude>0;}catch(e){globalThis.AstroNotesErrors?.note('map.moonBand',e);}if(up){ctx.fillStyle=tint;ctx.fillRect(x,height-5,4,5);}}
+ const ctx=c.getContext('2d');ctx.setTransform(ratio,0,0,ratio,0,0);ctx.clearRect(0,0,width,height);const per=hourPixels/HOUR,start=s.at-width/2/per,tint=colour(s.body);
+ for(let x=0;x<width;x+=4){const at=start+x/per;let up=false;try{up=(!pointBody(s.body)||AstroNotesBodies.ready())&&h.skyState(s.body,at,s.eye).altitude>0&&nightAllowed(s.body,at,s.eye);}catch(e){globalThis.AstroNotesErrors?.note('map.moonBand',e);}if(up){ctx.fillStyle=tint;ctx.fillRect(x,height-5,4,5);}}
  const geo=targetGeometry(h);if(geo){for(const body of h.shownBodies()){const data=dailyOf(h,body),route=data?passAt(h,body,data):null;if(!route)continue;for(const pass of AstroNotesSkyMap.passages(route,geo.azimuth,body,s.eye,h.skyState)){const x=(pass.at-start)*per;if(x<0||x>width)continue;
  ctx.save();ctx.translate(x,height-11);ctx.rotate(Math.PI/4);ctx.fillStyle='#c876ff';ctx.strokeStyle='#000';ctx.fillRect(-3,-3,6,6);ctx.strokeRect(-3,-3,6,6);ctx.restore();}}}
 }
@@ -588,8 +635,7 @@ function update(){
  const h=host();if(!h){evaluate();return;}const s=h.session,mainId=mainBody(h),body=AstroNotesBodies.definitions.find(d=>d.id===mainId)?.name||'天体';
  if(viewMode==='obs'&&clearStaleObsSelection(h))h.redraw();
  setTitle(h);if(viewMode==='target'||targetSel?.kind==='record')updateTargetCard(h);else{updateCard(h);const second=$('mapWsCardSecond');if(second)second.hidden=true;}
- updateBody(h,'sun','wsSun');updateBody(h,'moon','wsMoon');
- $('wsSun').setAttribute('aria-pressed',String(!!s.showSun));$('wsMoon').setAttribute('aria-pressed',String(!!s.showMoon));
+ updateSelectedBody(h);
  const geo=targetGeometry(h);setCell('wsTarget',geo?degrees(geo.azimuth):'—',geo?'仰角 '+geo.elevation.toFixed(2)+'°':'対象を選ぶと出ます',geo?(geo.distanceKm<1?Math.round(geo.distanceKm*1000)+'m':geo.distanceKm.toFixed(2)+'km'):'');
  $('wsTarget').querySelector('small').textContent=s.target?.name||'対象';
  const main=s.eye?(()=>{try{return h.skyState(mainId,s.at,s.eye);}catch{return null;}})():null;
@@ -597,7 +643,7 @@ function update(){
  const data=dailyOf(h,mainId),route=data?passAt(h,mainId,data):null,pass=geo&&route?AstroNotesSkyMap.passages(route,geo.azimuth,mainId,s.eye,h.skyState)[0]:null;setCell('wsPass',pass?hhmm(pass.at):geo&&data?'なし':'—',pass?'高度 '+pass.altitude.toFixed(1)+'°':'','',pass?.at);
  const sun=dailyOf(h,'sun');if(sun){const dawn=crossing(sun.points,-6,true),golden=crossing(sun.points,6,false),dusk=crossing(sun.points,-6,false);setCell('wsDawn',dawn?hhmm(dawn):'—','太陽 高度−6°','',dawn);setCell('wsGolden',golden?hhmm(golden):'—','太陽 高度6°','',golden);
  setCell('wsDusk',dusk?hhmm(dusk):'—','太陽 高度−6°','',dusk);}
- $('mapWsNorth').firstElementChild.style.transform='rotate('+(-h.map.rotation())+'deg)';if(s.body!==lastBody){const first=lastBody===null;lastBody=s.body;if(!first&&['sun','moon'].includes(s.body)){const info=$('mapWsInfo');info.scrollLeft=info.clientWidth*(s.body==='moon'?1:0);chooseBody(s.body);}}
+ $('mapWsNorth').firstElementChild.style.transform='rotate('+(-h.map.rotation())+'deg)';if(s.body!==lastBody){lastBody=s.body;$('mapWsInfo').scrollLeft=0;}
  fitTarget(h);updateHome(h);drawBand(h);
 }
 // 見え方も同じ上部バーの全画面にして、切替ボタンの位置を地図と揃える。条件を開いたままだと絵が画面の外へ出る。
@@ -618,6 +664,7 @@ function overlapWindows(h){
  const s=h.session,t=s.target,o=s.eye,body=s.body;if(!validPoint(s.observer)||!h.targetOn||!validPoint(t))return null;
  // 撮影地点を変えた直後は目の位置（標高）がまだ前の地点のまま。前の地点の時間を出さない。
  if(!o||s.timelinePending||Math.abs(o.latitude-s.observer.latitude)>1e-9||Math.abs(o.longitude-s.observer.longitude)>1e-9)return undefined;
+ if(!s.dailies?.[body])return s.passError?null:undefined;
  const day=AstroNotesSkyMap.dayStart(s.at),key=JSON.stringify([body,day,o.latitude,o.longitude,o.elevation,t.id,t.latitude,t.longitude,t.parts?.map(p=>p.m),s.custom?.heightM,globalThis.AstroNotesAtmosphere?.dataKey?.()]);
  if(overlapCache.key===key)return overlapCache.windows;
  // 日を送り続けている間は数えず、止まってから1回だけ数える（1日で数十ms掛かる）。
@@ -629,7 +676,7 @@ function overlapWindows(h){
   if(geo&&data){
    const seen=new Set();
    for(const pass of passesOf(h,body,data))for(const point of AstroNotesSkyMap.passages(pass,geo.azimuth,body,o,h.skyState)){
-    const hit=at=>!!view(at,at)[0]?.intersects;let cur=null;
+    const hit=at=>nightAllowed(body,at,o)&&!!view(at,at)[0]?.intersects;let cur=null;
     for(let at=point.at-2400000;at<=point.at+2400000;at+=20000){if(hit(at)){if(!cur)cur={from:at,to:at};cur.to=at;}else if(cur){windows.push(cur);cur=null;}}if(cur)windows.push(cur);
     // 走査の端でもまだ重なっていれば、重ならなくなるまで外へ（幅の広い対象、最大±6時間）。
     for(const w of windows){if(w.from<=point.at-2400000)for(let at=w.from-20000;at>=point.at-21600000&&hit(at);at-=20000)w.from=at;if(w.to>=point.at+2400000)for(let at=w.to+20000;at<=point.at+21600000&&hit(at);at+=20000)w.to=at;}
@@ -637,7 +684,7 @@ function overlapWindows(h){
    // 表示と時刻送りは、確かに重なっている分の範囲（始まりは分を切り上げ、終わりは切り捨て）。
    // 重なり合う区間は1つにまとめる。表示は確かに重なっている分（始まりは分の切り上げ、終わりは切り捨て）、1分に満たなければその分。
    windows.sort((a,b)=>a.from-b.from);const merged=[];for(const w of windows){const last=merged.at(-1);if(last&&w.from<=last.to+20000)last.to=Math.max(last.to,w.to);else merged.push({...w});}
-   windows=merged.filter(w=>w.to>=day&&w.from<day+86400000).map(w=>{const from=Math.ceil(w.from/60000)*60000,to=Math.floor(w.to/60000)*60000;return from<=to?{from,to}:{from:Math.round((w.from+w.to)/120000)*60000,to:Math.round((w.from+w.to)/120000)*60000,brief:true};});void seen;
+   windows=merged.filter(w=>w.to>=day&&w.from<day+86400000).map(w=>displayWindow(w,body,o));void seen;
   }
  }catch(e){globalThis.AstroNotesErrors?.note('map.overlapWindows',e);windows=null;}
  overlapCache={key,windows,pending:key,ready:key,timer:0};return windows;
@@ -697,12 +744,12 @@ function enter(){
  const o=h.session.observer,same=keptView&&keptView.key===viewKey(h);if(validPoint(o)&&!same){if(h.map.zoom()<12)h.map.setView(o.latitude,o.longitude,14);else h.map.setCenter(o.latitude,o.longitude);}
  view.style.setProperty('--ws-footer-h',view.querySelector('.sky-map-footer').offsetHeight+'px');
  // 条件の天体の欄から始める
- const info=$('mapWsInfo'),first=h.session.body==='moon'?1:0;emphasis=['sun','moon'].includes(h.session.body)?h.session.body:null;info.scrollLeft=info.clientWidth*first;for(const page of info.children)page.classList.toggle('map-ws-current',page.dataset.body===emphasis);
+ const info=$('mapWsInfo');info.scrollLeft=0;updateSelectedBody(h);
  if(same){fittedKey=keptView.fitted;}else{fittedKey=null;fitTarget(h);}h.redraw();schedule();
 }
 function exit(){
  {const h=host();keptView=h?{key:viewKey(h),fitted:fittedKey}:null;}
- active=false;resetObsRecords();emphasis=null;lastBody=null;closePanel();if($('mapWsPick'))$('mapWsPick').hidden=true;host()?.map.allowRotate?.(false);const view=$('skyMapView');view.classList.remove('map-ws');$('mapWsMenu').hidden=true;
+ active=false;resetObsRecords();lastBody=null;closePanel();if($('mapWsPick'))$('mapWsPick').hidden=true;host()?.map.allowRotate?.(false);const view=$('skyMapView');view.classList.remove('map-ws');$('mapWsMenu').hidden=true;
  const h=host();if(view.querySelector('.sky-map-wrap')?.classList.contains('sky-map-wide')&&h){selfClick=true;$('skyMapExpand').click();selfClick=false;}fittedKey=null;
  if(h&&scrubBefore&&scrubBefore!==h.session.scrubMode)h.setScrubMode(scrubBefore);else if(h)rebuildTimeline(h,h.session.scrubMode);
  scrubBefore=null;h?.redraw();if(sceneFull)showScene();

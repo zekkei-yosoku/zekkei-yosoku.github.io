@@ -3,6 +3,15 @@
 'use strict';
 const DAY=86400000;
 const day=at=>Math.floor((at+32400000)/DAY)*DAY-32400000;
+// Trial map/search share one light condition. Point sources require civil twilight or darker;
+// use the geometric solar centre at the actual observer, never an apparent-altitude event field.
+function nightAllowed(body,at,observer,bodies,angularMargin=0){
+ if(body==='sun'||body==='moon')return true;
+ if(!bodies?.definition?.(body)||!Number.isFinite(at)||!point(observer))return false;
+ // angularMargin is only for conservative search seeds; final events omit it.
+ try{const sun=bodies.state('sun',at,observer,{refraction:false}),alt=sun.geometricAltitude??sun.altitude;return Number.isFinite(alt)&&alt<=-6+Math.max(0,Number.isFinite(angularMargin)?angularMargin:0);}catch{return false;}
+}
+
 const point=p=>p&&Number.isFinite(p.latitude)&&Math.abs(p.latitude)<=90&&Number.isFinite(p.longitude)&&Math.abs(p.longitude)<=180;
 // A registered point uses its recorded ground height until the user resets it.
 const savedObserver=p=>point(p)?{...p,groundManualM:Number.isFinite(p.groundManualM)?p.groundManualM:Number.isFinite(p.elevation)?p.elevation:null}:null;
@@ -263,7 +272,7 @@ function hapticGate({vibrate=()=>{},clock=Date.now}={}){
  let previous=false,last=-Infinity,identity='';
  return (matched,key)=>{if(key!==identity){identity=key;previous=false;}const entered=matched&&!previous;previous=!!matched;if(entered&&clock()-last>800){last=clock();try{vibrate(12);}catch{/* 振動は無くてもよい */}}return entered;};
 }
-global.AstroNotesShooting={day,point,savedObserver,candidatePlace,observerMoveKey,movedPlace,conditions,queryKey,searchOptions,eventsFor,matches,passageText,candidates,hapticGate,
+global.AstroNotesShooting={day,point,nightAllowed,savedObserver,candidatePlace,observerMoveKey,movedPlace,conditions,queryKey,searchOptions,eventsFor,matches,passageText,candidates,hapticGate,
  cleanShape,shapeContains,shapePaths,shapeCandidates,annotateShapeRuns,meters,interpolate};
 if(typeof module!=='undefined'&&module.exports)module.exports=global.AstroNotesShooting;
 })(globalThis);

@@ -19,7 +19,9 @@ const allowed=new Map([
  // 2026-11-26 探すを全画面地図にする段階①（trialで試す）
  ['src/features/explore/controller.js',false],['src/features/explore/map-presentation.js',false],['astronotes-map-workspace.js',false],['astronotes-map-workspace.css',false],
  // 2026-11-26 段階②: 目標物が中心から探す新しい地点は、探索の種を重なる範囲（帯）に絞る
- ['src/features/candidates/ui.js',false],['src/features/candidates/generic-search.js',false]
+ ['src/features/candidates/ui.js',false],['src/features/candidates/generic-search.js',false],
+ // 2026-11-26 段階④: 点天体の夜間条件を地図と候補の最終判定で共有する
+ ['astronotes-shooting.js',false]
 ]);
 const guarded=['index.html','app-version.txt',...allowed.keys()];
 const digest=value=>createHash('sha256').update(value).digest('hex');

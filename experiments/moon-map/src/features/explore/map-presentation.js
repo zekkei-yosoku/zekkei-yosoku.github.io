@@ -312,7 +312,7 @@ ctx.lineWidth=1;
    if(body==='moon'){b.textContent=`${event.side==='rise'?'出':'入'} ${textAt(event.at)}`;b.insertAdjacentHTML('afterbegin',moonGlyphAt(event.at,session.eye));}b.setAttribute('aria-label',`${riseSetName(body,event.side)} ${textAt(event.at)}・方位 ${event.azimuth.toFixed(1)}度`);
    b.onclick=()=>setTime(event.at);el('skyMapEvents').append(b);}}
    el('skyMapStatus').textContent=[failedBodies.length?`${failedBodies.map(bodyName).join('・')}の計算を読み込めませんでした。再試行してください`:'',!Number.isFinite(ground)?'標高を取得できません。標高0mとして計算しています':''].filter(Boolean).join(' ');el('skyMapRetry').hidden=Number.isFinite(ground)&&!failedBodies.length;render(timeOnly);
-  }catch{if(seq.current(request)){session.passError=true;renderPassages();el('skyMapStatus').textContent='天体の計算を読み込めませんでした。再試行してください';el('skyMapRetry').hidden=false;}}
+  }catch{if(seq.current(request)){session.passError=true;renderPassages();el('skyMapStatus').textContent='天体の計算を読み込めませんでした。再試行してください';el('skyMapRetry').hidden=false;render(timeOnly);}}
  }
  function enter(fromAim=false,exactAt=null){
   const look=el('aimLook'),spec=look._lookSpec,from=aimFromPoint();

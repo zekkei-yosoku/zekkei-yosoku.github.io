@@ -3618,7 +3618,7 @@ const api=root.AstroNotesCandidateDiscovery||(typeof require==='function'?requir
 const Composition=root.AstroNotesCandidateComposition||(typeof require==='function'?require('./composition.js'):null);
 const allowedPoint=p=>p&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&Math.abs(p.latitude)<85&&Math.abs(p.longitude)<=180;
 function requestKey(p){return JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode,p.profile,p.strict,p.composition,!!p.compositionInvalid,p.timeWindow,p.timeSpec||{kind:'day',at:api.day(p.at)},p.atmosphere,p.lens?.mode==='unspecified'?{mode:'unspecified'}:p.lens,p.extraTargets,
-p.requireAllTargets,p.includeRoads===true,...(p.overlapMembers?[p.overlapMembers]:[]),...(p.seedBand?[{seedBand:p.seedBand.key}]:[])]);}
+p.requireAllTargets,p.includeRoads===true,...(p.overlapMembers?[p.overlapMembers]:[]),...(p.pointNight?[{pointNight:true}]:[]),...(p.seedBand?[{seedBand:p.seedBand.key,...(p.seedBand.status?{status:p.seedBand.status,body:p.seedBand.body}:{})}]:[])]);}
 // 2026-11-26 trial（段階②）: 目標物が中心の地図から探す時は、逆算の種を重なる範囲（帯）の中だけにする。
 // 帯は1分ごとの [目標物から見た方位（子午線の収束を直した値）, 外端までの距離km, 半幅°, 対象の横幅の半分km]。
 // 対象の横幅は距離が近いほど大きく見えるので距離ごとに角度へ直し、種の半径ぶんの余裕も見る。
@@ -3655,7 +3655,7 @@ function regionsFor(seeds){
  return [...map.values()].sort((a,b)=>a.priority-b.priority||a.id.localeCompare(b.id));
 }
 const placeKindsFor=plan=>new Set(['viewpoint','plaza','park','riverbank',...(plan.includeRoads===true?['sidewalk','road']:[])]);
-function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsPerBatch=40,maxDeferredPoints=384,inverseOptions={},now=()=>Date.now(),yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
+function createGenericSearch({provider,evaluate,bodies,prefilter=null,acceptCandidate=()=>true,maxPointsPerBatch=40,maxDeferredPoints=384,inverseOptions={},now=()=>Date.now(),yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
  const sessions=new Map();
  const fresh=(key,inverse,lastResult=null)=>({key,regions:regionsFor(inverse?.seeds),inverse,lastResult,rows:[],queue:[],pointData:new Map(),pointDomains:new Map(),visitedDomains:new Set(),timeDeferred:new Set(),seen:new Set(),seenRows:new Set(),cursor:0,started:false,
  counts:{checked:0,unknown:0,blocked:0,noOverlap:0,unverified:0,heightUnknown:0,nearBuilding:0,obstacle:0,outsideFrame:0,mapRegions:0,mapPoints:0,
@@ -3684,6 +3684,10 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
   };
   try{
   if(!wanted())return {cancelled:true};
+  // An applicable but unfinished/empty band must never become an unrestricted search.
+  if(plan.seedBand?.status&&plan.seedBand.status!=='ready')return {cancelled:true,reason:'seed-band-'+plan.seedBand.status};
+  if(plan.seedBand?.body&&plan.seedBand.body!==plan.body)return {cancelled:true,reason:'seed-band-body'};
+  if(plan.seedBand?.status==='ready'&&!plan.seedBand.samples.length){const empty=fresh(key,{seeds:[]});empty.started=true;empty.cursor=null;empty.lastResult=result(empty);sessions.set(key,empty);return empty.lastResult;}
   // A cancelled A job may still await shared IO when the user returns A→B→A.
   // Retire only the obsolete owner; an active same-key job still owns its queue.
   if(session?.busy&&session.current?.()===false){
@@ -3808,6 +3812,8 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
     const beforeRows=session.rows.length;
     for(const row of [tested,...tested.additionalCandidates||[]]){
      if(!row.recommend||!allowedPoint(row.place)||!Number.isFinite(row.event?.at))continue;
+     // The accepted event can occur at another time/position than its inverse seed.
+     if(!acceptCandidate(plan,row))continue;
      // Solving may move a park seed onto a road. Check the solved kind too.
      if(!kindAllowed(row,point.placeKind))continue;
      const range=Composition.timeRange(plan);if(!range||row.event.at<range.start||row.event.at>range.end)continue;
@@ -5033,7 +5039,10 @@ async function loadModel(){
  return modelPromise;
 }
 let evaluationBudgetStarted=false;
-const engine=AstroNotesCandidateDiscovery.createGenericSearch({provider,bodies:AstroNotesBodies,prefilter,evaluate:async(p,point,data,options)=>{const model=await loadModel();
+const engine=AstroNotesCandidateDiscovery.createGenericSearch({provider,bodies:AstroNotesBodies,prefilter,acceptCandidate:(plan,row)=>{
+ if(!plan.pointNight)return true;const o=row.assumedObserver||row.place;if(!o)return false;
+ return AstroNotesShooting.nightAllowed(plan.body,row.event?.at,{...o,elevation:(o.elevation??0)+(o.eyeM??o.eyeHeightAGL??1.5)},AstroNotesBodies);
+},evaluate:async(p,point,data,options)=>{const model=await loadModel();
 if(plateauShapes&&String(p.target?.id||'').startsWith('fav:')&&!plateauShapes.attachedTo(p.target.id))await plateauShapes.prepare([p.target]).catch(()=>{});if(!options.isCurrent())throw Error('candidate-cancelled');
 if(!evaluationBudgetStarted){live.resetBudget();footprintGround.resetBudget();treeGround.resetBudget();
 evaluationBudgetStarted=true;}
@@ -5072,10 +5081,11 @@ function snapshot(){
  // だけ確認」): no lens drops a place then, so the lens stays out of the search. Choosing a place sets the focal length and the
  // frame for its view; leaving the lens in the key would drop the found places on the way back.
  const searchLens=s.partId==='__whole'&&!extraTargets.length?{mode:'unspecified'}:lens;
- const selected={...s,authGeneration:mainWorkspace()?.epoch(),owner:auth.loginId,expected:context(s),atmosphere:air(),lens:searchLens,extraTargets,timeSpec:timeSpec(s.at),profile:typeof aimIsMountain==='function'&&aimIsMountain(s.target)?'summit-contact':'building-near',
+ const seedBand=globalThis.AstroNotesMapWorkspace?.searchBand?.(s);
+ const selected={...s,authGeneration:mainWorkspace()?.epoch(),owner:auth.loginId,expected:context(s),atmosphere:air(),lens:searchLens,extraTargets,timeSpec:timeSpec(s.at),pointNight:!AstroNotesBodies.definition(s.body)?.limbs,profile:typeof aimIsMountain==='function'&&aimIsMountain(s.target)?'summit-contact':'building-near',
   ...(globalThis.AstroNotesTrialComposition?.plan(s)||{}),...(globalThis.AstroNotesTrialOverlap?.searchPlan?.(s)||{}),includeRoads,
   // 2026-11-26 trial（段階②）: 目標物が中心の地図の下部シートから探す時だけ、種を重なる範囲（帯）に絞る
-  ...(globalThis.AstroNotesMapWorkspace?.searchBand?.(s)?{seedBand:globalThis.AstroNotesMapWorkspace.searchBand(s)}:{})};
+  ...(seedBand?{seedBand}:{})};
  // A next-day event in an overnight window does not change the search day.
  const overnight=returnSearch&&s.candidateOpportunity?.id===returnSearch.rowId&&s.at===returnSearch.viewAt?
   {...selected,at:returnSearch.plan.at,timeSpec:returnSearch.plan.timeSpec}:null;
@@ -5384,6 +5394,7 @@ function mount(){
  button.onclick=async()=>{
   const selected=snapshot();if(!selected)return;if(condition!==uiKey(selected)){mount();return;}
   if(!button.isConnected||!contextActive()||main&&!main.selectable())return;dateRefreshPending=false;main?.reveal();
+  if(selected.seedBand?.status&&selected.seedBand.status!=='ready'){setStatus(selected.seedBand.status==='error'?'天体の計算を再試行してください。':'重なる範囲を計算しています…');return;}
   if(searching){
    stop();const token=++run;hasSearched=false;continuation=true;failed=false;searching=false;
    setStatus('探索をキャンセルしました。続きから探せます。');renderAction();
