@@ -25,7 +25,7 @@ function mount(deps){
  // '' はすべて、'__none' はカテゴリなし。中身は画面側（deps.categoryOf / categoryList / editCategory）が持つ
  let catFilter='';const NONE='__none',hasCats=()=>typeof deps.categoryList==='function';
  const catOf=t=>(hasCats()&&deps.categoryOf(t))||'';
- const valid=s=>state===s&&s?.owner===deps.owner()&&dialog.open;
+ const valid=s=>state===s&&s?.owner===deps.owner()&&dialog.open&&(!s.options.manage||s.options.canManage());
  const targets=()=>{const rows=state?.options.getTargets?.()||deps.targets();const extra=(state?.drafts||[]).map(x=>L.targetFromFavorite(x.entry));return [...new Map([...rows,...extra].filter(t=>t.id!=='custom'||state?.options.keepCustom).map(t=>[t.id||t.key,t])).values()];};
  const targetKey=t=>t.key||t.id;
  const selected=()=>new Set((state?.selected||[]).map(targetKey));
@@ -48,7 +48,7 @@ function mount(deps){
   if(!state)return;const s=state,filter=L.nameKey(search.value),focusKey=d.activeElement?.dataset.targetKey,available=targets();let removed=0;
   if(s.options.multiple){const catalog=new Map(available.map(t=>[targetKey(t),t])),keys=[...new Set(s.selected.map(targetKey))];s.selected=keys.map(k=>catalog.get(k)).filter(Boolean);removed=keys.length-s.selected.length;if(removed)s.selectionNotice='一覧からなくなった'+removed+'件の選択を解除しました。';}
   const checked=selected();list.replaceChildren();let count=0;
-  const usable=available.filter(t=>s.options.multiple||[...s.source.options].some(o=>o.value===t.id&&!o.disabled));
+  const usable=available.filter(t=>s.options.manage?!!t.favId:s.options.multiple||[...s.source.options].some(o=>o.value===t.id&&!o.disabled));
   renderCats(usable);
   const shown=usable.filter(t=>L.nameKey(t.name+' '+describe(t)).includes(filter)&&(!catFilter||(catFilter===NONE?!catOf(t):catOf(t)===catFilter)));
   s.shown=shown;
@@ -65,15 +65,29 @@ function mount(deps){
   for(const [cat,rows] of groups){
    if(hasCats()&&!catFilter&&groups.length>1)list.append(make('h3',{className:'target-cat-head',textContent:cat||'カテゴリなし'}));
    for(const t of rows){
-   count++;const row=make('div',{className:'target-choice-row'}),button=make('button',{type:'button',className:'preview-body-choice',textContent:t.name});
-   button.dataset.targetKey=targetKey(t);button.setAttribute('aria-pressed',String(s.options.multiple?checked.has(targetKey(t)):s.source.value===t.id));
-   if(s.options.multiple){button.removeAttribute('aria-pressed');button.setAttribute('role','checkbox');button.setAttribute('aria-checked',String(checked.has(targetKey(t))));}
-   const sub=make('span',{className:'tiny sub-line',textContent:describe(t)});button.append(sub);button.onclick=()=>choose(t);row.append(button);
-   if(t.favId){const edit=make('button',{type:'button',className:'chip',textContent:'編集'});edit.setAttribute('aria-label',t.name+'を編集');edit.onclick=()=>openEditor(t);row.append(edit);}list.append(row);
+   count++;const row=make('div',{className:'target-choice-row'});
+   const sub=make('span',{className:'tiny sub-line',textContent:describe(t)});
+   if(s.options.manage){
+    const label=make('div',{className:'target-choice-label'});
+    label.append(make('strong',{textContent:t.name}),sub);row.append(label);
+   }else{
+    const button=make('button',{type:'button',className:'preview-body-choice',textContent:t.name});
+    button.dataset.targetKey=targetKey(t);button.setAttribute('aria-pressed',String(s.options.multiple?checked.has(targetKey(t)):s.source.value===t.id));
+    if(s.options.multiple){button.removeAttribute('aria-pressed');button.setAttribute('role','checkbox');button.setAttribute('aria-checked',String(checked.has(targetKey(t))));}
+    button.append(sub);button.onclick=()=>choose(t);row.append(button);
+   }
+   if(t.favId){
+    const edit=make('button',{type:'button',className:'chip',textContent:'編集'});
+    edit.dataset.targetEdit=targetKey(t);edit.setAttribute('aria-label',t.name+'を編集');edit.onclick=()=>openEditor(t);row.append(edit);
+   }
+   list.append(row);
    }
   }
-  q('[data-target-empty]').hidden=count>0;q('[data-target-done]').hidden=!s.options.multiple;
-  q('[data-target-clear]').hidden=s.options.multiple||![...s.source.options].some(o=>o.value==='');
+  const empty=q('[data-target-empty]');
+  empty.hidden=count>0;
+  empty.textContent=s.options.manage&&!available.some(t=>t.favId)?'登録した対象はまだありません。':'見つかりませんでした。';
+  q('[data-target-done]').hidden=!s.options.multiple;
+  q('[data-target-clear]').hidden=s.options.manage||s.options.multiple||![...s.source.options].some(o=>o.value==='');
   q('[data-target-done]').textContent=s.options.doneLabel||'選択を適用';
   if(focusKey){const button=[...list.querySelectorAll('[data-target-key]')].find(b=>b.dataset.targetKey===focusKey);(button||(s.options.multiple&&!q('[data-target-all]').disabled?q('[data-target-all]'):search)).focus({preventScroll:true});}
   return removed;
@@ -157,11 +171,12 @@ function mount(deps){
  }
  function openEditor(target=null){
   const s=state;if(!valid(s))return;request.cancel();s.editing=target;s.editorBaseline=null;
+  s.editingFavorite=s.options.manage&&target?JSON.stringify(deps.favorite(target.favId)):null;
   s.searchPoint=target?deps.favorite(target.favId)||{...target,elevation:target.groundM}:null;q('[data-target-name]').value=target?.name||'';q('[data-target-name]').dataset.auto='true';
   q('[data-target-height]').value=String(target?((s.drafts.find(x=>x.entry.id===target.favId)?.entry||deps.favorite(target.favId))?.targetHeightM??Math.max(0,(target.parts?.[0]?.m??0)-(target.groundM??0))):0);
   by('targetPlaceSearch').value='';by('targetPlaceResults').replaceChildren();q('[data-target-error]').hidden=true;q('[data-target-duplicates]').hidden=true;
   fillCategory(target?catOf(target):catFilter&&catFilter!==NONE?catFilter:'');
-  panel.hidden=true;editor.hidden=false;q('[data-target-head-actions]').hidden=true;q('#previewTargetTitle').textContent=target?'対象を編集':'対象を追加';q('[data-target-add]').textContent=target?'変更を適用':'対象を追加';
+  panel.hidden=true;editor.hidden=false;q('[data-target-head-actions]').hidden=true;q('#previewTargetTitle').textContent=target?'対象を編集':'対象を追加';q('[data-target-add]').textContent=target?(s.options.manage?'変更を保存':'変更を適用'):'対象を追加';
   if(!map){map=deps.createMap({canvas:'targetEditorCanvas',zoomIn:'targetEditorIn',zoomOut:'targetEditorOut'});map.onPick(p=>{if(valid(state)){request.cancel();map.setCenter(p.latitude,p.longitude);}});
    map.onMove?.(()=>{request.cancel();syncDirty();plateauNear();});
    deps.wireSearch('targetPlaceSearch','targetPlaceResults',move,move,{near:()=>map.center(),isCurrent:()=>valid(state)&&!editor.hidden});
@@ -176,7 +191,11 @@ function mount(deps){
  function duplicates(name,exclude,proceed){
   const matches=L.matchingNames(targets(),name,exclude);if(!matches.length)return false;
   const host=q('[data-target-duplicates]');host.replaceChildren();host.hidden=false;host.append(make('p',{className:'tiny',textContent:'同じ名前の対象があります。場所を確認してください。'}));
-  for(const t of matches){const b=make('button',{type:'button',className:'list-item',textContent:t.name+' ・ '+describe(t)+' ・ この対象を使う'});b.onclick=()=>{const s=state;if(!valid(s))return;useTarget(t);};host.append(b);}
+  for(const t of matches){
+   const label=t.name+' ・ '+describe(t);
+   if(state.options.manage){host.append(make('p',{className:'tiny',textContent:label}));continue;}
+   const b=make('button',{type:'button',className:'list-item',textContent:label+' ・ この対象を使う'});b.onclick=()=>{const s=state;if(!valid(s))return;useTarget(t);};host.append(b);
+  }
   const b=make('button',{type:'button',className:'chip',textContent:'別の対象として追加'});b.onclick=proceed;host.append(b);return true;
  }
  async function submit(approved=null){
@@ -185,7 +204,10 @@ function mount(deps){
   if(!name||!q('[data-target-height]').value.trim()||!L.height(heightM))return fail('名前と、地上からの高さ（0〜1000m）を確認してください');
   if(hasCats()&&q('[data-target-category]').value==='__new'){const n=q('[data-target-category-new]').value.trim();if(!n||n.length>20)return fail('新しいカテゴリの名前を入れてください（20文字まで）');}
   const existing=L.nearby(targets().filter(t=>t.id!==s.editing?.id),p);
-  if(existing){useTarget(existing);return;}
+  if(existing){
+   if(s.options.manage)return fail('この近くに「'+existing.name+'」が登録されています');
+   useTarget(existing);return;
+  }
   if(approved!==signature&&duplicates(name,s.editing?.id,()=>submit(signature)))return;
   const ticket=request.next();q('[data-target-add]').disabled=true;
   try{
@@ -195,11 +217,20 @@ function mount(deps){
    // 住所: 検索で選んだ場所ならその住所、地図で置いただけなら近くの住所を引く（取れなければ空。一覧では座標になる）
    let subtitle=s.searchPoint&&L.distance(s.searchPoint,p)<1?s.searchPoint.subtitle||'':'';
    if(!subtitle&&deps.address){try{subtitle=await deps.address(p)||'';}catch{subtitle='';}if(!valid(s)||!request.current(ticket))return;}
+   if(s.editingFavorite!==null&&JSON.stringify(deps.favorite(s.editing.favId))!==s.editingFavorite)
+    return fail('対象が別の操作で変更されました。対象一覧から開き直してください');
    const previous=s.drafts.find(x=>x.entry.id===s.editing?.favId),draft=L.targetDraft({...p,elevation:ground,subtitle},{name,heightM,favorites:deps.favorites(),id:s.editing?.favId});
    if(previous)draft.baseline=previous.baseline;
    const category=readCategory();draft.entry.targetCategory=category||null;
    if(s.options.multiple){s.drafts=s.drafts.filter(x=>x.entry.id!==draft.entry.id);s.drafts.push(draft);const target=L.targetFromFavorite(draft.entry);s.selected=s.selected.filter(x=>targetKey(x)!==target.id);s.selected.push(target);listMode();}
-   else{deps.persist(draft);deps.refresh();deps.select(s.source,'fav:'+draft.entry.id);close();}
+   else{
+    deps.persist(draft);deps.refresh();
+    if(s.options.manage){
+     search.value='';catFilter='';listMode();
+     const saved=[...list.querySelectorAll('[data-target-edit]')].find(button=>button.dataset.targetEdit==='fav:'+draft.entry.id);
+     (saved||q('[data-target-new]')).focus({preventScroll:true});
+    }else{deps.select(s.source,'fav:'+draft.entry.id);close();}
+   }
   }catch(e){if(valid(s)&&request.current(ticket))fail(e.message||'対象を保存できませんでした');}
   finally{q('[data-target-add]').disabled=false;}
  }
@@ -214,7 +245,7 @@ function mount(deps){
  q('[data-target-cat-add]').onclick=()=>{if(!discardCategoryEdit())return;const input=q('[data-target-cat-new]'),name=input.value.trim();if(!catNameOk(name))return;deps.editCategory('add',name);input.value='';renderCatList();};
  q('[data-target-clear]').onclick=()=>{if(valid(state)){deps.select(state.source,'');close();}};
  q('[data-target-done]').onclick=()=>{const s=state;if(!valid(s)||render())return;const chosen=selected();s.options.onDone?.(s.selected,s.drafts.filter(x=>chosen.has('fav:'+x.entry.id)));close();};
- dialog.addEventListener('close',()=>{request.cancel();if(!dialog.open){const focus=state?.focus;state=null;categoryEditing=null;q('[data-target-cat-new]').value='';focus?.focus({preventScroll:true});}});
+ dialog.addEventListener('close',()=>{request.cancel();if(!dialog.open){const focus=state?.focus;state=null;categoryEditing=null;q('[data-target-cat-new]').value='';(typeof focus==='function'?focus():focus)?.focus({preventScroll:true});}});
  const open=(source,onNew,focus,options={})=>{categoryEditing=null;state={source,focus,owner:deps.owner(),options,selected:[...(options.selected||[])],drafts:[...(options.drafts||[])],draftBaseline:JSON.stringify(options.drafts||[]),editorBaseline:null};search.value='';catFilter='';
  editor.hidden=true;q('[data-target-cat-panel]').hidden=true;q('[data-target-head-actions]').hidden=false;q('#previewTargetTitle').textContent=state?.options.title||'対象を選ぶ';panel.hidden=false;render();deps.show(dialog);};
  const style=make('style',{textContent:('#previewTargetDialog .preview-body-choice{touch-action:manipulation}#previewTargetDialog .preview-body-choice[aria-checked=true]{margin:-1px;border:2px solid var(--bg);background-clip:padding-box}#previewTargetDialog .target-selection-head{position:sticky;'+
@@ -225,6 +256,7 @@ function mount(deps){
  '#previewTargetDialog .target-selection-actions{position:sticky;bottom:-16px;z-index:2;padding:12px 0 max(16px,env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line);margin-top:12px}#previewTargetDialog [data-target-done]{width:100%}'+
  '#previewTargetDialog .preview-body-choice[role=checkbox]{scroll-margin-block:64px 100px}.target-cat-chips{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;margin:8px 0 4px}.target-cat-chips::-webkit-scrollbar{display:none}'+
  '#previewTargetDialog .target-list-search{display:flex;align-items:center;gap:8px}#previewTargetDialog .target-list-search .target-search{flex:1;min-width:0;margin:0}'+
+ '#previewTargetDialog .target-choice-label{flex:1;min-width:0;padding:10px;overflow-wrap:anywhere}'+
  '#previewTargetDialog [data-target-new]{display:inline-flex;flex:none;align-items:center;gap:4px;min-height:44px;padding:0 10px;font-weight:700;white-space:nowrap}'+
  '#previewTargetDialog .target-cat-chips .chip{min-height:36px}#previewTargetDialog .target-cat-chips .chip[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}.target-cat-chips .chip{flex:none}.target-cat-head{margin:14px 0 6px;font-size:.81rem;color:var(--secondary)}'+
  '.target-cat-row{min-height:52px;border-bottom:1px solid var(--line)}.target-cat-row .target-cat-name{flex:1;min-width:0;font-weight:700}.target-cat-row input{flex:1;min-width:0}.target-choice-row{display:flex;gap:8px;align-items:center}.target-choice-row>.preview-body-choice{flex:1;min-width:0;'+
@@ -234,7 +266,7 @@ function mount(deps){
  '#previewTargetDialog [data-target-editor][hidden],#previewTargetDialog [data-target-list-panel][hidden]{display:none}')});
  d.head.append(style);
  const refresh=()=>{if(valid(state))render();};root.addEventListener?.('sorami:records-synced',refresh);
- return {open,refresh,edit(source,target,focus){open(source,null,focus);openEditor(target);},authChanged(){if(state&&state.owner!==deps.owner())close();}};
+ return {open,refresh,edit(source,target,focus){open(source,null,focus);openEditor(target);},authChanged(){if(state&&dialog.open&&!valid(state))close();}};
 }
 root.AstroNotesTargetUI={mount};
 })(globalThis);

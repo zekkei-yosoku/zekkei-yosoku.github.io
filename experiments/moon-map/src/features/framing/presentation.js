@@ -257,7 +257,7 @@ document.getElementById('skyMapBody').hidden=true;   // 地図の欄の CSS が 
  const select=(source,id)=>{source.value=id;source.dispatchEvent(new Event('change',{bubbles:true}));};
  window.AstroTargetPicker=AstroNotesTargetUI.mount({address:async p=>(await nearName(p.latitude,p.longitude)).area,categoryOf:targetCategoryOf,categoryList:targetCategoryList,isUserCategory:c=>!TARGET_FIXED_CATEGORIES.includes(c),editCategory:editTargetCategory,owner:()=>auth?.token,
  targets:aimTargetList,favorites:()=>favorites,favorite:id=>favorites.find(f=>f.id===id),describe:targetLocationLabel,createMap:createMapView,wireSearch:wireSearchBox,show:showSheet,elevation:aimElevation,persist:persistTargetDraft,
-  refresh:()=>{aimFillSelects();SkyMapUI?.refreshTargets?.();},select,center:source=>source.id==='skyMapTarget'?SkyMapUI?.snapshot?.()?.target||place:aim.target||aimFromPoint()||place});
+  refresh:()=>{aimFillSelects();SkyMapUI?.refreshTargets?.();},select,center:source=>source?.id==='skyMapTarget'?SkyMapUI?.snapshot?.()?.target||place:aim.target||aimFromPoint()||place});
  const sync=()=>{picker.setAttribute('aria-label',`対象：${aimSource.selectedOptions[0]?.textContent||'読み込み中'}、選択を開く`);picker.disabled=aimSource.disabled||!aimSource.options.length;};
  picker.onclick=()=>AstroTargetPicker.open(aimSource,null,picker);
  const skySource=$('skyMapTarget'),skyButton=document.createElement('button');skyButton.type='button';skyButton.id='skyMapTargetOpen';skyButton.className='condition-choice';
