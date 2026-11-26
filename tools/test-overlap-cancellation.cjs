@@ -1,5 +1,6 @@
 // Exercise the generated engines, offline, in real browser workers and frames.
 require('./no-open-meteo.cjs');
+require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict');
 const base=process.env.OVERLAP_CANCEL_BASE||'http://127.0.0.1:8992/trial/';
 const target=require('../astronotes-align.js').targetById('skytree');

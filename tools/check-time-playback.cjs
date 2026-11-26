@@ -1,4 +1,5 @@
 require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
+require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 // Synthetic account/API only; checks actual date/time controls and geometry.
 const{chromium}=require('playwright'),fs=require('fs'),assert=require('assert/strict');
 const base=process.env.DATETIME_CHECK_BASE||'http://127.0.0.1:8863/',out=process.env.DATETIME_CHECK_OUT||'/tmp/astronotes-playback';fs.mkdirSync(out,{recursive:true});

@@ -1,4 +1,5 @@
 require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
+require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 // Synthetic accounts and solver rows only; never reads or mutates user records.
 const {chromium}=require('playwright'),fs=require('fs'),assert=require('assert/strict');
 const base=process.env.SHAPE_BASE||'http://127.0.0.1:8863/trial/index.html',out=process.env.SHAPE_OUT||'/tmp/astronotes-trial-shapes';fs.mkdirSync(out,{recursive:true});let page;

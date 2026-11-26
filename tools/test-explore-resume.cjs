@@ -1,4 +1,5 @@
 require('./no-open-meteo.cjs');
+require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 // 2026-11-25 ユーザー「重なる日時の候補を押してもボタンが効いてない」「別のAppに飛んで戻ると一覧に移動してる」
 // 「一覧に移動すると条件変わってないのに毎回検索始める」:
 // 1) the view loads weather (気象予報) after the dates were found; the date buttons still move the time.

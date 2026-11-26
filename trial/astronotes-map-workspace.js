@@ -1,9 +1,12 @@
 /* 探すの地図の作業画面。
- * 計算と条件は既存の SkyMapUI のものを使い、ここは描き方と配置だけを持つ。 */
+ * 計算と条件は既存の SkyMapUI のものを使い、ここは描き方と配置だけを持つ。
+ * 2026-11-26 trial（段階①）: 探すを開くとこの全画面地図が既定。上部は条件帯（押すと撮影条件のポップアップ）、
+ * 方位円の縁は対象の位置、軌道は出→最高点→入の3点を通る円弧で、条件の天体だけを同じ太さで描く。
+ * カードに実際に重なる時間と見え方の入口を置く。ユーザー「一旦この方向でトライアル反映まで進めて」 */
 (function(g){
 'use strict';
 const $=id=>document.getElementById(id),JST=32400000,HOUR=3600000,RAD=Math.PI/180,LOW_SKY=.6,PASS_STEP=300000,PASS_REACH=288,EYE_HEIGHT=1.5;
-let active=false,wanted=false,selfClick=false,fittedKey=null,emphasis=null,hits=[],built=false,scrubBefore=null,infoFrame=0,bearingCache=null,colours=null,hourPixels=16,passCache=new Map(),labels=[],sceneFull=false,sceneHidden=[],noticeTimer=0,lastBody=null;
+let keptView=null,overlapCache={key:'',windows:null,pending:'',ready:'',timer:0},active=false,wanted=false,selfClick=false,fittedKey=null,emphasis=null,hits=[],built=false,scrubBefore=null,infoFrame=0,bearingCache=null,colours=null,hourPixels=16,passCache=new Map(),labels=[],sceneFull=false,sceneHidden=[],noticeTimer=0,lastBody=null;
 const pad=n=>String(n).padStart(2,'0');
 const hhmm=at=>{const d=new Date(at+JST);return pad(d.getUTCHours())+':'+pad(d.getUTCMinutes());};
 const monthDay=at=>{const d=new Date(at+JST);return (d.getUTCMonth()+1)+'/'+d.getUTCDate();};
@@ -34,6 +37,7 @@ const orbitSwitch=body=>$(body==='sun'?'skyMapShowSun':'skyMapShowMoon');
 // 情報欄の天体の枠を押すと軌道を出し入れする。縦に並ぶ広い画面では主役でない天体を先に主役にする。
 function pressOrbit(body){
  const h=host(),toggle=orbitSwitch(body);if(!h)return;
+ if(active){chooseBody(body);return;}// 地図の段は条件の天体だけを描く。表示の切替は効かないので押しても切り替えない
  if(body!==mainBody(h)&&getComputedStyle($('mapWsInfo')).flexDirection==='column'){if(toggle.getAttribute('aria-pressed')==='false')toggle.click();chooseBody(body);return;}
  toggle.click();
 }
@@ -63,7 +67,23 @@ function passesOf(h,body,data){
 }
 function passAt(h,body,data){const at=h.session.at,list=passesOf(h,body,data);return list.find(p=>p.points[0].at<=at&&at<=p.points.at(-1).at)||list.find(p=>p.points[0].at>at)||list.at(-1)||null;}
 function rimDot(ctx,azimuth,x,y,r,fill,size=4.6,stroke='#000'){const a=dir(azimuth),px=x+Math.sin(a)*r,py=y-Math.cos(a)*r;ctx.beginPath();ctx.arc(px,py,size,0,Math.PI*2);ctx.fillStyle=fill;ctx.fill();ctx.lineWidth=1.6;ctx.strokeStyle=stroke;ctx.stroke();}
-function drawBody(ctx,body,data,x,y,r,width,height){
+// 出→最高点→入の3点を通る円弧。投影上の最高点が弦に乗る冬の太陽でも、弦長の22%は最高点の方位側へ膨らませる（試作と同じ）。
+function bulge(P0,P1,Pm,C,E){const mx=(P0[0]+P1[0])/2,my=(P0[1]+P1[1])/2,L=Math.hypot(P1[0]-P0[0],P1[1]-P0[1])||1;let nx=-(P1[1]-P0[1])/L,ny=(P1[0]-P0[0])/L;if(nx*(E[0]-C[0])+ny*(E[1]-C[1])<0){nx=-nx;ny=-ny;}
+ const sag=(Pm[0]-mx)*nx+(Pm[1]-my)*ny,min=.22*L;return sag>=min?Pm:[mx+nx*min,my+ny*min];}
+function arcOf(points,x,y,r){
+ const f=points[0],l=points.at(-1),pk=points.reduce((m,p)=>p.altitude>m.altitude?p:m,f);
+ const P0=polar(f.azimuth,f.altitude,x,y,r),P1=polar(l.azimuth,l.altitude,x,y,r),Pm=bulge(P0,P1,polar(pk.azimuth,pk.altitude,x,y,r),[x,y],polar(pk.azimuth,0,x,y,r)),t0=f.at,t1=l.at,tm=Math.min(Math.max(pk.at,t0+1),t1-1);
+ const [ax,ay]=P0,[bx,by]=Pm,[cx,cy]=P1,d=2*(ax*(by-cy)+bx*(cy-ay)+cx*(ay-by));
+ const frac=t=>t<=tm?(t-t0)/(tm-t0)*.5:.5+(t-tm)/(t1-tm)*.5;
+ if(Math.abs(d)<1e-6||t1<=t0){const at=t=>{const k=Math.max(0,Math.min(1,(t-t0)/((t1-t0)||1)));return [ax+(cx-ax)*k,ay+(cy-ay)*k];};return {t0,t1,at,path:()=>[P0,P1]};}
+ const ux=((ax*ax+ay*ay)*(by-cy)+(bx*bx+by*by)*(cy-ay)+(cx*cx+cy*cy)*(ay-by))/d,uy=((ax*ax+ay*ay)*(cx-bx)+(bx*bx+by*by)*(ax-cx)+(cx*cx+cy*cy)*(bx-ax))/d,R=Math.hypot(ax-ux,ay-uy);
+ const ang=(px,py)=>Math.atan2(py-uy,px-ux),a0=ang(ax,ay),am=ang(bx,by),a1=ang(cx,cy),T=Math.PI*2,norm=v=>((v%T)+T)%T;
+ let sm=norm(am-a0),s1=norm(a1-a0);if(sm>s1){sm-=T;s1-=T;}
+ const pt=k=>{const a=k<=.5?a0+sm*(k/.5):a0+sm+(s1-sm)*((k-.5)/.5);return [ux+Math.cos(a)*R,uy+Math.sin(a)*R];};
+ return {t0,t1,at:t=>pt(Math.max(0,Math.min(1,frac(t)))),path:()=>Array.from({length:61},(_,i)=>pt(i/60))};
+}
+// 全画面の探す地図以外（通常の地図）は本番と同じ描き方。
+function drawBodyTrue(ctx,body,data,x,y,r,width,height){
  const h=host();if(!h)return;
  const main=(h.shownBodies().includes(mainBody(h))?mainBody(h):h.session.body)===body||h.shownBodies().length===1,tint=colours[body]||(colours[body]=colour(body)),far=Math.hypot(width,height);
  ctx.save();ctx.globalAlpha=main?1:.7;ctx.lineCap='round';
@@ -87,6 +107,37 @@ function drawBody(ctx,body,data,x,y,r,width,height){
  rimDot(ctx,st.azimuth,x,y,r,tint,main?5.4:4.4);AstroNotesSceneAppearance.aimLookDisc(ctx,p[0],p[1],main?13:9,body,{illuminated:st.illuminatedFraction,brightLimbZenithAngle:st.brightLimbZenithAngle});}
  ctx.restore();
 }
+// 目標方位を通過する印は、弧が撮影地点→対象の線と交わる所に置く（時刻は計算値のまま）。
+function arcCross(arc,azimuth,x,y,r){const a=dir(azimuth),ux=Math.sin(a),uy=-Math.cos(a),pts=arc.path();let best=null;
+ for(let i=1;i<pts.length;i++){const [p,q]=[pts[i-1],pts[i]],side=v=>(v[0]-x)*uy-(v[1]-y)*ux,sp=side(p),sq=side(q);if(sp*sq>0)continue;const k=sp===sq?0:sp/(sp-sq),c=[p[0]+(q[0]-p[0])*k,p[1]+(q[1]-p[1])*k];
+ if((c[0]-x)*ux+(c[1]-y)*uy<0)continue;const d=Math.hypot(c[0]-x,c[1]-y);if(d<=r+1&&(!best||d>best.d))best={c,d};}return best?.c||null;}
+function drawBody(ctx,body,data,x,y,r,width,height){
+ if(!active)return drawBodyTrue(ctx,body,data,x,y,r,width,height);
+ const h=host();if(!h)return;
+ // 地図の段では条件の天体だけを描く（上部の月/太陽と連動）。太陽と月は同じ太さ・濃さ。
+ if(active&&body!==h.session.body)return;
+ const tint=colours[body]||(colours[body]=colour(body)),far=Math.hypot(width,height);
+ ctx.save();ctx.lineCap='round';
+ const pass=passAt(h,body,data),arc=pass&&pass.points.length>1?arcOf(pass.points,x,y,r):null;
+ if(pass){
+  for(const [event,lineTint,dash] of [[pass.rise,RISE[body]||tint,[]],[pass.set,SET[body]||tint,[9,6]]]){if(!event)continue;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.sin(dir(event.azimuth))*far,y-Math.cos(dir(event.azimuth))*far);ctx.setLineDash(dash);ctx.strokeStyle='rgba(0,0,0,.85)';
+  ctx.lineWidth=6;ctx.stroke();ctx.strokeStyle=lineTint;ctx.lineWidth=3;ctx.stroke();ctx.setLineDash([]);}
+  if(arc){ctx.beginPath();arc.path().forEach((q,i)=>i?ctx.lineTo(...q):ctx.moveTo(...q));ctx.strokeStyle='rgba(0,0,0,.72)';ctx.lineWidth=6.5;ctx.stroke();ctx.strokeStyle=tint;ctx.lineWidth=3.4;ctx.stroke();
+  for(const p of pass.points){if((p.at+JST)%HOUR||p.altitude<1.5)continue;const q=arc.at(p.at);ctx.beginPath();ctx.arc(q[0],q[1],4.2,0,Math.PI*2);ctx.fillStyle=tint;ctx.fill();ctx.lineWidth=1.2;ctx.strokeStyle='#000';ctx.stroke();hits.push({x:q[0],y:q[1],at:p.at});
+  const d=Math.hypot(q[0]-x,q[1]-y)||1,lx=q[0]+(q[0]-x)/d*14,ly=q[1]+(q[1]-y)/d*14;if(d<22||labels.some(v=>Math.hypot(v[0]-lx,v[1]-ly)<17))continue;labels.push([lx,ly]);halo(ctx,String(new Date(p.at+JST).getUTCHours()),lx,ly,tint,'700 12px system-ui');}
+  const geo=targetGeometry(h);
+  if(geo)for(const point of AstroNotesSkyMap.passages(pass,geo.azimuth,body,h.session.eye,h.skyState)){const q=arcCross(arc,geo.azimuth,x,y,r)||arc.at(point.at);ctx.save();ctx.translate(q[0],q[1]);ctx.rotate(Math.PI/4);ctx.fillStyle='#fff';ctx.strokeStyle='#000';ctx.lineWidth=1.5;ctx.fillRect(-4.5,-4.5,9,9);
+  ctx.strokeRect(-4.5,-4.5,9,9);ctx.restore();hits.push({x:q[0],y:q[1],at:point.at});}}
+  if(pass.rise)rimDot(ctx,pass.rise.azimuth,x,y,r,RISE[body]||tint);if(pass.set)rimDot(ctx,pass.set.azimuth,x,y,r,SET[body]||tint);
+ }
+ // いまの位置は弧の上（出〜最高点・最高点〜入で時刻を按分）。方向の線はその点を通って縁まで。地平線の下なら縁の暗い点だけにする。
+ const st=h.bodyState(body),now=h.session.at,onArc=arc&&st.altitude>=0&&now>=arc.t0&&now<=arc.t1;
+ if(!onArc)rimDot(ctx,st.azimuth,x,y,r,'#111',5.4,tint);
+ else{const p=arc.at(now),len=Math.hypot(p[0]-x,p[1]-y)||1,rx=x+(p[0]-x)/len*r,ry=y+(p[1]-y)/len*r;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(rx,ry);ctx.strokeStyle='rgba(0,0,0,.75)';ctx.lineWidth=5.5;ctx.stroke();ctx.strokeStyle=tint;ctx.lineWidth=2.6;ctx.stroke();
+ ctx.beginPath();ctx.arc(rx,ry,5.4,0,Math.PI*2);ctx.fillStyle=tint;ctx.fill();ctx.lineWidth=1.6;ctx.strokeStyle='#000';ctx.stroke();
+ AstroNotesSceneAppearance.aimLookDisc(ctx,p[0],p[1],13,body,{illuminated:st.illuminatedFraction,brightLimbZenithAngle:st.brightLimbZenithAngle});}
+ ctx.restore();
+}
 // 軌道がこの丸を通れば、天体は対象に重なる。
 // ピンの近くを押しても移動の操作に入らない。動かすのは右のボタンから。
 function pinNear(pixel){const h=host();if(!h)return false;const near=p=>{const q=h.map.project(p.latitude,p.longitude);return Math.hypot(q[0]-pixel.x,q[1]-pixel.y)<20;};
@@ -96,17 +147,26 @@ function drawOverlay(ctx,x,y,r){
  // 三脚とピンが置く先。地図が撮影地点から離れている間だけ出す。
  if(active){const w=ctx.canvas.clientWidth/2,c=ctx.canvas.clientHeight/2;if(!validPoint(h.session.observer)||Math.hypot(w-x,c-y)>8){ctx.save();ctx.lineCap='round';for(const [style,width] of [['rgba(0,0,0,.9)',4],['#fff',1.8]]){ctx.strokeStyle=style;ctx.lineWidth=width;ctx.beginPath();
  ctx.moveTo(w-11,c);ctx.lineTo(w+11,c);ctx.moveTo(w,c-11);ctx.lineTo(w,c+11);ctx.stroke();}ctx.restore();}}
+ // 円弧の軌道では対象仰角の丸は意味を持たないので描かない（縁が対象の位置）。
+ if(active)return;
  const geo=targetGeometry(h);if(!geo)return;
  const q=polar(geo.azimuth,Math.max(0,geo.elevation),x,y,r);ctx.save();ctx.beginPath();ctx.arc(q[0],q[1],7.5,0,Math.PI*2);ctx.fillStyle='rgba(200,118,255,.25)';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#000';ctx.stroke();ctx.lineWidth=1.8;ctx.strokeStyle='#fff';ctx.stroke();ctx.restore();
 }
 const center=(ctx,x,y)=>{ctx.save();ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);ctx.fillStyle='#3ddc6a';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#000';ctx.stroke();ctx.restore();};
 function schedule(){if(infoFrame||!active)return;infoFrame=requestAnimationFrame(()=>{infoFrame=0;if(active)update();});}
-const radius=(width,height)=>active?Math.min(width-120,height-30)/2:Math.min(width,height)*.36;
+const fitRadius=(width,height)=>active?Math.min(width-120,height-30)/2:Math.min(width,height)*.36;
+// 方位円の縁は対象の位置（半径＝撮影地点から対象までの地図上の距離）。拡大・縮小しても縁に対象が乗る。
+function radius(width,height){
+ const h=host(),s=h?.session,o=s?.observer,t=s?.target;if(!active||!h||!validPoint(o)||!h.targetOn||!validPoint(t))return fitRadius(width,height);
+ const m=AstroNotesAlign.partTarget(t,s.partId),a=h.map.project(o.latitude,o.longitude),b=h.map.project(m.latitude,m.longitude),d=Math.hypot(b[0]-a[0],b[1]-a[1]);
+ return Number.isFinite(d)?Math.max(36,d):fitRadius(width,height);
+}
 const api={
  hourPixels:()=>active?hourPixels:0,
  // 描画のたびに呼ばれる。ページ内の地図も同じ描き方にする。
  drawing(){if(!active)queueMicrotask(evaluate);else{queueMicrotask(keepWide);schedule();}renderTargetHeight();hits=[];labels=[];colours={};return {radius,body:drawBody,overlay:drawOverlay,center};},
  hits:()=>hits,
+ onlyBody(){const h=host();return active&&h?h.session.body:null;},
  tap(pixel){if(!active)return false;let best=null,distance=22;for(const hit of hits){const d=Math.hypot(hit.x-pixel.x,hit.y-pixel.y);if(d<distance){distance=d;best=hit;}}if(best){host()?.setTime(best.at);return true;}return pinNear(pixel);},
  // 動かしていなければ名前も地点もそのまま残す。
  // 全画面のピンは聞き返さず目の高さで置く。置いた対象を動かすときは決めた高さを保つ。
@@ -115,14 +175,13 @@ const api={
 };
 g.AstroNotesMapWorkspace=api;
 
-const ICON={back:'<path d="M15 5l-7 7 7 7"/>',share:'<path d="M12 15V4m0 0L8 8m4-4l4 4M5 13v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-6"/>'};
+const ICON={menu:'<path d="M4 7h16M4 12h16M4 17h16"/>',back:'<path d="M15 5l-7 7 7 7"/>',share:'<path d="M12 15V4m0 0L8 8m4-4l4 4M5 13v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-6"/>'};
 const svg=d=>`<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const cell=(id,label,accent,button)=>`<${button?'button type="button"':'div'} class="map-ws-cell" id="${id}" style="--ws-c:${accent}"><small>${label}</small><b></b><i></i><i></i></${button?'button':'div'}>`;
 function build(){
  if(built)return;built=true;const view=$('skyMapView'),footer=view.querySelector('.sky-map-footer'),wrap=view.querySelector('.sky-map-wrap');
  const top=document.createElement('header');top.id='mapWsTop';top.className='map-ws-top';
- top.innerHTML=`<button type="button" id="mapWsBack" aria-label="元の画面へ戻る">${svg(ICON.back)}</button><button type="button" id="mapWsTitle" class="map-ws-title" aria-label="条件を開く"><strong></strong><span></span></button><div class="map-ws-seg" role="group" aria-label="結果の表示">\
-<button type="button" id="mapWsScene" aria-pressed="false">見え方</button><button type="button" id="mapWsMap" aria-pressed="true">地図</button></div><button type="button" id="mapWsShare" aria-label="保存と共有" aria-haspopup="menu">${svg(ICON.share)}</button>`;
+ top.innerHTML=`<button type="button" id="mapWsMenuButton" aria-label="メニュー">${svg(ICON.menu)}</button><button type="button" id="mapWsTitle" class="map-ws-title map-ws-band-conditions" aria-label="撮影条件を開く" aria-haspopup="dialog"><strong class="map-ws-chip-place" data-chip="observer"></strong><span class="map-ws-band-sub"><span class="map-ws-chip" data-chip="body"></span><span class="map-ws-chip" data-chip="target"></span><span class="map-ws-chip" data-chip="alignment"></span></span></button><button type="button" id="mapWsShare" aria-label="保存と共有" aria-haspopup="menu">${svg(ICON.share)}</button>`;
  view.append(top);
  const menu=document.createElement('div');menu.id='mapWsMenu';menu.className='map-ws-menu';menu.setAttribute('role','menu');menu.hidden=true;view.append(menu);
  const bodies=document.createElement('button');bodies.type='button';bodies.id='mapWsBodies';bodies.className='map-ctl map-ws-bodies';bodies.textContent='天体';bodies.setAttribute('aria-label','表示する天体を選ぶ');bodies.setAttribute('aria-haspopup','menu');wrap.append(bodies);
@@ -139,16 +198,18 @@ function build(){
   +page(null,[cell('wsTarget','対象','#c876ff'),cell('wsGap','ずれ（方位）','#c876ff'),cell('wsPass','対象の通過','#c876ff',1)])
   +page(null,[cell('wsDawn','朝の薄明','#7d8fe6',1),cell('wsGolden','夕方の低い光','var(--ray-sun)',1),cell('wsDusk','夕方の薄明','#7d8fe6',1)]);
  const dots=document.createElement('div');dots.id='mapWsDots';dots.className='map-ws-dots';dots.setAttribute('aria-hidden','true');dots.innerHTML='<span></span>'.repeat(4);
- footer.prepend(info,dots);placeInfo();
+ const card=document.createElement('section');card.id='mapWsCard';card.className='map-ws-card';card.setAttribute('aria-label','撮影地点と対象');
+ card.innerHTML='<div class="map-ws-card-text"><b id="mapWsCardPlace"></b><span id="mapWsCardMeta"></span><button type="button" id="mapWsCardOverlap" class="map-ws-card-overlap"></button></div><button type="button" id="mapWsCardView" class="map-ws-card-view"><span>見え方</span><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg></button>';
+ footer.prepend(card,info,dots);placeInfo();
  const band=document.createElement('canvas');band.id='mapWsBand';band.className='map-ws-band';band.setAttribute('aria-hidden','true');$('skyMapTrack').append(band);
- $('mapWsTitle').onclick=()=>{if(conditionsOpen())closePanel();else openPanel();};
- $('exploreConditions')?.addEventListener('toggle',e=>{if(!e.target.open)closePanel();});
- $('mapWsBack').onclick=()=>{wanted=false;const viaHistory=history.state?.mapWs;if(sceneFull)leaveScene();else exit();if(viaHistory)history.back();};
- $('mapWsScene').onclick=()=>{if(sceneFull)return;sceneFull=true;$('exploreSceneTab')?.click();};
- $('mapWsMap').onclick=()=>{if(sceneFull)$('exploreMapTab')?.click();};
+ // 条件帯を押すと探すの撮影条件（ポップアップ）を開く。段の持ち主は探すのcontroller。
+ $('mapWsTitle').onclick=()=>document.dispatchEvent(new Event('astronotes-explore-open-conditions'));
+ $('mapWsMenuButton').onclick=()=>{const tools=$('toolsButton');(tools&&!tools.hidden?tools:$('homeLink'))?.click();};
+ $('mapWsCardView').onclick=()=>{const h=host();if(h&&(!validPoint(h.session.observer)||!h.session.target))document.dispatchEvent(new Event('astronotes-explore-open-conditions'));else document.dispatchEvent(new Event('astronotes-explore-open-view'));};
+ $('mapWsCardOverlap').onclick=e=>{const at=+e.currentTarget.dataset.at;if(Number.isFinite(at)&&at)host()?.setTime(at);};
  $('mapWsShare').onclick=e=>{e.stopPropagation();const row=$('skyMapShareRow');openMenu(e.currentTarget,[...row.querySelectorAll('button')].filter(b=>!b.hidden));};
  bodies.onclick=e=>{e.stopPropagation();openMenu(e.currentTarget,[$('skyMapShowSun'),$('skyMapShowMoon'),$('skyMapMoreBodies')]);};
- document.addEventListener('pointerdown',e=>{if(!menu.hidden&&!e.target.closest('#mapWsMenu,#mapWsShare,#mapWsBodies'))menu.hidden=true;if(conditionsOpen()&&!e.target.closest('#exploreConditions,#mapWsTitle,dialog'))closePanel();});
+ document.addEventListener('pointerdown',e=>{if(!menu.hidden&&!e.target.closest('#mapWsMenu,#mapWsShare,#mapWsBodies'))menu.hidden=true;});
  info.addEventListener('scroll',()=>{const pages=info.children,i=Math.round(info.scrollLeft/(info.clientWidth||1));[...dots.children].forEach((d,k)=>d.classList.toggle('on',k===i));if(pages[i]?.dataset.body)chooseBody(pages[i].dataset.body);},{passive:true});
  info.addEventListener('click',e=>{if(e.target.closest('button'))return;const body=e.target.closest('[data-body]')?.dataset.body;if(body)chooseBody(body);});
  dots.firstElementChild.classList.add('on');
@@ -212,7 +273,7 @@ function drawBand(h){
 }
 function update(){
  const h=host();if(!h){evaluate();return;}const s=h.session,mainId=mainBody(h),body=AstroNotesBodies.definitions.find(d=>d.id===mainId)?.name||'天体';
- setTitle(h,mainId);
+ setTitle(h);updateCard(h);
  updateBody(h,'sun','wsSun');updateBody(h,'moon','wsMoon');
  $('wsSun').setAttribute('aria-pressed',String(!!s.showSun));$('wsMoon').setAttribute('aria-pressed',String(!!s.showMoon));
  const geo=targetGeometry(h);setCell('wsTarget',geo?degrees(geo.azimuth):'—',geo?'仰角 '+geo.elevation.toFixed(2)+'°':'対象を選ぶと出ます',geo?(geo.distanceKm<1?Math.round(geo.distanceKm*1000)+'m':geo.distanceKm.toFixed(2)+'km'):'');
@@ -226,23 +287,72 @@ function update(){
  fitTarget(h);updateHome(h);drawBand(h);
 }
 // 見え方も同じ上部バーの全画面にして、切替ボタンの位置を地図と揃える。条件を開いたままだと絵が画面の外へ出る。
-function setTitle(h,bodyId){const s=h.session,title=$('mapWsTitle'),body=AstroNotesBodies.definitions.find(d=>d.id===bodyId)?.name||'天体',
-name=!validPoint(s.observer)?'撮影地点を選ぶ':(/^-?[\d.]+, -?[\d.]+$/.test(s.observer.name||'')?'撮影地点':s.observer.name||'撮影地点')+(Number.isFinite(s.ground)?' ・ '+Math.round(s.ground)+'m':''),extras=h.extraCount?.()||0,sub=body+' × '+(s.target?.name||'対象なし')+(extras?'ほか'+extras+'件':'');
-if(title.firstChild.textContent!==name)title.firstChild.textContent=name;if(title.lastChild.textContent!==sub)title.lastChild.textContent=sub;}
+// 上部の条件帯: 天体・対象・重ね方・撮影地点名。
+function setTitle(h){
+ const s=h.session,title=$('mapWsTitle'),body=AstroNotesBodies.definitions.find(d=>d.id===s.body)?.name||'天体',extras=h.extraCount?.()||0,
+ select=$('skyMapAlignmentControls')?.querySelector('select'),alignment=s.target?(select?.selectedOptions?.[0]?.textContent?.trim()||'重ね方'):'重ね方',
+ place=!validPoint(s.observer)?'撮影地点を選ぶ':(/^-?[\d.]+, -?[\d.]+$/.test(s.observer.name||'')?'撮影地点':s.observer.name||'撮影地点');
+ const values={body,target:s.target?.name?s.target.name+(extras?'ほか'+extras+'件':''):'対象を選ぶ',alignment,observer:place};
+ for(const chip of title.querySelectorAll('[data-chip]')){const v=values[chip.dataset.chip];if(chip.textContent!==v)chip.textContent=v;}
+ const label='撮影条件を開く：'+Object.values(values).join('、');if(title.getAttribute('aria-label')!==label)title.setAttribute('aria-label',label);
+}
+const pad2=n=>String(n).padStart(2,'0');
+// 撮影条件や見え方から地図へ戻った時、同じ撮影地点と対象なら利用者が動かした位置と縮尺を保つ。
+const viewKey=h=>{const s=h.session;return JSON.stringify([s.observer?.latitude,s.observer?.longitude,s.target?.id,s.target?.latitude,s.target?.longitude,s.partId]);};
+// その日に天体の円盤が対象の本体に掛かる時間。目標方位の通過の前後だけを、見え方と同じ外形と見かけの高度で調べる。
+function overlapWindows(h){
+ const s=h.session,t=s.target,o=s.eye,body=s.body;if(!validPoint(s.observer)||!h.targetOn||!validPoint(t))return null;if(!o||s.timelinePending)return undefined;
+ const day=AstroNotesSkyMap.dayStart(s.at),key=JSON.stringify([body,day,o.latitude,o.longitude,o.elevation,t.id,t.latitude,t.longitude,t.parts?.map(p=>p.m),s.custom?.heightM,globalThis.AstroNotesAtmosphere?.dataKey?.()]);
+ if(overlapCache.key===key)return overlapCache.windows;
+ // 日を送り続けている間は数えず、止まってから1回だけ数える（1日で数十ms掛かる）。
+ if(overlapCache.pending!==key){clearTimeout(overlapCache.timer);overlapCache.pending=key;overlapCache.timer=setTimeout(()=>{overlapCache.ready=key;schedule();},160);}
+ if(overlapCache.ready!==key)return undefined;
+ let windows=[];
+ try{
+  const view=AstroNotesAlign.prepareDailyView(o,t,body,{partId:'__whole',eyeM:0}),geo=targetGeometry(h),data=dailyOf(h,body);
+  if(geo&&data){
+   const seen=new Set();
+   for(const pass of passesOf(h,body,data))for(const point of AstroNotesSkyMap.passages(pass,geo.azimuth,body,o,h.skyState)){
+    const hit=at=>!!view(at,at)[0]?.intersects;let cur=null;
+    for(let at=point.at-2400000;at<=point.at+2400000;at+=20000){if(hit(at)){if(!cur)cur={from:at,to:at};cur.to=at;}else if(cur){windows.push(cur);cur=null;}}if(cur)windows.push(cur);
+    // 走査の端でもまだ重なっていれば、重ならなくなるまで外へ（幅の広い対象、最大±6時間）。
+    for(const w of windows){if(w.from<=point.at-2400000)for(let at=w.from-20000;at>=point.at-21600000&&hit(at);at-=20000)w.from=at;if(w.to>=point.at+2400000)for(let at=w.to+20000;at<=point.at+21600000&&hit(at);at+=20000)w.to=at;}
+   }
+   // 表示と時刻送りは、確かに重なっている分の範囲（始まりは分を切り上げ、終わりは切り捨て）。
+   // 重なり合う区間は1つにまとめる。表示は確かに重なっている分（始まりは分の切り上げ、終わりは切り捨て）、1分に満たなければその分。
+   windows.sort((a,b)=>a.from-b.from);const merged=[];for(const w of windows){const last=merged.at(-1);if(last&&w.from<=last.to+20000)last.to=Math.max(last.to,w.to);else merged.push({...w});}
+   windows=merged.filter(w=>w.to>=day&&w.from<day+86400000).map(w=>{const from=Math.ceil(w.from/60000)*60000,to=Math.floor(w.to/60000)*60000;return from<=to?{from,to}:{from:Math.round((w.from+w.to)/120000)*60000,to:Math.round((w.from+w.to)/120000)*60000,brief:true};});void seen;
+  }
+ }catch(e){globalThis.AstroNotesErrors?.note('map.overlapWindows',e);windows=null;}
+ overlapCache={key,windows,pending:key,ready:key,timer:0};return windows;
+}
+function updateCard(h){
+ const s=h.session,geo=targetGeometry(h),place=$('mapWsCardPlace'),meta=$('mapWsCardMeta'),overlap=$('mapWsCardOverlap'),view=$('mapWsCardView');if(!place)return;
+ const ready=validPoint(s.observer)&&!!s.target;
+ const name=!validPoint(s.observer)?'撮影地点を選んでください':(/^-?[\d.]+, -?[\d.]+$/.test(s.observer.name||'')?'撮影地点':s.observer.name||'撮影地点')+(s.target?' → '+s.target.name:'');
+ const km=geo?(geo.distanceKm<1?Math.round(geo.distanceKm*1000)+'m':geo.distanceKm.toFixed(1)+'km'):'';
+ const text=geo?'対象まで '+km+' ・ 方位 '+geo.azimuth.toFixed(1)+'°':ready?'':'上の条件から撮影地点と対象を選ぶと、重なる時間が出ます';
+ if(place.textContent!==name)place.textContent=name;if(meta.textContent!==text)meta.textContent=text;
+ const windows=ready?overlapWindows(h):null,bodyName=AstroNotesBodies.definitions.find(d=>d.id===s.body)?.name||'天体';
+ const fmt=at=>{const d=new Date(at+JST);return pad2(d.getUTCHours())+':'+pad2(d.getUTCMinutes());};
+ const label=!ready||!geo?'':windows===undefined?'重なる時間を調べています…':windows===null?'重なる時間を計算できません':windows.length?'重なる '+windows.map(w=>w.brief?fmt(w.from)+'頃（1分未満）':fmt(w.from)+'〜'+fmt(w.to)).join('・'):'この日は'+bodyName+'が対象に重ならない';
+ if(overlap.textContent!==label)overlap.textContent=label;overlap.hidden=!label;overlap.dataset.at=windows?.length?String(windows[0].from):'';overlap.disabled=!windows?.length;
+ overlap.classList.toggle('map-ws-card-hit',!!windows?.length);
+ const viewLabel=ready?'見え方を開く':'撮影条件を開く';if(view.getAttribute('aria-label')!==viewLabel)view.setAttribute('aria-label',viewLabel);view.firstElementChild.textContent=ready?'見え方':'条件';
+}
 function showScene(){
- const view=$('skyMapView'),h=host();build();if(!h)return;view.classList.add('map-ws-scene');setTitle(h,h.session.body);$('mapWsScene').setAttribute('aria-pressed','true');$('mapWsMap').setAttribute('aria-pressed','false');
+ const view=$('skyMapView'),h=host();build();if(!h)return;view.classList.add('map-ws-scene');setTitle(h);
  for(let node=view;node&&node!==document.body;node=node.parentElement)for(let sibling=node.previousElementSibling;sibling;sibling=sibling.previousElementSibling){sibling.classList.add('map-ws-hide');sceneHidden.push(sibling);}
  scrollTo(0,0);requestAnimationFrame(()=>{if(sceneFull)scrollTo(0,0);});
 }
-function leaveScene(){sceneFull=false;closePanel();$('skyMapView').classList.remove('map-ws-scene');for(const node of sceneHidden)node.classList.remove('map-ws-hide');sceneHidden=[];if($('mapWsScene')){$('mapWsScene').setAttribute('aria-pressed','false');
-$('mapWsMap').setAttribute('aria-pressed','true');}}
+function leaveScene(){sceneFull=false;closePanel();$('skyMapView').classList.remove('map-ws-scene');for(const node of sceneHidden)node.classList.remove('map-ws-hide');sceneHidden=[];}
 // 対象があるときは、対象がちょうど円の縁に来る縮尺で開く。条件を変えたときも合わせ直す。
 function fitTarget(h){
  const s=h.session,o=s.observer,t=s.target;if(!validPoint(o)||!h.targetOn||!validPoint(t))return;
  const key=[o.latitude,o.longitude,t.id,t.latitude,t.longitude,s.partId,active].join();if(key===fittedKey)return;
  const canvas=$('skyMapCanvas'),w=canvas.clientWidth,ht=canvas.clientHeight;if(!w||!ht)return;
  const m=AstroNotesAlign.partTarget(t,s.partId),a=h.map.project(o.latitude,o.longitude),b=h.map.project(m.latitude,m.longitude),distance=Math.hypot(b[0]-a[0],b[1]-a[1]);if(!(distance>=1))return;
- fittedKey=key;h.map.setView(o.latitude,o.longitude,h.map.zoom()+Math.log2(radius(w,ht)/distance));
+ fittedKey=key;h.map.setView(o.latitude,o.longitude,h.map.zoom()+Math.log2(fitRadius(w,ht)/distance));
 }
 // 選んだ地図の種類が無ければ航空写真で開く。選択として保存しないので、地図を開き直すたびに当て直す。
 function applyDefaultLayer(h){try{if(h&&store.get('sorami.mapLayer',null)===null&&h.map.layer?.()!=='photo')h.map.setLayer?.('photo',false);}catch(e){globalThis.AstroNotesErrors?.note('map.defaultLayer',e);}}
@@ -250,7 +360,7 @@ function applyDefaultLayer(h){try{if(h&&store.get('sorami.mapLayer',null)===null
 function keepWide(){if(!active)return;if(!$('skyMapView').querySelector('.sky-map-wrap').classList.contains('sky-map-wide')){selfClick=true;$('skyMapExpand').click();selfClick=false;}applyDefaultLayer(host());}
 // 別のアプリから戻る間は地図の処理が作り直されて権限確認を待つ。ここで閉じると開き直しで位置と縮尺が初期に戻る。
 const resuming=()=>{try{return !!SkyMapUI?.resuming?.();}catch{return false;}};
-function shouldShow(){const view=$('skyMapView');return wanted&&!!view&&!view.hidden&&view.classList.contains('explore-mounted')&&view.dataset.exploreMode==='map'&&!$('skyMapContent')?.hidden&&!!host();}
+function shouldShow(){const view=$('skyMapView');return !!view&&view.dataset.exploreStage==='map'&&!view.hidden&&view.classList.contains('explore-mounted')&&view.dataset.exploreMode==='map'&&!$('skyMapContent')?.hidden&&!!host();}
 function evaluate(){
  const view=$('skyMapView');if(view.hidden){wanted=false;if(sceneFull)leaveScene();}const show=shouldShow();if(show&&!active)enter();else if(!show&&active&&(view.hidden||!resuming()))exit();
  if(view.dataset.exploreMode!=='map'){fittedKey=null;return;}
@@ -267,14 +377,14 @@ function enter(){
  scrubBefore=h.session.scrubMode;measureHours();rebuildTimeline(h,'hour');
  applyDefaultLayer(h);
  // 撮影地点の周りを見る画面なので、遠くを見ていた続きで開いても円が地図に合う縮尺へ戻す。
- const o=h.session.observer;if(validPoint(o)){if(h.map.zoom()<12)h.map.setView(o.latitude,o.longitude,14);else h.map.setCenter(o.latitude,o.longitude);}
- if(!history.state?.mapWs)history.pushState({...(history.state||{}),mapWs:1},'',location.href);
+ const o=h.session.observer,same=keptView&&keptView.key===viewKey(h);if(validPoint(o)&&!same){if(h.map.zoom()<12)h.map.setView(o.latitude,o.longitude,14);else h.map.setCenter(o.latitude,o.longitude);}
  view.style.setProperty('--ws-footer-h',view.querySelector('.sky-map-footer').offsetHeight+'px');
  // 条件の天体の欄から始める
  const info=$('mapWsInfo'),first=h.session.body==='moon'?1:0;emphasis=['sun','moon'].includes(h.session.body)?h.session.body:null;info.scrollLeft=info.clientWidth*first;for(const page of info.children)page.classList.toggle('map-ws-current',page.dataset.body===emphasis);
- fittedKey=null;fitTarget(h);h.redraw();schedule();
+ if(same){fittedKey=keptView.fitted;}else{fittedKey=null;fitTarget(h);}h.redraw();schedule();
 }
 function exit(){
+ {const h=host();keptView=h?{key:viewKey(h),fitted:fittedKey}:null;}
  active=false;emphasis=null;lastBody=null;closePanel();if($('mapWsPick'))$('mapWsPick').hidden=true;host()?.map.allowRotate?.(false);const view=$('skyMapView');view.classList.remove('map-ws');$('mapWsMenu').hidden=true;
  const h=host();if(view.querySelector('.sky-map-wrap')?.classList.contains('sky-map-wide')&&h){selfClick=true;$('skyMapExpand').click();selfClick=false;}fittedKey=null;
  if(h&&scrubBefore&&scrubBefore!==h.session.scrubMode)h.setScrubMode(scrubBefore);else if(h)rebuildTimeline(h,h.session.scrubMode);
@@ -282,14 +392,13 @@ function exit(){
 }
 function init(){
  const view=$('skyMapView');if(!view)return;
- new MutationObserver(evaluate).observe(view,{attributes:true,attributeFilter:['hidden','class','data-explore-mode']});
+ new MutationObserver(evaluate).observe(view,{attributes:true,attributeFilter:['hidden','class','data-explore-mode','data-explore-stage']});
  if($('skyMapContent'))new MutationObserver(evaluate).observe($('skyMapContent'),{attributes:true,attributeFilter:['hidden']});
  // 地図タブでは大きくしない。全画面に入るのは地図の中の拡大ボタンだけ。撮影地点が無くても同じ画面のまま。
  view.querySelector('.sky-map-wrap')?.addEventListener('click',e=>{if(selfClick||!e.target.closest('#skyMapExpand')||!view.classList.contains('explore-mounted')||!host())return;if(!active&&e.currentTarget.classList.contains('sky-map-wide')){wanted=false;return;}e.stopPropagation();
- if(active){queueMicrotask(()=>$('mapWsBack').click());return;}wanted=true;evaluate();},true);
+ if(active)return;wanted=true;evaluate();},true);
  document.addEventListener('click',e=>{if(e.target.closest?.('#exploreShowResult'))setTimeout(()=>{if(sceneFull)scrollTo(0,0);const h=host();if(active&&h&&validPoint(h.session.observer)&&!$('exploreConditions').open)h.map.setCenter(h.session.observer.latitude,h.session.observer.longitude);},0);
  },true);
- addEventListener('popstate',()=>{if(!history.state?.mapWs){if(sceneFull||active){wanted=false;if(sceneFull)leaveScene();if(active)exit();}}else if(!active&&!sceneFull){wanted=true;evaluate();}});
  evaluate();
 }
 init();

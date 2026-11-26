@@ -53,3 +53,16 @@ test('trial build rejects a duplicate declaration across external and inline cla
  const html=baseline('src/index.html').replace('</body>','<script>const plane = 1;</script>\n</body>');
  assert.throws(()=>buildMoonMapTrial(inputs({[prefix+'src/index.html']:html})),SyntaxError);
 });
+
+test('an overlaid explore source re-renders the trial explore bundle; untouched sources keep the production bundle',()=>{
+ const same=buildMoonMapTrial(inputs({[prefix+'src/features/explore/controller.js']:baseline('src/features/explore/controller.js')}));
+ assert.equal(same['astronotes-explore-simple.js'],baseline('astronotes-explore-simple.js'),'an identical overlay renders the production bundle byte for byte');
+ const changed=baseline('src/features/explore/controller.js').replace("let mode='scene',","let mode='scene',/*trial-check*/");
+ assert.notEqual(changed,baseline('src/features/explore/controller.js'));
+ const files=buildMoonMapTrial(inputs({[prefix+'src/features/explore/controller.js']:changed}));
+ assert.ok(files['astronotes-explore-simple.js'].includes('/*trial-check*/'));
+ assert.equal(files['index.html'].match(/astronotes-explore-simple\.js\?v=(\d+)/)[1],BigInt('0x'+sha(files['astronotes-explore-simple.js']).slice(0,16)).toString());
+ assert.equal(JSON.parse(files['moon-map-experiment.json']).files['astronotes-explore-simple.js'],sha(files['astronotes-explore-simple.js']));
+ const plain=buildMoonMapTrial(inputs());
+ assert.equal(plain['astronotes-explore-simple.js'],undefined,'without an explore overlay the bundle is copied from production');
+});

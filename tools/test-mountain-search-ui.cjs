@@ -1,6 +1,7 @@
 // Real Explore lifecycle with 174 saved places and two targets (348 work items).
 // Uses only the frozen GSI fixture produced by test-mountain-search-performance.cjs.
 require('./no-open-meteo.cjs');
+require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs');
 const {tile,tilePattern,grants}=require('./test-mountain-search-performance.cjs');
 const beforeURL=process.env.MOUNTAIN_BASELINE||'http://127.0.0.1:8998/trial/index.html';

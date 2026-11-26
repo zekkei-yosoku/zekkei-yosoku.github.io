@@ -1,4 +1,5 @@
 require('./no-open-meteo.cjs');
+require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 // 2026-11-11 ユーザー（ヒアリング）: a new place opens with the whole target about 6/10 of the frame height and the frame's
 // lower edge on the ground line; 天体に寄る makes the body's diameter about 1/4 of the frame height; each sets the focal
 // length of 撮影設定. With one target overlapped as a whole, the lens is not part of the search, so the list stays on return.

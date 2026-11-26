@@ -1,4 +1,5 @@
 require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
+require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 // Tower previews keep their foot instead of a floating distant horizon; searches still respect the horizon, and favorites take typed heights.
 const {chromium}=require('playwright'),assert=require('assert/strict');
 const base=process.env.HORIZON_BASE||'http://127.0.0.1:8931/',tools=['records','tower','diamond','pearl','skymap'],shots=process.env.HORIZON_SHOTS;

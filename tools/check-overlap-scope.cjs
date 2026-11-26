@@ -1,6 +1,7 @@
 // 重ねる対象（個別/全て）の実画面検査。合成アカウント・API writeはstubし、本人データを使わない。
 // UI_PREVIEW_PORT=8992 node tools/serve-ui-preview.cjs を別に起動して実行する。
 require('./no-open-meteo.cjs');
+require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs');
 const base=process.env.OVERLAP_BASE||'http://127.0.0.1:8992/trial/index.html',out=process.env.OVERLAP_OUT||'/tmp/astronotes-overlap-scope',grants=['records','tower','diamond','pearl','skymap','multiscene'];
 fs.mkdirSync(out,{recursive:true});

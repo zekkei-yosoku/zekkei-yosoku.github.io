@@ -1,4 +1,5 @@
 require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
+require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 // Synthetic search windows; real app date adoption/drawing and visibility resume.
 const{chromium}=require('playwright'),fs=require('fs'),assert=require('assert/strict');
 const base=process.env.CANDIDATE_BASE||'http://127.0.0.1:8863/trial/index.html',out=process.env.CANDIDATE_OUT||'/tmp/astronotes-candidate-continuation';fs.mkdirSync(out,{recursive:true});

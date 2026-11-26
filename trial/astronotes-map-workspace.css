@@ -101,3 +101,29 @@ html:has(#skyMapView.map-ws-scene){scrollbar-gutter:auto}
  #skyMapView.map-ws .map-ws-info{flex-direction:column;overflow:visible;scroll-snap-type:none;touch-action:auto}
  #skyMapView.map-ws .map-ws-dots{display:none}.map-ws-page{flex:none;border-bottom:1px solid var(--line)}
 }
+/* 2026-11-26 trial 探すの全画面地図（段階①）: 地図が既定の段。上部は条件帯、下部にカード。撮影条件はポップアップ（検索の段）で開く */
+html:has(#skyMapView[data-explore-stage=map].map-ws:not([hidden])),body:has(#skyMapView[data-explore-stage=map].map-ws:not([hidden])){overflow:hidden}
+#skyMapView[data-explore-stage=map].map-ws :is(.sky-map-head,#exploreConditions,#exploreSearchResults,#exploreSkyInfo,#exploreTabs,#exploreScenePanel,#exploreBackToMap,#skyMapShareRow,#skyMapCustom,#skyMapTargetInfo,.sky-map-definition,#exploreMapPanel>details){display:none!important}
+#skyMapView.map-ws .map-ws-bodies{display:none!important}
+.map-ws-top #mapWsMenuButton{flex:none}
+.map-ws-top .map-ws-band-conditions{display:flex;flex-direction:column;justify-content:center;gap:1px;min-height:44px;margin:0 2px;padding:3px 30px 3px 12px;border:1px solid var(--line);border-radius:12px;background:var(--sunk);position:relative;overflow:hidden}
+.map-ws-band-conditions::after{content:"";position:absolute;right:12px;top:50%;width:7px;height:7px;margin-top:-6px;border:solid var(--secondary);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.map-ws-top .map-ws-title.map-ws-band-conditions .map-ws-chip-place{display:block;width:100%;font-size:15px;line-height:1.3;font-weight:700;color:var(--text);text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.map-ws-top .map-ws-title .map-ws-band-sub{display:flex;width:100%;min-width:0;gap:0 5px;font-size:12px;line-height:1.3;color:var(--secondary)}
+.map-ws-top .map-ws-title .map-ws-chip{display:block;flex:none;width:auto;min-width:0;font-size:12px;line-height:1.3;color:var(--secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.map-ws-top .map-ws-title .map-ws-chip[data-chip=target]{flex:0 1 auto}.map-ws-top .map-ws-title .map-ws-chip[data-chip=alignment]{flex:0 1 auto;max-width:40%}
+.map-ws-chip[data-chip=target]::before,.map-ws-chip[data-chip=alignment]::before{content:"· "}
+#skyMapView.map-ws .map-ws-card{display:flex;align-items:center;gap:10px;margin:0 0 6px;padding:8px 0 8px 2px;border-bottom:1px solid var(--line)}
+.map-ws-card{display:none}
+.map-ws-card-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.map-ws-card-text b{font-size:14px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.map-ws-card-text>span{font-size:12px;line-height:1.35;color:var(--secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.map-ws-card-text>span:empty{display:none}
+.map-ws-card-overlap{align-self:flex-start;max-width:100%;min-height:28px;margin:0;padding:0;border:0;background:none;color:var(--secondary);font:inherit;font-size:13px;font-weight:700;text-align:left;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.map-ws-card-overlap[hidden]{display:none}.map-ws-card-overlap.map-ws-card-hit{color:var(--accent);cursor:pointer}
+.map-ws-card-view{flex:none;display:inline-flex;align-items:center;gap:2px;min-width:44px;min-height:44px;padding:0 10px 0 14px;border:0;border-radius:22px;background:var(--accent);color:var(--on-accent);font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+/* ポップアップ（撮影条件）の段: 上に「地図へ」 */
+.explore-map-return{display:none}
+#skyMapView[data-explore-stage=search] .explore-map-return:not([hidden]){position:sticky;top:max(8px,env(safe-area-inset-top));z-index:6;display:flex;align-items:center;gap:6px;margin:0 0 -44px auto;min-height:44px;padding:0 16px 0 12px;border:1px solid var(--line);border-radius:22px;background:var(--card);color:var(--text);font:inherit;font-size:14px;font-weight:700;box-shadow:0 2px 8px #0003;cursor:pointer}
+/* 背の低い画面は情報欄を出さず地図の高さを残す（カードと日時バーに要点がある） */
+@media(max-width:899px) and (max-height:740px){#skyMapView.map-ws:not(.map-ws-scene) :is(.map-ws-info,.map-ws-dots){display:none!important}}

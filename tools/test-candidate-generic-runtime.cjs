@@ -2,6 +2,7 @@
 // presentation, freshness and exact (position,time,height) selection; this is not
 // a celestial/LOS accuracy test. No personal API writes or forecast requests.
 require('./no-open-meteo.cjs');
+require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs');
 const base=process.env.CANDIDATE_GENERIC_BASE||'http://127.0.0.1:8997/trial/';
 const out=process.env.CANDIDATE_GENERIC_OUT||'/tmp/astronotes-generic-runtime';fs.mkdirSync(out,{recursive:true});

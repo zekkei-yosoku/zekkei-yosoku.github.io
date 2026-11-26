@@ -1,4 +1,5 @@
 require('./no-open-meteo.cjs');
+require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs');const {fixture}=require('./candidate-date-fixture.cjs');
 // The trial's overlap geometry cache (rec:geom, ignored by production) syncs to the account; any other write fails.
 const geometryCacheOnly=q=>{try{const u=new URL(q.url()),b=JSON.parse(q.postData()||'{}');return u.pathname==='/sync'&&Array.isArray(b.records)&&b.records.length>0&&b.records.every(x=>/^rec:geom:/.test(x.id))&&!b.favorites&&!b.sightings;}catch{return false;}};

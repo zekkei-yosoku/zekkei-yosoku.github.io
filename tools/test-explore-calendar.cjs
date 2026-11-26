@@ -1,4 +1,5 @@
 require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
+require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 const {chromium}=require('playwright'),assert=require('assert/strict'),fs=require('fs');
 const base=process.env.CANDIDATE_BASE||'http://127.0.0.1:8885',out=process.env.CANDIDATE_OUT||require('os').tmpdir()+'/astronotes-candidate-calendar';fs.mkdirSync(out,{recursive:true});
 (async()=>{const browser=await chromium.launch({channel:'chrome',headless:true});const results=[];

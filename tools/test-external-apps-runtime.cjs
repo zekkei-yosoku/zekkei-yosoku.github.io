@@ -1,6 +1,7 @@
 // Real trial UI, with only outbound launch/file/share ports captured. No OS app
 // launch, calendar registration, personal records, or forecast requests occur.
 require('./no-open-meteo.cjs');
+require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 const {chromium,webkit}=require('playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const base=process.env.EXTERNAL_APPS_BASE||'http://127.0.0.1:8997/trial/';

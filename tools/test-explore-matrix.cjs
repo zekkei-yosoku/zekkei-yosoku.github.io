@@ -1,4 +1,5 @@
 require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
+require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 // 探す: 条件の組み合わせ × 操作の総当たり。どの組み合わせでも画面が崩れない、勝手に別の画面へ移らない、古い値が残らないことを確かめる。
 //   EXPLORE_MATRIX_BASE=http://127.0.0.1:8979/ node tools/test-explore-matrix.cjs [chrome|webkit]
 const {chromium,webkit}=require('playwright');

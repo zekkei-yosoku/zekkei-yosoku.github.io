@@ -1,4 +1,5 @@
 // Real browser scheduling, with fixed TLE/place tables and no external I/O.
+require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs');
 const base=new URL(process.env.ISS_COOPERATIVE_BASE||'http://127.0.0.1:8987/');
 assert(base.protocol==='http:'&&['127.0.0.1','localhost','[::1]'].includes(base.hostname),'local fixture only');

@@ -1,4 +1,5 @@
 require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
+require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 // アプリ全体の総当たり。全画面 × ログイン状態 × 幅と明暗で、見えている釦を1つずつ押し、壊れないことを確かめる。
 // APIはすべて偽の応答に差し替える（本番のデータに触れない）。削除や退会などの釦は押さない。
 //   APP_CRAWL_BASE=http://127.0.0.1:8979/ APP_CRAWL_SHARD=0/4 node tools/test-app-crawl.cjs [chrome|webkit]

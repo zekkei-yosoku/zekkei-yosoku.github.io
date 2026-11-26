@@ -1,6 +1,7 @@
 // Synthetic read-only scene lifecycle. Real terrain/profile math, fixed heights;
 // all external requests are intercepted and no surveyed visibility is asserted.
 require('./no-open-meteo.cjs');
+require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs');
 const base=process.env.PREVIEW_TERRAIN_BASE||'http://127.0.0.1:8992/trial/';
 const out=process.env.PREVIEW_TERRAIN_OUT||'/tmp/astronotes-preview-terrain-lifecycle';

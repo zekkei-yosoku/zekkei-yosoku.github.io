@@ -1,4 +1,5 @@
 require('./no-open-meteo.cjs');const {chromium,webkit}=require('playwright'),fs=require('node:fs'),assert=require('node:assert/strict');
+require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 const out=process.env.COMPOSITION_OUT||'/tmp/astronotes-composition-ui';
 const base=process.env.COMPOSITION_BASE||'http://127.0.0.1:8992/trial/index.html';
 const url=base.endsWith('.html')?base:base+'index.html';

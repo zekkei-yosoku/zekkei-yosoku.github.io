@@ -1,4 +1,5 @@
 // Exercise the actual shared map component with candidate presentation, no live API.
+require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 const {chromium,webkit}=require('playwright'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..'),out=process.env.CANDIDATE_MAP_OUT||'/tmp/astronotes-candidate-map-ui';fs.mkdirSync(out,{recursive:true});
 const picker=fs.readFileSync(path.join(root,'src/ui/map/picker.js'),'utf8'),start=picker.indexOf('const MAP_LAYERS'),end=picker.indexOf('const MapPick =');assert(start>0&&end>start);const mapSource=picker.slice(start,end);
