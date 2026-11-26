@@ -37,6 +37,8 @@ run place-context PLACE_CONTEXT_BASE="$B" PLACE_CONTEXT_OUT="$OUT/place-context"
 run search-design SEARCH_DESIGN_BASE=$B node tools/test-explore-search-design.cjs
 # 2026-11-26 trial 探すの全画面地図（段階①）: 地図の段・条件帯・カード・円弧・戻り先
 run map-stage MAP_STAGE_BASE=$B MAP_STAGE_OUT="$OUT/map-stage" node tools/test-explore-map-stage.cjs
+# 2026-11-26 trial（段階②）: 目標物が中心・帯・線・記録の重なり・下部シート
+run target-mode TARGET_MODE_BASE=$B TARGET_MODE_OUT="$OUT/target-mode" node tools/test-explore-target-mode.cjs
 run preview-swipe PREVIEW_SWIPE_BASE=${B}index.html node tools/test-explore-preview-swipe.cjs
 run bar-layout BAR_LAYOUT_BASE=${B}index.html BAR_LAYOUT_OUT="$OUT/bar" node tools/test-explore-bar-layout.cjs
 run real-map CANDIDATE_MAP_OUT="$OUT/map" node tools/test-candidate-real-map.cjs

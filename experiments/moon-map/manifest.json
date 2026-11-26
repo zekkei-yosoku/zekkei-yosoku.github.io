@@ -18,7 +18,9 @@
     "src/features/explore/controller.js": "e1e993e71e8bf24547d9bab9f52ad4031272f004e0e2aff12a81d00db88b3f2c",
     "astronotes-map-workspace.js": "5433e465c8944f39ad4324f5addb6f8368909c7eb53731da107ad282fbe55312",
     "astronotes-map-workspace.css": "d4eeb9d339c58862bfbbff1d858f688a1fe2a5b1651723b94e71b26d94515bdc",
-    "src/features/explore/map-presentation.js": "17dda27eb8d647e1243b1c799eb8de82fefa1da22c9d9ed08fa1f2855130c80c"
+    "src/features/explore/map-presentation.js": "17dda27eb8d647e1243b1c799eb8de82fefa1da22c9d9ed08fa1f2855130c80c",
+    "src/features/candidates/ui.js": "d6d2474ee263a8b590be401779557615cddf9d5c202a3860b715be2b79be1b4b",
+    "src/features/candidates/generic-search.js": "194590745bc5aeaf5221bbb6480740afdc14ced1634311a2bf46456a74416664"
   },
   "overlays": [
     {
@@ -71,6 +73,14 @@
     },
     {
       "path": "astronotes-map-workspace.css",
+      "required": false
+    },
+    {
+      "path": "src/features/candidates/ui.js",
+      "required": false
+    },
+    {
+      "path": "src/features/candidates/generic-search.js",
       "required": false
     }
   ]

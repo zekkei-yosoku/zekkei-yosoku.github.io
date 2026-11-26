@@ -127,3 +127,37 @@ html:has(#skyMapView[data-explore-stage=map].map-ws:not([hidden])),body:has(#sky
 #skyMapView[data-explore-stage=search] .explore-map-return:not([hidden]){position:sticky;top:max(8px,env(safe-area-inset-top));z-index:6;display:flex;align-items:center;gap:6px;margin:0 0 -44px auto;min-height:44px;padding:0 16px 0 12px;border:1px solid var(--line);border-radius:22px;background:var(--card);color:var(--text);font:inherit;font-size:14px;font-weight:700;box-shadow:0 2px 8px #0003;cursor:pointer}
 /* 背の低い画面は情報欄を出さず地図の高さを残す（カードと日時バーに要点がある） */
 @media(max-width:899px) and (max-height:740px){#skyMapView.map-ws:not(.map-ws-scene) :is(.map-ws-info,.map-ws-dots){display:none!important}}
+/* 2026-11-26 trial（段階②）: 撮影地点が中心／目標物が中心の切替、カードの操作、下部シート */
+.map-ws-mode{display:none}
+#skyMapView.map-ws .map-ws-mode{display:flex;position:absolute;z-index:4;top:8px;left:50%;transform:translateX(-50%);padding:2px;border:1px solid var(--line);border-radius:12px;background:var(--card);box-shadow:0 2px 8px #0003;max-width:calc(100% - 128px)}
+.map-ws-mode button{min-width:0;min-height:40px;padding:0 10px;border:0;border-radius:10px;background:none;color:var(--secondary);font:inherit;font-size:12.5px;font-weight:700;white-space:nowrap;cursor:pointer}
+.map-ws-mode button[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}
+@media(max-width:359px){.map-ws-mode button{padding:0 7px;font-size:11.5px}}
+#skyMapView.map-ws .sky-map-wide .map-ws-north{top:8px}
+.map-ws-card-actions{flex:none;display:flex;flex-direction:column;align-items:stretch;gap:6px;max-width:46%}
+.map-ws-card-view{justify-content:center;white-space:nowrap}
+.map-ws-card-view>span{overflow:hidden;text-overflow:ellipsis}
+.map-ws-card-second{min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:22px;background:var(--card);color:var(--text);font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+.map-ws-card-second[hidden]{display:none}
+#skyMapView[data-map-center=target].map-ws .map-ws-card-view{font-size:13px;padding:0 12px}
+/* 下部シート: 上に目標物が中心の地図、下に撮影地点を探す（記録/新規）と候補 */
+#skyMapView[data-explore-sheet]{--sheet-top:44dvh}
+html:has(#skyMapView[data-explore-sheet].map-ws:not([hidden])),body:has(#skyMapView[data-explore-sheet].map-ws:not([hidden])){overflow:hidden}
+#skyMapView[data-explore-sheet].map-ws #exploreMapPanel{display:block!important}
+#skyMapView[data-explore-sheet].map-ws .sky-map-wrap.sky-map-wide{bottom:calc(100dvh - var(--sheet-top))!important}
+#skyMapView[data-explore-sheet].map-ws #skyMapContent{position:fixed;top:var(--sheet-top);bottom:var(--ws-footer-h,120px);left:0;right:0;z-index:30;overflow:auto;overscroll-behavior:contain;box-sizing:border-box;padding:0 max(12px,env(safe-area-inset-right)) 16px max(12px,env(safe-area-inset-left));background:var(--card);border-top:1px solid var(--line);border-radius:16px 16px 0 0;box-shadow:0 -6px 20px #0004}
+#skyMapView[data-explore-sheet].map-ws :is(.sky-map-head,#exploreConditions>summary,#exploreSkyInfo,#exploreTabs,#exploreScenePanel,#skyMapShareRow,#skyMapCustom,#skyMapTargetInfo,.sky-map-definition,#exploreMapPanel>details,.explore-condition-fields>:not(#candidateWorkspaceAction)){display:none!important}
+#skyMapView[data-explore-sheet].map-ws #exploreConditions{border:0;background:none;margin:0}
+#skyMapView[data-explore-sheet].map-ws #candidateWorkspaceAction{display:block}
+#skyMapView[data-explore-sheet].map-ws .sky-map-footer :is(.map-ws-card,.map-ws-info,.map-ws-dots,.sky-map-candidates){display:none!important}
+#skyMapView[data-explore-sheet].map-ws .explore-map-return:not([hidden]){display:flex;position:sticky;top:8px;z-index:6;align-items:center;gap:6px;margin:8px 0 -44px auto;min-height:44px;padding:0 16px 0 12px;border:1px solid var(--line);border-radius:22px;background:var(--card);color:var(--text);font:inherit;font-size:14px;font-weight:700;box-shadow:0 2px 8px #0003;cursor:pointer}
+#skyMapView[data-explore-sheet].map-ws .explore-condition-fields{padding:4px 0 0}
+#skyMapView[data-map-center=target].map-ws .map-ws-card{flex-wrap:wrap;row-gap:6px}
+#skyMapView[data-map-center=target].map-ws .map-ws-card-text{flex:1 0 100%}
+#skyMapView[data-map-center=target].map-ws .map-ws-card-actions{flex:1 0 100%;flex-direction:row;max-width:none}
+#skyMapView[data-map-center=target].map-ws .map-ws-card-actions>button{flex:1 1 0;min-width:0}
+/* 目標物が中心: 撮影地点向けの「重なる日時」と「撮影地点へ戻る」は出さず、地図を広く使う */
+#skyMapView[data-map-center=target].map-ws .sky-map-footer .sky-map-candidates{display:none!important}
+/* 下部シートの間は中心の切替を出さない（探している範囲が変わってしまうため） */
+#skyMapView[data-explore-sheet].map-ws .map-ws-mode{display:none!important}
+.map-ws-card-view[disabled]{opacity:.55;cursor:default}

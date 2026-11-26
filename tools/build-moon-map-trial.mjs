@@ -4,8 +4,7 @@ import {readFileSync,existsSync} from 'node:fs';
 import {relative,resolve,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
-import vm from 'node:vm';
-import {renderIndex,checkClassicScripts,root} from './build-index.mjs';
+import {renderIndex,renderGeneratedAsset,checkClassicScripts,root} from './build-index.mjs';
 import {checkArchitecture} from './check-architecture.mjs';
 import {checkModuleGraph} from './check-module-graph.mjs';
 import {stripModuleSyntax} from './source-modules.mjs';
@@ -18,7 +17,9 @@ const allowed=new Map([
  // 2026-11-25 重なる日の一覧の詰め方と、見え方の「対象に合わせる」釦（trialで試す）
  ['astronotes-myplaces.js',false],['src/features/framing/scene/render.js',false],['src/features/framing/presentation.js',false],
  // 2026-11-26 探すを全画面地図にする段階①（trialで試す）
- ['src/features/explore/controller.js',false],['src/features/explore/map-presentation.js',false],['astronotes-map-workspace.js',false],['astronotes-map-workspace.css',false]
+ ['src/features/explore/controller.js',false],['src/features/explore/map-presentation.js',false],['astronotes-map-workspace.js',false],['astronotes-map-workspace.css',false],
+ // 2026-11-26 段階②: 目標物が中心から探す新しい地点は、探索の種を重なる範囲（帯）に絞る
+ ['src/features/candidates/ui.js',false],['src/features/candidates/generic-search.js',false]
 ]);
 const guarded=['index.html','app-version.txt',...allowed.keys()];
 const digest=value=>createHash('sha256').update(value).digest('hex');
@@ -72,13 +73,15 @@ export function buildMoonMapTrial({directory=root,
  }
  const files={};
  for(const [name,content] of overlays)if(!name.startsWith('src/'))files[name]=content;
- // A generated bundle whose source is overlaid is re-rendered from the overlay; untouched bundles stay production copies.
+ // A generated bundle whose source is overlaid is re-rendered from the overlay through the production
+ // renderer (same compatibility prefixes and data hashes); untouched bundles stay production copies.
  for(const asset of sourceManifest.generatedAssets){
   if(!asset.sourceOrder.some(name=>overlays.has(name)))continue;
-  if(asset.legacyAccessPolicy||asset.legacyShapeLoader||asset.dataFiles)throw Error('Moon-map trial cannot re-render this generated asset: '+asset.output);
-  const bundle=renderIndex({entry:asset.entry,directory,read:path=>read(relative(directory,path).split(sep).join('/'))});
+  // The renderer reads these companions from production; an overlaid companion would be silently ignored.
+  const companions=[asset.legacyAccessPolicy&&'astronotes-access.js',asset.legacyShapeLoader,...Object.values(asset.dataFiles||{})].filter(Boolean);
+  if(companions.some(name=>overlays.has(name)))throw Error('Moon-map trial cannot overlay a generated asset companion: '+asset.output);
+  const bundle=renderGeneratedAsset(asset,{directory,read:path=>read(relative(directory,path).split(sep).join('/'))});
   if(JSON.stringify(bundle.sources.filter(name=>name.endsWith('.js')))!==JSON.stringify(asset.sourceOrder))throw Error('Moon-map generated source order changed: '+asset.output);
-  new vm.Script(bundle.html,{filename:asset.output});
   files[asset.output]=bundle.html;
  }
  const readAsset=name=>Object.hasOwn(files,name)?files[name]:readFile(name);

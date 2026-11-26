@@ -3618,7 +3618,21 @@ const api=root.AstroNotesCandidateDiscovery||(typeof require==='function'?requir
 const Composition=root.AstroNotesCandidateComposition||(typeof require==='function'?require('./composition.js'):null);
 const allowedPoint=p=>p&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&Math.abs(p.latitude)<85&&Math.abs(p.longitude)<=180;
 function requestKey(p){return JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode,p.profile,p.strict,p.composition,!!p.compositionInvalid,p.timeWindow,p.timeSpec||{kind:'day',at:api.day(p.at)},p.atmosphere,p.lens?.mode==='unspecified'?{mode:'unspecified'}:p.lens,p.extraTargets,
-p.requireAllTargets,p.includeRoads===true,...(p.overlapMembers?[p.overlapMembers]:[])]);}
+p.requireAllTargets,p.includeRoads===true,...(p.overlapMembers?[p.overlapMembers]:[]),...(p.seedBand?[{seedBand:p.seedBand.key}]:[])]);}
+// 2026-11-26 trial（段階②）: 目標物が中心の地図から探す時は、逆算の種を重なる範囲（帯）の中だけにする。
+// 帯は1分ごとの [目標物から見た方位（子午線の収束を直した値）, 外端までの距離km, 半幅°, 対象の横幅の半分km]。
+// 対象の横幅は距離が近いほど大きく見えるので距離ごとに角度へ直し、種の半径ぶんの余裕も見る。
+function inSeedBand(band,seed){
+ const t=band.target,R=6371,rad=Math.PI/180,dLat=(seed.latitude-t.latitude)*rad,dLon=(seed.longitude-t.longitude)*rad,mean=(seed.latitude+t.latitude)/2*rad;
+ const x=dLon*Math.cos(mean)*R,y=dLat*R,dist=Math.hypot(x,y),bearing=(Math.atan2(x,y)/rad+360)%360,pad=Math.max(.05,Math.atan2((seed.radiusM||250)/1000,Math.max(dist,.05))/rad);
+ for(const [b,d,w,hw=0] of band.samples){const delta=Math.abs(((bearing-b+540)%360)-180),width=w+Math.atan(hw/Math.max(dist,.05))/rad;if(delta<=width+pad&&dist<=d+(seed.radiusM||250)/1000)return true;}
+ return false;
+}
+function bandSeeds(inverse,band){
+ if(!band||!Array.isArray(band.samples)||!inverse?.seeds)return inverse;
+ const seeds=inverse.seeds.filter(seed=>inSeedBand(band,seed));
+ return {...inverse,seeds,bandFiltered:inverse.seeds.length-seeds.length};
+}
 function regionsFor(seeds){
  const map=new Map(),size=.005;
  for(const seed of seeds||[]){
@@ -3683,7 +3697,7 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
   if(!session?.inverse){
    await wait(bodies.ensure(plan.body));if(!wanted())return {cancelled:true};
    onProgress({stage:'inverse',checked:0});
-   const inverse=await wait(root.AstroNotesTrialOverlap?.inverse?.(plan,p=>Composition.inverseSeeds(p,{bodies,isCurrent:wanted,yieldTask,...inverseOptions}))??Composition.inverseSeeds(plan,{bodies,isCurrent:wanted,yieldTask,...inverseOptions}));
+   const inverse=bandSeeds(await wait(root.AstroNotesTrialOverlap?.inverse?.(plan,p=>Composition.inverseSeeds(p,{bodies,isCurrent:wanted,yieldTask,...inverseOptions}))??Composition.inverseSeeds(plan,{bodies,isCurrent:wanted,yieldTask,...inverseOptions})),plan.seedBand);
    if(!wanted())return {cancelled:true};
    session=fresh(key,inverse);
    sessions.set(key,session);while(sessions.size>4)sessions.delete(sessions.keys().next().value);
@@ -3919,7 +3933,7 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,maxPointsP
    sessions.set(key,{key,lastResult:{...saved,rows:saved.rows.slice(),cached:false}});while(sessions.size>4)sessions.delete(sessions.keys().next().value);return true;}};
 }
 api.requestKey=requestKey;api.regionsFor=regionsFor;api.createGenericSearch=createGenericSearch;
-if(typeof module==='object'&&module.exports)module.exports={requestKey,regionsFor,createGenericSearch};
+if(typeof module==='object'&&module.exports)module.exports={requestKey,regionsFor,createGenericSearch,bandSeeds};
 })(globalThis);
 
 /* Trial-only composition draft. Canvas picks the visible surface of the existing approximate drawing model; not surveyed geometry. */
@@ -5059,7 +5073,9 @@ function snapshot(){
  // frame for its view; leaving the lens in the key would drop the found places on the way back.
  const searchLens=s.partId==='__whole'&&!extraTargets.length?{mode:'unspecified'}:lens;
  const selected={...s,authGeneration:mainWorkspace()?.epoch(),owner:auth.loginId,expected:context(s),atmosphere:air(),lens:searchLens,extraTargets,timeSpec:timeSpec(s.at),profile:typeof aimIsMountain==='function'&&aimIsMountain(s.target)?'summit-contact':'building-near',
-  ...(globalThis.AstroNotesTrialComposition?.plan(s)||{}),...(globalThis.AstroNotesTrialOverlap?.searchPlan?.(s)||{}),includeRoads};
+  ...(globalThis.AstroNotesTrialComposition?.plan(s)||{}),...(globalThis.AstroNotesTrialOverlap?.searchPlan?.(s)||{}),includeRoads,
+  // 2026-11-26 trial（段階②）: 目標物が中心の地図の下部シートから探す時だけ、種を重なる範囲（帯）に絞る
+  ...(globalThis.AstroNotesMapWorkspace?.searchBand?.(s)?{seedBand:globalThis.AstroNotesMapWorkspace.searchBand(s)}:{})};
  // A next-day event in an overnight window does not change the search day.
  const overnight=returnSearch&&s.candidateOpportunity?.id===returnSearch.rowId&&s.at===returnSearch.viewAt?
   {...selected,at:returnSearch.plan.at,timeSpec:returnSearch.plan.timeSpec}:null;

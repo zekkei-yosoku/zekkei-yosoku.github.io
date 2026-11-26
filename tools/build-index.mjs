@@ -35,35 +35,41 @@ export function checkClassicScripts(html,readExternal){
  // declaration. Treat them as lexical declarations for the static guard.
  new vm.Script((bridges.length?'let '+bridges.join(',')+';\n':'')+combined);
 }
+// One generated bundle. The trial builder renders an overlaid bundle through the same function (read override).
+export function renderGeneratedAsset(asset,{directory=root,read=path=>readFileSync(path,'utf8')}={}){
+ if(!/^astronotes-[\w-]+\.js$/.test(asset.output))throw Error('Invalid generated asset output');
+ const result=renderIndex({entry:asset.entry,directory,read}),data=[];
+ if(asset.legacyAccessPolicy){
+  // Old cached HTML can combine an old access object with a freshly fetched Explore.
+  // Generate the compatibility method from the one canonical policy, never a hand copy.
+  const context=vm.createContext({});vm.runInContext(readFileSync(resolve(directory,'astronotes-access.js'),'utf8'),context);
+  const policy=context.AstroNotesAccess.canFrame.toString();
+  result.html='(function(root){if(root.AstroNotesAccess&&!root.AstroNotesAccess.canFrame)root.AstroNotesAccess.canFrame='+policy+';})(globalThis);\n'+result.html;
+ }
+ if(asset.legacyShapeLoader){
+  // Cached HTML can pair its old loader with a freshly fetched candidate bundle.
+  // Include the one canonical loader: it preserves current flights or delegates
+  // old city/tower flights while adding the newly split surface asset.
+  result.html=readFileSync(resolve(directory,asset.legacyShapeLoader),'utf8')+'\n'+result.html;
+ }
+ if(asset.dataFiles){
+  // The bundle checks each data file it reads against the hash recorded here, and its own content version changes with the data.
+  const files=Object.entries(asset.dataFiles).map(([name,path])=>[name,readFileSync(resolve(directory,path),'utf8')]),digest=v=>createHash('sha256').update(v).digest('hex');
+  if(result.html.split('/* BUILD_DATA_HASHES */{}').length!==2)throw Error('Data hash slot changed: '+asset.output);
+  result.html=result.html.replace('/* BUILD_DATA_HASHES */{}',()=>JSON.stringify(Object.fromEntries(files.map(([name,text])=>[name,digest(text)]))))+'\n// data-release '+digest(files.map(([,text])=>text).join(''))+'\n';
+  for(const [name,text] of files)if(asset.dataFiles[name]!=='data/'+name)data.push(['data/'+name,text]);
+ }
+ new vm.Script(result.html,{filename:asset.output});
+ return {html:result.html,sources:result.sources,data};
+}
 export function releaseProducts(directory=root){
  const manifest=JSON.parse(readFileSync(resolve(directory,'src/source-manifest.json'),'utf8')),products=new Map(),sources=[];
  const readSource=name=>readFileSync(resolve(directory,name),'utf8');
  checkArchitecture(manifest,name=>name.startsWith('src/')&&name.endsWith('.js')?stripModuleSyntax(readSource(name)):readSource(name));
  checkModuleGraph(manifest,readSource);
  for(const asset of manifest.generatedAssets){
-  if(!/^astronotes-[\w-]+\.js$/.test(asset.output))throw Error('Invalid generated asset output');
-  const result=renderIndex({entry:asset.entry,directory});
-  if(asset.legacyAccessPolicy){
-   // Old cached HTML can combine an old access object with a freshly fetched Explore.
-   // Generate the compatibility method from the one canonical policy, never a hand copy.
-   const context=vm.createContext({});vm.runInContext(readFileSync(resolve(directory,'astronotes-access.js'),'utf8'),context);
-   const policy=context.AstroNotesAccess.canFrame.toString();
-   result.html='(function(root){if(root.AstroNotesAccess&&!root.AstroNotesAccess.canFrame)root.AstroNotesAccess.canFrame='+policy+';})(globalThis);\n'+result.html;
-  }
-  if(asset.legacyShapeLoader){
-   // Cached HTML can pair its old loader with a freshly fetched candidate bundle.
-   // Include the one canonical loader: it preserves current flights or delegates
-   // old city/tower flights while adding the newly split surface asset.
-   result.html=readFileSync(resolve(directory,asset.legacyShapeLoader),'utf8')+'\n'+result.html;
-  }
-  if(asset.dataFiles){
-   // The bundle checks each data file it reads against the hash recorded here, and its own content version changes with the data.
-   const data=Object.entries(asset.dataFiles).map(([name,path])=>[name,readFileSync(resolve(directory,path),'utf8')]),digest=v=>createHash('sha256').update(v).digest('hex');
-   if(result.html.split('/* BUILD_DATA_HASHES */{}').length!==2)throw Error('Data hash slot changed: '+asset.output);
-   result.html=result.html.replace('/* BUILD_DATA_HASHES */{}',()=>JSON.stringify(Object.fromEntries(data.map(([name,text])=>[name,digest(text)]))))+'\n// data-release '+digest(data.map(([,text])=>text).join(''))+'\n';
-   for(const [name,text] of data)if(asset.dataFiles[name]!=='data/'+name)products.set('data/'+name,text);
-  }
-  new vm.Script(result.html,{filename:asset.output});
+  const result=renderGeneratedAsset(asset,{directory});
+  for(const [name,text] of result.data)products.set(name,text);
   products.set(asset.output,result.html);sources.push(...result.sources);
  }
  const rendered=renderIndex({directory});sources.push(...rendered.sources);

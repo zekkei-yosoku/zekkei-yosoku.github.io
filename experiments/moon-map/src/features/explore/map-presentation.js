@@ -84,6 +84,8 @@ import {UI_ICONS} from '../../ui/visual-primitives.js';
   if(!hasAccess()||!session)return;
   try{window.MyPlacesUI?.skyDraw(ctx,{project,width,height},session,pickMode);}catch{/* trial */}
   const workspace=globalThis.AstroNotesMapWorkspace?.drawing()||null;
+  // 2026-11-26 trial（段階②）: 目標物が中心の表示は、目標物の方位リング・重なる範囲・中心が先端に来る線・記録と新規の地点を全画面地図が描く
+  if(workspace&&globalThis.AstroNotesMapWorkspace.targetMode?.()){globalThis.AstroNotesMapWorkspace.drawTarget(ctx,{project,width,height});return;}
   if(!validPoint(session.observer)&&!pickMode){if(targetOn&&validPoint(session.target)){const mark=AstroNotesAlign.partTarget(session.target,session.partId),q=project(mark.latitude,mark.longitude);drawPin(ctx,...q,'#c876ff');
   mapLabel(ctx,q[0],q[1]-25,session.target.name,'#fff',width,height,'center');}workspace?.overlay(ctx,0,0,0);return;}
   const [x,y]=pickMode?[width/2,height/2]:project(session.observer.latitude,session.observer.longitude),r=workspace?workspace.radius(width,height):Math.min(width,height)*.36;
