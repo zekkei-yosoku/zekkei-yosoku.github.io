@@ -196,6 +196,7 @@ async function planeApply({keepMap = false} = {}) {
   const seq = plane.seq.next();
   plane.result = null;
   if (!keepMap) { plane.mapSeq.cancel(); plane.map = null; plane.observer = null;
+    planeDrawMoonBand();
     $("planeMapStatus").textContent = "空港の風と撮影地点の高さを確認中…"; $("planeRouteDetails").replaceChildren(); PlaneMap.redraw(); }
   $("planeInfo").textContent = "この日の狙い目を計算中…";
   $("planeList").replaceChildren();
@@ -210,6 +211,7 @@ async function planeApply({keepMap = false} = {}) {
   const local = aimObserverAt(saved, ground);
   const agl = plane.eyeOverride ?? (P.inherited ? observerHere().eyeHeightAGL : local.eyeM);
   plane.observer = { latitude:P.latitude, longitude:P.longitude, groundM:ground, eyeHeightAGL:agl };
+  planeDrawMoonBand();
   $("planeGround").value = plane.groundOverride ?? saved?.groundManualM ?? "";
   $("planeGround").placeholder = Number.isFinite(ground) ? ground.toFixed(1) : "標高を取得できません";
   $("planeEye").value = String(agl);
@@ -321,12 +323,49 @@ function planeRender() {
   }
 }
 
+// The geometric horizon matches the moon band in Explore.
+function planeMoonBandState(_body, at, observer) {
+  const moon = AstroNotesAstro.moon(at, observer);
+  return { altitude:moon.geometricAltitude, azimuth:moon.azimuth };
+}
+
+function planeDrawMoonBand() {
+  const band = $("planeMoonBand"), point = plane.observer;
+  band.hidden = !point || plane.scrub === "date" || !Number.isFinite(plane.at);
+  if (band.hidden || !band.clientWidth) return;
+
+  const width = band.clientWidth, height = band.clientHeight;
+  const ratio = Math.min(2, band.ownerDocument.defaultView?.devicePixelRatio || 1);
+  const pixelWidth = Math.round(width*ratio), pixelHeight = Math.round(height*ratio);
+  if (band.width !== pixelWidth) band.width = pixelWidth;
+  if (band.height !== pixelHeight) band.height = pixelHeight;
+  const ctx = band.getContext("2d");
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "#a9dcff";
+
+  const { step, pixels } = AstroNotesScrollTimeline.scale(plane.scrub);
+  const pixelsPerMs = pixels/step, start = plane.at-width/2/pixelsPerMs, end = plane.at+width/2/pixelsPerMs;
+  const observer = { latitude:point.latitude, longitude:point.longitude, elevation:Number.isFinite(point.groundM)?point.groundM+point.eyeHeightAGL:0 };
+  const dayMs = 86400000;
+  for (let day = AstroNotesSkyMap.dayStart(start); day < end; day += dayMs) {
+    const { points, events } = AstroNotesSkyMap.daily("moon", day, observer, planeMoonBandState);
+    let above = points[0].altitude >= 0, from = day;
+    for (const to of [...events.map(event => event.at), day+dayMs]) {
+      const left = Math.max(start, from), right = Math.min(end, to);
+      if (above && right > left) ctx.fillRect((left-start)*pixelsPerMs, 0, (right-left)*pixelsPerMs, height);
+      above = !above;
+      from = to;
+    }
+  }
+}
+
 // Both map layers use this one instant and one observer-height contract.
 function planeSyncTime() {
   ToolDateTimeBar.dateText($("planeDate"),plane.at);
   $("planeDate").setAttribute("aria-label",ToolDateTimeBar.label(plane.at));
   $("planeTime").value = S.JstCal.hhmm(plane.at);
-  if(plane.timeline){ToolDateTimeBar.modeButton($("planeScrubMode"),plane.scrub);if(!plane.scrubbing)plane.timeline.sync(plane.at,plane.scrub);}
+  if(plane.timeline){ToolDateTimeBar.modeButton($("planeScrubMode"),plane.scrub);if(!plane.scrubbing)plane.timeline.sync(plane.at,plane.scrub);planeDrawMoonBand();}
 }
 function planeSetAt(at) {
   if (!Number.isFinite(at) || !toolAllowed("plane")) return;
@@ -582,6 +621,7 @@ function openPlane(){
       onChange:at=>{plane.playback?.stop(false);plane.at=at;plane.scrubbing=true;planeSyncTime();plane.scrubbing=false;clearTimeout(scrub);scrub=setTimeout(()=>planeSetAt(plane.at),150);},
       onSettle:at=>{clearTimeout(scrub);planeSetAt(at);},
       format:(at,mode)=>mode==='date'?new Date(at+32400000).toISOString().slice(5,10).replace('-','/'):S.JstCal.hhmm(at),describe:(at,mode)=>mode==='date'?ToolDateTimeBar.label(at):label(at)});
+    new ResizeObserver(planeDrawMoonBand).observe($("planeTrack"));
     $("planeScrubMode").onclick=()=>{plane.timeline.stop();plane.scrub=ToolDateTimeBar.nextMode(plane.scrub);planeSyncTime();};
     $("planeOp").onchange=()=>{plane.op=$("planeOp").value||null;planeApply();};
     $("planeAirportSearch").oninput=planeAirportList;

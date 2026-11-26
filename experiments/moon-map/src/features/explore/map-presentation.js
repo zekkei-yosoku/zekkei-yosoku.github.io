@@ -482,7 +482,7 @@ ctx.lineWidth=1;
  ToolDateTimeBar.trackPointerFocus(el('skyMapView'),skyTimeDialog,skyCalendar,targetSheet,bodiesSheet);
  skyTimeDialog.querySelector('[data-close]').onclick=()=>skyTimeDialog.close();el('skyMapTimeMore').onclick=()=>{if(session&&hasAccess())renderMapTime();showSheet(skyTimeDialog);};
  if(typeof ResizeObserver==='function')new ResizeObserver(()=>{if(skyFooter.offsetHeight)document.documentElement.style.setProperty('--sky-footer-h',skyFooter.offsetHeight+'px');}).observe(skyFooter);
- el('skyMapChoose').querySelector('.pin').innerHTML=UI_ICONS.observer;el('skyMapChoose').querySelector('.chev').innerHTML=UI_ICONS.search;
+ el('skyMapChoose').querySelector('.pin').innerHTML=UI_ICONS.observer;el('skyMapChoose').querySelector('.chev').innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
  el('skyMapChoose').onclick=()=>openPlaceSheet('skymap');
  el('skyMapObserverFav').onclick=()=>{
   if(!hasAccess()||!session||!active()||!validPoint(session.observer))return;

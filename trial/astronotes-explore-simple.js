@@ -549,7 +549,18 @@ let dropdownOpen=false;
 // 2026-11-26 訂正（ユーザー「撮影地点を探すはここにいらないよね? 条件だけ検索できればいい」）: 展開は条件だけ。新しい地点は地図のボタン、記録の地点は重なる日から。
 function setDropdown(open){
  open=!!open&&layout.mounted&&active()&&stageOf()==='map';
- if(open)layout.conditions.open=true;
+ if(open){
+  layout.conditions.open=true;
+  if(!$('mapWsConfirmConditions')){
+   const confirm=document.createElement('button');
+   confirm.type='button';
+   confirm.id='mapWsConfirmConditions';
+   confirm.className='fav-btn primary';
+   confirm.textContent='確定';
+   confirm.onclick=()=>{setDropdown(false);$('mapWsTitle')?.focus({preventScroll:true});};
+   layout.conditions.querySelector('.explore-place-tools').append(confirm);
+  }
+ }
  if(open===dropdownOpen)return;dropdownOpen=open;
  if(!open&&document.activeElement?.closest?.('#exploreConditions'))$('mapWsTitle')?.focus({preventScroll:true});
  if(open)mapView.dataset.exploreDropdown='';else delete mapView.dataset.exploreDropdown;
@@ -557,8 +568,7 @@ function setDropdown(open){
  document.dispatchEvent(new CustomEvent('astronotes-explore-dropdown',{detail:{open}}));
 }
 document.addEventListener('astronotes-explore-toggle-conditions',()=>{if(stageOf()==='map')setDropdown(!dropdownOpen);else if(sheetOn())openConditions();});
-// 展開は帯・外側・Escapeで畳む（撮影地点の選択などの画面はそのまま操作できる）
-document.addEventListener('pointerdown',e=>{if(dropdownOpen&&!e.target.closest?.('#exploreConditions,#mapWsTitle,dialog,.sky-map-footer'))setDropdown(false);},true);
+// 条件は「確定」・上の条件帯・Escapeで畳む。地図を触っても展開を保つ。
 // 地図の全画面表示のキーボード処理（window の捕捉段階、地図を作る時に登録）より先に受ける。畳んだら全画面は抜けない。
 document.defaultView.addEventListener('keydown',e=>{
  if(!dropdownOpen||e.key!=='Escape'||e.isComposing||e.defaultPrevented||document.querySelector('dialog[open]'))return;

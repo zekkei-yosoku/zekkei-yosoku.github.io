@@ -507,9 +507,8 @@ function build(){
  top.innerHTML=`<button type="button" id="mapWsMenuButton" aria-label="メニュー">${svg(ICON.menu)}</button><button type="button" id="mapWsTitle" class="map-ws-title map-ws-band-conditions" aria-label="撮影条件を開く" aria-controls="exploreConditions" aria-expanded="false"><strong class="map-ws-chip-place" data-chip="observer"></strong><span class="map-ws-band-sub"><span class="map-ws-chip" data-chip="body"></span><span class="map-ws-chip" data-chip="target"></span><span class="map-ws-chip" data-chip="alignment"></span></span></button><button type="button" id="mapWsShare" aria-label="保存と共有" aria-haspopup="menu">${svg(ICON.share)}</button>`;
  view.append(top);
  const menu=document.createElement('div');menu.id='mapWsMenu';menu.className='map-ws-menu';menu.setAttribute('role','menu');menu.hidden=true;view.append(menu);
- const bodies=document.createElement('div');bodies.id='mapWsBodyPicker';bodies.className='map-ws-body-picker';bodies.setAttribute('role','group');bodies.setAttribute('aria-label','撮影する天体');
- for(const body of ['moon','sun','sirius','venus']){const b=document.createElement('button');b.type='button';b.dataset.mapBody=body;b.textContent=AstroNotesBodies.definition(body).name;b.setAttribute('aria-pressed','false');b.onclick=()=>chooseBody(body);bodies.append(b);}
- const other=document.createElement('select');other.id='mapWsOtherBody';other.setAttribute('aria-label','その他の天体');other.innerHTML='<option value="">その他</option>'+['mercury','mars','jupiter','saturn'].map(id=>'<option value="'+id+'">'+AstroNotesBodies.definition(id).name+'</option>').join('');other.onchange=()=>{if(other.value)chooseBody(other.value);};bodies.append(other);view.append(bodies);
+ const bodies=document.createElement('div');bodies.id='mapWsBodyPicker';bodies.className='map-ws-body-picker';bodies.setAttribute('role','group');bodies.setAttribute('aria-label','月と太陽の切り替え');
+ for(const body of ['moon','sun']){const b=document.createElement('button');b.type='button';b.dataset.mapBody=body;b.textContent=AstroNotesBodies.definition(body).name;b.setAttribute('aria-pressed','false');b.onclick=()=>chooseBody(body);bodies.append(b);}
  const retry=document.createElement('button');retry.type='button';retry.id='mapWsBodyRetry';retry.className='map-ws-body-retry';retry.hidden=true;retry.textContent='天体の計算を再試行';retry.onclick=()=>$('skyMapRetry').click();footer.prepend(retry);
  $('skyMapRetry').addEventListener('click',resetBodyCalculations,true);
  const pick=document.createElement('div');pick.id='mapWsPick';pick.className='map-ws-pick';pick.hidden=true;pick.innerHTML='<span role="status"></span><button type="button" id="mapWsUndo" hidden>元に戻す</button>';wrap.append(pick);
@@ -518,7 +517,8 @@ function build(){
  north.innerHTML='<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M12 3l4 9h-8z" fill="#e5484d"/><path d="M12 21l-4-9h8z" fill="currentColor" opacity=".7"/></svg>';north.onclick=()=>host()?.map.setRotation(0);wrap.append(north);
  const mode=document.createElement('div');mode.id='mapWsMode';mode.className='map-ws-mode';mode.setAttribute('role','group');mode.setAttribute('aria-label','地図の中心');
  mode.innerHTML='<button type="button" data-mode="obs" aria-pressed="true">撮影地点</button><button type="button" data-mode="target" aria-pressed="false">対象</button>';
- for(const b of mode.querySelectorAll('button'))b.onclick=()=>setViewMode(b.dataset.mode);wrap.append(mode);
+ for(const b of mode.querySelectorAll('button'))b.onclick=()=>setViewMode(b.dataset.mode);
+ const switches=document.createElement('div');switches.className='map-ws-switches';switches.append(mode,bodies);wrap.append(switches);
  // 2026-11-26: 新しい地点は地図のボタンから（撮影地点が中心の時。目標物が中心ではカードの「新しい地点を探す」）
  const findNew=document.createElement('button');findNew.type='button';findNew.id='mapWsNewPlaces';findNew.className='map-ws-new';findNew.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><span>新しい地点を探す</span>';
  findNew.setAttribute('aria-label','新しい撮影地点を探す');findNew.onclick=()=>document.dispatchEvent(new CustomEvent('astronotes-explore-open-sheet',{detail:{tab:'new',search:true}}));wrap.append(findNew);
@@ -574,8 +574,6 @@ function updateSelectedBody(h){
  const s=h.session,body=s.body,def=AstroNotesBodies.definition(body),data=dailyOf(h,body),page=$('mapWsSelectedBodyPage'),prefix='wsBody';
  page.dataset.body=body;page.classList.add('map-ws-current');page.style.setProperty('--ws-c',colour(body));
  for(const b of $('mapWsBodyPicker').querySelectorAll('[data-map-body]')){const option=[...$('skyMapBody').options].find(o=>o.value===b.dataset.mapBody);b.disabled=!option||option.disabled||option.hidden;b.setAttribute('aria-pressed',String(b.dataset.mapBody===body));}
- const other=$('mapWsOtherBody');for(const option of other.options){if(!option.value)continue;const source=[...$('skyMapBody').options].find(o=>o.value===option.value);option.disabled=!source||source.disabled||source.hidden;}
- other.value=['mercury','mars','jupiter','saturn'].includes(body)?body:'';other.dataset.active=String(!!other.value);
  let st=null;if(data&&s.eye)try{st=h.skyState(body,s.at,s.eye);}catch{/* 読込・計算の欠測は—にする */}
  let light='';if(st){if(body==='sun')light=st.altitude>.5?'影 '+(1/Math.tan(st.altitude*RAD)).toFixed(1)+'倍':'影 —';
   else if(body==='moon')light=Number.isFinite(st.illuminatedFraction)?'輝面 '+Math.round(st.illuminatedFraction*100)+'%':'輝面 —';

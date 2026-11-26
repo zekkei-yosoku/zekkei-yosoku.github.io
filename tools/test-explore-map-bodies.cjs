@@ -38,9 +38,15 @@ async function open(browser,width,theme,{engineRoute}={}){
  return {context,page,errors};
 }
 
+async function selectFromConditions(page,body){
+ await page.locator('#mapWsTitle').click();
+ await page.locator('#skyMapBodyOpen').click();
+ await page.locator(`#skyMapBodyDialog [data-body-value="${body}"]`).click();
+ await page.locator('#mapWsTitle').click();
+}
 async function selectMap(page,body){
- if(['moon','sun','sirius','venus'].includes(body))await page.locator(`[data-map-body="${body}"]`).click();
- else await page.locator('#mapWsOtherBody').selectOption(body);
+ if(body==='moon'||body==='sun')await page.locator(`#mapWsBodyPicker [data-map-body="${body}"]`).click();
+ else await selectFromConditions(page,body);
 }
 async function ready(page,body){
  await page.waitForFunction(body=>{const h=SkyMapUI.workspaceHost(),p=document.getElementById('mapWsSelectedBodyPage');return h?.session.body===body&&h.session.dailies?.[body]&&!h.session.timelinePending&&p?.dataset.body===body&&document.getElementById('mapWsBodyPicker').getAttribute('aria-busy')==='false'&&document.querySelector('#wsBody b').textContent!=='—';},body);
@@ -67,7 +73,7 @@ async function verifySelection(page,body,mode,label){
  const value=await page.evaluate(body=>{const h=SkyMapUI.workspaceHost(),s=h.session,p=document.getElementById('mapWsSelectedBodyPage'),st=h.bodyState(body),daily=s.dailies[body];
   return {condition:document.getElementById('skyMapBody').value,conditionLabel:document.getElementById('skyMapBodyOpen').textContent,only:AstroNotesMapWorkspace.onlyBody(),shown:h.shownBodies(),body:p.dataset.body,text:p.textContent,
    bodyText:document.getElementById('wsBody').textContent,angle:document.querySelector('#wsBody b').textContent,altText:document.querySelector('#wsBody i').textContent,rise:document.getElementById('wsBodyRise').textContent,set:document.getElementById('wsBodySet').textContent,
-   selected:[...document.querySelectorAll('#mapWsBodyPicker [data-map-body][aria-pressed="true"]')].map(n=>n.dataset.mapBody),other:document.getElementById('mapWsOtherBody').value,
+   selected:[...document.querySelectorAll('#mapWsBodyPicker [data-map-body][aria-pressed="true"]')].map(n=>n.dataset.mapBody),
    altitude:st.altitude,azimuth:st.azimuth,magnitude:['mercury','venus','mars','jupiter','saturn'].includes(body)?AstroNotesBodies.light(body,s.at).magnitude:null,events:daily.events.length,finite:daily.points.every(p=>Number.isFinite(p.altitude)&&Number.isFinite(p.azimuth)),targetCard:document.getElementById('mapWsCardPlace').textContent};
  },body);
  assert.equal(value.condition,body,label);assert(value.conditionLabel.includes(names[body]),label+': 条件の天体名');
@@ -78,8 +84,7 @@ async function verifySelection(page,body,mode,label){
  if(body==='moon')assert.match(value.bodyText,/輝面|照ら/);else assert.doesNotMatch(value.bodyText,/輝面.*NaN|輝面.*0%/);
  if(body==='sirius')assert.match(value.bodyText,/[−-]1\.46/);
  if(value.magnitude!==null)assert(value.bodyText.includes(value.magnitude.toFixed(1)+'等'),label+': 明るさは選択惑星の実計算');
- if(['moon','sun','sirius','venus'].includes(body)){assert.deepEqual(value.selected,[body]);assert.equal(value.other,'');}
- else{assert.deepEqual(value.selected,[]);assert.equal(value.other,body);}
+ assert.deepEqual(value.selected,body==='moon'||body==='sun'?[body]:[],label+': 月と太陽だけが地図の切替に出る');
  if(mode==='target')assert(value.targetCard.includes('（'+names[body]+'）'),label+': 目標物中心card '+value.targetCard);
  // 実map redrawが呼ぶbody描画を観測。描画APIを偽の結果にせず元のCanvas処理へ委譲する。
  const drawn=await page.evaluate(async()=>{const api=AstroNotesMapWorkspace,original=api.drawing,calls=[];api.drawing=function(...args){const draw=original.apply(this,args),body=draw.body;return {...draw,body(...args){calls.push(args[1]);return body.apply(this,args);}};};
@@ -98,16 +103,14 @@ async function screenMatrix(browser,engine,width,theme){
    for(const body of bodies){await selectMap(f.page,body);checks.push(await verifySelection(f.page,body,mode,label));
     if(width===390&&theme==='dark'&&['sirius','venus'].includes(body))await captureMatrix(f.page,`${out}/${label}-${mode}-${body}.png`,mode);
    }
-   const layout=await pickerLayout(f.page);assert(!layout.overflow&&layout.mapHeight>=150&&layout.controls.length===5&&[...layout.controls,...layout.placement].every(c=>c.visible&&c.hit&&c.height>=40&&c.width>=40),label+': '+JSON.stringify(layout));
+   const layout=await pickerLayout(f.page);assert(!layout.overflow&&layout.mapHeight>=150&&layout.controls.length===2&&[...layout.controls,...layout.placement].every(c=>c.visible&&c.hit&&c.height>=40&&c.width>=40),label+': '+JSON.stringify(layout));
    await captureMatrix(f.page,`${out}/${label}-${mode}.png`,mode);
   }
   // 条件側の実pickerから変更し、地図列への逆方向同期も全8天体で確かめる。
   for(const body of bodies){
-   await f.page.locator('#mapWsTitle').click();await f.page.locator('#skyMapBodyOpen').click();
-   await f.page.locator(`#skyMapBodyDialog [data-body-value="${body}"]`).click();
-   await f.page.locator('#mapWsTitle').click();await ready(f.page,body);
-   const selected=await f.page.evaluate(()=>({body:SkyMapUI.selectionState().body,other:document.getElementById('mapWsOtherBody').value,pressed:[...document.querySelectorAll('#mapWsBodyPicker [aria-pressed="true"]')].map(n=>n.dataset.mapBody)}));
-   assert.equal(selected.body,body);assert(['moon','sun','sirius','venus'].includes(body)?selected.pressed[0]===body:selected.other===body,label+': 条件→地図 '+body);
+   await selectFromConditions(f.page,body);await ready(f.page,body);
+   const selected=await f.page.evaluate(()=>({body:SkyMapUI.selectionState().body,pressed:[...document.querySelectorAll('#mapWsBodyPicker [aria-pressed="true"]')].map(n=>n.dataset.mapBody)}));
+   assert.equal(selected.body,body);assert.deepEqual(selected.pressed,body==='moon'||body==='sun'?[body]:[],label+': 条件→地図 '+body);
   }
   assert.deepEqual(f.errors,[],label);return {label,checks};
  }catch(e){await f.page.screenshot({path:`${out}/${label}-failure.png`});throw e;}finally{await f.context.close();}

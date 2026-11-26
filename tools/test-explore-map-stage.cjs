@@ -137,11 +137,11 @@ async function reopenKeepsSearch(type,engine){
      // 下部（カード）の高さは重なる時間が出ると変わり、地図の下端は ResizeObserver で次のフレームに追いつく。揃うのを待ってから測る（揃わなければ下で失敗）。
      await page.waitForFunction(()=>{const c=document.getElementById('skyMapCanvas').getBoundingClientRect(),f=document.querySelector('#skyMapView .sky-map-footer').getBoundingClientRect();return Math.abs(c.bottom-f.top)<=1;},null,{timeout:3000}).catch(()=>{});
      const layout=await page.evaluate(()=>{const r=n=>n.getBoundingClientRect(),top=r(document.getElementById('mapWsTop')),picker=document.getElementById('mapWsBodyPicker'),bodyPicker=picker&&r(picker).height>0?r(picker):null,canvas=r(document.getElementById('skyMapCanvas')),footer=r(document.querySelector('#skyMapView .sky-map-footer')),band=r(document.getElementById('mapWsTitle')),view=r(document.getElementById('mapWsCardView'));
-      return {top:bodyPicker?.bottom??top.bottom,headerBottom:top.bottom,bodyPicker:bodyPicker&&{top:bodyPicker.top,height:bodyPicker.height},canvasTop:canvas.top,canvasBottom:canvas.bottom,footerTop:footer.top,footerBottom:footer.bottom,height:innerHeight,overflowX:document.documentElement.scrollWidth>innerWidth+1,scrollable:document.scrollingElement.scrollHeight>innerHeight+1&&getComputedStyle(document.documentElement).overflow!=='hidden',
+      return {top:top.bottom,headerBottom:top.bottom,bodyPicker:bodyPicker&&{top:bodyPicker.top,height:bodyPicker.height},canvasTop:canvas.top,canvasBottom:canvas.bottom,footerTop:footer.top,footerBottom:footer.bottom,height:innerHeight,overflowX:document.documentElement.scrollWidth>innerWidth+1,scrollable:document.scrollingElement.scrollHeight>innerHeight+1&&getComputedStyle(document.documentElement).overflow!=='hidden',
       band:{h:band.height,w:band.width},view:{h:view.height,w:view.width},chips:[...document.querySelectorAll('#mapWsTitle [data-chip]')].map(n=>n.textContent),date:!!document.getElementById('skyMapCalendarOpen').offsetParent,time:!!document.getElementById('skyMapTimeline').offsetParent,
       conditionsHidden:!document.getElementById('exploreConditions').offsetParent,card:document.getElementById('mapWsCardPlace').textContent+' / '+document.getElementById('mapWsCardMeta').textContent};});
      assert(!layout.overflowX&&!layout.scrollable,label+': 地図の段は横にも縦にも動かない '+JSON.stringify(layout));
-     if(layout.bodyPicker)assert(Math.abs(layout.bodyPicker.top-layout.headerBottom)<=1&&layout.bodyPicker.height>=44,label+': 天体選択は上部帯に続き、操作高さを保つ '+JSON.stringify(layout));
+     if(layout.bodyPicker)assert(layout.bodyPicker.top>=layout.canvasTop&&layout.bodyPicker.height>=44&&layout.bodyPicker.top+layout.bodyPicker.height<=layout.canvasBottom,label+': 月と太陽の切替は地図の中に出す '+JSON.stringify(layout));
      assert(Math.abs(layout.canvasTop-layout.top)<=1&&Math.abs(layout.canvasBottom-layout.footerTop)<=1&&layout.footerBottom<=layout.height+1&&layout.canvasBottom-layout.canvasTop>=150,label+': 地図は上部帯と下部の間を埋める '+JSON.stringify(layout));
      assert.deepEqual(layout.chips,['確認地点','月','東京スカイツリー','全体'],label);
      assert(layout.band.h>=44&&layout.view.h>=44&&layout.view.w>=44&&layout.date&&layout.time&&layout.conditionsHidden,label+' '+JSON.stringify(layout));
@@ -169,7 +169,7 @@ async function reopenKeepsSearch(type,engine){
      await page.evaluate(()=>{const b=document.getElementById('skyMapBody');b.value='moon';b.dispatchEvent(new Event('change',{bubbles:true}));SkyMapUI.setTime(Date.parse('2026-12-24T16:41:00+09:00'));});
      await page.waitForFunction(()=>document.querySelector('#mapWsTitle [data-chip=body]').textContent==='月'&&/^重なる /.test(document.getElementById('mapWsCardOverlap').textContent));
      await page.screenshot({path:`${out}/${label}-map.png`});
-     // 条件帯→その場で展開（地図は見えたまま、段は地図のまま）。条件を変えると即反映、帯・Escape・外側で畳む。
+     // 条件帯→その場で展開（地図は見えたまま、段は地図のまま）。条件を変えると即反映、帯・Escape・確定で畳む。
      const dropdown=()=>page.evaluate(()=>document.getElementById('skyMapView').hasAttribute('data-explore-dropdown'));
      await page.locator('#mapWsTitle').click();assert.equal(await stage(page),'map');assert(await dropdown(),label+': 帯で展開');
      assert.equal(await page.locator('#mapWsTitle').getAttribute('aria-expanded'),'true');
@@ -188,8 +188,11 @@ async function reopenKeepsSearch(type,engine){
      assert(mapPoint.below>=10,label+': 展開の下に地図が見える '+JSON.stringify(mapPoint));
      // 日時バーは展開を開いたまま使える（時刻を動かして見比べる）
      await page.locator('#skyMapNext').click();assert(await dropdown(),label+': 日時バーでは畳まない');await page.locator('#skyMapPrev').click();
-     // 外側への押下で畳む。押す位置は下部の高さの変化に左右されるので、展開と帯の外にある要素（☰）へ押下だけを送る（クリックはしない）。
-     await page.locator('#mapWsMenuButton').dispatchEvent('pointerdown',{bubbles:true,pointerType:'touch'});assert(!await dropdown(),label+': 外側を押すと畳む');
+     // 枠外を触っても確定しない。確定ボタンで畳み、条件帯へフォーカスを戻す。
+     await page.locator('#mapWsMenuButton').dispatchEvent('pointerdown',{bubbles:true,pointerType:'touch'});assert(await dropdown(),label+': 枠外を押しても条件は開いたまま');
+     const confirm=page.getByRole('button',{name:'確定',exact:true});
+     assert((await confirm.boundingBox())?.height>=44,label+': 確定は44px以上');
+     await confirm.click();assert(!await dropdown(),label+': 確定で畳む');
      // 新しい地点は地図のボタン→下部シート（地図を残し、新規探索と「記録の地点の重なる日」の入口）→閉じると地図。展開には撮影地点を探すの行は無い。
      const findButton=await page.evaluate(()=>{const b=document.getElementById('mapWsNewPlaces').getBoundingClientRect(),c=document.getElementById('skyMapCanvas').getBoundingClientRect();return {h:b.height,w:b.width,inside:b.left>=c.left&&b.right<=c.right&&b.bottom<=c.bottom&&b.top>=c.top};});
      assert(findButton.h>=44&&findButton.w>=44&&findButton.inside,label+': '+JSON.stringify(findButton));
