@@ -132,8 +132,8 @@ async function reopenKeepsSearch(type,engine){
      assert(mapPoint.below>=10,label+': 展開の下に地図が見える '+JSON.stringify(mapPoint));
      // 日時バーは展開を開いたまま使える（時刻を動かして見比べる）
      await page.locator('#skyMapNext').click();assert(await dropdown(),label+': 日時バーでは畳まない');await page.locator('#skyMapPrev').click();
-     const outside=await page.evaluate(()=>{const c=document.getElementById('skyMapCanvas').getBoundingClientRect(),p=document.getElementById('exploreConditions').getBoundingClientRect();return {x:c.left+c.width/2,y:(p.bottom+c.bottom)/2};});
-     await page.mouse.click(outside.x,outside.y);assert(!await dropdown(),label+': 外側（地図）を押すと畳む');
+     // 外側への押下で畳む。押す位置は下部の高さの変化に左右されるので、展開と帯の外にある要素（☰）へ押下だけを送る（クリックはしない）。
+     await page.locator('#mapWsMenuButton').dispatchEvent('pointerdown',{bubbles:true,pointerType:'touch'});assert(!await dropdown(),label+': 外側を押すと畳む');
      // 展開の下端「撮影地点を探す」→下部シート→閉じると地図。
      await page.locator('#mapWsTitle').click();await page.locator('#exploreFindFromMap').click();
      await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet'));assert.equal(await stage(page),'search');assert(!await dropdown());
