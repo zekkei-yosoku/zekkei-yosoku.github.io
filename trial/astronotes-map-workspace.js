@@ -436,7 +436,7 @@ function updateTargetCard(h){
   if(sel.kind==='line'){set(meta,bodyName+'の中心が先端に来るのは '+fmtAt(sel.at));overlap.hidden=true;}
   else if(sel.kind==='record'){set(meta,'記録の地点');const w=sel.obs?sel.windows:recordState.key.startsWith(targetKey(h))?recordState.rows?.find(r=>r.place.id===sel.place.id)?.windows:undefined;overlap.hidden=false;set(overlap,w===null||w===undefined?'重なる時間を調べています…':w.length?'重なる '+w.map(x=>x.brief?fmtAt(x.from)+'頃':fmtAt(x.from)+'〜'+fmtAt(x.to)).join('・'):'この日は'+bodyName+'が対象に重ならない');overlap.dataset.at=w?.length?String(sel.window?.from??w[0].from):'';overlap.disabled=!w?.length;overlap.classList.toggle('map-ws-card-hit',!!w?.length);}
   else{set(meta,'新しい地点（新規探索）'+(Number.isFinite(sel.at)?' ・ '+fmtAt(sel.at):''));overlap.hidden=true;}
-  view.firstElementChild.textContent=sel.kind==='new'?'見え方':'ここを撮影地点にする';view.dataset.action=sel.kind==='new'?'candidate':'use';view.disabled=false;view.setAttribute('aria-label',sel.kind==='new'?'この新しい地点の見え方を開く':'この地点を撮影地点にして、撮影地点が中心へ切り替える');second.firstElementChild.textContent='戻す';second.dataset.action='clear';second.disabled=false;second.setAttribute('aria-label','選んだ地点を外す');
+  view.firstElementChild.textContent=sel.kind==='new'?'見え方':'ここを撮影地点にする';view.dataset.action=sel.kind==='new'?'candidate':'use';view.disabled=false;view.setAttribute('aria-label',sel.kind==='new'?'この新しい地点の見え方を開く':'この地点を撮影地点にして、地図の中心を撮影地点に切り替える');second.firstElementChild.textContent='戻す';second.dataset.action='clear';second.disabled=false;second.setAttribute('aria-label','選んだ地点を外す');
   return;
  }
  set(place,(s.target.name||'対象')+'を中心に（'+bodyName+'）');
@@ -517,7 +517,7 @@ function build(){
  const north=document.createElement('button');north.type='button';north.id='mapWsNorth';north.className='map-ctl map-ws-north';north.setAttribute('aria-label','北を上に戻す');
  north.innerHTML='<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M12 3l4 9h-8z" fill="#e5484d"/><path d="M12 21l-4-9h8z" fill="currentColor" opacity=".7"/></svg>';north.onclick=()=>host()?.map.setRotation(0);wrap.append(north);
  const mode=document.createElement('div');mode.id='mapWsMode';mode.className='map-ws-mode';mode.setAttribute('role','group');mode.setAttribute('aria-label','地図の中心');
- mode.innerHTML='<button type="button" data-mode="obs" aria-pressed="true">撮影地点が中心</button><button type="button" data-mode="target" aria-pressed="false">目標物が中心</button>';
+ mode.innerHTML='<button type="button" data-mode="obs" aria-pressed="true">撮影地点</button><button type="button" data-mode="target" aria-pressed="false">対象</button>';
  for(const b of mode.querySelectorAll('button'))b.onclick=()=>setViewMode(b.dataset.mode);wrap.append(mode);
  // 2026-11-26: 新しい地点は地図のボタンから（撮影地点が中心の時。目標物が中心ではカードの「新しい地点を探す」）
  const findNew=document.createElement('button');findNew.type='button';findNew.id='mapWsNewPlaces';findNew.className='map-ws-new';findNew.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><span>新しい地点を探す</span>';

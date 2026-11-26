@@ -4,10 +4,11 @@
 function mount(deps){
  const L=root.AstroNotesLibrary,d=document,by=id=>d.getElementById(id),make=(tag,props={})=>Object.assign(d.createElement(tag),props);
  const dialog=make('dialog',{id:'previewTargetDialog',className:'sheet preview-body-dialog'});dialog.setAttribute('aria-labelledby','previewTargetTitle');
- dialog.innerHTML=`<div class="sheet-head"><strong id="previewTargetTitle">対象を選ぶ</strong><span class="page-actions" data-target-head-actions><button type="button" class="chip" data-target-clear aria-label="選択を解除">解除</button>\
+ dialog.innerHTML=`<div class="sheet-head"><strong id="previewTargetTitle">対象を選ぶ</strong><span class="page-actions" data-target-head-actions><button type="button" class="chip" data-target-clear aria-label="選択を解除">解除</button>
+<button type="button" class="chip" data-target-new><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>対象を登録</span></button>\
 </span>\
 <button type="button" data-target-close>キャンセル</button></div><div class="sheet-body"><section data-target-list-panel><div class="target-selection-head" data-target-selection-head hidden><strong data-target-count role="status" aria-live="polite"></strong></div>\
-<p class="tiny" data-target-selection-status role="status" hidden></p><div class="target-list-search"><input type="search" class="fav-in target-search" aria-label="対象を検索" placeholder="対象名・場所で検索"><button type="button" class="chip" data-target-new><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>対象を追加</span></button></div><div class="chips target-cat-chips" data-target-cats role="group" aria-label="カテゴリ"></div>\
+<p class="tiny" data-target-selection-status role="status" hidden></p><input type="search" class="fav-in target-search" aria-label="対象を検索" placeholder="対象名・場所で検索"><div class="chips target-cat-chips" data-target-cats role="group" aria-label="カテゴリ"></div>\
 <div class="target-select-tools" data-target-select-tools hidden><button type="button" class="chip target-select-all" data-target-all role="checkbox" aria-checked="false"><span class="target-select-check" aria-hidden="true"></span><span data-target-all-label>すべて選択</span></button>\
 <button type="button" class="chip" data-target-none hidden>選択を解除</button></div><div class="preview-target-list"></div><p class="tiny" data-target-empty hidden>見つかりませんでした。</p><div class="target-selection-actions" data-target-selection-actions hidden>\
 <button type="button" class="fav-btn primary" data-target-done>選択を適用</button></div></section><section data-target-editor hidden><div class="target-location-search"><input id="targetPlaceSearch" type="search" class="fav-in" placeholder="地名・緯度経度・地図のURL" aria-label="対象の場所を検索">\
@@ -15,7 +16,7 @@ function mount(deps){
 <button type="button" id="targetEditorIn" aria-label="拡大">＋</button><button type="button" id="targetEditorOut" aria-label="縮小">−</button></div></div><div class="target-plateau" data-target-plateau hidden><p class="tiny">PLATEAUの建物（地図の＋の近く）。選ぶと形・位置・高さを使います</p><div data-target-plateau-list></div>\
 </div><label>名前<input type="text" class="fav-in" data-target-name maxlength="200" placeholder="対象の名前"></label><label>地上からの高さ（m）<input type="number" class="fav-in" data-target-height min="0" max="1000" step="any" value="0"></label><label>カテゴリ<select class="fav-in" data-target-category></select>\
 </label><label data-target-category-new-row hidden>新しいカテゴリの名前<input type="text" class="fav-in" data-target-category-new maxlength="20" placeholder="例：橋、神社、灯台"></label><p class="tiny" data-target-coordinate></p><p class="warn" data-target-error role="status" hidden></p>\
-<div data-target-duplicates hidden></div><div class="my-actions"><button type="button" class="chip" data-target-back>対象一覧に戻る</button><button type="button" class="fav-btn primary" data-target-add>対象を追加</button></div></section><section data-target-cat-panel data-no-dirty hidden>\
+<div data-target-duplicates hidden></div><div class="my-actions"><button type="button" class="chip" data-target-back>対象一覧に戻る</button><button type="button" class="fav-btn primary" data-target-add>対象を登録</button></div></section><section data-target-cat-panel data-no-dirty hidden>\
 <p class="tiny">山・建物は最初からあるカテゴリです。自分で作ったカテゴリは名前を変えたり削除したりできます（削除すると、中の対象はカテゴリなしになります）。</p><div data-target-cat-list></div><div class="target-location-search"><input type="text" class="fav-in" data-target-cat-new maxlength="20" placeholder="新しいカテゴリの名前" aria-label="新しいカテゴリの名前">\
 <button type="button" class="chip" data-target-cat-add>追加</button></div><p class="warn" data-target-cat-error role="status" hidden></p><div class="my-actions"><button type="button" class="fav-btn primary" data-target-cat-done>完了</button></div></section></div>`;
  d.body.append(dialog);
@@ -176,7 +177,7 @@ function mount(deps){
   q('[data-target-height]').value=String(target?((s.drafts.find(x=>x.entry.id===target.favId)?.entry||deps.favorite(target.favId))?.targetHeightM??Math.max(0,(target.parts?.[0]?.m??0)-(target.groundM??0))):0);
   by('targetPlaceSearch').value='';by('targetPlaceResults').replaceChildren();q('[data-target-error]').hidden=true;q('[data-target-duplicates]').hidden=true;
   fillCategory(target?catOf(target):catFilter&&catFilter!==NONE?catFilter:'');
-  panel.hidden=true;editor.hidden=false;q('[data-target-head-actions]').hidden=true;q('#previewTargetTitle').textContent=target?'対象を編集':'対象を追加';q('[data-target-add]').textContent=target?(s.options.manage?'変更を保存':'変更を適用'):'対象を追加';
+  panel.hidden=true;editor.hidden=false;q('[data-target-head-actions]').hidden=true;q('#previewTargetTitle').textContent=target?'対象を編集':'対象を登録';q('[data-target-add]').textContent=target?(s.options.manage?'変更を保存':'変更を適用'):'対象を登録';
   if(!map){map=deps.createMap({canvas:'targetEditorCanvas',zoomIn:'targetEditorIn',zoomOut:'targetEditorOut'});map.onPick(p=>{if(valid(state)){request.cancel();map.setCenter(p.latitude,p.longitude);}});
    map.onMove?.(()=>{request.cancel();syncDirty();plateauNear();});
    deps.wireSearch('targetPlaceSearch','targetPlaceResults',move,move,{near:()=>map.center(),isCurrent:()=>valid(state)&&!editor.hidden});
@@ -196,7 +197,7 @@ function mount(deps){
    if(state.options.manage){host.append(make('p',{className:'tiny',textContent:label}));continue;}
    const b=make('button',{type:'button',className:'list-item',textContent:label+' ・ この対象を使う'});b.onclick=()=>{const s=state;if(!valid(s))return;useTarget(t);};host.append(b);
   }
-  const b=make('button',{type:'button',className:'chip',textContent:'別の対象として追加'});b.onclick=proceed;host.append(b);return true;
+  const b=make('button',{type:'button',className:'chip',textContent:'別の対象として登録'});b.onclick=proceed;host.append(b);return true;
  }
  async function submit(approved=null){
   const s=state;if(!valid(s))return;const name=q('[data-target-name]').value.trim(),heightM=Number(q('[data-target-height]').value),p=map.center(),signature=JSON.stringify([name,heightM,p,s.editing?.id]);
@@ -255,9 +256,16 @@ function mount(deps){
  '#previewTargetDialog [data-target-none]{font-size:13px;color:var(--accent)}#previewTargetDialog .target-select-check{display:grid;place-items:center;width:20px;height:20px;border:1.8px solid currentColor;border-radius:4px;box-sizing:border-box;font-size:18px;line-height:1;flex:none}'+
  '#previewTargetDialog .target-selection-actions{position:sticky;bottom:-16px;z-index:2;padding:12px 0 max(16px,env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line);margin-top:12px}#previewTargetDialog [data-target-done]{width:100%}'+
  '#previewTargetDialog .preview-body-choice[role=checkbox]{scroll-margin-block:64px 100px}.target-cat-chips{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;margin:8px 0 4px}.target-cat-chips::-webkit-scrollbar{display:none}'+
- '#previewTargetDialog .target-list-search{display:flex;align-items:center;gap:8px}#previewTargetDialog .target-list-search .target-search{flex:1;min-width:0;margin:0}'+
+ '#previewTargetDialog.as-page > .sheet-head:has([data-target-head-actions]:not([hidden])){grid-template-columns:minmax(max-content,1fr) minmax(0,auto) minmax(max-content,1fr)}'+
+ '#previewTargetDialog .sheet-head strong{overflow-wrap:anywhere}'+
  '#previewTargetDialog .target-choice-label{flex:1;min-width:0;padding:10px;overflow-wrap:anywhere}'+
  '#previewTargetDialog [data-target-new]{display:inline-flex;flex:none;align-items:center;gap:4px;min-height:44px;padding:0 10px;font-weight:700;white-space:nowrap}'+
+ '@media(max-width:360px){'+
+ '#previewTargetDialog.as-page > .sheet-head:has([data-target-clear]:not([hidden])){column-gap:2px}'+
+ '#previewTargetDialog .page-actions:has([data-target-clear]:not([hidden])){gap:4px}'+
+ '#previewTargetDialog .sheet-head:has([data-target-clear]:not([hidden])) .page-back{padding-right:4px}'+
+ '#previewTargetDialog .page-actions [data-target-clear]{min-width:44px;padding:0 6px}'+
+ '#previewTargetDialog .page-actions:has([data-target-clear]:not([hidden])) [data-target-new]{padding:0 6px}}'+
  '#previewTargetDialog .target-cat-chips .chip{min-height:36px}#previewTargetDialog .target-cat-chips .chip[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}.target-cat-chips .chip{flex:none}.target-cat-head{margin:14px 0 6px;font-size:.81rem;color:var(--secondary)}'+
  '.target-cat-row{min-height:52px;border-bottom:1px solid var(--line)}.target-cat-row .target-cat-name{flex:1;min-width:0;font-weight:700}.target-cat-row input{flex:1;min-width:0}.target-choice-row{display:flex;gap:8px;align-items:center}.target-choice-row>.preview-body-choice{flex:1;min-width:0;'+
  'text-align:left}.target-choice-row>.chip{min-height:44px}.target-location-search{display:flex;gap:8px}.target-location-search input{min-width:0;flex:1}#previewTargetDialog [data-target-editor] label{display:block;margin:12px 0}#previewTargetDialog [data-target-editor] input{font-size:16px;'+
