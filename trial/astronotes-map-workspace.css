@@ -79,9 +79,6 @@ html:has(#skyMapView.map-ws-scene){scrollbar-gutter:auto}
 #skyMapView.map-ws .sky-map-scrub-modes{position:absolute;left:6px;top:50%;transform:translateY(-50%);z-index:3}
 #skyMapView.map-ws #skyMapScrubMode{min-width:48px;min-height:48px;border-radius:50%;background:rgba(0,0,0,.72);color:#fff;border:1px solid rgba(255,255,255,.35);padding:0}
 #skyMapView.map-ws #skyMapTrack{position:relative;width:100%}
-/* 共通部品の「時」送りを、この画面では1日が見渡せる帯として示す */
-#skyMapView.map-ws #skyMapScrubMode[data-mode=hour]{font-size:0}
-#skyMapView.map-ws #skyMapScrubMode[data-mode=hour]::after{content:"24時間";font-size:11px;font-weight:700}
 /* 小さい画面: 拡大と縮小は2本指に任せる */
 @media(max-height:640px){#skyMapView.map-ws .sky-map-wide .mapzoom :is(#skyMapIn,#skyMapOut){display:none}
  #skyMapView.map-ws .sky-map-wide .map-layers-btn{top:54px}#skyMapView.map-ws .sky-map-wide .map-layer-menu{top:54px}#skyMapView.map-ws .map-ws-bodies{top:100px}#skyMapView.map-ws .sky-map-wide .sky-map-point-tools{top:100px}}
