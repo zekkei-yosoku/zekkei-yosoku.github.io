@@ -512,27 +512,43 @@ function planeMapText(){
 // Landings purple and solid, take-offs teal and dashed. The soft blue band is where to stand, gold the overlap.
 const PLANE_ROUTE_COLORS={landing:'#7b3fbf',takeoff:'#00897b'};
 function planeRouteColor(paths,path){return PLANE_ROUTE_COLORS[path.kind]||PLANE_ROUTE_COLORS.landing;}
-PlaneMap.setOverlay((ctx,{project,width,height})=>{
+let planeBandContext = null;
+let planeBandFrame = null;
+PlaneMap.setOverlay((ctx,{project,view,width,height})=>{
   if(!toolAllowed("plane")||!planeFromPoint())return;
   // 計算の間も撮影地点と空港は描く（2026-11-25 ユーザー「撮影地点も消えたり出たり」）
   const r=plane.map||{paths:[],polygons:[],centerLines:[],overlap:{overlaps:[]}};
   const cs=getComputedStyle(document.documentElement),sunC=cs.getPropertyValue('--ray-sun').trim(),ink=cs.getPropertyValue('--secondary').trim();
-  const trace=points=>{ctx.beginPath();const xy=points.map(p=>project(p.latitude,p.longitude));if(!xy.length)return;ctx.moveTo(...xy[0]);
+  const trace=(points,drawing=ctx)=>{drawing.beginPath();const xy=points.map(p=>project(p.latitude,p.longitude));if(!xy.length)return;drawing.moveTo(...xy[0]);
     // Midpoint quadratic smoothing keeps sampled curves round on screen without moving the endpoints.
-    for(let i=1;i<xy.length-1;i++)ctx.quadraticCurveTo(xy[i][0],xy[i][1],(xy[i][0]+xy[i+1][0])/2,(xy[i][1]+xy[i+1][1])/2);
-    if(xy.length>1)ctx.lineTo(...xy[xy.length-1]);};
+    for(let i=1;i<xy.length-1;i++)drawing.quadraticCurveTo(xy[i][0],xy[i][1],(xy[i][0]+xy[i+1][0])/2,(xy[i][1]+xy[i+1][1])/2);
+    if(xy.length>1)drawing.lineTo(...xy[xy.length-1]);};
   ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
-  // 地図を白く薄める層は置かない（2026-11-25 ユーザー「地図の上に薄く白い何かがかかってる…いらないのでは」）
-  // Where to stand is an area, drawn as a soft wide band under the crisp, cased flight lines.
-  // Painted opaque on a separate layer and laid down once, so crossing bands do not darken each other.
-  const band=document.createElement('canvas');band.width=ctx.canvas.width;band.height=ctx.canvas.height;
-  const main=ctx;ctx=band.getContext('2d');ctx.setTransform(main.getTransform());ctx.lineCap='round';ctx.lineJoin='round';
-  // The base map stays light in dark mode, so the band keeps the light-theme blue.
-  const bandC='#2f7fd0';ctx.fillStyle=bandC;ctx.globalAlpha=.6;
-  for(const polygon of r.polygons){ctx.beginPath();polygon.points.forEach((p,i)=>{const [x,y]=project(p.latitude,p.longitude);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.closePath();ctx.fill();}
-  ctx.globalAlpha=1;ctx.strokeStyle=bandC;ctx.lineWidth=16;
-  for(const line of r.centerLines||[]){trace(line.points);ctx.stroke();}
-  ctx=main;ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=.38;ctx.drawImage(band,0,0);ctx.restore();
+  // Paint the bands on a shared off-screen canvas so crossing bands retain their opacity.
+  const {polygons,centerLines}=r;
+  if(polygons.length||centerLines?.length){
+    const drawing=planeBandContext??=document.createElement('canvas').getContext('2d');
+    const band=drawing.canvas,{width:pixelWidth,height:pixelHeight}=ctx.canvas;
+    const transform=ctx.getTransform();
+    const projection=[view.lat,view.lon,view.zoom,PlaneMap.layer(),PlaneMap.rotation(),width,height,pixelWidth,pixelHeight,transform.a].join('/');
+    // Tile arrivals can repaint the map several times with the same projection and band data.
+    if(planeBandFrame?.projection!==projection||planeBandFrame.polygons!==polygons||planeBandFrame.centerLines!==centerLines){
+      if(band.width!==pixelWidth||band.height!==pixelHeight){
+        band.width=pixelWidth;
+        band.height=pixelHeight;
+      }
+      drawing.setTransform(transform);
+      drawing.clearRect(0,0,Math.ceil(pixelWidth/transform.a),Math.ceil(pixelHeight/transform.d));
+      drawing.lineCap='round';drawing.lineJoin='round';
+      // The base map stays light in dark mode, so the band keeps the light-theme blue.
+      const bandC='#2f7fd0';drawing.fillStyle=bandC;drawing.globalAlpha=.6;
+      for(const polygon of polygons){drawing.beginPath();polygon.points.forEach((p,i)=>{const [x,y]=project(p.latitude,p.longitude);i?drawing.lineTo(x,y):drawing.moveTo(x,y);});drawing.closePath();drawing.fill();}
+      drawing.globalAlpha=1;drawing.strokeStyle=bandC;drawing.lineWidth=16;
+      for(const line of centerLines||[]){trace(line.points,drawing);drawing.stroke();}
+      planeBandFrame={projection,polygons,centerLines};
+    }
+    ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=.38;ctx.drawImage(band,0,0);ctx.restore();
+  }
   // 帯は見やすさのための太さ。実際に重なる幅は数十mなので、中心を細い線で示す（2026-11-25 ユーザー「青いところにあるのに重ならない」）
   ctx.strokeStyle='#1d5fa8';ctx.lineWidth=2;for(const line of r.centerLines||[]){trace(line.points);ctx.stroke();}
   for(const path of r.paths){
