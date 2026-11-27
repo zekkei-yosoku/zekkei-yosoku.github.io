@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "20261124-moon-route-map",
-  "revision": 21,
+  "revision": 22,
   "baselineCommit": "f4f35b61359ba5ec8f9da057cf3026902a0402a4",
   "productionSha256": {
     "index.html": "feb5e6c31bbb6014c66615a414cca2477296b89ab8e6a95ba1e98c07907a29c3",
@@ -37,7 +37,8 @@
     "astronotes-iss.js": "4da1cf617abe8e3b37fa77c41dd81cf0da3bf94bd6888dc70f5ef5121f4b99be",
     "src/features/satellites/state.js": "892e8dc00f0dceda0a73fbbbcce87cbbb7602158ab3138b14fe4a286b25b1e94",
     "src/features/places/search.js": "bd870926785d9230e5a942b20b3cba798b9526ee1f9483f1bd6d078b9005d592",
-    "src/ui/map/picker.js": "c2adcc13bf9db094c0248a1e80d9c0f8afc575e106349e44f8ea87c2fdfdc747"
+    "src/ui/map/picker.js": "c2adcc13bf9db094c0248a1e80d9c0f8afc575e106349e44f8ea87c2fdfdc747",
+    "src/app/gestures.js": "e5aa1dac5b04c4c81d8ee00845b2ebc17b6dac6e8be2ba1a84181148fb5c6d31"
   },
   "overlaySha256": {
     "src/index.html": "3adab50f1aa7a8a3c7a6b08b0f60bc1e7dc13f7e585191d305006c549dc8791b",
@@ -45,8 +46,8 @@
     "astronotes-plane.js": "20ca336df57c9b0fc6411176c7393c9db4cee7dcf587be4a0a26608c54e59916",
     "astronotes-routes.js": "fc099255874d597c8ee2146d8ac611cb5f3613c20c6621d223be6422365bb000",
     "astronotes-datetime-ui.css": "12bdf08dc975d4ab6d7d80dd77a423068cfb5c79c2af99e974cb59b8caf17fde",
-    "src/source-manifest.json": "1b36c7e2938f2497c0a63abc6d5cff7c3c351fea934c0f0d5a245e3580f7bbe0",
-    "astronotes-myplaces.js": "8d9680c47684527730899ddefb004b149824d6b82c0dd2433034bc2a4a5c6e95",
+    "src/source-manifest.json": "1ab46d33a29fe5f7b55d1a6ef4de9489f53a0346a99afbf52fe3099c735dcd83",
+    "astronotes-myplaces.js": "2fb8c623a01ccf5926391739f062551f75c42abb9b88e34df29af539f061ae27",
     "src/features/framing/scene/render.js": "6af9fe3e6225565942c09668056549f68966838befb548d7a2ab93848a677ed9",
     "src/features/framing/presentation.js": "fbf34bab6ed237f28a7cc09532c9147191775b2580117612e2fd1fd802ab0e92",
     "src/features/explore/controller.js": "3a9daeb12da50a0d0acb320ad03ca9528ab074b0391699abe85d55375e710a3e",
@@ -71,13 +72,14 @@
     "astronotes-iss.js": "7c864a204182a42de1a248d3a965dfc157e6a76e737c2745ce573a48fbc6f3a7",
     "src/features/satellites/state.js": "1d4b5d86a47b88c8466b6a7316135429bb22b7f5b0f268df529517854a722f99",
     "src/features/places/search.js": "fed4e5a2fc2e1eef512d35afbabefb2e5f1290ccf97d6d0443d0bfaa6986b6f8",
-    "src/ui/map/picker.js": "74aa1c7f9989914136f5e87de704db99c4cfefb26d9834ae8d7404adf278d381"
+    "src/ui/map/picker.js": "74aa1c7f9989914136f5e87de704db99c4cfefb26d9834ae8d7404adf278d381",
+    "src/app/gestures.js": "3a337486055cf03d5462cb2643698c9d41e02d7e76aa25bf9f4d6bb6a43dbb18"
   },
   "files": {
     "astronotes-plane.js": "20ca336df57c9b0fc6411176c7393c9db4cee7dcf587be4a0a26608c54e59916",
     "astronotes-routes.js": "fc099255874d597c8ee2146d8ac611cb5f3613c20c6621d223be6422365bb000",
     "astronotes-datetime-ui.css": "12bdf08dc975d4ab6d7d80dd77a423068cfb5c79c2af99e974cb59b8caf17fde",
-    "astronotes-myplaces.js": "8d9680c47684527730899ddefb004b149824d6b82c0dd2433034bc2a4a5c6e95",
+    "astronotes-myplaces.js": "2fb8c623a01ccf5926391739f062551f75c42abb9b88e34df29af539f061ae27",
     "astronotes-map-workspace.js": "1821a094c322a0663c6f3c2fcd8ed997a18decc3b8cec7f9cb9fc17fe07e8864",
     "astronotes-map-workspace.css": "91a08221961d6c5d8857a56da0673a25298679a4a1f8651475b4f8a402577b46",
     "astronotes-shooting.js": "69ed04693c74005445a7755f4beb7d3f181efd81db3baad9ab9b5a4505572509",
@@ -86,7 +88,7 @@
     "astronotes-iss.js": "7c864a204182a42de1a248d3a965dfc157e6a76e737c2745ce573a48fbc6f3a7",
     "astronotes-explore-simple.js": "7cf931127e4b0ef5feab95e43ccb5a2da975bf94d52b49eff80927af60e7bb7f",
     "astronotes-candidate-search.js": "7cccd2842af624fd84411a4c293ed68c327fbaf092cea95a755f1819b73ee803",
-    "index.html": "4f9faa0983e328f0c92acc9f02fdaa86f3806010c2adbcd516ea0820bb62ba3e",
-    "app-version.txt": "b9f3d428b9fcba3e1ec3b358e9c7148ca29e995ad89c5a31f7d15d3919f9fb30"
+    "index.html": "07ae49b904f844c6f6e4f04cf838f90fcc71def2bd2c4a1c3c07cab283214094",
+    "app-version.txt": "1370c57fb8864d5a3c61466c30e0cfd26e8e4f33aed503186ee0694840d09dd6"
   }
 }

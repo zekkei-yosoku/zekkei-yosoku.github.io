@@ -1435,6 +1435,7 @@
           "src/features/framing/controller.js",
           "src/features/framing/observer.js",
           "src/features/places/search.js",
+          "src/app/gestures.js",
           "src/features/account/library-transfer.js",
           "src/features/plans/controller.js",
           "src/features/framing/presentation.js",
