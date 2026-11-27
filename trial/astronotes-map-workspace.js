@@ -293,7 +293,7 @@ function recordsFor(h){
 }
 // 絞り込み済みの候補一覧を、結果が更新されるたびに地図へ渡す。
 const candidateSheet=()=>$('skyMapView').hasAttribute('data-explore-sheet');
-let candidatePins=[],candidateHits=[],candidateKey='',candidateFrame=0,selectedCandidate=null;
+let candidatePins=[],candidateHits=[],candidateKey='',candidateFrame=0,selectedCandidate=null,selectedCandidateRow=null;
 function newCandidates(){
  const picker=globalThis.AstroNotesCandidatePicker;
  return (picker?.visibleRows?.()||[]).flatMap((row,index)=>!row||row.recorded||row.inRecords||!validPoint(row.place)?[]:[{
@@ -304,6 +304,18 @@ function newCandidates(){
 function clearCandidatePins(){
  if(candidateFrame)cancelAnimationFrame(candidateFrame);
  candidateFrame=0;candidatePins=[];candidateHits=[];candidateKey='';selectedCandidate=null;
+ markCandidateRow(null);
+}
+function candidateRow(id){
+ if(!id)return null;
+ return [...document.querySelectorAll('#candidateUnifiedResults .list-item:not([hidden])')]
+  .find(item=>item.dataset.candidateId===id)??null;
+}
+function markCandidateRow(row){
+ if(selectedCandidateRow===row)return;
+ selectedCandidateRow?.removeAttribute('data-map-candidate-selected');
+ selectedCandidateRow=row;
+ row?.setAttribute('data-map-candidate-selected','');
 }
 function fitCandidates(h,pins,{manual=false}={}){
  const canvas=$('skyMapCanvas'),width=canvas.clientWidth,height=canvas.clientHeight;
@@ -328,6 +340,7 @@ function refreshCandidatePins(){
   const key=targetKey(h),first=key!==candidateKey||!candidatePins.length;
   candidateKey=key;candidatePins=newCandidates();
   if(!candidatePins.some(p=>p.id===selectedCandidate))selectedCandidate=null;
+  markCandidateRow(candidateRow(selectedCandidate));
   if(first)fitCandidates(h,candidatePins);
   h.redraw();
  });
@@ -355,9 +368,11 @@ function focusCandidateInSheet(pixel){
  const nearest=hits[0],cluster=hits.filter(hit=>Math.hypot(hit.x-nearest.x,hit.y-nearest.y)<12)
   .sort((a,b)=>a.candidate.number-b.candidate.number);
  const next=cluster[(cluster.findIndex(hit=>hit.candidate.id===selectedCandidate)+1)%cluster.length];
- const row=[...document.querySelectorAll('#candidateUnifiedResults .list-item:not([hidden])')]
-  .find(item=>item.dataset.candidateId===next.candidate.id);
- if(row){selectedCandidate=next.candidate.id;host()?.redraw();row.scrollIntoView({block:'nearest'});row.focus({preventScroll:true});}
+ const row=candidateRow(next.candidate.id);
+ if(row){
+  selectedCandidate=next.candidate.id;markCandidateRow(row);host()?.redraw();
+  row.scrollIntoView({block:'nearest'});row.focus({preventScroll:true});
+ }
  return true;
 }
 function lineRanges(h){

@@ -353,6 +353,8 @@ async function newPlaces(type,engine,center){
    assert(point.inside,label+': 候補ピンを地図で押せる');
    await page.mouse.click(point.x,point.y);
    await page.waitForFunction(id=>document.activeElement?.dataset.candidateId===id,row.id);
+   await page.evaluate(()=>document.activeElement.blur());
+   assert.equal(await page.locator('#candidateUnifiedResults [data-map-candidate-selected]').getAttribute('data-candidate-id'),row.id,label+': タッチ後にフォーカスが外れても選択が見える');
    assert((await readLayout()).visible,label+': ピンを押しても地図を維持');
    await page.screenshot({path:`${out}/${label}-sheet.png`});
 

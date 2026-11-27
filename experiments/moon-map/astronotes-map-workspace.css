@@ -173,7 +173,8 @@ html:has(#skyMapView[data-explore-sheet].map-ws:not([hidden])),body:has(#skyMapV
 #skyMapView[data-explore-stage=search][data-explore-sheet].map-ws #candidateListControls #candidateUnifiedResults>.list-item{position:relative;padding-left:30px!important;scroll-margin-top:56px}
 #skyMapView[data-explore-sheet] #candidateUnifiedResults>.list-item::before{content:attr(data-candidate-number);position:absolute;top:10px;left:0;display:grid;place-items:center;min-width:22px;height:22px;border-radius:50%;background:#206549;color:#fff;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
 #skyMapView[data-explore-sheet] #candidateUnifiedResults>.list-item::after{content:'見え方 ›';grid-column:1/-1;justify-self:end;color:var(--accent);font-size:12px;font-weight:700}
-#skyMapView[data-explore-sheet] #candidateUnifiedResults>.list-item:focus{background:color-mix(in srgb,var(--accent) 12%,var(--card));outline-offset:-2px}
+#skyMapView[data-explore-sheet] #candidateUnifiedResults>.list-item:is(:focus,[data-map-candidate-selected]){background:color-mix(in srgb,var(--accent) 12%,var(--card));outline-offset:-2px}
+#skyMapView[data-explore-sheet] #candidateUnifiedResults>.list-item[data-map-candidate-selected]::before{background:#235c89}
 #skyMapView[data-map-center=target].map-ws .map-ws-card{flex-wrap:wrap;row-gap:6px}
 #skyMapView[data-map-center=target].map-ws .map-ws-card-text{flex:1 0 100%}
 #skyMapView[data-map-center=target].map-ws .map-ws-card-actions{flex:1 0 100%;flex-direction:row;max-width:none}
