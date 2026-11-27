@@ -9,7 +9,7 @@ const realTiles=process.env.MAP_BODIES_REAL_TILES==='1';
 const engines=(process.env.MAP_BODIES_ENGINES||'chrome,webkit').split(',');
 const widths=(process.env.MAP_BODIES_WIDTHS||'320,390').split(',').map(Number);
 const themes=(process.env.MAP_BODIES_THEMES||'light,dark').split(',');
-const checks=(process.env.MAP_BODIES_CHECKS||'matrix,engine,night,line,card,terrain,vicinity').split(',');
+const checks=(process.env.MAP_BODIES_CHECKS||'matrix,engine,night,line,card,terrain,vicinity,date-lines').split(',');
 const tools=['records','tower','diamond','pearl','skymap','multiscene'];
 const bodies=['moon','sun','sirius','venus','mercury','mars','jupiter','saturn'];
 const names={moon:'月',sun:'太陽',sirius:'シリウス',venus:'金星',mercury:'水星',mars:'火星',jupiter:'木星',saturn:'土星'};
@@ -269,6 +269,61 @@ async function targetVicinity(browser,engine){
  }finally{await f.context.close();}
 }
 
+async function dateLineReuse(browser,engine){
+ const f=await open(browser,390,'dark');
+ const p=f.page,day=Date.parse('2026-11-27T00:00:00+09:00'),offset=19*3600000,oneDay=86400000;
+ try{
+  await p.evaluate(({day,offset,oneDay})=>{
+   const original=AstroNotesAlign.line;
+   window.dateLines={calls:[],held:new Set([day+oneDay,day+2*oneDay,day+3*oneDay]),release:new Map()};
+   const state=window.dateLines;
+   AstroNotesAlign.line=async(target,body,day,options)=>{
+    const call={day,body,cancelled:false};state.calls.push(call);
+    if(state.held.has(day))await new Promise(resolve=>state.release.set(day,resolve));
+    if(!options.isCurrent()){call.cancelled=true;return [];}
+    return original(target,body,day,options);
+   };
+   SkyMapUI.setTime(day+offset);
+  },{day,offset,oneDay});
+  await p.locator('#mapWsMode input[value=target]').click();
+  const ready=expected=>p.waitForFunction(day=>{
+   const s=AstroNotesMapWorkspace.targetState();
+   return s.line?.length>0&&!s.lineBusy&&s.line.every(x=>x.from>=day&&x.from<day+86400000);
+  },expected);
+  const hold=day=>p.waitForFunction(day=>window.dateLines.release.has(day),day);
+  const release=day=>p.evaluate(day=>{const s=window.dateLines;s.held.delete(day);const resume=s.release.get(day);s.release.delete(day);resume();},day);
+  const next=p.locator('#skyMapNext'),prev=p.locator('#skyMapPrev');
+  const calls=(day,body='moon')=>p.evaluate(({day,body})=>dateLines.calls.filter(c=>c.day===day&&c.body===body),{day,body});
+  const first=day+oneDay,second=day+2*oneDay,third=day+3*oneDay;
+  await ready(day);await hold(first);
+  await next.click();
+  await p.waitForFunction(day=>{
+   const s=AstroNotesMapWorkspace.targetState();
+   return AstroNotesSkyMap.dayStart(SkyMapUI.selectionState().at)===day&&s.lineBusy&&!s.line;
+  },first);
+  assert.equal((await calls(first)).length,1,'先読み途中の同じ日の計算を引き継ぐ');
+  await release(first);await ready(first);
+  await prev.click();await ready(day);
+  assert.equal((await calls(day)).length,1,'表示済みの日の線を再利用する');
+  await next.click();await ready(first);
+  assert.equal((await calls(first)).length,1);
+  await next.click();await hold(second);
+  await next.click();await hold(third);
+  await release(second);
+  await p.waitForFunction(day=>dateLines.calls.some(c=>c.day===day&&c.cancelled),second);
+  assert(await p.evaluate(()=>AstroNotesMapWorkspace.targetState().lineBusy),'途中の日から遅れて届いた線を表示しない');
+  await release(third);await ready(third);
+  const last=await p.evaluate(()=>AstroNotesMapWorkspace.targetState().line);
+  await selectMap(p,'sun');await ready(third);
+  assert.equal((await calls(third,'sun')).length,1,'別の天体を選ぶとその条件で解く');
+  await selectMap(p,'moon');await ready(third);
+  assert.deepEqual(await p.evaluate(()=>AstroNotesMapWorkspace.targetState().line),last,'確定線と時刻はそのまま再利用する');
+  assert.equal((await calls(third)).length,1);
+  assert.deepEqual(f.errors,[]);
+  return {label:engine+'-date-lines',reused:true,promoted:true,staleDiscarded:true};
+ }finally{await f.context.close();}
+}
+
 async function terrainErrorLayout(browser,engine,theme){
  const f=await open(browser,320,theme),results=[];
  try{
@@ -302,6 +357,7 @@ async function terrainErrorLayout(browser,engine,theme){
    if(checks.includes('line'))results.push(await lineSelection(browser,engine));
    if(checks.includes('card'))results.push(await cardEdges(browser,engine));
    if(checks.includes('vicinity'))results.push(await targetVicinity(browser,engine));
+   if(checks.includes('date-lines'))results.push(await dateLineReuse(browser,engine));
    if(checks.includes('terrain'))for(const theme of themes)results.push(await terrainErrorLayout(browser,engine,theme));
   }finally{await browser.close();}
  }
