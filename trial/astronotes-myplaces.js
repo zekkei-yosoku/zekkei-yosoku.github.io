@@ -833,6 +833,9 @@ function renderSheet() {
     b.disabled = true;sub.textContent = '計算しています…';
     pending=pending.then(()=>{
       if(token!==sheetToken || !sheet.open || !sheetOwnerMatches())return;
+      return opportunityOutsideOrbit({place,target:t,body,...matchOpts(t)}).then(outside=>{
+      if (token !== sheetToken || !sheet.open || !sheetOwnerMatches()) return;
+      if(outside){sub.textContent='天体の軌道がこの方角に届きません';return;}
       return nextFor(place, t, body, matchOpts(t)).then((row) => {
       if (token !== sheetToken || !sheet.open || !sheetOwnerMatches()) return;
       sub.textContent = row ? `${dayText(row.at)} ${sideName(body, row.side)} ${S.JstCal.hhmm(row.at)}` : '400日以内には重なりません';
@@ -844,7 +847,7 @@ function renderSheet() {
         const current=statusOf(place.id,r.target.key);if(!current || current.id!==r.id || current.result==='hidden'){renderSheet();return;}
         if (ctx !== 'records') sheet.close();openWith(place, t, {...row,body}, ctx);
       };
-      }).catch(() => { if (token === sheetToken) sub.textContent = '計算できませんでした。もう一度探してください'; });
+      });}).catch(() => { if (token === sheetToken) sub.textContent = '計算できませんでした。もう一度探してください'; });
     });
   }
 }
@@ -873,13 +876,15 @@ function renderShapeDates(host,pairs,token){
     openWith(point,target,{...row.event,body,shapeType:shape.type},state.ctx);
    }}).catch(error=>{if(current()){status.textContent='候補の表示を完了できませんでした。再試行してください。';globalThis.AstroNotesErrors?.note('records.shape-date-rows',error);}});
    const last=page.cursor>page.origin?new Date(page.cursor-1+9*3600000).toISOString().slice(0,10).replaceAll('-','/'):'';
-   status.textContent=!target?'この対象は構図に使えません。':page.loading?'線上・範囲内を計算しています…':page.partial==='elevation'?'標高を取得できず、確認できていない位置があります。':page.partial==='invalid'?'線・範囲を編集して形を確認してください。':page.partial==='limit'?'広いため調べ切れていません。線・範囲を小さく分けて再試行してください。':page.partial?'候補を確認できませんでした。再試行してください。':(last?last+
+   status.textContent=!target?'この対象は構図に使えません。':page.outside?'天体の軌道がこの範囲から見た対象に届きません。':page.loading?'線上・範囲内を計算しています…':page.partial==='elevation'?'標高を取得できず、確認できていない位置があります。':page.partial==='invalid'?'線・範囲を編集して形を確認してください。':page.partial==='limit'?'広いため調べ切れていません。線・範囲を小さく分けて再試行してください。':page.partial?'候補を確認できませんでした。再試行してください。':(last?last+
    (page.unconfirmed.length?'まで探索（未確認日あり）。':'まで探索済み。'):'')+(!page.rows.length?'探索済みの期間では候補が見つかっていません。':'候補を押すと地図で位置を確認できます。');
-   more.disabled=page.loading||!target||page.partial==='invalid';skip.hidden=!target||page.loading||!page.partial||page.partial==='invalid';skip.textContent='この日を未確認のまま次の日から探す';more.hidden=page.cursor>=aimCandidateSearchEnd();more.textContent=page.loading?'計算中…':page.partial?'再試行':'さらに先の候補を探す';
+   more.disabled=page.loading||!target||page.partial==='invalid';skip.hidden=!target||page.loading||!page.partial||page.partial==='invalid';skip.textContent='この日を未確認のまま次の日から探す';more.hidden=page.outside||page.cursor>=aimCandidateSearchEnd();more.textContent=page.loading?'計算中…':page.partial?'再試行':'さらに先の候補を探す';
   }
   async function search(){
    if(!current()||page.loading||!target)return;page.loading=true;page.partial=null;if(page.cursor>=page.end)page.end=aimCandidatePageEnd(page.cursor);draw();
    try{
+    page.outside=await opportunityOutsideOrbit({place,target,body,...opts});
+    if(!current()||page.outside)return;
     const result=await AstroNotesShapePlanner.search({target,body,...opts}, {place,record},{from:page.cursor,end:page.end,limit:4,cache:page.cache,isCurrent:current,align:AstroNotesAlign,isMountain:aimIsMountain,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),elevationAt:candidateElevation,
     viewFor:(obs,p)=>aimShootingView(obs,p.target,p.body,p.partId,p.matchMode),ensure:b=>AstroNotesBodies.ensure(b),onProgress:p=>{if(current())status.textContent='線上・範囲内を確認中… '+dayText(p.day)+' ・ '+p.checked+'位置';}});
     if(!current()||result.cancelled)return;
@@ -2750,12 +2755,23 @@ function opportunityWarmup(){
  opportunityGeometryHook();
  if(opportunityAllowed()&&!document.hidden&&opportunityServer.state.enabled===false)opportunityDeviceBackground();
  if(!opportunityAllowed()||document.hidden||opportunityWarmupFlight)return;
- const key=JSON.stringify([auth?.token,auth?.loginId,accessState.generation,opportunityDateAt(Date.now()),opportunityAirKey(true)]);
+ const key=JSON.stringify([auth?.token,auth?.loginId,accessState.generation,opportunityDateAt(Date.now()),opportunityAirKey(true),version]);
  if(opportunityWarmupKey===key)return;opportunityWarmupKey=key;
- const owner=auth.token,generation=accessState.generation;
- opportunityWarmupFlight=(async()=>{try{const prefs=await opportunityServer.ready();if(owner!==auth?.token||generation!==accessState.generation||!opportunityAllowed())return;if(!prefs.enabled)opportunityDeviceBackground();
- else await apiTransport('POST','/overlaps/ensure',{environment:'trial',intent:'background',startDay:opportunityDateAt(Date.now()),bodies:['sun','moon'],placeIds:null,sourceRev:prefs.sourceRev});
- opportunityWarmupKey=JSON.stringify([auth?.token,auth?.loginId,accessState.generation,opportunityDateAt(Date.now()),opportunityAirKey(true)]);}catch{/* The visible list reports failures and offers retry. */}finally{opportunityWarmupFlight=null;if(opportunityActive())renderOpportunities();}})();
+ const owner=auth.token,generation=accessState.generation,revision=version;
+ opportunityWarmupFlight=(async()=>{try{
+  const prefs=await opportunityServer.ready();
+  const live=()=>owner===auth?.token&&generation===accessState.generation&&opportunityAllowed()&&!document.hidden;
+  if(!live())return;
+  if(!prefs.enabled){opportunityDeviceBackground();return;}
+  const signature=opportunitySignature(),current=()=>live()&&version===revision;
+  const {pairs}=opportunityPairSet(signature,['sun','moon']);
+  const result=await opportunityFilterOrbit(pairs,current);
+  if(result?.remaining.length&&!result.excluded.length&&signature===opportunitySignature()){
+   await apiTransport('POST','/overlaps/ensure',{environment:'trial',intent:'background',startDay:opportunityDateAt(Date.now()),bodies:['sun','moon'],placeIds:null,sourceRev:prefs.sourceRev});
+  }
+ }catch{/* The visible list reports failures and offers retry. */}
+ finally{opportunityWarmupFlight=null;if(opportunityActive())renderOpportunities();else if(version!==revision)setTimeout(opportunityWarmup,0);}
+ })();
 }
 // Device geometric engine: the same extracted bundle as the server, in a
 // hidden same-origin frame. Complete results persist per account, engine,
@@ -3213,9 +3229,13 @@ function opportunityDeviceBackground(){
  let restart=false;
  opportunityBackgroundFlight=(async()=>{
   try{
-   const state=await opportunityEngineOpen();await opportunityDbPrune(owner,state.engine);
    const signature=opportunitySignature(),{pairs}=opportunityPairSet(signature,['sun','moon']),[start]=opportunityBounds(opportunityDateAt(Date.now()));
-   const tasks=[];for(let i=0;i<7;i++)for(const pair of pairs)tasks.push([pair,start+i*86400000]);
+   const revision=version;
+   const filtered=await opportunityFilterOrbit(pairs,()=>live()&&revision===version);
+   if(!filtered||signature!==opportunitySignature()){restart=live();return;}
+   if(!filtered.remaining.length)return;
+   const state=await opportunityEngineOpen();await opportunityDbPrune(owner,state.engine);
+   const tasks=[];for(let i=0;i<7;i++)for(const pair of filtered.remaining)tasks.push([pair,start+i*86400000]);
    let next=0;
    const lane=async()=>{
     for(let task;(task=tasks[next++]);){
@@ -3231,6 +3251,73 @@ function opportunityDeviceBackground(){
   finally{opportunityBackgroundFlight=null;if(restart&&live())setTimeout(opportunityDeviceBackground,0);}
  })();
 }
+// Geometry belongs to the registered pair. Cache by its effective geometry
+// and the refraction context, so edits and late sync cannot reuse a stale veto.
+const opportunityReachMemo=new Map();
+function opportunityOutsideOrbit(pair){
+ const {place,target,body}=pair,S=AstroNotesShooting,limit=S.reachLimit(body);
+ if(limit===null||!S.point(place)||!S.point(target))return Promise.resolve(false);
+ const signature=JSON.stringify([place.latitude,place.longitude,place.elevation,place.groundManualM,place.eyeHeightAGL,
+  place.eyeHeightRangeAGL,place.shape,target,body,pair.partId,pair.matchMode,AstroNotesAtmosphere.dataKey()]);
+ return recordBounded(opportunityReachMemo,signature,()=>{
+  const check=async()=>{
+   const range=RecordHeight.range(place.eyeHeightRangeAGL),eye=place.eyeHeightAGL??1.5;
+   if((place.eyeHeightRangeAGL&&!range)||!Number.isFinite(eye)||eye<0||eye>700)return false;
+   const stored=place.groundManualM??place.elevation;
+   const groundKnown=Number.isFinite(stored)&&stored>=-500&&stored<=9000;
+   const shape=place.shape?S.cleanShape(place.shape):null;
+   if(place.shape&&!shape)return false;
+   const opts=S.searchOptions(pair,aimIsMountain);
+   // A legacy or explicit point contact uses the selected part coordinate.
+   if(opts.pointOnly||!opts.broad&&opts.partId!=='__whole'&&!target.rim){
+    const part=target.parts?.find(p=>p.id===opts.partId)||target.parts?.[0];
+    if(!part)return false;
+    const groundMin=shape||!groundKnown?-1000:stored,groundMax=shape||!groundKnown?10000:stored;
+    return S.pointOutsideOrbit(body,shape?.vertices||[place],groundMin+(range?.min??eye),groundMax+(range?.max??eye),
+     {latitude:part.latitude??target.latitude,longitude:part.longitude??target.longitude,m:part.m});
+   }
+   // Entire outlines depend on the view. The registered point can share the
+   // same silhouette/cap with the normal solver. For line/area and height
+   // ranges a single outline is insufficient to rule out the whole region.
+   if(shape||range||!groundKnown)return false;
+   const obs=aimObserverAt(aimSavedFrom({...place,stand:'ground',standAglM:eye,groundManualM:stored}),stored);
+   const geometry=AstroNotesAlign.geometryFrom(obs,target,{eyeM:obs.eyeM,partId:opts.partId});
+   if(!geometry||!Number.isFinite(geometry.angle)||geometry.distanceKm>200||
+    Math.abs(S.directionDeclination(obs.latitude,geometry.azimuth,geometry.angle))<=limit)return false;
+   if(aimIsMountain(target)){
+    let cap=null;
+    if(target.id==='fuji')try{cap=await aimIndexedCap(obs,obs.elevation+obs.eyeM,target);}catch{/* Full ridge source below. */}
+    if(!cap){
+     const ridge=await aimLookRidge(obs,obs.elevation+obs.eyeM,target,{exactSearch:target.id==='fuji'});
+     cap=aimSummitCap(ridge,obs,obs.elevation+obs.eyeM,target);
+     if(!cap)return false;
+    }
+    if(!Number.isFinite(cap.base)||!Array.isArray(cap.ridge)||!cap.ridge.length)return false;
+    const outline=cap.ridge.concat([[cap.ridge[0][0],cap.base],[cap.ridge.at(-1)[0],cap.base]]);
+    return S.outlineOutsideOrbit(body,obs.latitude,geometry.azimuth,outline);
+   }
+   await AstroNotesAssets.ensureModels();
+   const outline=recordSilhouette(obs,target,{eyeM:obs.eyeM});
+   return !!outline&&S.outlineOutsideOrbit(body,obs.latitude,geometry.azimuth,outline.polygon);
+  };
+  const pending=check().catch(()=>{
+   if(opportunityReachMemo.get(signature)===pending)opportunityReachMemo.delete(signature);
+   return false;
+  });
+  return pending;
+ }
+ ,256);
+}
+
+async function opportunityFilterOrbit(pairs,live){
+ const remaining=[],excluded=[];
+ for(const pair of pairs){
+  if(!live())return null;
+  (await opportunityOutsideOrbit(pair)?excluded:remaining).push(pair);
+ }
+ return live()?{remaining,excluded}:null;
+}
+
 function opportunityPairs(bodies){
  const {groups,shapes}=recordSearchIndex(),pairs=[],unavailable=[];
  for(const favorite of favorites){
@@ -3335,6 +3422,7 @@ function opportunityBuild(){
  scopeClear.setAttribute('aria-label','撮影地点の絞り込みを外す');scopeClear.onclick=()=>{opportunitySet({placeId:''});requestAnimationFrame(()=>el('recordOpportunityTarget')?.focus({preventScroll:true}));};scope.append(scopeBack,scopeName,scopeClear);
  const notice=opportunityNode('p',{id:'recordOpportunityNotice',className:'tiny'});notice.setAttribute('role','status');
  const modelNotice=opportunityNode('p',{id:'recordOpportunityModelNotice',className:'tiny',hidden:true},'軌道で拾った候補を、大気差込みで確かめてから確定します');
+ const reachNotice=opportunityNode('p',{id:'recordOpportunityReachNotice',className:'tiny',hidden:true});
  const status=opportunityNode('div',{id:'recordOpportunityStatus',className:'tiny'});status.setAttribute('role','status');
  const list=opportunityNode('div',{id:'recordOpportunityList'}),pending=opportunityNode('div',{id:'recordOpportunityPending'}),actions=opportunityNode('div',{className:'record-opportunity-actions'});
  const through=opportunityNode('p',{id:'recordOpportunityThrough',className:'tiny record-opportunity-through'});
@@ -3357,8 +3445,8 @@ function opportunityBuild(){
   const job=opportunityJob;if(!job||!opportunityCurrent(job))return;
   if(job.scan.extend(opportunityPageEnd(job.scan.state.through),opportunityPageRows))void opportunityAdvance(job);
  };
- actions.append(retry,more);controls.append(scope,period,filters);host.append(controls,modelNotice,notice,status,list,pending,through,actions);
- opportunityDom={host,period,date,dateLabel,today,body,target,place,scope,scopeName,modelNotice,notice,status,list,pending,through,retry,more,rendered:0,lastDay:null};return true;
+ actions.append(retry,more);controls.append(scope,period,filters);host.append(controls,modelNotice,reachNotice,notice,status,list,pending,through,actions);
+ opportunityDom={host,period,date,dateLabel,today,body,target,place,scope,scopeName,modelNotice,reachNotice,notice,status,list,pending,through,retry,more,rendered:0,lastDay:null};return true;
 }
 function opportunitySet(patch){
  if(!opportunityAllowed())return;opportunityClosePicker();
@@ -3501,7 +3589,9 @@ function opportunityDraw(job){
  // 検査で一覧の仕組みだけを確かめる時は2段目を止める（'off'）。利用者の切替ではない
  const air=globalThis.AstroNotesOpportunityAir!=='off';if(air)opportunityVerify(job);
  const rows=air?opportunityVisibleRows(job):s.rows,drawn=s.rows.length+'|'+(air?job.verifyRev||0:'off');
- d.modelNotice.hidden=false;
+ d.modelNotice.hidden=!job.pairs.length||job.prechecking;
+ d.reachNotice.hidden=!job.excluded?.length||!job.pairs.length;
+ if(!d.reachNotice.hidden)d.reachNotice.textContent=`天体の軌道が届かない ${job.excluded.length}組は探索を省きました。`;
  d.host.setAttribute('aria-busy',String(s.running&&!s.done||!!job.rendering||!!job.autoMore||!!job.verifying));
  if(d.rendered<0){d.list.replaceChildren();d.rendered=0;d.lastDay=null;}
  const pending=!s.done&&!job.remote?s.pending||[]:[];
@@ -3511,11 +3601,13 @@ function opportunityDraw(job){
  const airFailed=air&&opportunityAirFailed(job),airPending=air&&job.verifying;
  d.notice.textContent=opportunityNotice;
  if(s.error){job.progressUi=null;d.status.textContent=s.error.message||'サーバーに接続できません。再試行してください。';}
+ else if(job.prechecking){job.progressUi=null;d.status.textContent='天体が届く方角か確認しています…';}
  else if(!s.done&&(job.remote||job.pairs.length)){
   if(job.progressUi?.node.parentNode!==d.status)job.progressUi=showRecordProgress(d.status,job.remote?'サーバーで確認中':'確認中','組');
   opportunityProgress(job,s);
  }else{
   job.progressUi=null;d.status.textContent=!job.pairs.length?(!opportunityFilters.allTargets&&!opportunityFilters.targets.length?'対象を選び直してください。':job.unavailable?(job.policyUnavailable?'撮影地点の高さや重ね方を確認してください。':job.accessUnavailable===job.unavailable?'現在の権限では、この組み合わせを確認できません':'対象の登録を確認してください。'):
+  job.excluded?.length?`${[...new Set(job.excluded.map(p=>AstroNotesBodies.definition(p.body).name))].join('・')}の軌道が対象に届く範囲にないため、重なる日はありません。`:
   'この組み合わせで確認できる記録がありません'):
   failures?(s.failures.length?'確認できなかった組み合わせがあります':job.accessUnavailable===job.unavailable?'現在の権限では確認できない組み合わせがあります':'対象の登録を確認してください。'):
   airPending?'大気差を確認しています…':airFailed?'大気差を確認できなかった日があります':
@@ -3524,7 +3616,7 @@ function opportunityDraw(job){
  const coverage=failures||s.error||airFailed?'まで探索':airPending?'まで探索（大気差を確認中）':'まで確認';
  d.through.textContent=job.pairs.length&&s.through>job.start?opportunityDateAt(s.through-1).replaceAll('-','/')+coverage:'';
  d.retry.hidden=!s.done||airPending||(!s.failures.length&&!s.error&&!job.displayError&&!airFailed);
- d.more.hidden=!job.pairs.length||s.done&&s.through>=aimCandidateSearchEnd();
+ d.more.hidden=job.prechecking||!job.pairs.length||s.done&&s.through>=aimCandidateSearchEnd();
  d.more.disabled=!s.done||s.running||!!s.error;d.more.textContent=s.running?'計算中…':'さらに先を探す';
  // 2026-11-13 戻した位置は少しの間覚えておく。戻した直後に一覧が作り直されると、一瞬短くなったページにブラウザが位置を詰めていた（WebKitで292→220）
  if(opportunityRestore!==null&&opportunityRestoreUntil&&performance.now()>opportunityRestoreUntil){opportunityRestore=null;opportunityRestoreUntil=0;}
@@ -3574,18 +3666,33 @@ function renderOpportunities(retryEnd){
  const includesPlace=p=>opportunityFilters.targets.includes(p.target?.id??p.targetKey)&&(opportunityFilters.placeId?(p.sourcePlaceId??p.placeId)===opportunityFilters.placeId:opportunityFilters.allPlaces||opportunityFilters.places.includes(p.sourcePlaceId??p.placeId)),pairs=allPairs.filter(includesPlace),missing=unavailable.filter(includesPlace).length;
  const scanStart=start,job={remote:opportunityServer.state.enabled!==false,key,signature,owner,loginId:auth?.loginId,generation:accessState.generation,epoch:opportunityEpoch.ticket(),inputEpoch:opportunityInputEpoch.ticket(),revision:version,
  air:opportunityAirKey(opportunityServer.state.enabled!==false),pairs,unavailable:missing,accessUnavailable:unavailable.filter(p=>includesPlace(p)&&p.reason==='access').length,policyUnavailable:unavailable.filter(p=>includesPlace(p)&&['height','alignment'].includes(p.reason)).length,
- start:scanStart,placeMode:!!opportunityFilters.placeId};opportunityJob=job;
+ start:scanStart,placeMode:!!opportunityFilters.placeId,prechecking:!!pairs.length,excluded:[]};opportunityJob=job;
  job.controller=new AbortController();
  job.scan={state:{day:start,end,through:start,rows:[],pending:[],failures:[],checked:0,total:0,done:false,running:true,error:null},cancel:()=>job.controller.abort()};
  opportunityDraw(job);void opportunityStart(job,end,retryEnd);
 }
 async function opportunityStart(job,end,retryEnd){
  try{
+  const resolveOrbit=()=>opportunityFilterOrbit(job.pairs,()=>opportunityCurrent(job));
+  const finishOutside=filtered=>{
+   if(filtered.remaining.length||!filtered.excluded.length)return false;
+   job.pairs=[];job.excluded=filtered.excluded;job.prechecking=false;job.remote=false;
+   Object.assign(job.scan.state,{done:true,running:false});opportunityDraw(job);return true;
+  };
+  // Immutable target heights do not depend on the server preferences.
+  let filtered=null;
+  if(job.pairs.length&&job.pairs.every(p=>!p.target.parts?.some(part=>part.adjustable))){
+   filtered=await resolveOrbit();
+   if(!filtered||finishOutside(filtered))return;
+  }
   const prefs=await opportunityServer.ready();if(opportunityJob!==job||job.controller.signal.aborted||!opportunityActive()||job.owner!==auth?.token||job.loginId!==auth?.loginId||job.generation!==accessState.generation)return;
   // Applying an existing account preference can change targets and the cache
   // signature. Rebuild pair metadata before accepting any server results.
   if(job.signature!==opportunitySignature()){opportunityCancel();renderOpportunities(retryEnd);return;}
-  job.remote=prefs.enabled;job.air=opportunityAirKey(job.remote);
+  filtered??=await resolveOrbit();
+  if(!filtered||finishOutside(filtered))return;
+  job.pairs=filtered.remaining;job.excluded=filtered.excluded;job.prechecking=false;
+  job.remote=prefs.enabled&&!job.excluded.length;job.air=opportunityAirKey(job.remote);
   if(job.remote){const cached=opportunityCache.get(job.key);if(cached?.remote){job.restoreThrough=cached.through;opportunityAirRestore(job,cached.air);opportunityCache.delete(job.key);
   }job.scan=createServerOpportunityScan({api:(...args)=>apiTransport(...args),start:job.start,end,bodies:opportunityFilters.bodies.slice(),placeIds:opportunityFilters.placeId?[opportunityFilters.placeId]:opportunityFilters.allPlaces?null:opportunityFilters.places.slice(),
   targetIds:opportunityFilters.allTargets?null:opportunityFilters.targets.slice(),sourceRev:prefs.sourceRev,isCurrent:()=>opportunityCurrent(job),
@@ -3601,7 +3708,7 @@ async function opportunityStart(job,end,retryEnd){
   if(opportunityJob!==job||job.controller.signal.aborted||!opportunityActive()||job.owner!==auth?.token||job.loginId!==auth?.loginId||job.generation!==accessState.generation||!opportunityEpoch.current(job.epoch)||!opportunityInputEpoch.current(job.inputEpoch)||job.revision!==version)return;
   // The GET may have applied the account's target heights before a migration
   // CAS failed. Keep that error visible instead of leaving the old key loading.
-  job.air=opportunityAirKey(job.remote);job.signature=opportunitySignature();Object.assign(job.scan.state,{running:false,done:true,error});opportunityDraw(job);
+  job.air=opportunityAirKey(job.remote);job.signature=opportunitySignature();job.prechecking=false;Object.assign(job.scan.state,{running:false,done:true,error});opportunityDraw(job);
  }
 
 }
@@ -3640,7 +3747,7 @@ function opportunityHasReturn(){return !!opportunityReturn&&opportunityReturn.ow
 function opportunityReturnFromPreview(){if(!opportunityHasReturn()||!globalThis.TrialExplore?.active())return false;opportunityRestore=opportunityReturn.top;opportunityRestoreUntil=0;opportunityReturn=null;navigationHistory.goBack();return true;}
 for(const type of ['pointerdown','wheel','touchstart','keydown'])el('recordOpportunities').addEventListener(type,()=>{opportunityRestore=null;opportunityRestoreUntil=0;},{passive:true});
 const opportunityWatch=new MutationObserver(()=>{renderOpportunities();});opportunityWatch.observe(el('recordsView'),{attributes:true,attributeFilter:['hidden','data-tab']});
-document.addEventListener('astronotes-records-change',()=>{setTimeout(()=>{if(opportunityAllowed()&&!document.hidden&&opportunityServer.state.enabled===false)opportunityDeviceBackground();},0);if(opportunityJob?.remote&&opportunityJob.signature===opportunitySignature())return;
+document.addEventListener('astronotes-records-change',()=>{if(!opportunityActive())setTimeout(opportunityWarmup,0);if(opportunityJob?.remote&&opportunityJob.signature===opportunitySignature())return;
 opportunityInputEpoch.cancel();if(opportunityActive())renderOpportunities();});document.addEventListener('visibilitychange',renderOpportunities);document.addEventListener('astronotes-opportunity-input',()=>{if(opportunityApplyingPreferences)return;
 if(opportunityJob?.remote&&opportunityJob.air===opportunityAirKey(true))return;opportunityInputEpoch.cancel();if(opportunityActive())renderOpportunities();});document.addEventListener('astronotes-opportunity-settings',()=>{if(opportunityApplyingPreferences)return;
 const key=JSON.stringify(opportunityListSettings()),changed=key!==opportunityListSettingsKey;opportunityListSettingsKey=key;if(changed)opportunityServer.changed();if(!changed&&opportunityServer.state.enabled===true)return;opportunityInputEpoch.cancel();opportunityWarmupKey='';

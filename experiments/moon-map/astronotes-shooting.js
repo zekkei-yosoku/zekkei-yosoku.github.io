@@ -22,6 +22,52 @@ function candidatePlace(row){
   ...(Number.isFinite(o.elevation)?{elevation:o.elevation,groundManualM:o.elevation}:{}),
   ...(Number.isFinite(o.eyeM)&&o.eyeM>=0&&o.eyeM<=700?{standAglM:o.eyeM,eyeHeightAGL:o.eyeM}:{})};
 }
+// Limits for the supported 1900–2100 forecast. The conservative envelopes
+// include topocentric parallax, disk/limb size and the refraction used by the
+// app on top of the geocentric 24° (Sun) and 30° (Moon) bounds.
+const reachLimit=body=>body==='sun'?27.5:body==='moon'?33.5:null;
+const reachRad=Math.PI/180;
+function directionDeclination(latitude,azimuth,altitude){
+ const p=latitude*reachRad,a=azimuth*reachRad,h=altitude*reachRad;
+ const value=Math.sin(p)*Math.sin(h)+Math.cos(p)*Math.cos(h)*Math.cos(a);
+ return Math.asin(Math.max(-1,Math.min(1,value)))/reachRad;
+}
+// Include the full angular bounding box, not just its vertices; extrema of
+// declination can occur inside an edge. Angular distance bounds declination.
+function outlineOutsideOrbit(body,latitude,reference,outline){
+ const limit=reachLimit(body);
+ if(limit===null||!Number.isFinite(latitude)||!Number.isFinite(reference)||!outline?.length||
+    outline.some(p=>!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite)||p[1]<-90||p[1]>90))return false;
+ const az=outline.map(p=>((p[0]-reference+540)%360+360)%360-180),alt=outline.map(p=>p[1]);
+ const low=Math.min(...az),high=Math.max(...az),bottom=Math.min(...alt),top=Math.max(...alt);
+ if(high-low>=180)return false;
+ const center=directionDeclination(latitude,reference+(low+high)/2,(bottom+top)/2);
+ return Math.abs(center)-(high-low+top-bottom)/2>limit;
+}
+function reachEcef(p,height){
+ const a=6378137,e2=0.00669437999014,phi=p.latitude*reachRad,lambda=p.longitude*reachRad;
+ const sin=Math.sin(phi),n=a/Math.sqrt(1-e2*sin*sin);
+ return [(n+height)*Math.cos(phi)*Math.cos(lambda),(n+height)*Math.cos(phi)*Math.sin(lambda),(n*(1-e2)+height)*sin];
+}
+// A geodetic box encloses the vertices, edges and interior of a saved line
+// or polygon. Enclose it again in a ball using a conservative metric bound.
+function pointOutsideOrbit(body,sites,minEye,maxEye,target){
+ const limit=reachLimit(body);
+ if(limit===null||!sites?.length||!sites.every(point)||!point(target)||!Number.isFinite(target.m)||
+    ![minEye,maxEye].every(Number.isFinite)||minEye < -1000||maxEye>10700||maxEye<minEye||target.m < -1000||target.m>11000)return false;
+ const lat=sites.map(p=>p.latitude),lon=sites.map(p=>p.longitude);
+ const south=Math.min(...lat),north=Math.max(...lat),west=Math.min(...lon),east=Math.max(...lon);
+ const ref={latitude:(south+north)/2,longitude:(west+east)/2};
+ const start=reachEcef(ref,(minEye+maxEye)/2),end=reachEcef(target,target.m);
+ const delta=end.map((v,i)=>v-start[i]),length=Math.hypot(...delta);
+ const radius=112000*(north-south+east-west)/2+(maxEye-minEye)/2;
+ // The existing target geometry uses standard terrestrial refraction and a
+ // local tangent model. Stay within its local range for this veto.
+ if(!(length>radius)||length+radius>200000)return false;
+ const declination=Math.asin(delta[2]/length)/reachRad,spread=Math.asin(radius/length)/reachRad;
+ return Math.abs(declination)-spread>limit;
+}
+
 function observerMoveKey(s){return JSON.stringify([s?.body,s?.target,s?.partId??null,s?.limb||'center',s?.matchMode||'limb',s?.observer]);}
 function movedPlace(from,to,ground,eyeM){
  if(!point(from)||!point(to)||!Number.isFinite(ground)||ground< -500||ground>9000||!Number.isFinite(eyeM)||eyeM<0||eyeM>700)return null;
@@ -272,7 +318,7 @@ function hapticGate({vibrate=()=>{},clock=Date.now}={}){
  let previous=false,last=-Infinity,identity='';
  return (matched,key)=>{if(key!==identity){identity=key;previous=false;}const entered=matched&&!previous;previous=!!matched;if(entered&&clock()-last>800){last=clock();try{vibrate(12);}catch{/* 振動は無くてもよい */}}return entered;};
 }
-global.AstroNotesShooting={day,point,nightAllowed,savedObserver,candidatePlace,observerMoveKey,movedPlace,conditions,queryKey,searchOptions,eventsFor,matches,passageText,candidates,hapticGate,
+global.AstroNotesShooting={day,point,nightAllowed,reachLimit,directionDeclination,outlineOutsideOrbit,pointOutsideOrbit,savedObserver,candidatePlace,observerMoveKey,movedPlace,conditions,queryKey,searchOptions,eventsFor,matches,passageText,candidates,hapticGate,
  cleanShape,shapeContains,shapePaths,shapeCandidates,annotateShapeRuns,meters,interpolate};
 if(typeof module!=='undefined'&&module.exports)module.exports=global.AstroNotesShooting;
 })(globalThis);
