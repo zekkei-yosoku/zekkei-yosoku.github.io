@@ -1,4 +1,4 @@
-import {$,S,esc,setObserverHeightInput,wireObserverHeightInput} from '../../ui/presentation-helpers.js';
+import {bindToolMapLayout,$,S,esc,setObserverHeightInput,wireObserverHeightInput} from '../../ui/presentation-helpers.js';
 import {place,viewState} from '../../app/browser-state.js';
 import {lightTimingText,moonGlyphAt,moonHorizon,observerHere} from '../forecast/view.js';
 import {favForPoint,inheritedPoint,renameFromAfterFav,renderPointCard} from '../places/controller.js';
@@ -702,7 +702,7 @@ function openPlane(){
     $("planeHeightAuto").onclick=()=>{plane.groundOverride=null;plane.eyeOverride=null;heightError.hidden=true;heightError.textContent='';planeApply();};
   }
   planeSyncTime();
-  requestAnimationFrame(()=>{if(!viewState.plane||!toolAllowed('plane'))return;planeLayout();PlaneMap.open(AstroNotesRoutes.AIRPORT,10);});
+  requestAnimationFrame(()=>{if(!viewState.plane||!toolAllowed('plane'))return;plane.layout();PlaneMap.open(AstroNotesRoutes.AIRPORT,10);});
   planeApply();
 }
 // The map fills the space between the masthead and the time bar; the settings open as one sheet above the bar.
@@ -714,19 +714,10 @@ function planeSheet(pane){
   for(const b of $("planeView").querySelectorAll('button[data-plane-pane]'))b.setAttribute('aria-expanded',String(b.dataset.planePane===open));
   if(open){$("planeSheetTitle").textContent=sheet.querySelector(`[data-pane="${open}"]`).dataset.title;sheet.scrollTop=0;}
 }
-function planeLayout(){
-  const view=$("planeView");if(!view||view.hidden)return;
-  const head=document.querySelector('main>.masthead'),foot=$("planeTimeFooter");
-  view.style.setProperty('--plane-top',Math.max(0,Math.round(head?head.getBoundingClientRect().bottom:0))+'px');
-  view.style.setProperty('--plane-foot',Math.round(foot?Math.max(0,innerHeight-foot.getBoundingClientRect().top):0)+'px');
-  PlaneMap.redraw();
-}
 function wirePlaneLayout(){
   for(const el of $("planeView").querySelectorAll('[data-plane-pane]'))el.addEventListener('click',()=>planeSheet(el.dataset.planePane));
   $("planeSheetClose").onclick=()=>planeSheet(null);
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&viewState.plane&&!$("planeSheet").hidden){planeSheet(null);}});
-  const observer=new ResizeObserver(()=>planeLayout());observer.observe($("planeTimeFooter"));
-  const head=document.querySelector('main>.masthead');if(head)observer.observe(head);
-  addEventListener('resize',planeLayout);
+  plane.layout=bindToolMapLayout($("planeView"),$("planeTimeFooter"),()=>PlaneMap.redraw());
 }
 export {PlaneMap,openPlane,plane,planeFromPoint,planeSetFrom};

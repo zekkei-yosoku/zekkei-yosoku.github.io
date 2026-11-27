@@ -2528,7 +2528,8 @@
           "ホーム",
           "探す・見え方",
           "旧構図",
-          "月丼"
+          "月丼",
+          "人工衛星"
         ],
         "contract": "同じ日時バーの配置・DOM・所有権を維持。表示投影は共通、時刻状態は各host。",
         "checks": [
@@ -2556,6 +2557,11 @@
             "path": "src/features/home/controller.js",
             "scope": "renderAlmanac",
             "count": 1
+          },
+          {
+            "path": "src/features/satellites/controller.js",
+            "scope": "wireIssTime",
+            "count": 1
           }
         ]
       },
@@ -2573,7 +2579,8 @@
           "ホーム",
           "探す・見え方",
           "撮影候補の日時入力",
-          "月丼"
+          "月丼",
+          "人工衛星"
         ],
         "contract": "暦日選択・親画面の寿命・権限/取消を共通管理。呼出元の時刻を確定。",
         "checks": [
@@ -2600,6 +2607,11 @@
           {
             "path": "src/features/home/controller.js",
             "scope": "renderAlmanac",
+            "count": 1
+          },
+          {
+            "path": "src/features/satellites/controller.js",
+            "scope": "wireIssTime",
             "count": 1
           }
         ]

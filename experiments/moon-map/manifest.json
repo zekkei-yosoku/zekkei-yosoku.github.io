@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "20261124-moon-route-map",
-  "revision": 17,
+  "revision": 18,
   "baselineCommit": "f4f35b61359ba5ec8f9da057cf3026902a0402a4",
   "baselineSha256": {
     "index.html": "feb5e6c31bbb6014c66615a414cca2477296b89ab8e6a95ba1e98c07907a29c3",
@@ -32,7 +32,8 @@
     "src/features/candidates/height-grid.js": "7e2bbb70bc7febde1ce075497dad79c963f350b2049c4dd6c89b9b2589876a0d",
     "src/features/candidates/plateau-buildings.js": "fcffc03f9178f462c351a956bdf7cf6856fb93cd70e5587ab16b000a7136e417",
     "src/features/candidates/osm-places.js": "098b5f607f9e08cee740201e0e70c318aa9fd161c8751173dedd756b8e37ba89",
-    "src/features/candidates/tree-heights.js": "7303da2b7c2a3a549a2a6c6459daa9aed55ae771a863361ec34a98a72e1e42de"
+    "src/features/candidates/tree-heights.js": "7303da2b7c2a3a549a2a6c6459daa9aed55ae771a863361ec34a98a72e1e42de",
+    "src/features/satellites/controller.js": "061d8deea83e58df7a9e058775654aca33fd40580166899171b7b3cd24e3251f"
   },
   "overlays": [
     {
@@ -141,6 +142,10 @@
     },
     {
       "path": "src/features/candidates/tree-heights.js",
+      "required": false
+    },
+    {
+      "path": "src/features/satellites/controller.js",
       "required": false
     }
   ]

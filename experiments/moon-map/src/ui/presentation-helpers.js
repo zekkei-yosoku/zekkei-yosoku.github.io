@@ -107,4 +107,22 @@ function wireObserverHeightInput(input, kind, { commit, error, enabled = () => t
   };
 }
 
-export {$,RANK_COLOR,S,TINT,esc,getThemePreference,isObserverHeight,setObserverHeightInput,setThemePreference,wireObserverHeightInput};
+// Keep full-screen maps between the masthead and the shared date/time footer.
+function bindToolMapLayout(view, footer, redraw) {
+  const masthead = document.querySelector('main>.masthead');
+  function layout() {
+    if (view.hidden || view.hasAttribute('data-locked')) return;
+    const top = Math.max(0, masthead?.getBoundingClientRect().bottom || 0);
+    const bottom = Math.max(0, innerHeight - footer.getBoundingClientRect().top);
+    view.style.setProperty('--tool-map-top', Math.round(top) + 'px');
+    view.style.setProperty('--tool-map-bottom', Math.round(bottom) + 'px');
+    redraw();
+  }
+  const observer = new ResizeObserver(layout);
+  observer.observe(footer);
+  if (masthead) observer.observe(masthead);
+  addEventListener('resize', layout);
+  return layout;
+}
+
+export {bindToolMapLayout,$,RANK_COLOR,S,TINT,esc,getThemePreference,isObserverHeight,setObserverHeightInput,setThemePreference,wireObserverHeightInput};
