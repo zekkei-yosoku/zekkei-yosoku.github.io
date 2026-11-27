@@ -388,10 +388,10 @@ ctx.lineWidth=1;
  const renderMinutes=()=>view.dataset.exploreStage==='preview'&&view.dataset.exploreMode==='scene';
  const skyTimeline=AstroNotesScrollTimeline.mount({root:el('skyMapTimeline'),renderMinutes,annotations:mode=>globalThis.AstroNotesMapWorkspace?.annotations(mode),
  feedbackEvents:(from,to)=>{
-  const s=session;
-  if(!s?.eye||(!s.daily&&s.body!=="moon"&&s.body!=="sun"))return [];
+  const s=session,targetPoint=globalThis.AstroNotesMapWorkspace?.targetSkyPoint?.(),eye=targetPoint||s?.eye;
+  if(!eye||(!s.daily&&s.body!=="moon"&&s.body!=="sun"&&!(targetPoint&&AstroNotesBodies.ready())))return [];
   return AstroNotesScrollTimeline.feedbackEventsBetween(from,to,AstroNotesSkyMap.dayStart,day=>[
-   ...AstroNotesSkyMap.daily(s.body,day,s.eye,skyState).events.map(event=>event.at),
+   ...AstroNotesSkyMap.daily(s.body,day,eye,skyState).events.map(event=>event.at),
    ...(globalThis.AstroNotesMapWorkspace?.feedbackEvents(day)||[])
   ]);
  },getAt:()=>session?.at,getMode:()=>session?.scrubMode,enabled:()=>hasAccess()&&!!session&&active(),onChange:at=>{
@@ -413,7 +413,7 @@ ctx.lineWidth=1;
    }
   }else render(session.scrubMode==='time');
  },onBlend:b=>{if(!session)return;session.blend=b;map.redraw();},onSettle:settleSkyScrub,
- format:(at,mode)=>mode==='date'?dateAt(at).slice(5).replace('-','/'):textAt(at),getObserver:()=>session?.observer,sun:(at,o)=>AstroNotesAstro.sun(at,o),describe:(at,mode)=>ToolDateTimeBar.label(at)+(mode!=='date'?' '+textAt(at):'')});
+ format:(at,mode)=>mode==='date'?dateAt(at).slice(5).replace('-','/'):textAt(at),getObserver:()=>session?.observer||globalThis.AstroNotesMapWorkspace?.targetSkyPoint?.(),sun:(at,o)=>AstroNotesAstro.sun(at,o),describe:(at,mode)=>ToolDateTimeBar.label(at)+(mode!=='date'?' '+textAt(at):'')});
  let lastPlaybackDetail=0;
  const skyPlayback=ToolDateTimeBar.playback({row:el('skyMapPrev').parentElement,footer:skyFooter,getAt:()=>session?.at,enabled:()=>hasAccess()&&!!session&&active(),onStart:()=>{globalThis.AstroNotesCameraUI?.stop(el('aimLook'));stopSkyScrub(true);if(session)session.blend=null;
  },onStop:()=>{if(hasAccess()&&session&&active())render();},setAt:at=>{
@@ -423,7 +423,7 @@ ctx.lineWidth=1;
   if(changed){refresh();return;}
   const text=textAt(at);if(document.activeElement!==el('skyMapTime')&&el('skyMapTime').value!==text)el('skyMapTime').value=text;
   skyTimeline.follow(at,session.scrubMode);
-  if(globalThis.TrialExplore?.active()&&el('skyMapView').dataset.exploreMode==='scene')globalThis.TrialExplore.sync();else if(session.eye&&session.dailies)map.redraw();
+  if(globalThis.TrialExplore?.active()&&el('skyMapView').dataset.exploreMode==='scene')globalThis.TrialExplore.sync();else if((session.eye&&session.dailies)||globalThis.AstroNotesMapWorkspace?.targetSkyPoint?.())map.redraw();
   if(skyTimeDialog.open&&at-lastPlaybackDetail>=1000){lastPlaybackDetail=at;const state=currentState();if(state)el('skyMapAngles').textContent=`${bodyName(session.body)} 方位 ${state.azimuth.toFixed(1)}°・高度 ${state.altitude.toFixed(2)}°`;}
  }});
  function stopSkyScrub(commit=false){
@@ -600,7 +600,7 @@ ctx.lineWidth=1;
   save();return true;
  }
  setSkyMapUI({minuteScrubbing,resuming:()=>!!suspended,
- workspaceHost:()=>hasAccess()&&session&&active()?{session,map,pickMode,targetOn,extraCount:()=>session.target?aimSceneExtraTargets(session.target.id).length:0,setTime,setScrubMode,shownBodies,skyState,placePoint,
+ workspaceHost:()=>hasAccess()&&session&&active()?{session,map,pickMode,targetOn,extraCount:()=>session.target?aimSceneExtraTargets(session.target.id).length:0,setTime,setScrubMode,shownBodies,skyState,placePoint,syncTimeline:()=>skyTimeline.sync(session.at,session.scrubMode),
  restoreObserver:(o,ground=null,...opportunity)=>{session.observer=o;if(opportunity.length)session.candidateOpportunity=opportunity[0];session.ground=Number.isFinite(ground)?ground:null;
  if(validPoint(o)){map.setCenter(o.latitude,o.longitude);const eye=aimObserverAt(o,session.ground);session.eye={latitude:o.latitude,longitude:o.longitude,elevation:eye.elevation+eye.eyeM};}refresh();},
  restoreTarget:b=>{Object.assign(session,b);targetOn=validPoint(b.target);const sel=el('skyMapTarget'),custom=[...sel.options].find(o=>o.value==='custom');if(custom){if(b.custom)custom.textContent=b.custom.name;

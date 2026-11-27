@@ -9,7 +9,7 @@ const realTiles=process.env.MAP_BODIES_REAL_TILES==='1';
 const engines=(process.env.MAP_BODIES_ENGINES||'chrome,webkit').split(',');
 const widths=(process.env.MAP_BODIES_WIDTHS||'320,390').split(',').map(Number);
 const themes=(process.env.MAP_BODIES_THEMES||'light,dark').split(',');
-const checks=(process.env.MAP_BODIES_CHECKS||'matrix,engine,night,line,card,terrain').split(',');
+const checks=(process.env.MAP_BODIES_CHECKS||'matrix,engine,night,line,card,terrain,vicinity').split(',');
 const tools=['records','tower','diamond','pearl','skymap','multiscene'];
 const bodies=['moon','sun','sirius','venus','mercury','mars','jupiter','saturn'];
 const names={moon:'月',sun:'太陽',sirius:'シリウス',venus:'金星',mercury:'水星',mars:'火星',jupiter:'木星',saturn:'土星'};
@@ -221,6 +221,54 @@ async function cardEdges(browser,engine){
  }catch(e){await f.page.screenshot({path:`${out}/${engine}-card-failure.png`});throw e;}finally{await f.context.close();}
 }
 
+async function targetVicinity(browser,engine){
+ const f=await open(browser,390,'dark');
+ try{
+  const p=f.page,initial=Date.parse('2026-11-27T19:46:00+09:00');
+  await p.evaluate(initial=>{SkyMapUI.workspaceHost().restoreObserver(null);SkyMapUI.setTime(initial);},initial);
+  await p.waitForFunction(()=>document.querySelector('#skyMapView').dataset.mapCenter==='target'&&document.querySelector('#wsBody small').textContent.includes('対象付近'));
+  const value=await p.evaluate(()=>{
+   const h=SkyMapUI.workspaceHost(),s=h.session,t=s.target,eye={latitude:t.latitude,longitude:t.longitude,elevation:Number.isFinite(t.groundM)?t.groundM:0};
+   const st=h.skyState('moon',s.at,eye),day=AstroNotesSkyMap.dayStart(s.at);
+   const days=[-1,0,1].flatMap(i=>AstroNotesSkyMap.daily('moon',day+i*86400000,eye,h.skyState).events);
+   const rise=+document.querySelector('#wsBodyRise').dataset.at,set=+document.querySelector('#wsBodySet').dataset.at,events=[['rise',rise],['set',set]];
+   const canvas=document.querySelector('#skyMapTimeline .sky-timeline-annotations'),pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+   const tape=document.querySelector('#skyMapTimeline .sky-timeline-tape');
+   return {angle:document.querySelector('#wsBody b').textContent,alt:document.querySelector('#wsBody i').textContent,expected:st,
+    dayChange:AstroNotesSkyMap.dayStart(set)!==day,hasTicks:events.every(([side,at])=>days.some(e=>e.side===side&&Math.abs(e.at-at)<500)),
+    band:!canvas.hidden&&pixels.some((v,i)=>i%4===3&&v>0),daylight:tape?.style.backgroundImage.includes('linear-gradient')===true,
+    hiddenGeometry:getComputedStyle(document.getElementById('mapWsGeometryPage')).display==='none',dots:document.querySelectorAll('#mapWsDots span:not([hidden])').length,
+    observer:s.observer,dawn:document.querySelector('#wsDawn b').textContent};
+  });
+  assert.equal(value.observer,null);assert.equal(value.angle,value.expected.azimuth.toFixed(1)+'°');
+  assert(Math.abs(Number.parseFloat(value.alt.replace('高度 ','').replace('−','-'))-value.expected.altitude)<.051);
+  assert(value.dayChange&&value.hasTicks&&value.band&&value.daylight&&value.hiddenGeometry&&value.dots===2&&/^\d\d:\d\d$/.test(value.dawn),JSON.stringify(value));
+  await captureMatrix(p,`${out}/${engine}-target-vicinity.png`,'target');
+  await p.locator('#mapWsInfo').evaluate(info=>{info.scrollLeft=info.clientWidth;});
+  await p.waitForFunction(()=>document.querySelector('#mapWsDots span:last-child').classList.contains('on'));
+  await p.locator('#mapWsInfo').evaluate(info=>{info.scrollLeft=0;});
+  const set=await p.locator('#wsBodySet').getAttribute('data-at');
+  await p.locator('#wsBodySet').click();
+  await p.waitForFunction(at=>SkyMapUI.workspaceHost().session.at===at,+set);
+  await selectMap(p,'sun');
+  await p.waitForFunction(()=>document.querySelector('#wsBody small').textContent==='太陽 · 対象付近'&&!document.querySelector('#wsBodyRise').disabled);
+  await selectMap(p,'sirius');
+  await p.waitForFunction(()=>document.querySelector('#wsBody small').textContent==='シリウス · 対象付近'&&document.querySelector('#wsBody b').textContent!=='—');
+  await p.evaluate(()=>SkyMapUI.setTarget('fuji'));
+  await p.waitForFunction(()=>{
+   const h=SkyMapUI.workspaceHost(),s=h.session,t=s.target;
+   return t?.id==='fuji'&&document.querySelector('#wsBody b').textContent===h.skyState('sirius',s.at,{latitude:t.latitude,longitude:t.longitude,elevation:t.groundM??0}).azimuth.toFixed(1)+'°';
+  });
+  await p.evaluate(observer=>SkyMapUI.workspaceHost().restoreObserver(observer),observer);
+  await ready(p,'sirius');
+  await p.waitForFunction(()=>!document.querySelector('#mapWsGeometryPage').hidden&&document.querySelectorAll('#mapWsDots span:not([hidden])').length===3&&!document.querySelector('#wsBody small').textContent.includes('対象付近'));
+  await p.evaluate(()=>SkyMapUI.workspaceHost().restoreObserver(null));
+  await p.waitForFunction(()=>document.querySelector('#mapWsGeometryPage').hidden&&document.querySelector('#wsBody small').textContent.includes('対象付近'));
+  assert.deepEqual(f.errors,[]);
+  return {label:engine+'-target-vicinity',aboveGround:value.alt,riseSetVerified:value.hasTicks,band:value.band,basisChanged:true};
+ }finally{await f.context.close();}
+}
+
 async function terrainErrorLayout(browser,engine,theme){
  const f=await open(browser,320,theme),results=[];
  try{
@@ -253,6 +301,7 @@ async function terrainErrorLayout(browser,engine,theme){
    if(checks.includes('night')&&engine===engines[0])results.push(await realNightCases(browser,engine));
    if(checks.includes('line'))results.push(await lineSelection(browser,engine));
    if(checks.includes('card'))results.push(await cardEdges(browser,engine));
+   if(checks.includes('vicinity'))results.push(await targetVicinity(browser,engine));
    if(checks.includes('terrain'))for(const theme of themes)results.push(await terrainErrorLayout(browser,engine,theme));
   }finally{await browser.close();}
  }
