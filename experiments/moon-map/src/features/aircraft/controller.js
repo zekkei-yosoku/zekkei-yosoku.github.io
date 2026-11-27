@@ -521,12 +521,22 @@ function tracePlaneRoute(path,points){
   }
   if(points.length>1)path.lineTo(...points[points.length-1]);
 }
+function planeRouteMayBeNear(points,x,y,radius){
+  for(let i=0;i<points.length;i++){
+    const [cx,cy]=points[i];
+    const [ax,ay]=points[i-1]||points[i], [bx,by]=points[i+1]||points[i];
+    // A quadratic is contained within the bounds of its control points.
+    if(x>=Math.min(ax,cx,bx)-radius&&x<=Math.max(ax,cx,bx)+radius
+      &&y>=Math.min(ay,cy,by)-radius&&y<=Math.max(ay,cy,by)+radius)return true;
+  }
+  return false;
+}
 function planeRouteArrows(ctx,routes,width,height){
-  const arrows=[],edgePadding=14,minArrowGap=30;
+  const arrows=[],edgePadding=14,routeGap=23,minArrowGap=30;
   ctx.save();
   // Check the same curves that were stroked, with a wider stroke in CSS pixels.
   ctx.resetTransform();
-  ctx.lineWidth=46; // 23px from an adjacent route centerline
+  ctx.lineWidth=2*routeGap;
   for(const route of routes){
     const {path,points,color}=route;
     const distance=[0],heading=[0];
@@ -538,7 +548,7 @@ function planeRouteArrows(ctx,routes,width,height){
     const total=distance.at(-1);
     if(total<80)continue;
     const target=total*(path.kind==='landing'?.45:.4);
-    let best=null;
+    const candidates=[];
     for(let i=1;i<points.length;i++){
       const midpoint=(distance[i-1]+distance[i])/2;
       if(midpoint<total*.2||midpoint>total*.8||distance[i]-distance[i-1]<1)continue;
@@ -551,11 +561,12 @@ function planeRouteArrows(ctx,routes,width,height){
         bend=Math.max(bend,turn);
       }
       const score=bend*200+Math.abs(midpoint-target)/total;
-      if(best&&score>=best.score)continue;
-      if(routes.some(other=>other!==route&&ctx.isPointInStroke(other.line,x,y)))continue;
-      if(arrows.some(arrow=>Math.hypot(arrow.x-x,arrow.y-y)<minArrowGap))continue;
-      best={x,y,angle:heading[i]+(path.kind==='landing'?Math.PI:0),score,color};
+      candidates.push({x,y,angle:heading[i]+(path.kind==='landing'?Math.PI:0),score,color});
     }
+    candidates.sort((a,b)=>a.score-b.score);
+    const best=candidates.find(({x,y})=>
+      !arrows.some(arrow=>Math.hypot(arrow.x-x,arrow.y-y)<minArrowGap)
+      &&!routes.some(other=>other!==route&&planeRouteMayBeNear(other.points,x,y,routeGap)&&ctx.isPointInStroke(other.line,x,y)));
     if(best)arrows.push(best);
   }
   ctx.restore();
