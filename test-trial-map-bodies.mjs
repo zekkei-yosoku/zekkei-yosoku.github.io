@@ -6,6 +6,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const require=createRequire(import.meta.url),S=require('./experiments/moon-map/astronotes-shooting.js');
 const B=require('./astronotes-bodies.js'),A=require('./astronotes-align.js'),Astro=require('./astronotes-astro.js'),Geo=require('./astronotes-terrain.js'),Sky=require('./astronotes-sky-map.js');
+const Atmosphere=require('./astronotes-atmosphere.js');
 const points=B.definitions.filter(d=>!d.limbs).map(d=>d.id),observer={latitude:35.7,longitude:139.8,elevation:31.5};
 const target=A.targetById('skytree'),day=Date.parse('2026-11-26T00:00:00+09:00');
 globalThis.AstroNotesCandidateDiscovery??=require('./src/features/candidates/search.js');
@@ -43,8 +44,8 @@ test('実計算の昼夜両方の幾何重なりから、点天体の夜だけ�
 // private関数の露出はこのVMだけ。配信資産やアプリのglobalには検査用口を追加しない。
 function workspace({body='sirius',bodies=B,align=A}={}){
  const h={session:{body,at:day,eyeM:1.5,partId:'__whole',target,eye:observer,observer},targetOn:true,redraw(){},skyState:(body,at,o)=>B.state(body,at,o,{refraction:false})};
- const c=vm.createContext({console,Date,Math,Promise,Map,Set,performance,Number,Object,Array,JSON,Error,setTimeout,clearTimeout,requestAnimationFrame:()=>1,cancelAnimationFrame(){},document:{getElementById:()=>null},
-  AstroNotesBodies:bodies,AstroNotesAlign:align,AstroNotesShooting:S,AstroNotesSkyMap:Sky,AstroNotesAstro:Astro,AstroNotesTerrain:Geo,groundAt:async()=>30,aimIsMountain:()=>false,SkyMapUI:{workspaceHost:()=>h}});
+ const c=vm.createContext({console,Date,Math,Promise,Map,Set,performance,Number,Object,Array,JSON,Error,Event,setTimeout,clearTimeout,requestAnimationFrame:()=>1,cancelAnimationFrame(){},document:{hidden:true,getElementById:id=>id==='skyMapView'?{hasAttribute:()=>false}:null,dispatchEvent(){}},
+  AstroNotesBodies:bodies,AstroNotesAlign:align,AstroNotesShooting:S,AstroNotesSkyMap:Sky,AstroNotesAstro:Astro,AstroNotesTerrain:Geo,AstroNotesAtmosphere:Atmosphere,groundAt:async()=>30,aimIsMountain:()=>false,SkyMapUI:{workspaceHost:()=>h}});
  const source=readFileSync(new URL('./experiments/moon-map/astronotes-map-workspace.js',import.meta.url),'utf8');
  assert(source.includes('\ninit();\n'));
  vm.runInContext(source.replace('\ninit();\n','\nactive=true;viewMode="target";g.probe={lineFor,computeBand,nightBandShape,windowsAt,state:()=>lineState,band:()=>bandState,setMode:v=>viewMode=v,setBand:v=>bandState=v,setLine:v=>lineState=v,key:()=>targetKey(host())};\n'),c);
