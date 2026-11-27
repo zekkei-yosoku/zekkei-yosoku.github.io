@@ -511,7 +511,64 @@ function planeMapText(){
 }
 // Landings purple and solid, take-offs teal and dashed. The soft blue band is where to stand, gold the overlap.
 const PLANE_ROUTE_COLORS={landing:'#7b3fbf',takeoff:'#00897b'};
-function planeRouteColor(paths,path){return PLANE_ROUTE_COLORS[path.kind]||PLANE_ROUTE_COLORS.landing;}
+function tracePlaneRoute(path,points){
+  if(!points.length)return;
+  path.moveTo(...points[0]);
+  // The curve still passes through each segment midpoint in its original direction.
+  for(let i=1;i<points.length-1;i++){
+    const [x,y]=points[i],next=points[i+1];
+    path.quadraticCurveTo(x,y,(x+next[0])/2,(y+next[1])/2);
+  }
+  if(points.length>1)path.lineTo(...points[points.length-1]);
+}
+function planeRouteArrows(ctx,routes,width,height){
+  const arrows=[],edgePadding=14,minArrowGap=30;
+  ctx.save();
+  // Check the same curves that were stroked, with a wider stroke in CSS pixels.
+  ctx.resetTransform();
+  ctx.lineWidth=46; // 23px from an adjacent route centerline
+  for(const route of routes){
+    const {path,points,color}=route;
+    const distance=[0],heading=[0];
+    for(let i=1;i<points.length;i++){
+      const dx=points[i][0]-points[i-1][0],dy=points[i][1]-points[i-1][1];
+      distance.push(distance[i-1]+Math.hypot(dx,dy));
+      heading.push(Math.atan2(dy,dx));
+    }
+    const total=distance.at(-1);
+    if(total<80)continue;
+    const target=total*(path.kind==='landing'?.45:.4);
+    let best=null;
+    for(let i=1;i<points.length;i++){
+      const midpoint=(distance[i-1]+distance[i])/2;
+      if(midpoint<total*.2||midpoint>total*.8||distance[i]-distance[i-1]<1)continue;
+      const x=(points[i-1][0]+points[i][0])/2,y=(points[i-1][1]+points[i][1])/2;
+      if(x<edgePadding||x>width-edgePadding||y<edgePadding||y>height-edgePadding)continue;
+      let bend=0;
+      for(let j=1;j<points.length;j++){
+        if(Math.abs((distance[j-1]+distance[j])/2-midpoint)>40||distance[j]-distance[j-1]<.5)continue;
+        const turn=Math.abs(((heading[i]-heading[j])+3*Math.PI)%(2*Math.PI)-Math.PI);
+        bend=Math.max(bend,turn);
+      }
+      const score=bend*200+Math.abs(midpoint-target)/total;
+      if(best&&score>=best.score)continue;
+      if(routes.some(other=>other!==route&&ctx.isPointInStroke(other.line,x,y)))continue;
+      if(arrows.some(arrow=>Math.hypot(arrow.x-x,arrow.y-y)<minArrowGap))continue;
+      best={x,y,angle:heading[i]+(path.kind==='landing'?Math.PI:0),score,color};
+    }
+    if(best)arrows.push(best);
+  }
+  ctx.restore();
+  for(const {x,y,angle,color} of arrows){
+    const dx=9*Math.cos(angle),dy=9*Math.sin(angle),sideX=8*Math.sin(angle),sideY=8*Math.cos(angle);
+    ctx.beginPath();
+    ctx.moveTo(x+dx,y+dy);
+    ctx.lineTo(x-dx-sideX,y-dy+sideY);
+    ctx.lineTo(x-dx+sideX,y-dy-sideY);
+    ctx.closePath();
+    ctx.fillStyle=color;ctx.strokeStyle='white';ctx.lineWidth=2.5;ctx.fill();ctx.stroke();
+  }
+}
 let planeBandContext = null;
 let planeBandFrame = null;
 PlaneMap.setOverlay((ctx,{project,view,width,height})=>{
@@ -519,10 +576,11 @@ PlaneMap.setOverlay((ctx,{project,view,width,height})=>{
   // 計算の間も撮影地点と空港は描く（2026-11-25 ユーザー「撮影地点も消えたり出たり」）
   const r=plane.map||{paths:[],polygons:[],centerLines:[],overlap:{overlaps:[]}};
   const cs=getComputedStyle(document.documentElement),sunC=cs.getPropertyValue('--ray-sun').trim(),ink=cs.getPropertyValue('--secondary').trim();
-  const trace=(points,drawing=ctx)=>{drawing.beginPath();const xy=points.map(p=>project(p.latitude,p.longitude));if(!xy.length)return;drawing.moveTo(...xy[0]);
-    // Midpoint quadratic smoothing keeps sampled curves round on screen without moving the endpoints.
-    for(let i=1;i<xy.length-1;i++)drawing.quadraticCurveTo(xy[i][0],xy[i][1],(xy[i][0]+xy[i+1][0])/2,(xy[i][1]+xy[i+1][1])/2);
-    if(xy.length>1)drawing.lineTo(...xy[xy.length-1]);};
+  const pixels=points=>points.map(p=>project(p.latitude,p.longitude));
+  const trace=(points,drawing=ctx)=>{
+    drawing.beginPath();
+    tracePlaneRoute(drawing,pixels(points));
+  };
   ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
   // Paint the bands on a shared off-screen canvas so crossing bands retain their opacity.
   const {polygons,centerLines}=r;
@@ -551,32 +609,25 @@ PlaneMap.setOverlay((ctx,{project,view,width,height})=>{
   }
   // 帯は見やすさのための太さ。実際に重なる幅は数十mなので、中心を細い線で示す（2026-11-25 ユーザー「青いところにあるのに重ならない」）
   ctx.strokeStyle='#1d5fa8';ctx.lineWidth=2;for(const line of r.centerLines||[]){trace(line.points);ctx.stroke();}
-  for(const path of r.paths){
-    const color=planeRouteColor(r.paths,path),dash=path.kind==='takeoff'?[12,9]:[];
-    ctx.setLineDash(dash);ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=8;trace(path.points);ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=4;ctx.stroke();
+  const routes=r.paths.map(path=>{
+    const points=pixels(path.points),line=new Path2D();
+    tracePlaneRoute(line,points);
+    return {path,points,line,color:PLANE_ROUTE_COLORS[path.kind]||PLANE_ROUTE_COLORS.landing};
+  });
+  for(const {path,points,line,color} of routes){
+    ctx.setLineDash(path.kind==='takeoff'?[12,9]:[]);
+    ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=8;ctx.stroke(line);
+    ctx.strokeStyle=color;ctx.lineWidth=4;ctx.stroke(line);
     // The straight final before touchdown is drawn solid and heavier.
-    const near=path.kind==='landing'?path.points.filter(p=>p.distanceKm<=8):[];
-    if(near.length>1){ctx.setLineDash([]);trace(near);ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=11;ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=6;ctx.stroke();}
-    ctx.setLineDash([]);
-    // One arrow per route, on a straight stretch. The smoothed trace passes exactly through each segment's midpoint
-    // with that segment's direction, so the arrow sits on the drawn line and points along it.
-    const xy=path.points.map(p=>project(p.latitude,p.longitude)),seg=[0];
-    for(let i=1;i<xy.length;i++)seg.push(seg[i-1]+Math.hypot(xy[i][0]-xy[i-1][0],xy[i][1]-xy[i-1][1]));
-    const total=seg[seg.length-1];if(total<80)continue;
-    const dir=i=>Math.atan2(xy[i][1]-xy[i-1][1],xy[i][0]-xy[i-1][0]),turn=(a,b)=>Math.abs(((b-a)+3*Math.PI)%(2*Math.PI)-Math.PI);
-    const target=total*(path.kind==='landing'?.45:.4);let best=null;
-    for(let i=1;i<xy.length;i++){
-      const m=(seg[i-1]+seg[i])/2;if(m<total*.2||m>total*.8||seg[i]-seg[i-1]<1)continue;
-      // Largest heading change of any segment within 40 px either side.
-      let bend=0;for(let j=1;j<xy.length;j++)if(Math.abs((seg[j-1]+seg[j])/2-m)<=40&&seg[j]-seg[j-1]>=.5)bend=Math.max(bend,turn(dir(i),dir(j)));
-      const score=bend*200+Math.abs(m-target)/total;if(!best||score<best.score)best={i,score};
+    const near=path.kind==='landing'?points.filter((_,i)=>path.points[i].distanceKm<=8):[];
+    if(near.length>1){
+      ctx.setLineDash([]);ctx.beginPath();tracePlaneRoute(ctx,near);
+      ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=11;ctx.stroke();
+      ctx.strokeStyle=color;ctx.lineWidth=6;ctx.stroke();
     }
-    if(!best)continue;
-    const i=best.i,x=(xy[i-1][0]+xy[i][0])/2,y=(xy[i-1][1]+xy[i][1])/2,a=dir(i)+(path.kind==='landing'?Math.PI:0);
-    ctx.beginPath();ctx.moveTo(x+9*Math.cos(a),y+9*Math.sin(a));ctx.lineTo(x-9*Math.cos(a)+8*Math.cos(a+Math.PI/2),y-9*Math.sin(a)+8*Math.sin(a+Math.PI/2));
-    ctx.lineTo(x-9*Math.cos(a)-8*Math.cos(a+Math.PI/2),y-9*Math.sin(a)-8*Math.sin(a+Math.PI/2));ctx.closePath();
-    ctx.fillStyle=color;ctx.strokeStyle='white';ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.fill();ctx.stroke();
   }
+  ctx.setLineDash([]);
+  planeRouteArrows(ctx,routes,width,height);
   for(const segment of r.overlap.overlaps||[]){trace(segment.points);ctx.strokeStyle='white';ctx.lineWidth=12;ctx.stroke();ctx.strokeStyle=sunC;ctx.lineWidth=7;ctx.stroke();}
   const P=planeFromPoint(),[x,y]=project(P.latitude,P.longitude);ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.fillStyle=sunC;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='white';ctx.stroke();
   aimMapLabel(ctx,x,y+18,P.name,sunC,width,height,'center');
