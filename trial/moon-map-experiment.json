@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "20261124-moon-route-map",
-  "revision": 36,
+  "revision": 37,
   "baselineCommit": "f4f35b61359ba5ec8f9da057cf3026902a0402a4",
   "productionSha256": {
     "index.html": "feb5e6c31bbb6014c66615a414cca2477296b89ab8e6a95ba1e98c07907a29c3",
@@ -43,7 +43,7 @@
   },
   "overlaySha256": {
     "src/index.html": "9be209618caca5c1301ee31896b8d1463dbf75ac99c5b217bc11926191907a56",
-    "src/features/aircraft/controller.js": "9e1bbd1cb1a6c8549f4e3e82996802041085ae304f2855152a9f7d19868c6ff6",
+    "src/features/aircraft/controller.js": "7e6bf3622f1e12c535f3a8301bf4236f922e472605d103e095305aa6b04d9d25",
     "astronotes-plane.js": "20ca336df57c9b0fc6411176c7393c9db4cee7dcf587be4a0a26608c54e59916",
     "astronotes-routes.js": "fc099255874d597c8ee2146d8ac611cb5f3613c20c6621d223be6422365bb000",
     "astronotes-datetime-ui.css": "12bdf08dc975d4ab6d7d80dd77a423068cfb5c79c2af99e974cb59b8caf17fde",
@@ -90,7 +90,7 @@
     "astronotes-iss.js": "7c864a204182a42de1a248d3a965dfc157e6a76e737c2745ce573a48fbc6f3a7",
     "astronotes-explore-simple.js": "21c2977f019bc8a8b2217b68f4e7c975c559e959ce8bba7460c27ba7f23d9def",
     "astronotes-candidate-search.js": "3821ed34f373fa4259a1cf55a1c6f311b4d7a0428232b298fafb149b6642c084",
-    "index.html": "5de8bcbb5cfe4c183ea54cb779fc16647f75905d8856a6bd9ad04c85a7880103",
-    "app-version.txt": "1157eda19461c2ac5e8d7431679530c2b29632a2e38d3127cb51808d014f07d0"
+    "index.html": "aeeed8234211664074c541745bb5c1d0c0e3bd4b57a59fb7e0f8dab81f3cd0a0",
+    "app-version.txt": "3d1918a876321f73612af87e919b59bb08016ab68e941408ae39a81b8c13a919"
   }
 }

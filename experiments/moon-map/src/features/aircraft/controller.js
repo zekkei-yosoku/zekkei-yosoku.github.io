@@ -555,7 +555,7 @@ function planeMapText(){
   if(r.overlap.status==='missing-elevation'){first='標高が不明のため計算できません';second='';}
   else{
     first=m&&Number.isFinite(m.apparentAltitude)?`月 方位${m.azimuth.toFixed(1)}°・高さ${m.apparentAltitude.toFixed(1)}°`:'月の位置を計算中…';
-    if(r.overlap.overlaps?.length)first+=' ・ 今、金色の区間で重なります';
+    if(r.overlap.overlaps?.length)first+=' ・ 今、黄色の区間で重なります';
     second=w?(w.length?'重なる目安 '+w.slice(0,3).map(([a,b])=>a===b?S.JstCal.hhmm(a)+'頃':S.JstCal.hhmm(a)+'〜'+S.JstCal.hhmm(b)).join('、')+(w.length>3?' ほか':''):'この日はここで重なる時刻なし'):'重なる時刻を計算中…';
     const n=!r.pending&&!r.overlap.overlaps?.length&&r.overlap.status==='ready'?planeNearestLine(P,r.centerLines):null;
     if(n)third=`今は青い線まで${n.dir}へ${fmt(n.km)}`;
@@ -567,7 +567,7 @@ function planeMapText(){
     +(r.overlap.overlaps?.length?`<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px;white-space:nowrap"><svg width="26" height="10" aria-hidden="true"><line x1="3" y1="5" x2="23" y2="5" stroke="white" stroke-width="9" stroke-linecap="round"/><line x1="3" y1="5" x2="23" y2="5" stroke="var(--ray-sun)" stroke-width="5" stroke-linecap="round"/></svg><b>月と重なる区間</b></span>`:'')
     +`<div class="tiny">${r.paths.map(p=>`${esc(p.runway)} ${p.kind==='landing'?'着陸':'離陸'}：${p.model==='procedure'?esc(p.source):'滑走路の延長の直線のみ（公表の経路は未反映）'}`).join(' · ')}</div>`;
 }
-// Landings purple and solid, take-offs teal and dashed. The soft blue band is where to stand, gold the overlap.
+// Landings purple and solid, take-offs teal and dashed. The soft blue band is where to stand, yellow the overlap.
 const PLANE_ROUTE_COLORS={landing:'#7b3fbf',takeoff:'#00897b'};
 function tracePlaneRoute(path,points){
   if(!points.length)return;

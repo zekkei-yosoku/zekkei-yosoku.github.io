@@ -37,7 +37,8 @@ for(const engine of (process.env.MOON_MAP_ENGINES||'chromium,webkit').split(',')
  // 状況の文は短い行だけ（時刻・地点・海の注記なし）
  {const lines=await p.evaluate(()=>$('planeMapStatus').textContent.split('\n'));assert(lines.length<=3&&/^月 方位/.test(lines[0])&&!lines.join('').includes('海の上')&&!lines.join('').includes('から ／'),JSON.stringify(lines));}
  // 重なる目安の時刻：今重なっている18:00を含む区間が出る
- await p.waitForFunction(()=>/重なる目安 /.test($('planeMapStatus').textContent));assert.equal(await p.evaluate(at=>plane.windows.list.some(([a,b])=>a<=at&&at<=b),at),true);
+ await p.waitForFunction(()=>/重なる目安 /.test($('planeMapStatus').textContent));
+ assert.match(await p.locator('#planeMapStatus').innerText(),/今、黄色の区間で重なります/);assert.equal(await p.evaluate(at=>plane.windows.list.some(([a,b])=>a<=at&&at<=b),at),true);
  const layout=await p.evaluate(()=>{const m=$('planeCanvas').getBoundingClientRect(),f=$('planeTimeFooter').getBoundingClientRect(),h=document.querySelector('main>.masthead').getBoundingClientRect();return {mapTop:m.top,mapBottom:m.bottom,mapWidth:m.width,footTop:f.top,headBottom:h.bottom,sheet:$('planeSheet').hidden};});
  assert(Math.abs(layout.mapWidth-width)<=1&&Math.abs(layout.mapBottom-layout.footTop)<=2&&Math.abs(layout.mapTop-layout.headBottom)<=2&&layout.sheet,'map fills between masthead and time bar: '+JSON.stringify(layout));
 await p.screenshot({path:`${out}/${engine}-${width}-${theme}-map.png`,fullPage:true});
