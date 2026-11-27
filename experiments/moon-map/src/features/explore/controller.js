@@ -494,8 +494,14 @@ function openSheet({tab='new',search=false,candidateId=null}={}){
  sheetMode=true;conditionsFromSheet=false;syncWorkspace();chooseDiscovery(tab==='records'?'records':'new');const task=++sheetTask;let tries=0;
  const step=()=>{if(task!==sheetTask||!sheetOn())return;
   if(candidateId){const row=[...document.querySelectorAll('#candidateUnifiedResults .list-item[data-candidate-id]')].find(n=>n.dataset.candidateId===String(candidateId)||n.dataset.sourceId===String(candidateId));if(row){row.scrollIntoView({block:'center'});row.click();return;}}
-  // 既に候補が出ていれば探し直さない（開き直しは前の結果を見せる）
-  else if(search){if(searchStarted&&globalThis.AstroNotesCandidatePicker?.visibleRows?.().length)return;const button=$('candidateSearchAction');if(button?.isConnected&&!button.disabled){if(button.dataset.state!=='searching')button.click();return;}}
+  // 開き直しは結果が0件でも、同じ条件なら前回の状態を見せる。
+  else if(search){
+   const button=$('candidateSearchAction');
+   if(button?.isConnected&&!button.disabled){
+    if(!button.hasAttribute('data-candidate-started'))button.click();
+    return;
+   }
+  }
   else return;
   if(tries++<60)setTimeout(step,100);};
  setTimeout(step,0);

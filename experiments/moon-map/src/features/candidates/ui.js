@@ -79,7 +79,15 @@ AstroNotesCandidatePicker.configure({loadLabels,labelsSnapshot:()=>availableLabe
  geometryFrom:(...args)=>AstroNotesAlign.geometryFrom(...args),isMountain:t=>aimIsMountain(t),geometryKey:()=>AstroNotesAtmosphere.targetK(),
  placeContext:recordedPlaceContext,
  getScroller:()=>mainWorkspace()?.scroller(),getReturnScroll:()=>mainWorkspace()?.returnScroll?.(),
- onRendered(count){mainWorkspace()?.restoreScroll(count);globalThis.AstroNotesMapWorkspace?.refreshCandidatePins();},requestKey:p=>AstroNotesCandidateDiscovery.requestKey(p)});
+ onRendered(count){mainWorkspace()?.restoreScroll(count);globalThis.AstroNotesMapWorkspace?.refreshCandidatePins();
+  const toggle=document.getElementById('candidateMapToggle'),label=toggle?.querySelector('[data-candidate-map-label]');
+  if(!label)return;
+  const onMap=document.getElementById('skyMapView').hasAttribute('data-explore-sheet');
+  const text=onMap?'ピンに合わせる':toggle.getAttribute('aria-expanded')==='true'?'一覧に戻る':'地図';
+  if(label.textContent!==text)label.textContent=text;
+  if(onMap){toggle.removeAttribute('aria-expanded');toggle.setAttribute('aria-controls','skyMapCanvas');}
+  else if(toggle.getAttribute('aria-controls')==='skyMapCanvas'){toggle.removeAttribute('aria-controls');toggle.setAttribute('aria-expanded','false');}
+ },requestKey:p=>AstroNotesCandidateDiscovery.requestKey(p)});
 const live=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxDurationMs:120000,lookAhead:true});
  // Ground under GSI footprints the height grid lacks: the 10 m DEM (a building's base, not a sight line) on its own
  // tile budget, so it never starves the sight-line terrain. A search step longer than 35 s no longer runs out of time.
@@ -217,6 +225,7 @@ function timeSpec(at){
  if(timeChoice==='window'){const start=AstroNotesCandidateDiscovery.day(at),ms=x=>{const [h,m]=x.split(':').map(Number);return (h*60+m)*60000;},a=ms(windowStart),b=ms(windowEnd);return {kind:'window',start:start+a,end:start+b+(b<a?86400000:0)};}
  return {kind:'day',at:AstroNotesCandidateDiscovery.day(at),timezone:'Asia/Tokyo'};
 }
+let onlyMapBand=false;
 function snapshot(){
  if(typeof SkyMapUI==='undefined'||typeof auth==='undefined'||!auth||typeof screenAllowed!=='function'||!screenAllowed('skymap')||!screenAllowed('framing'))return null;
  const s=SkyMapUI.selectionState();if(!s?.target||!Number.isFinite(s.at))return null;
@@ -230,10 +239,10 @@ function snapshot(){
  // だけ確認」): no lens drops a place then, so the lens stays out of the search. Choosing a place sets the focal length and the
  // frame for its view; leaving the lens in the key would drop the found places on the way back.
  const searchLens=s.partId==='__whole'&&!extraTargets.length?{mode:'unspecified'}:lens;
- const seedBand=globalThis.AstroNotesMapWorkspace?.searchBand?.(s);
+ const seedBand=onlyMapBand?globalThis.AstroNotesMapWorkspace?.searchBand?.(s):null;
  const selected={...s,authGeneration:mainWorkspace()?.epoch(),owner:auth.loginId,expected:context(s),atmosphere:air(),lens:searchLens,extraTargets,timeSpec:timeSpec(s.at),pointNight:!AstroNotesBodies.definition(s.body)?.limbs,profile:typeof aimIsMountain==='function'&&aimIsMountain(s.target)?'summit-contact':'building-near',
   ...(globalThis.AstroNotesTrialComposition?.plan(s)||{}),...(globalThis.AstroNotesTrialOverlap?.searchPlan?.(s)||{}),includeRoads,
-  // 2026-11-26 trial（段階②）: 目標物が中心の地図の下部シートから探す時だけ、種を重なる範囲（帯）に絞る
+  // 地図の帯を指定した場合は、その範囲に探索の種を絞る。
   ...(seedBand?{seedBand}:{})};
  // A next-day event in an overnight window does not change the search day.
  const overnight=returnSearch&&s.candidateOpportunity?.id===returnSearch.rowId&&s.at===returnSearch.viewAt?
@@ -405,6 +414,7 @@ function mount(){
  if(main){
   const range=document.createElement('span');range.className='candidate-query-range';
   range.textContent=timeChoice==='instant'?'選択した時刻':timeChoice==='window'?windowStart&&windowEnd?windowStart+'〜'+windowEnd:'時間帯を指定':'この日全体';
+  if(p?.seedBand)range.textContent+='・地図の帯';
   if(includeRoads)range.textContent+='・道路含む';
   summary.append(range);
  }
@@ -417,6 +427,12 @@ function mount(){
  input.type='time';input.required=true;input.id=id;input.value=value;input.style.minHeight='44px';
  input.onchange=()=>{returnSearch=null;if(id.endsWith('Start'))windowStart=input.value;else windowEnd=input.value;mount();};l.append(input);times.append(l);}evidence.append(times);mode.onchange=()=>{returnSearch=null;
  timeChoice=mode.value;mount();};
+ if(main&&globalThis.AstroNotesMapWorkspace?.centerMode()==='target'){
+  const bandLabel=document.createElement('label');bandLabel.className='remember';
+  const bandCheck=document.createElement('input');bandCheck.type='checkbox';bandCheck.id='candidateOnlyMapBand';bandCheck.checked=onlyMapBand;
+  bandLabel.append(bandCheck,'地図の帯の中だけ');evidence.append(bandLabel);
+  bandCheck.onchange=()=>{onlyMapBand=bandCheck.checked;returnSearch=null;mount();};
+ }
  const roads=document.createElement('label');roads.className='remember';const roadCheck=document.createElement('input');roadCheck.type='checkbox';roadCheck.id='candidateIncludeRoads';roadCheck.checked=includeRoads;
  const roadLabel=document.createElement('span');roadLabel.textContent='道路などの地点も含める';roads.append(roadCheck,roadLabel);evidence.append(roads);
  roadCheck.onchange=()=>{includeRoads=roadCheck.checked;returnSearch=null;mount();};
@@ -446,12 +462,13 @@ function mount(){
   evidence.append(credits);section.append(button,status,visibleCredits,resultList,evidence);
  }
  panel.append(section);syncWorkspaceSection(panel);
- if(editing&&['candidateSearchMode','candidateSearchStart','candidateSearchEnd','candidateIncludeRoads'].includes(editing))section.querySelector('#'+editing)?.focus({preventScroll:true});
+ if(editing&&['candidateSearchMode','candidateSearchStart','candidateSearchEnd','candidateIncludeRoads','candidateOnlyMapBand'].includes(editing))section.querySelector('#'+editing)?.focus({preventScroll:true});
  const missingField=missingSearchTime();
- const valid=p&&AstroNotesBodies.definition(p.body)&&!p.compositionInvalid&&!missingField&&AstroNotesCandidateComposition.timeRange(p);
- button.disabled=!valid;
- status.textContent=missingField?(missingField.endsWith('Start')?'探索の開始時刻を入力してください。':'探索の終了時刻を入力してください。')
-  :!p?'天体・対象・日付を選んでください。':!valid?'指定した日時と構図を確認してください。':'';
+ const band=p?.seedBand;
+ const bandMessage=band&&(band.status==='pending'?'地図の帯を計算しています。':band.status==='error'?'地図の帯を取得できませんでした。「地図の帯の中だけ」を外すと候補を探せます。':!band.samples.length?'この日は地図に帯がありません。日付を変えるか、「地図の帯の中だけ」を外してください。':'');
+ const valid=p&&AstroNotesBodies.definition(p.body)&&!p.compositionInvalid&&!missingField&&!bandMessage&&AstroNotesCandidateComposition.timeRange(p);
+ status.textContent=bandMessage|| (missingField?(missingField.endsWith('Start')?'探索の開始時刻を入力してください。':'探索の終了時刻を入力してください。')
+  :!p?'天体・対象・日付を選んでください。':!valid?'指定した日時と構図を確認してください。':'');
  let continuation=false,hasRun=false,searching=false,failed=false,hasResults=false,items=new Map(),shown=null,publishedRows=0;
  const presentation=AstroNotesLibrary.gate();
  let labelsAttempt=null;
@@ -463,6 +480,7 @@ function mount(){
  };
  function renderAction(){
   button.dataset.state=searching?'searching':'idle';
+  button.toggleAttribute('data-candidate-started',hasRun);
   button.textContent=searching?'キャンセル':failed?'再試行':continuation?'続きを探す':hasRun?(main?'候補を探し直す':'もう一度確認'):main?'候補を探す':'ほかの候補地点を探す';
   button.disabled=!valid;resultList.setAttribute('aria-busy',String(searching));
   if(main){
@@ -531,7 +549,9 @@ function mount(){
     :result.stalled?'情報の取得が進まないため、ここで停止しました。':interrupted?'取得できなかった範囲があります。'
     :result.pauseReason==='time-budget'?'時間内に確認しきれない地点が残っています。続きを探せます。'
     :result.paused?'未探索の範囲も、続きから探せます。':result.canContinue?'探索を再開できます。':'';
-   setStatus(cancelled?'探索をキャンセルしました。続きから探せます。':summaryText+next,!!main&&!!rows.length&&!cancelled&&!next);
+   const tryAnother=main&&!rows.length&&!sourcePending&&!interrupted&&!result.paused&&!result.canContinue?
+    (selected.seedBand?' 日付を変えるか、「地図の帯の中だけ」を外して探せます。':' 日付や検索範囲を変えると別の条件で探せます。'):'';
+   setStatus(cancelled?'探索をキャンセルしました。続きから探せます。':summaryText+(next?' '+next:'')+tryAnother,!!main&&!!rows.length&&!cancelled&&!next);
    const c=result.counts,unverifiedWhy=[c.nearBuilding?`立つ点のすぐ脇に建物${c.nearBuilding}`:'',c.heightUnknown?`建物の高さが分からない${c.heightUnknown}`:'',c.obstacle?`木・橋・高架${c.obstacle}`:''].filter(Boolean).join('・');
    resultNotes.textContent=`見通しを地形と建物で確かめられた地点だけを候補にしています。${c.checked}地点を確認：遮られる${c.blocked}、`
     +`見通しを確かめられない${c.unverified||0}${unverifiedWhy?`（うち${unverifiedWhy}）`:''}、重なりが見つからない${c.noOverlap||0}、構図に合わない${c.outsideFrame||0}、立つ高さが分からない${c.unknown}。`
@@ -544,7 +564,7 @@ function mount(){
  button.onclick=async()=>{
   const selected=snapshot();if(!selected)return;if(condition!==uiKey(selected)){mount();return;}
   if(!button.isConnected||!contextActive()||main&&!main.selectable())return;dateRefreshPending=false;main?.reveal();
-  if(selected.seedBand?.status&&selected.seedBand.status!=='ready'){setStatus(selected.seedBand.status==='error'?'天体の計算を再試行してください。':'重なる範囲を計算しています…');return;}
+  if(!valid)return;
   if(searching){
    stop();const token=++run;hasSearched=false;continuation=true;failed=false;searching=false;
    setStatus('探索をキャンセルしました。続きから探せます。');renderAction();
@@ -592,7 +612,7 @@ function mount(){
  if(main?.visible())globalThis.MyPlacesUI?.renderPickerPanel(panel);
  // Returning from another page can build the section before its place is back on the page (seen on wide screens):
  // show the cached results once it is attached, or they would be dropped as stale.
- const cached=p&&engine.cached(p);if(cached){main?.reveal();hasRun=true;hasSearched=true;const token=++run,node=section;let frames=0;
+ const cached=p&&engine.cached(p);if(cached){main?.reveal();hasRun=true;hasSearched=true;renderAction();const token=++run,node=section;let frames=0;
   const show=()=>{if(token!==run||node!==section)return;if(node.isConnected)present(cached,p,node,token).catch(()=>{});else if(++frames<300)requestAnimationFrame(show);};show();}
 }
 let mountFrame=null;const scheduleMount=()=>{if(mountFrame===null)mountFrame=requestAnimationFrame(()=>{mountFrame=null;mount();});};
@@ -616,5 +636,6 @@ document.addEventListener('astronotes-candidate-date-change',event=>{
  if(button&&!button.disabled&&button.dataset.state!=='searching')button.click();},350);
 });
 document.addEventListener('astronotes-preview-leave',()=>{const button=document.getElementById('trialRecordSave');if(button)button.hidden=true;const dialog=document.getElementById('trialRecordSaveSheet');if(dialog?.open){dialog.restoreRecordFocus=false;dialog.close();}});
+document.addEventListener('astronotes-search-band-change',()=>{if(onlyMapBand)scheduleMount();});
 document.addEventListener('astronotes-search-state',scheduleMount);document.addEventListener('astronotes-composition-change',mount);mount();
 })();

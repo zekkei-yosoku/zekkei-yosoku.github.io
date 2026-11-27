@@ -321,10 +321,24 @@ async function newPlaces(type,engine,center){
    });
    const before=await readLayout();
    assert(before.visible&&before.dateVisible&&!before.sharedScroller,label+': '+JSON.stringify(before));
+   const fit=page.locator('#candidateMapToggle');
+   assert.match(await fit.innerText(),/ピンに合わせる/);
+   assert.equal(await fit.getAttribute('aria-controls'),'skyMapCanvas');
+   await page.evaluate(()=>{const h=SkyMapUI.workspaceHost();h.map.setView(34.7,135.5,14);h.redraw();});
+   await page.waitForFunction(()=>AstroNotesMapWorkspace.targetState().newPins===0);
+   await fit.click();
+   await page.waitForFunction(()=>AstroNotesMapWorkspace.targetState().newPins===2);
+   assert.equal(await page.locator('#candidateMapCanvas').count(),0,label+': 候補の位置に上の地図を合わせる');
+   const list=page.locator('#candidateUnifiedResults>.list-item');
+   assert.equal(await list.first().getAttribute('data-candidate-number'),'1');
+   assert.equal(await list.first().evaluate(n=>getComputedStyle(n).paddingLeft),'30px');
+   assert.equal(await list.count(),2);
+   await page.locator('#exploreConditions').evaluate(n=>n.scrollTop=0);
    assert(Math.abs(before.sheetStart-before.canvasEnd)<=1&&Math.abs(before.sheetEnd-before.footerStart)<=1,label+': '+JSON.stringify(before));
    await page.locator('#exploreConditions').evaluate(n=>n.scrollTop=n.scrollHeight);
    const after=await readLayout();
    assert(after.scroll>before.scroll&&after.docScroll===before.docScroll&&after.visible&&after.dateVisible,label+': '+JSON.stringify(after));
+   assert(await page.locator('#exploreBackToMap').evaluate(n=>{const r=n.getBoundingClientRect();return n.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));}),label+': 一覧の下でも閉じるボタンを押せる');
    assert.equal(after.canvasTop,before.canvasTop);assert.equal(after.canvasEnd,before.canvasEnd);assert.equal(after.footerStart,before.footerStart);
 
    await page.locator('#candidateRefinement > summary').click();
@@ -380,6 +394,31 @@ async function newPlaces(type,engine,center){
     await page.waitForFunction(()=>!document.querySelector('#previewTargetDialog[open]')&&document.getElementById('skyMapView').hasAttribute('data-explore-dropdown')&&SkyMapUI.selectionState().target?.id==='tokyotower');
     assert.deepEqual(await view(page),{stage:'map',sheet:false,center:'target'});
     assert(await page.locator('#skyMapCanvas').isVisible(),label+': 候補シート経由でも対象の適用後は地図へ戻る');
+    await page.locator('#mapWsTitle').click();
+    // Simulate availability independently from the real candidate calculation used by the fixture.
+    await page.evaluate(()=>{window.originalSearchBand=AstroNotesMapWorkspace.searchBand;
+     window.testBandStatus='pending';
+     AstroNotesMapWorkspace.searchBand=()=>({status:window.testBandStatus,key:'test-band-'+window.testBandStatus,samples:[]});});
+    try{
+     const newPlace=page.locator('#mapWsCardView');
+     assert(await newPlace.isEnabled(),label+': 帯が準備中でも通常探索を始められる');
+     await newPlace.click();
+     await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2&&document.getElementById('candidateSearchAction')?.dataset.state==='idle');
+     await page.locator('#additionalCandidateSearch details > summary').click();
+     await page.locator('#candidateOnlyMapBand').check();
+     const status=page.locator('#candidateSearchFeedback [role=status]'),action=page.locator('#candidateSearchAction');
+     assert.match(await status.innerText(),/地図の帯を計算/);
+     assert(await action.isDisabled());
+     const setBand=state=>page.evaluate(state=>{window.testBandStatus=state;document.dispatchEvent(new Event('astronotes-search-band-change'));},state);
+     await setBand('ready');
+     await page.waitForFunction(()=>document.getElementById('candidateSearchFeedback').textContent.includes('この日は地図に帯がありません'));
+     assert(await action.isDisabled());
+     await setBand('error');
+     await page.waitForFunction(()=>document.getElementById('candidateSearchFeedback').textContent.includes('地図の帯を取得できません'));
+     assert(await action.isDisabled());
+     await page.locator('#candidateOnlyMapBand').uncheck();
+     await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2&&!document.getElementById('candidateSearchAction').disabled);
+    }finally{await page.evaluate(()=>{AstroNotesMapWorkspace.searchBand=window.originalSearchBand;delete window.originalSearchBand;delete window.testBandStatus;});}
    }
    assert.deepEqual(errors,[]);
   }finally{await context.close();}

@@ -163,13 +163,17 @@ html:has(#skyMapView[data-explore-sheet].map-ws:not([hidden])),body:has(#skyMapV
 #skyMapView[data-explore-sheet].map-ws :is(.sky-map-head,#exploreConditions>summary,#exploreSkyInfo,#exploreTabs,#exploreScenePanel,#skyMapShareRow,#skyMapCustom,#skyMapTargetInfo,.sky-map-definition,#exploreMapPanel>details,.explore-condition-fields>:not(#candidateWorkspaceAction)){display:none!important}
 #skyMapView[data-explore-stage=search][data-explore-sheet].map-ws #candidateWorkspaceAction{display:grid;margin:0;padding:8px 0 0;border:0}
 #skyMapView[data-explore-sheet].map-ws :is(#exploreOpportunityLink,.explore-discovery-tabs){display:none}
-#skyMapView[data-explore-sheet].map-ws .explore-sheet-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#skyMapView[data-explore-sheet].map-ws .explore-sheet-heading{display:flex;position:sticky;top:0;z-index:2;align-items:center;justify-content:space-between;gap:12px;background:var(--card);padding:4px 0;border-bottom:1px solid var(--line)}
 #skyMapView[data-explore-sheet].map-ws #candidateWorkspaceHeading{margin:0}
 #skyMapView[data-explore-sheet].map-ws .explore-map-return :is(svg,.explore-return-map-text){display:none}
 #skyMapView[data-explore-sheet].map-ws .explore-return-sheet-text{display:inline}
 #skyMapView[data-explore-sheet].map-ws .sky-map-footer :is(.map-ws-card,.map-ws-info,.map-ws-dots,.sky-map-candidates){display:none!important}
 #skyMapView[data-explore-sheet].map-ws .explore-map-return:not([hidden]){position:static;flex:none;margin:0;min-width:44px;padding:0 12px;box-shadow:none}
 #skyMapView[data-explore-sheet].map-ws .explore-condition-fields{padding:4px 0 0}
+#skyMapView[data-explore-stage=search][data-explore-sheet].map-ws #candidateListControls #candidateUnifiedResults>.list-item{position:relative;padding-left:30px!important;scroll-margin-top:56px}
+#skyMapView[data-explore-sheet] #candidateUnifiedResults>.list-item::before{content:attr(data-candidate-number);position:absolute;top:10px;left:0;display:grid;place-items:center;min-width:22px;height:22px;border-radius:50%;background:#206549;color:#fff;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+#skyMapView[data-explore-sheet] #candidateUnifiedResults>.list-item::after{content:'見え方 ›';grid-column:1/-1;justify-self:end;color:var(--accent);font-size:12px;font-weight:700}
+#skyMapView[data-explore-sheet] #candidateUnifiedResults>.list-item:focus{background:color-mix(in srgb,var(--accent) 12%,var(--card));outline-offset:-2px}
 #skyMapView[data-map-center=target].map-ws .map-ws-card{flex-wrap:wrap;row-gap:6px}
 #skyMapView[data-map-center=target].map-ws .map-ws-card-text{flex:1 0 100%}
 #skyMapView[data-map-center=target].map-ws .map-ws-card-actions{flex:1 0 100%;flex-direction:row;max-width:none}

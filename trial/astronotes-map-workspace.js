@@ -174,7 +174,8 @@ function lineFor(h){
   .then(lines=>{if(lineState!==job)return;const visible=[];for(const l of lines||[]){let run=null;for(const p of l.points){const observer={latitude:p.latitude,longitude:p.longitude,elevation:(p.elevationM??p.groundM??0)+eyeM};
     if(Number.isFinite(p.at)&&nightAllowed(body,p.at,observer))(run||(visible.push(run={side:l.side,points:[]}),run)).points.push(p);else run=null;}}
    lineState={key,body,lines:visible.filter(l=>l.points.length>1),busy:false};bandState.key='';host()?.redraw();schedule();})
-  .catch(e=>{if(lineState!==job)return;globalThis.AstroNotesErrors?.note('map.targetLine',e);lineState={key,body,lines:[],busy:false,error:true};host()?.redraw();schedule();});
+  .catch(e=>{if(lineState!==job)return;globalThis.AstroNotesErrors?.note('map.targetLine',e);lineState={key,body,lines:[],busy:false,error:true};host()?.redraw();schedule();
+   document.dispatchEvent(new Event('astronotes-search-band-change'));});
  return null;
 }
 // 大気差の余裕（Bennett式。地平線付近で約0.5°、最大0.6°）。幾何で拾う時だけ広めに取るために使う。
@@ -232,7 +233,9 @@ function bandFor(h){
  if(lineState.key!==targetKey(h)||lineState.busy||lineState.error)return [];
  const base=targetKey(h),key=base+'|'+(lineState.key===base&&lineState.lines?'line':'flat');if(bandState.key===key)return bandState.runs;
  if(bandState.pending!==key){clearTimeout(bandState.timer);bandState.pending=key;bandState.timer=setTimeout(()=>{const hh=host();if(!hh||bandState.pending!==key||targetKey(hh)!==base)return;
-  let runs=[];try{runs=computeBand(hh,key);}catch(e){globalThis.AstroNotesErrors?.note('map.band',e);}bandState={key,base,runs,pending:'',timer:0};hh.redraw();schedule();},160);}
+  let runs=[],error=false;try{runs=computeBand(hh,key);}catch(e){error=true;globalThis.AstroNotesErrors?.note('map.band',e);}
+  bandState={key,base,runs,error,pending:'',timer:0};hh.redraw();schedule();
+  document.dispatchEvent(new Event('astronotes-search-band-change'));},160);}
  return bandState.base===base?bandState.runs:[];
 }
 // 点が帯の中か（同じ分の扇形のどれかに入るか）。新しい地点の結果を帯と照合するのに使う。
@@ -290,25 +293,32 @@ function recordsFor(h){
 }
 // 絞り込み済みの候補一覧を、結果が更新されるたびに地図へ渡す。
 const candidateSheet=()=>$('skyMapView').hasAttribute('data-explore-sheet');
-let candidatePins=[],candidateHits=[],candidateKey='',candidateFrame=0;
+let candidatePins=[],candidateHits=[],candidateKey='',candidateFrame=0,selectedCandidate=null;
 function newCandidates(){
- const rows=globalThis.AstroNotesCandidatePicker?.visibleRows?.()||[];
- return rows.filter(r=>r&&!r.recorded&&!r.inRecords&&validPoint(r.place)).map(r=>({row:r,latitude:r.place.latitude,longitude:r.place.longitude,name:r.place.name||r.place.label||'新しい地点',at:r.event?.at}));
+ const picker=globalThis.AstroNotesCandidatePicker;
+ return (picker?.visibleRows?.()||[]).flatMap((row,index)=>!row||row.recorded||row.inRecords||!validPoint(row.place)?[]:[{
+  row,id:picker.candidateKey(row),number:index+1,latitude:row.place.latitude,longitude:row.place.longitude,
+  name:row.place.name||row.place.label||'新しい地点',at:row.event?.at,
+ }]);
 }
 function clearCandidatePins(){
  if(candidateFrame)cancelAnimationFrame(candidateFrame);
- candidateFrame=0;candidatePins=[];candidateHits=[];candidateKey='';
+ candidateFrame=0;candidatePins=[];candidateHits=[];candidateKey='';selectedCandidate=null;
 }
-function fitFirstCandidates(h,pins){
+function fitCandidates(h,pins,{manual=false}={}){
  const canvas=$('skyMapCanvas'),width=canvas.clientWidth,height=canvas.clientHeight;
- if(width<80||height<64)return;
+ if(!pins.length||width<110||height<80)return;
  const points=pins.map(p=>h.map.project(p.latitude,p.longitude));
- if(points.some(([x,y])=>x>=20&&x<=width-56&&y>=16&&y<=height-16))return;
+ const {target}=h.session;
+ const nearTarget=validPoint(target)?h.map.project(target.latitude,target.longitude):null;
+ const crowded=nearTarget&&points.some(([x,y])=>Math.hypot(x-nearTarget[0],y-nearTarget[1])<24);
+ if(!manual&&!crowded&&points.every(([x,y])=>x>=24&&x<=width-70&&y>=24&&y<=height-24))return;
+ if(!manual&&crowded)points.push(nearTarget);
  const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]);
  const left=Math.min(...xs),right=Math.max(...xs),top=Math.min(...ys),bottom=Math.max(...ys);
  const center=h.map.coordinateAt((left+right)/2,(top+bottom)/2);
- const scale=Math.min(1,(width-76)/Math.max(1,right-left),(height-32)/Math.max(1,bottom-top));
- h.map.setView(center.latitude,center.longitude,h.map.zoom()+Math.log2(scale));
+ const zoom=h.map.zoom(),scale=Math.min((width-108)/Math.max(1,right-left),(height-48)/Math.max(1,bottom-top));
+ h.map.setView(center.latitude,center.longitude,Math.min(manual?17:crowded?Math.max(zoom,15):zoom,zoom+Math.log2(scale)));
 }
 function refreshCandidatePins(){
  if(!candidateSheet()||candidateFrame)return;
@@ -317,7 +327,8 @@ function refreshCandidatePins(){
   const h=host();if(!active||!candidateSheet()||!h||!targetReady(h))return;
   const key=targetKey(h),first=key!==candidateKey||!candidatePins.length;
   candidateKey=key;candidatePins=newCandidates();
-  if(first&&candidatePins.length)fitFirstCandidates(h,candidatePins);
+  if(!candidatePins.some(p=>p.id===selectedCandidate))selectedCandidate=null;
+  if(first)fitCandidates(h,candidatePins);
   h.redraw();
  });
 }
@@ -325,19 +336,28 @@ function drawCandidatePins(ctx,{project,width,height},inTarget=false){
  candidateHits=[];
  const h=host();if(!active||!h||h.pickMode||!targetReady(h))return;
  const pins=candidateSheet()?(candidateKey===targetKey(h)?candidatePins:[]):inTarget?newCandidates():[];
- for(const candidate of pins){
+ const inSheet=candidateSheet(),ordered=inSheet&&selectedCandidate?[
+  ...pins.filter(p=>p.id!==selectedCandidate),...pins.filter(p=>p.id===selectedCandidate),
+ ]:pins;
+ for(const candidate of ordered){
   const [x,y]=project(candidate.latitude,candidate.longitude);
   if(x<0||y<0||x>width||y>height)continue;
-  pinAt(ctx,x,y,NEW_PIN,6);candidateHits.push({kind:'new',x,y,candidate});
+  const selected=inSheet&&selectedCandidate===candidate.id;
+  pinAt(ctx,x,y,selected?'#235c89':NEW_PIN,inSheet?11:6);
+  if(inSheet)labelAt(ctx,String(candidate.number),x,y,'#fff','center',11);
+  candidateHits.push({kind:'new',x,y,candidate});
  }
 }
 function focusCandidateInSheet(pixel){
- let best=null,distance=22;
- for(const hit of candidateHits){const d=Math.hypot(hit.x-pixel.x,hit.y-pixel.y);if(d<distance){distance=d;best=hit;}}
- if(!best)return true;
- const key=globalThis.AstroNotesCandidatePicker?.candidateKey(best.candidate.row);
- const row=[...document.querySelectorAll('#candidateUnifiedResults .list-item:not([hidden])')].find(item=>item.dataset.candidateId===key);
- if(row){row.scrollIntoView({block:'nearest'});row.focus({preventScroll:true});}
+ const distance=hit=>Math.hypot(hit.x-pixel.x,hit.y-pixel.y);
+ const hits=candidateHits.filter(hit=>distance(hit)<22).sort((a,b)=>distance(a)-distance(b));
+ if(!hits.length)return true;
+ const nearest=hits[0],cluster=hits.filter(hit=>Math.hypot(hit.x-nearest.x,hit.y-nearest.y)<12)
+  .sort((a,b)=>a.candidate.number-b.candidate.number);
+ const next=cluster[(cluster.findIndex(hit=>hit.candidate.id===selectedCandidate)+1)%cluster.length];
+ const row=[...document.querySelectorAll('#candidateUnifiedResults .list-item:not([hidden])')]
+  .find(item=>item.dataset.candidateId===next.candidate.id);
+ if(row){selectedCandidate=next.candidate.id;host()?.redraw();row.scrollIntoView({block:'nearest'});row.focus({preventScroll:true});}
  return true;
 }
 function lineRanges(h){
@@ -379,12 +399,12 @@ function drawTarget(ctx,{project,width,height}){
   if(!on&&!(targetSel?.kind==='record'&&targetSel.place?.id===p.id))continue;
   if(on){ctx.beginPath();ctx.arc(x,y,11,0,Math.PI*2);ctx.strokeStyle=GOLD;ctx.lineWidth=2.5;ctx.stroke();labelAt(ctx,fmtAt(row.windows[0].from),x+14,y+1,GOLD,'left',11);}
   pinAt(ctx,x,y,RECORD_PIN,5.5);tapHits.push({kind:'record',x,y,place:p,row});}
- drawCandidatePins(ctx,{project,width,height},true);
- tapHits.push(...candidateHits);
+ if(!candidateSheet()){drawCandidatePins(ctx,{project,width,height},true);tapHits.push(...candidateHits);}
  // 目標物の方位リング
  const ring=ringPixels(width,height);ctx.save();ctx.beginPath();ctx.arc(tx,ty,ring,0,Math.PI*2);ctx.lineWidth=4;ctx.strokeStyle='rgba(0,0,0,.6)';ctx.stroke();ctx.lineWidth=1.5;ctx.strokeStyle='rgba(255,255,255,.88)';ctx.stroke();ctx.restore();
  for(const [n,az] of [['北',0],['東',90],['南',180],['西',270]]){const a=dir(az);labelAt(ctx,n,tx+Math.sin(a)*(ring+13),ty-Math.cos(a)*(ring+13),'#fff','center',13);}
  pinAt(ctx,tx,ty,'#c876ff',8);labelAt(ctx,t.name||'対象',tx,ty-18,'#fff','center',12);
+ if(candidateSheet())drawCandidatePins(ctx,{project,width,height},true);
  // 撮影地点（あれば小さく）と選んだ点
  const o=s.observer;if(validPoint(o)){const [ox,oy]=project(o.latitude,o.longitude);ctx.save();ctx.lineWidth=3;ctx.strokeStyle='#111';ctx.beginPath();ctx.moveTo(ox-7,oy);ctx.lineTo(ox+7,oy);ctx.moveTo(ox,oy-7);ctx.lineTo(ox,oy+7);ctx.stroke();ctx.lineWidth=1.3;ctx.strokeStyle='#fff';ctx.stroke();ctx.restore();}
  if(targetSel&&targetSel.key!==targetKey(h))targetSel=null;
@@ -493,8 +513,9 @@ function updateTargetCard(h){
  const records=recordState.key&&recordState.rows,on=(records||[]).filter(r=>r.windows?.length).sort((a,b)=>a.windows[0].from-b.windows[0].from);
  overlap.hidden=!recordPlaces().length;overlap.disabled=!on.length;overlap.classList.toggle('map-ws-card-hit',!!on.length);overlap.dataset.at=on.length?String(on[0].windows[0].from):'';
  set(overlap,!records?'記録の地点を調べています…':on.length?'この日重なる記録の地点 '+on.length+'件（'+on.slice(0,2).map(r=>r.place.name+' '+fmtAt(r.windows[0].from)).join('・')+(on.length>2?' ほか':'')+'）':'記録の地点はこの日重ならない');
- // 探す範囲（帯）は線が揃ってから固まる。それまでは押せない（途中で範囲が変わって探索が捨てられるのを防ぐ）
- const error=lineState.key===targetKey(h)&&lineState.error,ready=!!lines&&!error&&bandState.key===targetKey(h)+'|line';view.disabled=!error&&(!ready||!bandState.runs.length);view.firstElementChild.textContent=error?'計算を再試行':ready?(bandState.runs.length?'新しい地点を探す':'この日は重なる範囲なし'):'範囲を計算中…';view.dataset.action=error?'retry':'search';view.setAttribute('aria-label',error?'天体の計算を再試行':'重なる範囲の中で新しい撮影地点を探す');second.firstElementChild.textContent='重なる日';second.dataset.action='list';second.disabled=!globalThis.MyPlacesUI?.opportunities?.covers?.(s.target.id,s.body);second.setAttribute('aria-label','記録の地点の重なる日を今の条件で開く');
+ view.disabled=false;view.firstElementChild.textContent='新しい地点を探す';view.dataset.action='search';
+ view.setAttribute('aria-label','新しい撮影地点を探す');
+ second.firstElementChild.textContent='重なる日';second.dataset.action='list';second.disabled=!globalThis.MyPlacesUI?.opportunities?.covers?.(s.target.id,s.body);second.setAttribute('aria-label','記録の地点の重なる日を今の条件で開く');
 }
 const api={
  hourPixels:()=>active?hourPixels:0,
@@ -520,11 +541,10 @@ const api={
  centerMode:()=>viewMode,
  // 目標物が中心の時、点が重なる範囲（帯）の中か。新しい地点の探索範囲と帯の照合に使う。
  inBand(p){const h=host();return h&&isTarget()&&validPoint(p)?inBand(h,p):null;},
- // 目標物が中心の下部シートから探す時の帯（新規探索の種を絞る）。それ以外は null で、通常の探索範囲のまま。
- // 目標物が中心の間に探す新しい地点の範囲（帯）。線が揃った帯を対象・日ごとに固定する（途中で範囲を変えない）。それ以外は null で通常の範囲。
+ // 対象中心で帯に絞る場合の範囲。計算が揃った帯を対象・日ごとに固定する。
  searchBand(s){const h=host();if(viewMode!=='target')return null;
   if(!h||!targetReady(h)||s?.body!==h.session.body||s?.target?.id!==h.session.target.id||AstroNotesSkyMap.dayStart(s.at)!==AstroNotesSkyMap.dayStart(h.session.at))return {status:'pending',key:'pending-condition',body:s?.body,target:s?.target,samples:[]};
-  const base=targetKey(h),status=lineState.key===base&&lineState.error?'error':lineState.key===base&&!lineState.busy&&bandState.key===base+'|line'?'ready':'pending',key=base+'|'+status;
+  const base=targetKey(h),status=(lineState.key===base&&lineState.error||bandState.key===base+'|line'&&bandState.error)?'error':lineState.key===base&&!lineState.busy&&bandState.key===base+'|line'?'ready':'pending',key=base+'|'+status;
   if(searchBandCache.key===key)return searchBandCache.band;
   const t=h.session.target,band={status,key,body:s.body,target:{latitude:t.latitude,longitude:t.longitude},samples:status==='ready'?bandState.runs.flatMap(r=>r.raw.map(q=>[+q.bearing.toFixed(3),+q.d.toFixed(3),+q.w.toFixed(3),+q.hw.toFixed(3)])):[]};if(status==='ready')searchBandCache={key,band};return band;},
  targetState(){return {body:host()?.session.body,lineBody:lineState.body,recordBody:recordState.body,recordsPending:recordState.busy,recordsError:!!recordState.error,lineError:!!lineState.error,line:lineState.lines?lineState.lines.map(l=>({side:l.side,n:l.points.length,from:l.points[0]?.at,to:l.points.at(-1)?.at})):null,band:bandState.runs.length,records:recordState.rows?recordState.rows.map(r=>({name:r.place.name,windows:r.windows})):null,selection:targetSel&&{kind:targetSel.kind,at:targetSel.at,name:targetSel.name,latitude:targetSel.latitude,longitude:targetSel.longitude},newPins:candidateHits.length,obsRecords:obsRecordHits.map(x=>x.place.name),obsRecordFades:[...obsFades.values()].map(f=>({id:f.row.place.id,name:f.row.place.name,alpha:f.alpha,targetAlpha:f.targetAlpha,at:f.window?.from??null,selected:f.selected})),obsRecordsPending,lineBusy:lineState.busy};},
@@ -622,7 +642,11 @@ function build(){
  wrap.append(createCenterChoice());syncCenterChoice();
  // 2026-11-26: 新しい地点は地図のボタンから（撮影地点が中心の時。目標物が中心ではカードの「新しい地点を探す」）
  const findNew=document.createElement('button');findNew.type='button';findNew.id='mapWsNewPlaces';findNew.className='map-ws-new';findNew.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><span>新しい地点を探す</span>';
- findNew.setAttribute('aria-label','新しい撮影地点を探す');findNew.onclick=()=>document.dispatchEvent(new CustomEvent('astronotes-explore-open-sheet',{detail:{tab:'new',search:true}}));wrap.append(findNew);
+ findNew.setAttribute('aria-label','新しい撮影地点を探す');findNew.onclick=()=>{
+  const h=host();
+  if(!h||!targetReady(h)){document.dispatchEvent(new CustomEvent('astronotes-explore-toggle-conditions',{detail:{open:true}}));return;}
+  document.dispatchEvent(new CustomEvent('astronotes-explore-open-sheet',{detail:{tab:'new',search:true}}));
+ };wrap.append(findNew);
  const home=document.createElement('button');home.type='button';home.id='mapWsHome';home.className='map-ws-home';home.hidden=true;home.textContent='撮影地点へ戻る';home.onclick=()=>{const h=host(),o=h?.session.observer;if(validPoint(o))h.map.setCenter(o.latitude,o.longitude);};wrap.append(home);
 
  const info=document.createElement('div');info.id='mapWsInfo';info.className='map-ws-info';info.tabIndex=0;info.setAttribute('aria-label','天体と対象の情報。横にスワイプ');
@@ -643,7 +667,6 @@ function build(){
  $('mapWsCardView').onclick=()=>{const h=host(),action=viewMode==='target'||targetSel?.kind==='record'?$('mapWsCardView').dataset.action:'view';
   if(action==='conditions'||h&&action==='view'&&(!validPoint(h.session.observer)||!h.session.target)){document.dispatchEvent(new CustomEvent('astronotes-explore-toggle-conditions',{detail:{open:true}}));return;}
   if(action==='use'){useSelectionAsObserver();return;}
-  if(action==='retry'){$('skyMapRetry').click();return;}
   if(action==='search'){document.dispatchEvent(new CustomEvent('astronotes-explore-open-sheet',{detail:{tab:'new',search:true}}));return;}
   if(action==='candidate'){const id=targetSel?.row?.id;targetSel=null;document.dispatchEvent(new CustomEvent('astronotes-explore-open-sheet',{detail:{tab:'new',search:false,candidateId:id}}));return;}
   document.dispatchEvent(new Event('astronotes-explore-open-view'));};
@@ -865,6 +888,12 @@ function exit(){
 function init(){
  const view=$('skyMapView');if(!view)return;
  document.addEventListener('astronotes-search-state',()=>{if(candidateSheet())refreshCandidatePins();else clearCandidatePins();});
+ // The candidate toolbar uses the already visible map while the search sheet is open.
+ $('skyMapView').addEventListener('click',e=>{
+  if(!candidateSheet()||!e.target.closest('#candidateMapToggle'))return;
+  e.preventDefault();e.stopImmediatePropagation();
+  const h=host();if(h)fitCandidates(h,newCandidates(),{manual:true});
+ },true);
  new MutationObserver(evaluate).observe(view,{attributes:true,attributeFilter:['hidden','class','data-explore-mode','data-explore-stage','data-explore-sheet']});
  if($('skyMapContent'))new MutationObserver(evaluate).observe($('skyMapContent'),{attributes:true,attributeFilter:['hidden']});
  // 地図タブでは大きくしない。全画面に入るのは地図の中の拡大ボタンだけ。撮影地点が無くても同じ画面のまま。
