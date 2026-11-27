@@ -3,6 +3,7 @@
 'use strict';
 const DAY=86400000,MINUTE=60000,OFFSET=32400000,EXTENT=4096;
 const scale=mode=>mode==='date'?{step:DAY,pixels:24,labelEvery:2}:mode==='hour'?(g.AstroNotesMapWorkspace?.hourPixels?.()?{step:3600000,pixels:g.AstroNotesMapWorkspace.hourPixels(),labelEvery:3}:{step:3600000,pixels:24,labelEvery:2}):{step:MINUTE,pixels:4,labelEvery:15};
+const labelInset=root=>Number.parseFloat(g.getComputedStyle?.(root).getPropertyValue('--timeline-label-inset'))||0;
 const advance=(at,pixels,mode)=>{const s=scale(mode),units=pixels/s.pixels;return at+Math.sign(units)*Math.round(Math.abs(units))*s.step;};
 // Solar elevation drives a continuous sky palette, including blue and golden hours.
 const skyStops=[[-18,[9,18,47]],[-12,[20,38,85]],[-6,[67,84,138]],[-3,[160,109,145]],[-.833,[237,151,110]],[2,[246,188,112]],[6,[223,214,172]],[12,[145,197,223]],[30,[100,171,214]],[60,[64,145,197]]];
@@ -217,7 +218,7 @@ function mountMinuteRuler({root,tape,enabled,onChange,onSettle,format,describe,g
  };
 }
 function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=>{},onBlend=()=>{},format,describe=format,getObserver=()=>null,sun=()=>null,numeric=null,renderMinutes=()=>false}){
- let minutes=null;
+ let minutes=null,labelObserver=null,observedInset=0;
  const enabled=()=>canUse()&&!minutes?.active();
  const clamp=v=>numeric?Math.max(numeric.min,Math.min(numeric.max,v)):v;
  const rounded=v=>numeric?Number((Math.round(clamp(v)/(numeric.precision||numeric.step))*(numeric.precision||numeric.step)).toFixed(6)):v;
@@ -242,6 +243,29 @@ function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=
   return changed;};
  const flush=()=>{frame=0;if(!enabled()||!Number.isFinite(anchor))return;if(numeric){const s=rulerScale(mode),raw=anchor+(root.scrollLeft-EXTENT)/s.pixels*s.step,bounded=clamp(raw);if(raw!==bounded)root.scrollLeft=EXTENT+(bounded-anchor)/s.step*s.pixels;
  }const offset=offsetFromCenter();if(emit(offset)&&(inputKind!=='touch'||touching)&&Math.abs(offset)>=EXTENT/2)rebase(offset);};
+ // The sky fades under the scale control. Keep each time label whole as it crosses that edge.
+ function observeLabels(nodes){
+  labelObserver?.disconnect();
+  const inset=labelInset(root);
+  if(!inset||!g.IntersectionObserver)return;
+  if(!labelObserver||inset!==observedInset){
+   labelObserver=new g.IntersectionObserver(entries=>{
+    for(const entry of entries)entry.target.style.visibility=entry.intersectionRatio>=.999?'visible':'hidden';
+   },{root,rootMargin:`0px 0px 0px -${inset}px`,threshold:1});
+   observedInset=inset;
+  }
+  const from=root.scrollLeft+inset,to=root.scrollLeft+root.clientWidth;
+  const visible=nodes.map(tick=>{
+   const x=Number.parseFloat(tick.style.left);
+   if(x<from||x>to)return false;
+   const half=tick.offsetWidth/2;
+   return x-half>=from&&x+half<=to;
+  });
+  nodes.forEach((tick,index)=>{
+   tick.style.visibility=visible[index]?'visible':'hidden';
+   labelObserver.observe(tick);
+  });
+ }
  function reset(at,nextMode){
   cancelAnimationFrame(snapFrame);snapFrame=0;snapTarget=null;generation.cancel();cancelAnimationFrame(frame);frame=0;clearTimeout(timer);timer=0;moving=false;blocked=true;anchor=lastAt=at;mode=nextMode;width=root.clientWidth;const nextContext=JSON.stringify(getObserver());
   if(context!==nextContext){colorCache.clear();context=nextContext;}
@@ -259,6 +283,7 @@ function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=
   }else{tape.style.backgroundImage='';tape.style.backgroundSize='';tape.style.backgroundPosition=origin+'px 5px';}
   tape.replaceChildren(...nodes);root.dataset.mode=mode;root.setAttribute('aria-label',numeric?numeric.label:mode==='date'?'日付を横スクロールして調整':'時刻を横スクロールして調整');root.setAttribute('aria-valuetext',describe(at,mode));root.setAttribute('aria-valuenow',String(ariaValue(at)));
   root.setAttribute('aria-valuemin',String(numeric?ariaValue(numeric.min):Date.UTC(100,0,1)-OFFSET));root.setAttribute('aria-valuemax',String(numeric?ariaValue(numeric.max):Date.UTC(10000,0,1)-OFFSET-1));root.scrollLeft=EXTENT;
+  observeLabels(nodes);
  }
  const now=()=>typeof performance==='undefined'?Date.now():performance.now();
  function rebase(offset){
@@ -338,7 +363,7 @@ function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=
   stop(){minutes?.stop();stop();},
  };
  const observer=typeof ResizeObserver==='function'?new ResizeObserver(()=>api.sync(getAt(),getMode())):null;
- observer?.observe(root);api.destroy=()=>{minutes?.destroy();stop();observer?.disconnect();};
+ observer?.observe(root);api.destroy=()=>{minutes?.destroy();stop();observer?.disconnect();labelObserver?.disconnect();};
  return api;
 }
 const api={scale,advance,mount,solarPhase,skyColor,skyInk};g.AstroNotesScrollTimeline=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;

@@ -23,7 +23,9 @@ const allowed=new Map([
  // 2026-11-26 段階④: 点天体の夜間条件を地図と候補の最終判定で共有する
  ['astronotes-shooting.js',false],
  // 2026-11-27 対象を追加する入口を試用版の共通対象選択に出す
- ['astronotes-target-ui.js',false]
+ ['astronotes-target-ui.js',false],
+ // 時刻バーのラベルを左端のフェードに掛けない
+ ['astronotes-scroll-timeline.js',false]
 ]);
 const guarded=['index.html','app-version.txt',...allowed.keys()];
 const digest=value=>createHash('sha256').update(value).digest('hex');
