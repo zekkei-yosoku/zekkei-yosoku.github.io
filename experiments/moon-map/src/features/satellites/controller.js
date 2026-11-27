@@ -10,7 +10,7 @@ import {aimPlaces} from '../framing/candidates.js';
 import {openPlaceSheet,placeIndex} from '../places/search.js';
 import {renderToolAccess,toolAllowed} from '../account/session-and-access.js';
 import {showSheet} from '../../app/overlays.js';
-/// ISS の座標の行: 選んでいる回の立つ場所の例。無ければ行を出さない
+/// 選んだ回で月・太陽を横切るところが見える場所。陸上の例があるときに表示。
 const issStandPoint = () => { const r = iss.result && iss.result[iss.pick]; return r && r.stand ? r.stand : null; };
 function issCoordUpdate() {
   const st = issStandPoint();
@@ -74,7 +74,15 @@ function issSetTab(tab) {
   $("issPassPanel").hidden = !pass;
   $("issTransitPanel").hidden = pass;
   $("issBodySeg").hidden = pass;
+  issCenterSearch();
   issApply();
+}
+
+function issCenterSearch() {
+  const point = issFromPoint();
+  if (!point) return;
+  const zoom = iss.tab === "pass" ? 5 : 8 - Math.round(Math.log2(iss.rangeKm / 150));
+  IssMap.open(point, zoom);
 }
 
 async function issApply() {
@@ -106,8 +114,8 @@ async function issApply() {
   $("issKey").className = `aim-k ${pass || iss.body === "moon" ? "moon" : "sun"}`;
   $("issKeyText").textContent = pass ? "真下の通り道（太い所が見える区間）" : "見える帯";
   document.querySelector('.coord-row[data-map="iss"]').hidden = true;
-  $("issFrom").textContent = `${P.name}から${iss.rangeKm}km以内`;
-  $("issPassFrom").textContent = P.name;
+  $("issFromLabel").textContent = pass ? "観察地" : "探すエリアの中心";
+  $("issSuggestionsTitle").textContent = pass ? "空を通る候補（7日間）" : "月・太陽を横切る候補（7日間）";
   issRefreshSelection();
   let sat, tle;
   try { [sat, tle] = await Promise.all([issLoadSat(), issLoadTle()]); } catch { sat = null; }
@@ -265,7 +273,7 @@ function issRender() {
     const st = r.stand;
     const where = st === undefined || st === null
       ? `<span class="muted">${iss.standsDone ? "立つ場所を確かめられませんでした（地図の帯の中の陸で見てください）" : "立つ場所を探しています…"}</span>`
-      : `<span class="muted">立つ場所の例：${st.name ? `<strong>${esc(st.name)}</strong>${st.kind ? `（${esc(st.kind)}）` : ""}` : "名前のない陸の上"}
+      : `<span class="muted">見える場所の例：${st.name ? `<strong>${esc(st.name)}</strong>${st.kind ? `（${esc(st.kind)}）` : ""}` : "名前のない陸の上"}
           ・ ${issDirection(P, st)}へ ${st.fromHereKm.toFixed(1)}km ・ 中心線から${st.offsetKm < 0.05 ? "すぐ" : `${st.offsetKm.toFixed(1)}km`}${
           st.others && st.others.length ? `<br>ほかに：${st.others.map((o) => esc(o.name)).join("・")}` : ""}</span>`;
     const lit = r.illuminated !== null ? ` ・ ${moonGlyphAt(r.at, st || r.center)} 輝面${Math.round(r.illuminated * 100)}%` : "";
@@ -381,6 +389,7 @@ function issSyncTime(moving = false) {
 
 function issRefreshSelection() {
   const pass = issIsPass(), row = issSelected();
+  const body = iss.body === "moon" ? "月" : "太陽";
   $("issSkyOpen").hidden = !pass || !row;
   if (!pass) issCoordUpdate();
   const status = $("issStatus");
@@ -390,19 +399,18 @@ function issRefreshSelection() {
   else if (row && pass) {
     const v = row.visible;
     status.textContent = v
-      ? `見える ${issHms(v.start.at)}〜${issHms(v.end.at)} ・ 最大${Math.round(v.max.elevation)}°`
-      : `地平線の上 ${issHm(row.rise.at)}〜${issHm(row.set.at)} ・ 肉眼で見えない回`;
+      ? `${issFromPoint().name}で見える ${issHms(v.start.at)}〜${issHms(v.end.at)} ・ 最大${Math.round(v.max.elevation)}°`
+      : `${issFromPoint().name}で地平線の上 ${issHm(row.rise.at)}〜${issHm(row.set.at)} ・ 肉眼で見えない回`;
     $("issPassDetailText").textContent = v
       ? `${status.textContent} ・ ${issSky(row.sunAltitude)} ・ 最も近いとき${Math.round(row.max.rangeKm)}km`
       : `${status.textContent} ・ ${issSky(row.sunAltitude)}`;
   } else if (row) {
-    const body = iss.body === "moon" ? "月" : "太陽";
-    status.textContent = `${body}の前 ${issHms(row.at)} ・ ${row.durationS.toFixed(1)}秒 ・ 帯の幅 約${(2 * row.halfWidthKm).toFixed(1)}km`;
+    status.textContent = `${body}を横切る ${issHms(row.at)} ・ ${row.durationS.toFixed(1)}秒 ・ 見える帯 約${(2 * row.halfWidthKm).toFixed(1)}km`;
   } else if (AstroNotesSkyMap.dayStart(issUi.at) + issDayMs <= issUi.from ||
              AstroNotesSkyMap.dayStart(issUi.at) >= issUi.from + 7 * issDayMs) {
     status.textContent = "予報の範囲外です";
   } else {
-    status.textContent = pass ? "この日の通過候補はありません" : "この日に前を横切る候補はありません";
+    status.textContent = pass ? `${issFromPoint().name}でこの日の候補はありません` : `この日は${body}を横切る候補がありません`;
   }
   const selector = pass ? "[data-pass]" : "[data-iss]";
   for (const [index, button] of Array.from($(pass ? "issPassList" : "issList").querySelectorAll(selector)).entries()) {
@@ -859,7 +867,8 @@ IssMap.setOverlay((ctx, { project, width, height }) => {
     }
     ctx.restore();
   }
-  // いまの地点
+  // 空を通る時刻だけ、時刻の基準になる観察地を表示する。
+  if (!issIsPass()) return;
   const [px, py] = project(P.latitude, P.longitude);
   ctx.save();
   ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2);
@@ -878,10 +887,15 @@ function openIss() {
     wireIssTime();
     $("issMoon").onclick = () => { if (iss.body !== "moon") { iss.body = "moon"; issApply(); } };
     $("issSun").onclick = () => { if (iss.body !== "sun") { iss.body = "sun"; issApply(); } };
-    $("issRange").onchange = () => { iss.rangeKm = Number($("issRange").value) || 150; issApply(); };
-    // 探す範囲の中心: カードを押すと「地点」の画面（検索・現在地・地図で選ぶ・お気に入り。ねらうと同じ部品）。
-    // 立つ点ではないので ☆ は付けない
-    $("issFromButton").onclick = () => openPlaceSheet("iss");
+    $("issRange").onchange = () => {
+      iss.rangeKm = Number($("issRange").value) || 150;
+      issCenterSearch();
+      issApply();
+    };
+    $("issFromButton").onclick = () => {
+      openPlaceSheet("iss");
+      $("placeSheetTitle").textContent = $("issFromLabel").textContent;
+    };
     $("issSatButton").onclick = () => issPickOpen();
     $("issPickClose").onclick = () => issPickDone();
     $("issPickMore").onclick = () => { issPick.limit += 200; issPickRender(); };
@@ -919,8 +933,7 @@ function openIss() {
     if (!viewState.iss || !toolAllowed("iss")) return;
     issUi.layout();
     if (issSelected()) return;
-    const P = issFromPoint();
-    IssMap.open({ latitude: P.latitude, longitude: P.longitude }, iss.tab === "pass" ? 5 : 8);
+    issCenterSearch();
     requestAnimationFrame(() => IssMap.redraw());
   });
   issApply();

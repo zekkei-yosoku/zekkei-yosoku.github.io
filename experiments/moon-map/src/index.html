@@ -172,9 +172,8 @@
       :is(#planeView,#issView) .tool-map-surface{position:fixed!important;left:0;right:0;width:100vw;top:var(--tool-map-top,0px);bottom:var(--tool-map-bottom,96px);height:auto!important;margin:0!important;border:0;border-radius:0!important;z-index:20;touch-action:none!important}
       :is(#planeView,#issView) .tool-map-surface canvas{width:100%;height:100%!important;min-height:0!important;touch-action:none!important}
       :is(#planeView,#issView) .tool-map-surface .sky-map-expand{display:none!important}
-      :is(#planeView,#issView) .tool-map-surface .mapzoom{display:flex!important;flex-direction:column;gap:4px;top:auto;right:10px;bottom:12px}
       :is(#planeView,#issView) .tool-map-surface .mapattr{bottom:4px;left:8px;right:auto}
-      :is(#planeView,#issView) .tool-map-actions{position:absolute;z-index:3;top:8px;left:8px;right:8px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px}
+      :is(#planeView,#issView) .tool-map-actions{position:absolute;z-index:3;top:8px;left:8px;right:60px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px}
       :is(#planeView,#issView) .tool-map-actions::-webkit-scrollbar{display:none}
       :is(#planeView,#issView) .tool-map-action{flex:none;display:inline-flex;align-items:center;gap:5px;min-height:40px;max-width:42vw;padding:0 11px;border:1px solid var(--line);border-radius:20px;background:var(--card);color:var(--text);font:inherit;font-size:14px;font-weight:700;box-shadow:0 2px 8px #0003;cursor:pointer;white-space:nowrap}
       :is(#planeView,#issView) .tool-map-action>span{overflow:hidden;text-overflow:ellipsis}
@@ -182,30 +181,20 @@
       :is(#planeView,#issView) .tool-map-action small{font-weight:600;font-size:11px;opacity:.7}
       :is(#planeView,#issView) .tool-map-action small:empty{display:none}
       @media(max-width:419px){:is(#planeView,#issView) .tool-map-action{font-size:13px;padding:0 9px;gap:3px}#planeView .tool-map-action[data-plane-pane=place]{max-width:34vw}}
-      :is(#planeView,#issView) .tool-map-status{position:absolute;z-index:3;top:58px;left:8px;right:8px;cursor:pointer;max-width:560px;margin:0!important;padding:0 10px;border:6px solid color-mix(in srgb,var(--card) 88%,transparent);border-width:6px 0;background:color-mix(in srgb,var(--card) 88%,transparent);background-clip:padding-box;border-radius:10px;box-shadow:0 1px 6px #0002;color:var(--text)!important;font-size:12px;line-height:1.45;max-height:calc(4.35em + 12px);box-sizing:border-box;white-space:pre-line;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+      :is(#planeView,#issView) .tool-map-status{position:absolute;z-index:3;top:58px;left:8px;right:60px;cursor:pointer;max-width:560px;margin:0!important;padding:0 10px;border:6px solid color-mix(in srgb,var(--card) 88%,transparent);border-width:6px 0;background:color-mix(in srgb,var(--card) 88%,transparent);background-clip:padding-box;border-radius:10px;box-shadow:0 1px 6px #0002;color:var(--text)!important;font-size:12px;line-height:1.45;max-height:calc(4.35em + 12px);box-sizing:border-box;white-space:pre-line;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
       :is(#planeView,#issView) .tool-map-status:empty{display:none}
-      #issView .tool-map-status{cursor:default}
-      #issView .tool-map-actions{display:grid;grid-template-columns:minmax(0,max-content) minmax(0,max-content) max-content max-content;right:auto;max-width:calc(100% - 16px);overflow:visible}
-      #issView .tool-map-action{flex:0 1 auto;min-width:0;min-height:44px}
-      #issView .tool-map-action>span:not(.sr-only){min-width:0}
-      #issView .tool-map-action>span[aria-hidden]{flex:none}
-      #issTabs{position:absolute;top:60px;left:10px;z-index:3;width:max-content;max-width:calc(100% - 20px);background:var(--card);margin:0;box-shadow:0 2px 8px #0003}
-      #issTabs button,#issBodySeg button{min-height:40px;white-space:nowrap}
-      #issView #issBodySeg{position:absolute;top:60px;right:10px;z-index:3;background:var(--card)}
-      #issBodySeg button{padding-inline:10px}
-      #issView #issStatus{top:108px}
+      #issMapBox .iss-map-head{position:absolute;z-index:3;top:8px;left:8px;right:60px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+      #issMapBox .tool-map-actions{position:static;overflow:visible;padding:0;align-items:center}
+      #issMapBox .tool-map-action{min-height:44px}
+      #issTabs,#issBodySeg{background:var(--card);box-shadow:0 2px 8px #0003}
+      #issTabs button,#issBodySeg button{min-height:40px;padding-inline:10px}
+      #issBodySeg button{min-width:40px}
+      #issMapBox .tool-map-status{position:static;flex-basis:100%;cursor:default}
       #issView .tool-map-surface .coord-row{position:absolute;z-index:3;left:8px;right:60px;bottom:28px;margin:0;padding:4px 7px;border-radius:10px;background:var(--card);line-height:1.25}
       #issTimeFooter .tool-datetime-row{grid-template-columns:44px max-content 44px 56px 44px 44px}
       #issSuggestions[open],#issSkySheet[open]{max-height:min(75dvh,650px)}
       #issSuggestions .al-row[aria-current=true]{border-color:var(--accent)}
       #issSuggestions #issTransitRange{margin-block:8px}
-      #issView .tool-map-surface .mapzoom{padding-bottom:env(safe-area-inset-bottom)}
-      @media(max-height:460px) and (orientation:landscape){
-        #issView .tool-map-actions{max-width:calc(100% - 310px)}
-        #issTabs{top:10px;left:auto;right:10px}
-        #issView #issBodySeg{top:10px;right:232px}
-        #issView #issStatus{top:56px;right:64px;max-height:calc(1.45em + 12px)}
-      }
       #planeView .plane-here{position:absolute;z-index:3;left:50%;bottom:12px;transform:translateX(-50%);box-shadow:0 2px 8px #0003;background:var(--card)}
       #planeView .plane-sheet{position:fixed;z-index:34;left:0;right:0;bottom:var(--tool-map-bottom,96px);max-height:calc(100dvh - var(--tool-map-top,0px) - var(--tool-map-bottom,96px) - 48px);overflow:auto;overscroll-behavior:contain;box-sizing:border-box;padding:0 16px 16px;background:var(--card);border-top:1px solid var(--line);border-radius:16px 16px 0 0;box-shadow:0 -6px 20px #0003}
       #planeView .plane-sheet-head{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;min-height:48px;margin:0 -16px 4px;padding:0 4px 0 16px;background:var(--card)}
@@ -488,29 +477,30 @@
     <div id="issMain">
       <div id="issMapBox" class="mapwrap tool-map-surface">
         <canvas id="issCanvas" aria-label="人工衛星の地図"></canvas>
-        <div class="tool-map-actions" role="group" aria-label="人工衛星の条件">
-          <button type="button" class="tool-map-action" id="issSatButton" aria-haspopup="dialog"><span aria-hidden="true">🛰️</span><span id="issSatName">ISS</span><span class="sr-only">（衛星を選ぶ）</span><span class="sr-only" id="issSatSub"></span></button>
-          <button type="button" class="tool-map-action" id="issFromButton" aria-haspopup="dialog"><span aria-hidden="true">📍</span><span id="issFromName">…</span><span class="sr-only">（地点を選ぶ）</span><span class="sr-only" id="issFromSub"></span></button>
-          <button type="button" class="tool-map-action" id="issSuggestionsOpen" aria-haspopup="dialog">候補</button>
-          <button type="button" class="tool-map-action" id="issSkyOpen" aria-haspopup="dialog" hidden>空の図</button>
+        <div class="iss-map-head">
+          <div class="aim-seg" id="issTabs" role="group" aria-label="人工衛星の見方">
+            <button type="button" id="issPassTab" aria-pressed="true">空を通る</button>
+            <button type="button" id="issTransitTab" aria-pressed="false">月・太陽を横切る</button>
+          </div>
+          <div class="tool-map-actions" role="group" aria-label="人工衛星の条件">
+            <button type="button" class="tool-map-action" id="issSatButton" aria-haspopup="dialog"><span id="issSatName">ISS</span><span class="sr-only">（衛星を選ぶ）</span><span class="sr-only" id="issSatSub"></span></button>
+            <button type="button" class="tool-map-action" id="issSuggestionsOpen" aria-haspopup="dialog">候補</button>
+            <button type="button" class="tool-map-action" id="issSkyOpen" aria-haspopup="dialog" hidden>空の図</button>
+            <div class="aim-seg" id="issBodySeg" role="group" aria-label="横切る天体" hidden>
+              <button type="button" id="issMoon" aria-pressed="true" aria-label="月" title="月">月</button>
+              <button type="button" id="issSun" aria-pressed="false" aria-label="太陽" title="太陽">☀️</button>
+            </div>
+          </div>
+          <p class="tool-map-status" id="issStatus" role="status"></p>
         </div>
-        <div class="aim-seg" id="issTabs" role="group" aria-label="人工衛星の表示">
-          <button type="button" id="issPassTab" aria-pressed="true">通過</button>
-          <button type="button" id="issTransitTab" aria-pressed="false">月・太陽の前</button>
-        </div>
-        <div class="aim-seg" id="issBodySeg" role="group" aria-label="横切る天体" hidden>
-          <button type="button" id="issMoon" aria-pressed="true" aria-label="月">月</button>
-          <button type="button" id="issSun" aria-pressed="false" aria-label="太陽">☀️</button>
-        </div>
-        <p class="tool-map-status" id="issStatus" role="status"></p>
         <div class="mapzoom">
           <button id="issIn" aria-label="拡大">＋</button>
           <button id="issOut" aria-label="縮小">−</button>
         </div>
         <div class="mapattr">国土地理院</div>
       <div class="coord-row" data-map="iss" hidden>
-        <span class="coord-label">立つ場所の例</span>
-        <button class="chip" data-coord-copy aria-label="立つ場所の例の座標をコピー"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg><span class="coord" id="issCoord">—</span><span class="copied" hidden>コピーしました</span></button>
+        <span class="coord-label">見える場所の例</span>
+        <button class="chip" data-coord-copy aria-label="見える場所の例の座標をコピー"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg><span class="coord" id="issCoord">—</span><span class="copied" hidden>コピーしました</span></button>
         <span class="chip-split"><button class="chip" data-map-app-open><span data-map-app-label>地図アプリ</span><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg></button><button class="chip chip-more" data-map-app-change aria-label="開くアプリを変える" hidden><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span>
       </div>
       </div>
@@ -788,15 +778,22 @@
 <dialog class="sheet" id="issSuggestions" aria-labelledby="issSuggestionsTitle" tabindex="-1">
   <div class="sheet-head"><strong id="issSuggestionsTitle">これから7日の候補</strong><button type="button" id="issSuggestionsClose">閉じる</button></div>
   <div class="sheet-body">
+    <button type="button" class="place-pick" id="issFromButton" aria-haspopup="dialog">
+      <span class="place-txt">
+        <span class="muted" id="issFromLabel">観察地</span>
+        <span class="name" id="issFromName"></span>
+        <span class="muted" id="issFromSub"></span>
+      </span>
+      <span aria-hidden="true">›</span>
+    </button>
     <p class="tiny" id="issTle" hidden></p>
     <div class="aim-legend"><span><i class="aim-k moon" id="issKey"></i><span id="issKeyText"></span></span></div>
-    <section id="issPassPanel" aria-label="通過の候補">
-      <p class="muted" id="issPassFrom"></p>
+    <section id="issPassPanel" aria-label="空を通る候補">
       <label class="tiny" style="display:flex;align-items:center;gap:6px;min-height:44px"><input type="checkbox" id="issShowAll">見えない回も出す（日が当たらない・空が明るい）</label>
       <div id="issPassList" class="al"></div>
       <p class="tiny">「見える」は、衛星に日が当たっていて空が暗いという意味です。暗い衛星は双眼鏡や望遠鏡が要ります。</p>
     </section>
-    <section id="issTransitPanel" aria-label="月・太陽の前を横切る候補" hidden>
+    <section id="issTransitPanel" aria-label="月・太陽を横切る候補" hidden>
       <div id="issTransitRange">
         <label class="fav-l" for="issRange">探す範囲</label>
         <select id="issRange" class="fav-in">
@@ -805,7 +802,6 @@
           <option value="400">400km以内</option>
         </select>
       </div>
-      <p class="muted" id="issFrom"></p>
       <p class="tiny" id="issSunWarn" style="color:var(--red)" hidden>太陽は必ず減光フィルターを付けて見てください。</p>
       <div id="issList" class="al"></div>
     </section>

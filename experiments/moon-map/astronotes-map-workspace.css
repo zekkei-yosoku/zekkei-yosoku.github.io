@@ -31,10 +31,18 @@ html:has(#skyMapView.map-ws-scene){scrollbar-gutter:auto}
 #skyMapView.explore-mounted[data-explore-mode=map] #skyMapShareRow [data-plan-action=share]::after{content:'共有'}
 /* 右端の縦ボタン列 */
 #skyMapView.map-ws .sky-map-expand{display:none!important}
-#skyMapView.map-ws .sky-map-wide .mapzoom{display:flex;flex-direction:column;gap:2px;top:8px;bottom:auto;right:var(--ws-rail-right);left:auto}
-#skyMapView.map-ws .sky-map-wide .mapzoom button{width:44px;height:44px}
-#skyMapView.map-ws .sky-map-wide .map-layers-btn{top:148px;right:var(--ws-rail-right);bottom:auto}
-#skyMapView.map-ws .sky-map-wide .map-layer-menu{top:148px;right:calc(var(--ws-rail-right) + 50px);bottom:auto}
+:is(#skyMapView.map-ws .sky-map-wide,.tool-map-surface) .mapzoom{display:flex;flex-direction:column;gap:2px;top:8px;bottom:auto;right:var(--ws-rail-right);left:auto}
+:is(#skyMapView.map-ws .sky-map-wide,.tool-map-surface) .mapzoom button{width:44px;height:44px}
+:is(#skyMapView.map-ws .sky-map-wide,.tool-map-surface) .map-layers-btn{top:148px;right:var(--ws-rail-right);bottom:auto}
+:is(#skyMapView.map-ws .sky-map-wide,.tool-map-surface) .map-layer-menu{top:148px;right:calc(var(--ws-rail-right) + 50px);bottom:auto}
+.tool-map-surface.astro-map-wrap .mapzoom{display:flex!important}
+.tool-map-surface.astro-map-wrap .map-layers-btn{display:grid!important}
+.tool-map-surface{--ws-rail-right:max(8px,env(safe-area-inset-right))}
+@media(max-height:460px) and (orientation:landscape){
+ .tool-map-surface .mapzoom button:not(.map-locate){display:none}
+ :is(#planeView,#issView) .tool-map-surface.astro-map-wrap .map-layers-btn{top:54px}
+ :is(#planeView,#issView) .tool-map-surface.astro-map-wrap .map-layer-menu{top:8px}
+}
 #skyMapView.map-ws .map-ws-bodies{display:grid;place-items:center;position:absolute;top:194px;right:var(--ws-rail-right);width:44px;height:44px;padding:0;font-size:11px;font-weight:700;z-index:4;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text)}
 #skyMapView.map-ws .sky-map-wide .sky-map-point-tools{top:194px;left:auto;right:var(--ws-rail-right);gap:2px}
 #skyMapView.map-ws .sky-map-wide .mapattr{bottom:6px;left:8px;right:auto}
