@@ -54,7 +54,19 @@ import {UI_ICONS} from '../../ui/visual-primitives.js';
  const dateAt=at=>new Date(at+32400000).toISOString().slice(0,10);
  const validPoint=p=>!!p&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude);
  const pointKey=o=>o?JSON.stringify([o.latitude,o.longitude,o.groundManualM??o.elevation,aimObserverEye(o)]):'';
- function skyState(body,at,o){const s=body==='sun'?AstroNotesAstro.sun(at,o):body==='moon'?AstroNotesAstro.moon(at,o):AstroNotesBodies.state(body,at,o,{refraction:false});return {...s,altitude:s.geometricAltitude??s.altitude};}
+ // The map, readouts and footer share the exact current position at the shooting point.
+ let currentSky=null;
+ function skyState(body,at,o){
+  const sameInstant=!!o&&session?.eye===o&&session.at===at;
+  if(sameInstant){
+   if(currentSky?.eye!==o||currentSky.at!==at)currentSky={eye:o,at,states:new Map()};
+   if(currentSky.states.has(body))return currentSky.states.get(body);
+  }
+  const s=body==='sun'?AstroNotesAstro.sun(at,o):body==='moon'?AstroNotesAstro.moon(at,o):AstroNotesBodies.state(body,at,o,{refraction:false});
+  const value={...s,altitude:s.geometricAltitude??s.altitude};
+  if(sameInstant)currentSky.states.set(body,value);
+  return value;
+ }
  const currentState=()=>session.dailies?.[session.body]?skyState(session.body,session.at,session.eye):null;
  function save(){if(!hasAccess()||timelineMoving)return;
  store.set(skyStoreKey(),{body:session.body,at:session.at,observer:session.observer,sharedTarget:session.sharedTarget||null,targetId:session.target?.id||'',partId:session.partId,limb:session.limb,matchMode:session.matchMode,alignmentPolicy:1,showSun:session.showSun,showMoon:session.showMoon,
@@ -200,7 +212,10 @@ ctx.lineWidth=1;
   if(details._observer!==o){details._observer=o;el('skyMapHeightError').hidden=true;}
   if(!validPoint(o))return;
   const ground=o.groundManualM??session.ground,eye=aimObserverAt(o,ground).eyeM;
-  {const values=document.createElement('span');values.className='height-summary-values';values.textContent='：標高 '+(Number.isFinite(ground)?ground.toFixed(1)+'m':'未取得')+'・地上から '+eye+'m';el('skyMapObserverSummary').replaceChildren('高さ',values);}
+  const summary=el('skyMapObserverSummary'),heightText='：標高 '+(Number.isFinite(ground)?ground.toFixed(1)+'m':'未取得')+'・地上から '+eye+'m';
+  const values=summary.querySelector('.height-summary-values');
+  if(values){if(values.textContent!==heightText)values.textContent=heightText;}
+  else{const item=document.createElement('span');item.className='height-summary-values';item.textContent=heightText;summary.replaceChildren('高さ',item);}
   for(const [id,value] of [['skyMapGroundHeight',ground],['skyMapStandHeight',eye]]){const input=el(id);input.disabled=false;input.placeholder=id==='skyMapGroundHeight'?'標高を入力':'地上からを入力';setObserverHeightInput(input,value,{keepFocus:true});}
   el('skyMapGroundAuto').disabled=!Number.isFinite(o.groundManualM);el('skyMapStandAuto').disabled=!Number.isFinite(o.standAglM)&&!Number.isFinite(o.observationElevationM);
  }
@@ -256,9 +271,12 @@ ctx.lineWidth=1;
    if(skyTimeDialog.open)renderMapTime();
    save();return;
   }
-  renderPassages();try{globalThis.MyPlacesUI?.skyRender(session);}catch(e){const box=el('mySkyPlaces');
+  const fullMap=view.classList.contains('map-ws');
+  if(!fullMap)renderPassages();
+  try{globalThis.MyPlacesUI?.skyRender(session);}catch(e){const box=el('mySkyPlaces');
   if(box)box.textContent='撮影地点を確認できません。地図を開き直して再試行してください';}
-  renderMapTime();map.redraw();save();
+  if(!fullMap||skyTimeDialog.open)renderMapTime();
+  map.redraw();save();
  }
  function renderMapTime(){
   const observer=session.observer;
@@ -268,7 +286,6 @@ ctx.lineWidth=1;
    return;
   }
   const st=currentState();
-  el('skyMapRange').setAttribute('aria-valuetext',session.scrubMode==='date'?ToolDateTimeBar.label(session.at):textAt(session.at));
   el('skyMapAngles').replaceChildren(...shownBodies().filter(body=>session.dailies[body]).map(body=>{const v=body===session.body?st:skyState(body,session.at,session.eye),d=document.createElement('div');const alt=v.altitude.toFixed(2).replace(/^-(0\.00)$/,'$1');
   d.textContent=`${bodyName(body)}　方位 ${v.azimuth.toFixed(1)}° ・ 高度 ${alt}°${body==='moon'?' ・ 輝面 '+Math.round(v.illuminatedFraction*100)+'%':''}${+alt<0?' ・ 地平線の下':''}`;if(body==='moon')d.insertAdjacentHTML('afterbegin',moonGlyphAt(session.at,session.eye)+' ');
   if(body!==session.body&&shownBodies().length>1)d.className='tiny';return d;}));
@@ -515,6 +532,7 @@ ctx.lineWidth=1;
   if(!Number.isFinite(session.dayAnchor)||Math.abs(AstroNotesSkyMap.dayStart(session.at)-session.dayAnchor)>7*86400000)session.dayAnchor=AstroNotesSkyMap.dayStart(session.at);
   range.min=dateMode?-7:0;range.max=dateMode?7:86399;range.step=1;range.value=dateMode?(AstroNotesSkyMap.dayStart(session.at)-session.dayAnchor)/86400000:(session.at-AstroNotesSkyMap.dayStart(session.at))/1000;
   skyTimeline.sync(session.at,session.scrubMode);
+  range.setAttribute('aria-valuetext',dateMode?ToolDateTimeBar.label(session.at):textAt(session.at));
   range.setAttribute('aria-label',dateMode?'撮影日を滑らかに調整':'撮影時刻を滑らかに調整');
   ToolDateTimeBar.modeButton(el('skyMapScrubMode'),session.scrubMode);
  }

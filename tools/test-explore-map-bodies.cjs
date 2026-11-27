@@ -9,7 +9,7 @@ const realTiles=process.env.MAP_BODIES_REAL_TILES==='1';
 const engines=(process.env.MAP_BODIES_ENGINES||'chrome,webkit').split(',');
 const widths=(process.env.MAP_BODIES_WIDTHS||'320,390').split(',').map(Number);
 const themes=(process.env.MAP_BODIES_THEMES||'light,dark').split(',');
-const checks=(process.env.MAP_BODIES_CHECKS||'matrix,engine,night,line,card,terrain,vicinity,date-lines').split(',');
+const checks=(process.env.MAP_BODIES_CHECKS||'matrix,engine,night,line,card,terrain,vicinity,date-lines,projection').split(',');
 const tools=['records','tower','diamond','pearl','skymap','multiscene'];
 const bodies=['moon','sun','sirius','venus','mercury','mars','jupiter','saturn'];
 const names={moon:'月',sun:'太陽',sirius:'シリウス',venus:'金星',mercury:'水星',mars:'火星',jupiter:'木星',saturn:'土星'};
@@ -324,6 +324,40 @@ async function dateLineReuse(browser,engine){
  }finally{await f.context.close();}
 }
 
+async function mapProjection(browser,engine){
+ const f=await open(browser,390,'dark'),p=f.page;
+ try{
+  await ready(p,'moon');
+  await p.locator('#skyMapTimeMore').click();
+  await p.waitForFunction(()=>document.querySelector('#skyMapAngles').closest('dialog').open);
+  const before=await p.locator('#skyMapAngles').innerText();
+  assert.match(before,/月.*方位.*高度/);
+  await p.evaluate(()=>SkyMapUI.setTime(SkyMapUI.selectionState().at+15*60000));
+  await p.waitForFunction(old=>document.querySelector('#skyMapAngles').innerText!==old,before);
+  await p.locator('dialog[open]').getByRole('button',{name:'閉じる',exact:true}).click();
+  await p.locator('#mapWsMode input[value=target]').click();
+  await p.waitForFunction(()=>AstroNotesMapWorkspace.targetState().band>0);
+  const points=await p.evaluate(async()=>{
+   const h=SkyMapUI.workspaceHost(),original=AstroNotesMapWorkspace.drawTarget,results=[];
+   const points=[[35.7,139.7],[35.6,139.5],[35.75,139.9]];
+   AstroNotesMapWorkspace.drawTarget=(ctx,args)=>{
+    results.push(points.map(([lat,lon])=>{const a=args.project(lat,lon),b=h.map.project(lat,lon);return Math.hypot(a[0]-b[0],a[1]-b[1]);}));
+    return original(ctx,args);
+   };
+   const frame=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+   try{
+    for(const [lat,lon,zoom,angle] of [[35.7,139.7,12,0],[35.65,139.6,11.5,42],[35.8,139.75,13.7,275]]){
+     h.map.setView(lat,lon,zoom);h.map.setRotation(angle);await frame();
+    }
+    return results;
+   }finally{AstroNotesMapWorkspace.drawTarget=original;}
+  });
+  assert(points.length>=3&&points.flat().every(distance=>distance<1e-7),JSON.stringify(points));
+  assert.deepEqual(f.errors,[]);
+  return {label:engine+'-projection',dialogRefreshed:true,matchingCoordinates:points.length};
+ }finally{await f.context.close();}
+}
+
 async function terrainErrorLayout(browser,engine,theme){
  const f=await open(browser,320,theme),results=[];
  try{
@@ -358,6 +392,7 @@ async function terrainErrorLayout(browser,engine,theme){
    if(checks.includes('card'))results.push(await cardEdges(browser,engine));
    if(checks.includes('vicinity'))results.push(await targetVicinity(browser,engine));
    if(checks.includes('date-lines'))results.push(await dateLineReuse(browser,engine));
+   if(checks.includes('projection'))results.push(await mapProjection(browser,engine));
    if(checks.includes('terrain'))for(const theme of themes)results.push(await terrainErrorLayout(browser,engine,theme));
   }finally{await browser.close();}
  }

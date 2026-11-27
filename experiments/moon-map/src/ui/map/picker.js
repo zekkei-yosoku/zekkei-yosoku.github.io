@@ -201,8 +201,14 @@ function createMapView(ids) {
     const scale = 2 ** (view.zoom - z);
     const size = TILE * scale;
     const cx = lonToX(view.lon, z) * scale, cy = latToY(view.lat, z) * scale;
-    const b = bearing * Math.PI / 180, c = Math.abs(Math.cos(b)), s = Math.abs(Math.sin(b));
+    const b = bearing * Math.PI / 180, cos = Math.cos(b), sin = Math.sin(b);
+    const c = Math.abs(cos), s = Math.abs(sin);
     const hw = bearing ? (w * c + h * s) / 2 : w / 2, hh = bearing ? (w * s + h * c) / 2 : h / 2;
+    // Overlay points share the size and projection of the tiles painted in this frame.
+    const projectFrame = (lat, lon) => {
+      const dx = lonToX(lon, z) * scale - cx, dy = latToY(lat, z) * scale - cy;
+      return [dx * cos + dy * sin + w / 2, dy * cos - dx * sin + h / 2];
+    };
     const x0 = Math.floor((cx - hw) / size), x1 = Math.floor((cx + hw) / size);
     const y0 = Math.floor((cy - hh) / size), y1 = Math.floor((cy + hh) / size);
     if (bearing) { ctx.save(); ctx.translate(w / 2, h / 2); ctx.rotate(-b); ctx.translate(-w / 2, -h / 2); }
@@ -229,8 +235,8 @@ function createMapView(ids) {
     }
     if (bearing) ctx.restore();
     if (ids.coord) $(ids.coord).textContent = `${view.lat.toFixed(5)}, ${view.lon.toFixed(5)}`;
-    if (overlay) { try { overlay(ctx, { project, view, width: w, height: h }); } catch { /* 重ね描きで落とさない */ } }
-    drawMyPos(ctx, project, view);
+    if (overlay) { try { overlay(ctx, { project:projectFrame, view, width: w, height: h }); } catch { /* 重ね描きで落とさない */ } }
+    drawMyPos(ctx, projectFrame, view);
     if (onChange) onChange({ latitude: view.lat, longitude: view.lon, zoom: view.zoom });
   }
   const schedule = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; draw(); }); };
