@@ -385,7 +385,15 @@ ctx.lineWidth=1;
   if(session.timelinePending)refresh(timeOnly);else render(timeOnly);
  }
  const renderMinutes=()=>view.dataset.exploreStage==='preview'&&view.dataset.exploreMode==='scene';
- const skyTimeline=AstroNotesScrollTimeline.mount({root:el('skyMapTimeline'),renderMinutes,annotations:mode=>globalThis.AstroNotesMapWorkspace?.annotations(mode),getAt:()=>session?.at,getMode:()=>session?.scrubMode,enabled:()=>hasAccess()&&!!session&&active(),onChange:at=>{
+ const skyTimeline=AstroNotesScrollTimeline.mount({root:el('skyMapTimeline'),renderMinutes,annotations:mode=>globalThis.AstroNotesMapWorkspace?.annotations(mode),
+ feedbackEvents:(from,to)=>{
+  const s=session;
+  if(!s?.eye||(!s.daily&&s.body!=="moon"&&s.body!=="sun"))return [];
+  return AstroNotesScrollTimeline.feedbackEventsBetween(from,to,AstroNotesSkyMap.dayStart,day=>[
+   ...AstroNotesSkyMap.daily(s.body,day,s.eye,skyState).events.map(event=>event.at),
+   ...(globalThis.AstroNotesMapWorkspace?.feedbackEvents(day)||[])
+  ]);
+ },getAt:()=>session?.at,getMode:()=>session?.scrubMode,enabled:()=>hasAccess()&&!!session&&active(),onChange:at=>{
   if(!hasAccess()||!session||!active())return;
   const day=AstroNotesSkyMap.dayStart(at),changed=day!==AstroNotesSkyMap.dayStart(session.at);
   timelineMoving=true;session.at=at;

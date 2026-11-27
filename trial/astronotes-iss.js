@@ -241,6 +241,67 @@
     };
   }
 
+  // The forecast search stays local. Trace the selected crossing to its geometric
+  // limits separately so the search radius never sets an endpoint on the map.
+  function transitMapTrack(sat, tle, crossing, control) {
+    return finishStepsAsync(transitMapSteps(sat, tle, crossing), control);
+  }
+
+  function* transitMapSteps(sat, tle, { body, at, halfWidthKm }) {
+    const rec = sat.twoline2satrec(tle.line1, tle.line2);
+    const turnsPerDay = Number(tle.line2.slice(52, 63));
+    if (!Number.isFinite(turnsPerDay) || turnsPerDay <= 0) return [];
+    const halfOrbit = 43200000 / turnsPerDay;
+    const stepMs = Math.max(1000, Math.ceil(halfOrbit / 900));
+    const sample = (time) => {
+      const S = satEcef(sat, rec, time), B = A.bodyEcef(body, time);
+      const O = S && groundPoint(B, S);
+      if (!O) return null;
+      const p = ecefToGeodetic(O);
+      if (altitudeDeg(O, B, p.latitude, p.longitude) < 5) return null;
+      return { ...p, at: time, S, B };
+    };
+    const seed = sample(at);
+    if (!seed) return [];
+    const sides = [];
+    for (const direction of [-1, 1]) {
+      const side = [];
+      for (let step = 1; step * stepMs <= halfOrbit; step++) {
+        if (step % 24 === 0) yield;
+        const q = sample(at + direction * step * stepMs);
+        if (!q) break;
+        side.push(q);
+      }
+      sides.push(side);
+    }
+    const line = [...sides[0].reverse(), seed, ...sides[1]];
+    const radiusFor = body === "moon" ? A.moonAngularRadius : A.sunAngularRadius;
+    const result = [];
+    for (const [i, q] of line.entries()) {
+      if (i % 24 === 0) yield;
+      const a = line[Math.max(0, i - 1)], b = line[Math.min(line.length - 1, i + 1)];
+      const north = b.latitude - a.latitude;
+      const cosLat = Math.max(0.001, Math.cos(q.latitude * DEG));
+      const east = (((b.longitude - a.longitude + 540) % 360) - 180) * cosLat;
+      const norm = Math.hypot(north, east);
+      let half = halfWidthKm;
+      if (norm > 0) {
+        // Local angular scale across the ground track, measured one km off it.
+        const side = geodeticToEcef(q.latitude - east / norm / 110.54, q.longitude + north / norm / (111.32 * cosLat));
+        const degreesPerKm = separationDeg(side, q.S, q.B);
+        if (degreesPerKm > 0) half = radiusFor(q.B.distanceKm) / degreesPerKm;
+      }
+      result.push({ latitude: q.latitude, longitude: q.longitude, at: q.at, halfWidthKm: half });
+    }
+    return result;
+  }
+
+  // The closest approach at the chosen location can differ from the search anchor.
+  function transitTimeAt(sat, tle, body, point, around, control) {
+    const rec = sat.twoline2satrec(tle.line1, tle.line2);
+    return finishStepsAsync(passAtSteps(sat, rec, body, point.latitude, point.longitude, around), control);
+  }
+
   // ---------------------------------------------------------------- 通過（2026-10-21）
   //
   // 空を横切る衛星が見えるのは、**衛星に日が当たっていて、地上が暗い**とき。
@@ -352,7 +413,7 @@
     return out;
   }
 
-  const AstroNotesISS = { parseTle, parseTleList, transits, transitsAsync, passes, passesAsync, groundTrack, sunlit, passAt, groundPoint, geodeticToEcef, ecefToGeodetic,
+  const AstroNotesISS = { parseTle, parseTleList, transits, transitsAsync, transitMapTrack, transitTimeAt, passes, passesAsync, groundTrack, sunlit, passAt, groundPoint, geodeticToEcef, ecefToGeodetic,
                       distanceKm, separationDeg, VISIBLE_MIN_EL, DARK_SUN_ALT };
   global.AstroNotesISS = AstroNotesISS;
   if (typeof module !== "undefined" && module.exports) module.exports = AstroNotesISS;

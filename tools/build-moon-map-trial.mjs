@@ -37,7 +37,7 @@ const allowed=new Map([
  ['src/features/candidates/plateau-buildings.js',false],
  ['src/features/candidates/osm-places.js',false],
  ['src/features/candidates/tree-heights.js',false],
- ['src/features/satellites/controller.js',false]
+ ['src/features/satellites/controller.js',false],['src/features/satellites/state.js',false],['astronotes-iss.js',false],['src/features/places/search.js',false],['src/ui/map/picker.js',false]
 ]);
 const guarded=['index.html','app-version.txt',...allowed.keys()];
 const digest=value=>createHash('sha256').update(value).digest('hex');

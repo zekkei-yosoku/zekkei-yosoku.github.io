@@ -451,6 +451,12 @@ function updateTargetCard(h){
 }
 const api={
  hourPixels:()=>active?hourPixels:0,
+ feedbackEvents(day){
+  const h=host(), s=h?.session;
+  if(!active||!s||isTarget()||AstroNotesSkyMap.dayStart(s.at)!==day)return [];
+  const windows=overlapWindows(h);
+  return Array.isArray(windows)?windows.flatMap(w=>[w.from,w.to]):[];
+ },
  annotations(mode){
   const h=host(),s=h?.session;
   if(!active||mode!=='hour'||!s?.eye||pointBody(s.body)&&!AstroNotesBodies.ready())return null;

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "20261124-moon-route-map",
-  "revision": 19,
+  "revision": 20,
   "baselineCommit": "f4f35b61359ba5ec8f9da057cf3026902a0402a4",
   "baselineSha256": {
     "index.html": "feb5e6c31bbb6014c66615a414cca2477296b89ab8e6a95ba1e98c07907a29c3",
@@ -33,7 +33,11 @@
     "src/features/candidates/plateau-buildings.js": "fcffc03f9178f462c351a956bdf7cf6856fb93cd70e5587ab16b000a7136e417",
     "src/features/candidates/osm-places.js": "098b5f607f9e08cee740201e0e70c318aa9fd161c8751173dedd756b8e37ba89",
     "src/features/candidates/tree-heights.js": "7303da2b7c2a3a549a2a6c6459daa9aed55ae771a863361ec34a98a72e1e42de",
-    "src/features/satellites/controller.js": "061d8deea83e58df7a9e058775654aca33fd40580166899171b7b3cd24e3251f"
+    "src/features/satellites/controller.js": "061d8deea83e58df7a9e058775654aca33fd40580166899171b7b3cd24e3251f",
+    "astronotes-iss.js": "4da1cf617abe8e3b37fa77c41dd81cf0da3bf94bd6888dc70f5ef5121f4b99be",
+    "src/features/satellites/state.js": "892e8dc00f0dceda0a73fbbbcce87cbbb7602158ab3138b14fe4a286b25b1e94",
+    "src/features/places/search.js": "bd870926785d9230e5a942b20b3cba798b9526ee1f9483f1bd6d078b9005d592",
+    "src/ui/map/picker.js": "c2adcc13bf9db094c0248a1e80d9c0f8afc575e106349e44f8ea87c2fdfdc747"
   },
   "overlays": [
     {
@@ -146,6 +150,22 @@
     },
     {
       "path": "src/features/satellites/controller.js",
+      "required": false
+    },
+    {
+      "path": "astronotes-iss.js",
+      "required": false
+    },
+    {
+      "path": "src/features/satellites/state.js",
+      "required": false
+    },
+    {
+      "path": "src/features/places/search.js",
+      "required": false
+    },
+    {
+      "path": "src/ui/map/picker.js",
       "required": false
     }
   ]

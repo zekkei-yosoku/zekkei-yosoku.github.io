@@ -217,7 +217,12 @@ function mountMinuteRuler({root,tape,enabled,onChange,onSettle,format,describe,g
   follow(value){stop();phase=value;show(value);},
  };
 }
-function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=>{},onBlend=()=>{},format,describe=format,getObserver=()=>null,sun=()=>null,numeric=null,renderMinutes=()=>false,annotations=null}){
+function feedbackEventsBetween(from,to,dayStart,events){
+ const first=dayStart(Math.min(from,to)), last=dayStart(Math.max(from,to));
+ if(first===last)return events(first).filter(Number.isFinite).sort((a,b)=>a-b);
+ return [...events(first),...events(last)].filter(Number.isFinite).sort((a,b)=>a-b);
+}
+function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=>{},onBlend=()=>{},format,describe=format,getObserver=()=>null,sun=()=>null,numeric=null,renderMinutes=()=>false,annotations=null,feedbackEvents=null}){
  let minutes=null,labelObserver=null,observedInset=0;
  const enabled=()=>canUse()&&!minutes?.active();
  const clamp=v=>numeric?Math.max(numeric.min,Math.min(numeric.max,v)):v;
@@ -226,6 +231,21 @@ function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=
  const rulerScale=mode=>numeric?{step:numeric.step,pixels:numeric.pixels,labelEvery:numeric.labelEvery}:scale(mode);
  const rulerAdvance=(at,pixels,mode)=>numeric?numeric.snap?clamp(numeric.snap(at+pixels/numeric.pixels*numeric.step)):rounded(Math.round((at+pixels/numeric.pixels*numeric.step)/numeric.step)*numeric.step):advance(at,pixels,mode);
  const tape=document.createElement('div');tape.className='sky-timeline-tape';root.replaceChildren(tape);
+ let vibrationAt=-Infinity, lastEvent=null;
+ function publish(at){
+  const before=getAt();
+  if(feedbackEvents&&getMode()!=="date"&&typeof g.navigator?.vibrate==="function"&&before!==at&&Number.isFinite(before)){
+   const now=g.performance.now(), low=Math.min(before,at), high=Math.max(before,at);
+   if(now-vibrationAt>=220){
+    const candidates=feedbackEvents(before,at);
+    const crossed=at>before?candidates.find(t=>t>low&&t<=high):[...candidates].reverse().find(t=>t>=low&&t<high);
+    if(crossed!==undefined&&(lastEvent!==crossed||Math.abs(before-crossed)>60000)){
+     if(g.navigator.vibrate(16)){vibrationAt=now;lastEvent=crossed;}
+    }
+   }
+  }
+  onChange(at);
+ }
  const layer=annotations?document.createElement('canvas'):null;
  if(layer){layer.className='sky-timeline-annotations';layer.setAttribute('aria-hidden','true');layer.hidden=true;}
  let painted=null;
@@ -267,7 +287,7 @@ function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=
   layer.hidden=false;
  }
  const emit=(offset=offsetFromCenter())=>{const s=rulerScale(mode),units=offset/s.pixels,at=numeric?rounded(anchor+units*s.step):mode!=='date'?Math.round(anchor+units*s.step):rulerAdvance(anchor,offset,mode),changed=at!==lastAt;
-  if(changed){lastAt=at;root.setAttribute('aria-valuetext',describe(at,mode));root.setAttribute('aria-valuenow',String(ariaValue(at)));onChange(at);}
+  if(changed){lastAt=at;root.setAttribute('aria-valuetext',describe(at,mode));root.setAttribute('aria-valuenow',String(ariaValue(at)));publish(at);}
   if(mode==='date'){const k=Math.floor(units),f=Math.round((units-k)*1000)/1000;setBlend(f>0&&f<1?{from:anchor+k*s.step,to:anchor+(k+1)*s.step,f}:null);}
   paintAnnotations(at);return changed;};
  const flush=()=>{frame=0;if(!enabled()||!Number.isFinite(anchor))return;if(numeric){const s=rulerScale(mode),raw=anchor+(root.scrollLeft-EXTENT)/s.pixels*s.step,bounded=clamp(raw);if(raw!==bounded)root.scrollLeft=EXTENT+(bounded-anchor)/s.step*s.pixels;
@@ -332,7 +352,7 @@ function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=
   finish();
  }
  // 止めたら目盛り（1分・1日）へ寄せる。寄せる間も途中を渡し、指を離した瞬間に跳ばせない
- function done(target){setBlend(null);lastAt=target;onChange(target);reset(target,mode);onSettle(target);}
+ function done(target){setBlend(null);lastAt=target;publish(target);reset(target,mode);onSettle(target);}
  function finish(){
   clearTimeout(timer);timer=0;root.style.overflowX='hidden';void root.offsetWidth;root.style.overflowX='';flush();clearTimeout(timer);timer=0;
   const s=rulerScale(mode),target=rulerAdvance(anchor,offsetFromCenter(),mode),startLeft=root.scrollLeft,endLeft=EXTENT+(target-anchor)/s.step*s.pixels;
@@ -366,7 +386,7 @@ function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=
  root.addEventListener('wheel',e=>{if(!activate('wheel'))return;if(!e.deltaX&&e.deltaY){e.preventDefault();root.scrollLeft+=e.deltaY;}},{passive:false});
  for(const event of ['pointerup','pointercancel','lostpointercapture'])root.addEventListener(event,()=>{if(!touching)pressed=false;mouse=null;},{passive:true});
  root.addEventListener('keydown',e=>{const dir={ArrowLeft:-1,ArrowDown:-1,ArrowRight:1,ArrowUp:1,PageUp:-1,PageDown:1}[e.key];if(!dir||!enabled())return;e.preventDefault();
- const large=e.shiftKey||e.key.startsWith('Page'),delta=numeric?numeric.step*(large?10:1):(mode==='date'?DAY:mode==='hour'?3600000:MINUTE)*(large?(mode==='date'?7:mode==='hour'?6:15):1),at=rounded(getAt()+dir*delta);stop();reset(at,mode);onChange(at);onSettle(at);});
+ const large=e.shiftKey||e.key.startsWith('Page'),delta=numeric?numeric.step*(large?10:1):(mode==='date'?DAY:mode==='hour'?3600000:MINUTE)*(large?(mode==='date'?7:mode==='hour'?6:15):1),at=rounded(getAt()+dir*delta);stop();reset(at,mode);publish(at);onSettle(at);});
  function stop(){setBlend(null);cancelAnimationFrame(snapFrame);snapFrame=0;snapTarget=null;lastScroll=null;generation.cancel();cancelAnimationFrame(frame);frame=0;clearTimeout(timer);timer=0;moving=false;pressed=false;touching=false;mouse=null;blocked=true;anchor=null;}
  // 2026-10-20 ユーザー「日付をばーっと動かしてるときに今日を押しても止まらず動き続ける」：外から日時を替えるときは、指を離したあとの慣性スクロールも止める
  const halt=()=>{if(!(moving||Math.abs(offsetFromCenter())>=.1))return;root.style.overflowX='hidden';void root.offsetWidth;root.style.overflowX='';};
@@ -382,7 +402,7 @@ function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=
  const useMinutes=mode=>!numeric&&mode==='time'&&renderMinutes();
  const minuteRuler=nextMode=>{
   if(!canUse()||!useMinutes(nextMode)){minutes?.leave();return null;}
-  if(!minutes)minutes=mountMinuteRuler({root,tape,enabled:()=>canUse()&&useMinutes(getMode()),onChange,onSettle,format,describe,getObserver,sun});
+  if(!minutes)minutes=mountMinuteRuler({root,tape,enabled:()=>canUse()&&useMinutes(getMode()),onChange:publish,onSettle,format,describe,getObserver,sun});
   if(minutes&&!minutes.active()){halt();stop();minutes.enter();}
   return minutes;
  };
@@ -395,7 +415,7 @@ function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=
  observer?.observe(root);api.destroy=()=>{minutes?.destroy();stop();observer?.disconnect();labelObserver?.disconnect();};
  return api;
 }
-const api={scale,advance,mount,solarPhase,skyColor,skyInk};g.AstroNotesScrollTimeline=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+const api={scale,advance,mount,solarPhase,skyColor,skyInk,feedbackEventsBetween};g.AstroNotesScrollTimeline=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window==='undefined'?globalThis:window);
 
 /* Legacy global names remain aliases for cached integrations. */

@@ -2,16 +2,15 @@ import {bindToolMapLayout,$,S,esc} from '../../ui/presentation-helpers.js';
 import {store,viewState} from '../../app/browser-state.js';
 import {lightTimingText,moonGlyphAt} from '../forecast/view.js';
 import {routeFromHash} from '../../app/navigation.js';
-import {renderPointCard} from '../places/controller.js';
 import {aimMapLabel} from '../framing/controller.js';
-import {ISS_PRESETS,IssMap,iss,issFromPoint,issRenderSatCard,issSatName} from './state.js';
+import {ISS_PRESETS,IssMap,iss,issFromPoint,issRenderSatCard,issSatName,issSetFrom} from './state.js';
 import {coordText} from '../places/map-apps.js';
 import {aimPlaces} from '../framing/candidates.js';
-import {openPlaceSheet,placeIndex} from '../places/search.js';
+import {observingPlacesAlong,placeIndex} from '../places/search.js';
 import {renderToolAccess,toolAllowed} from '../account/session-and-access.js';
 import {showSheet} from '../../app/overlays.js';
 /// 選んだ回で月・太陽を横切るところが見える場所。陸上の例があるときに表示。
-const issStandPoint = () => { const r = iss.result && iss.result[iss.pick]; return r && r.stand ? r.stand : null; };
+const issStandPoint = () => issUi.site || issSelected()?.stand || null;
 function issCoordUpdate() {
   const st = issStandPoint();
   document.querySelector('.coord-row[data-map="iss"]').hidden = !st;
@@ -64,25 +63,38 @@ async function issLoadTle(catnr = iss.catnr) {
   }
 }
 
-/// 表示の切り替え（通過／月・太陽の前）。地図と凡例もそれぞれに合わせる
-function issSetTab(tab) {
-  if (iss.tab === tab) return;
-  iss.tab = tab;
-  const pass = tab === "pass";
-  $("issPassTab").setAttribute("aria-pressed", String(pass));
-  $("issTransitTab").setAttribute("aria-pressed", String(!pass));
-  $("issPassPanel").hidden = !pass;
-  $("issTransitPanel").hidden = pass;
-  $("issBodySeg").hidden = pass;
-  issCenterSearch();
-  issApply();
-}
-
 function issCenterSearch() {
   const point = issFromPoint();
   if (!point) return;
-  const zoom = iss.tab === "pass" ? 5 : 8 - Math.round(Math.log2(iss.rangeKm / 150));
+  const zoom = 8 - Math.round(Math.log2(iss.rangeKm / 150));
   IssMap.open(point, zoom);
+}
+
+function issToggleBody(body) {
+  const wasOrbit = !iss.body;
+  iss.body = iss.body === body ? null : body;
+  if (wasOrbit && iss.body) issCenterSearch();
+  if (!iss.body) issOpenWorld();
+  issApply();
+}
+
+function issOpenWorld() {
+  const canvas = $("issCanvas");
+  const fit = Math.min(canvas.clientWidth || 390, (canvas.clientHeight || 600) * 2.2);
+  IssMap.open({latitude:0,longitude:0}, Math.max(0,Math.log2(fit/256)-0.12));
+}
+
+function issBuildOrbit() {
+  const tle = issUi.tle, at = issUi.at;
+  const revPerDay = Number(tle?.line2.slice(52,63));
+  if (!tle || !Number.isFinite(revPerDay) || revPerDay <= 0 || Math.abs(at-tle.epochMs)>7*issDayMs) {
+    issUi.orbit = [];
+    return;
+  }
+  const half = 43200000/revPerDay, key=tle.line1+tle.line2;
+  if (issUi.orbit.length && issUi.orbitKey===key && Math.abs(at-issUi.orbitAt)<half/5) return;
+  issUi.orbitAt=at; issUi.orbitKey=key;
+  issUi.orbit = AstroNotesISS.groundTrack(iss.sat,tle,at-half,at+half,Math.max(1,half/120000));
 }
 
 async function issApply() {
@@ -91,38 +103,33 @@ async function issApply() {
   if (!P) return;
   const seq = iss.seq.next();
   const name = issSatName();
-  const pass = iss.tab === "pass";
   issUi.timeline.stop();
   issUi.moving = false;
   issUi.beforeResults = issUi.at;
   issUi.from = Date.now();
   issUi.state = "loading";
-  iss.passes = []; iss.passPick = -1; iss.track = []; iss.passesReady = false;
+  issUi.site = null;
+  if (issUi.orbitCatnr!==iss.catnr) { issUi.tle=null; issUi.orbit=[]; issUi.orbitCatnr=iss.catnr; }
   iss.result = []; iss.pick = -1;
   $("issTle").hidden = true;
-  $(pass ? "issPassList" : "issList").innerHTML = `<p class="tiny">計算しています…</p>`;
-  // 探す範囲の中心のカード（地点カードと同じ形）。そこに立つわけではないので標高は書かない
-  renderPointCard("issFrom", P, null, { elevation: false });
+  $("issList").innerHTML = `<p class="tiny">計算しています…</p>`;
   issRenderSatCard();
   $("issSatName").textContent = name;
   $("issMoon").setAttribute("aria-pressed", String(iss.body === "moon"));
   $("issMoon").innerHTML = moonGlyphAt(Date.now(), issFromPoint());
   $("issSun").setAttribute("aria-pressed", String(iss.body === "sun"));
-  $("issSunWarn").hidden = pass || iss.body !== "sun";
-  $("issCanvas").setAttribute("aria-label", pass ? `地図。${name}の真下の通り道です`
-    : `地図。${name}が${iss.body === "sun" ? "太陽" : "月"}の前を横切って見える帯です`);
-  $("issKey").className = `aim-k ${pass || iss.body === "moon" ? "moon" : "sun"}`;
-  $("issKeyText").textContent = pass ? "真下の通り道（太い所が見える区間）" : "見える帯";
-  document.querySelector('.coord-row[data-map="iss"]').hidden = true;
-  $("issFromLabel").textContent = pass ? "観察地" : "探すエリアの中心";
-  $("issSuggestionsTitle").textContent = pass ? "空を通る候補（7日間）" : "月・太陽を横切る候補（7日間）";
+  $("issSunWarn").hidden = iss.body !== "sun";
+  $("issSuggestionsOpen").hidden = !iss.body;
+  $("issCanvas").setAttribute("aria-label", iss.body
+    ? `地図。${name}の地上軌跡、現在選んだ時刻の衛星位置、${iss.body === "sun" ? "太陽" : "月"}を横切って見える帯です`
+    : `地図。${name}の地上軌跡と日時バーの時刻の衛星の位置です`);
   issRefreshSelection();
   let sat, tle;
   try { [sat, tle] = await Promise.all([issLoadSat(), issLoadTle()]); } catch { sat = null; }
-  if (!issCalculationCurrent(seq, pass ? "pass" : "transit")) return;
+  if (!issCalculationCurrent(seq)) return;
   if (!sat || !tle) {
     issUi.state = "unavailable";
-    $(pass ? "issPassList" : "issList").innerHTML = `<p class="tiny">${esc(name)}の軌道要素を取れませんでした。時間をおいて開き直してください。落下や運用終了で軌道要素が配られていない衛星もあります。</p>`;
+    $("issList").innerHTML = `<p class="tiny">${esc(name)}の軌道要素を取れませんでした。時間をおいて開き直してください。落下や運用終了で軌道要素が配られていない衛星もあります。</p>`;
     issRefreshSelection();
     return;
   }
@@ -132,15 +139,21 @@ async function issApply() {
   $("issTle").hidden = !$("issTle").textContent;
   // まず計算中の表示を描き、その後も計算本体が短い区間ごとに処理を譲る。
   await new Promise((r) => setTimeout(r, 0));
-  if (!issCalculationCurrent(seq, pass ? "pass" : "transit")) return;
-  if (pass) return issApplyPasses(seq, sat, tle, P);
+  if (!issCalculationCurrent(seq)) return;
+  issUi.tle = tle;
+  issBuildOrbit();
+  if (!iss.body) {
+    issUi.state = "orbit";
+    issRefreshSelection();
+    return;
+  }
   return issApplyTransits(seq, sat, tle, P);
 }
 
 /// 月・太陽の前を横切る回（2026-09-30 からの計算をそのまま、選んだ衛星に）
-const issCalculationCurrent = (seq, tab) => iss.seq.current(seq) && viewState.iss && iss.tab === tab && toolAllowed('iss');
+const issCalculationCurrent = seq => iss.seq.current(seq) && viewState.iss && toolAllowed("iss");
 async function issApplyTransits(seq, sat, tle, P) {
-  const current = () => issCalculationCurrent(seq, 'transit');
+  const current = () => issCalculationCurrent(seq);
   if (!current()) return;
   let rows = [];
   try {
@@ -157,7 +170,12 @@ async function issApplyTransits(seq, sat, tle, P) {
   if (!rows.length) return;
   // 立つ場所（陸の上）。地名の表と水域のタイルを読むので、行を先に出してから足す
   for (const r of rows) {
-    try { r.stand = await issStand(r, { isCurrent: current }); } catch (error) { if (error.name === 'AbortError' || !current()) return; r.stand = undefined; }
+    try {
+      r.sites = await issStand(r, sat, tle, { isCurrent: current });
+      r.stand = r.sites === null ? null : r.sites?.[0];
+    } catch (error) {
+      if (error.name === 'AbortError' || !current()) return;
+    }
     if (!current()) return;
   }
   // 帯が水の上だけを通る回は、陸から見られないので並べない（何回外したかは書く）
@@ -168,7 +186,10 @@ async function issApplyTransits(seq, sat, tle, P) {
   iss.pick = iss.result.indexOf(picked);
   issRender();
   if (picked && iss.pick < 0 && !issUi.moving) issSelectAt(issUi.at);
-  else issRefreshSelection();
+  else {
+    if (!issUi.moving && picked?.stand && picked.at === issUi.at) issUi.at = picked.stand.at;
+    issRefreshSelection();
+  }
 
 }
 
@@ -182,7 +203,7 @@ async function issApplyTransits(seq, sat, tle, P) {
  *   2. 無ければ、中心線をいまの地点から近い順にたどって、最初の陸の点（名前なし）
  *   3. それも無ければ（帯が水の上だけを通る）、立つ場所は出さない（null）
  */
-async function issStand(r, { isCurrent = () => true, clock = () => performance.now(),
+async function issStand(r, sat, tle, { isCurrent = () => true, clock = () => performance.now(),
   yieldTask = () => new Promise(resolve => setTimeout(resolve, 0)) } = {}) {
   const check = () => { if (!isCurrent()) { const error = Error('calculation-cancelled'); error.name = 'AbortError'; throw error; } };
   check();
@@ -191,16 +212,17 @@ async function issStand(r, { isCurrent = () => true, clock = () => performance.n
   const P = issFromPoint();
   const F = (la, lo) => [(lo - r.center.longitude) * 111.32 * Math.cos(r.center.latitude * Math.PI / 180), (la - r.center.latitude) * 110.54];
   const track = r.track.map((q) => F(q.latitude, q.longitude));
-  const offKm = (la, lo) => {
+  const nearest = (la, lo) => {
     const [px, py] = F(la, lo);
-    let d = Infinity;
+    let distance = Infinity, at = r.at;
     for (let k = 0; k + 1 < track.length; k++) {
       const [ax, ay] = track[k], [bx, by] = track[k + 1];
       const L2 = (bx - ax) ** 2 + (by - ay) ** 2 || 1;
       const t = Math.max(0, Math.min(1, ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / L2));
-      d = Math.min(d, Math.hypot(px - ax - (bx - ax) * t, py - ay - (by - ay) * t));
+      const d = Math.hypot(px - ax - (bx - ax) * t, py - ay - (by - ay) * t);
+      if (d < distance) { distance=d; at=r.track[k].at+(r.track[k+1].at-r.track[k].at)*t; }
     }
-    return d;
+    return {distance,at};
   };
   const core = Math.max(0.15, r.halfWidthKm * 0.6);
   const lats = r.track.map((q) => q.latitude), lons = r.track.map((q) => q.longitude);
@@ -212,13 +234,18 @@ async function issStand(r, { isCurrent = () => true, clock = () => performance.n
   const named = [];
   const add = (name, kind, la, lo) => {
     if (!name || !inBox(la, lo)) return;
-    const off = offKm(la, lo);
+    const {distance:off,at} = nearest(la, lo);
     if (off > core) return;
     const away = AstroNotesTerrain.distanceKm(P.latitude, P.longitude, la, lo);
     if (away > iss.rangeKm) return;
-    named.push({ name, kind, latitude: la, longitude: lo, offsetKm: off, fromHereKm: away,
+    named.push({ name, kind, latitude: la, longitude: lo, at, offsetKm: off, fromHereKm: away,
       score: away * (kind === "山頂" || kind === "山" ? 1.6 : 1) + off * 2 });
   };
+  try {
+    const places = await observingPlacesAlong([r.track], {isCurrent, pointMargin:core/90});
+    check();
+    for (const p of places) { if (clock() >= deadline) await pause(); add(p.name,p.kind,p.latitude,p.longitude); }
+  } catch { check(); /* Fall back to registered outlooks and place index. */ }
   try {
     const places = await aimPlaces(); check();
     for (const p of places) { if (clock() >= deadline) await pause(); add(p.name, p.kind, p.latitude, p.longitude); }
@@ -233,16 +260,24 @@ async function issStand(r, { isCurrent = () => true, clock = () => performance.n
   for (const n of named) {
     if (picks.some((q) => AstroNotesTerrain.distanceKm(q.latitude, q.longitude, n.latitude, n.longitude) < 0.3)) continue;
     picks.push(n);
-    if (picks.length >= 8) break;
+    if (picks.length >= 12) break;
   }
   // 橋・桟橋も外す（ねらうと違って、ISS は川や海の上から見る理由が無い。陸の公園や展望地を先に出す）
   const water = await AstroNotesTerrain.waterAt(picks);
   check();
-  const onLand = picks.filter((n, i) => water[i] !== true);
-  if (onLand.length) return { ...onLand[0], others: onLand.slice(1, 3) };
+  const sites = [];
+  let unverified = false;
+  for (const [i, point] of picks.entries()) {
+    if (water[i] === null) unverified = true;
+    if (water[i] === true) continue;
+    const time = await AstroNotesISS.transitTimeAt(sat,tle,r.body,point,point.at,{isCurrent});
+    if (time.durationS > 0) sites.push({...point,at:time.at,durationS:time.durationS});
+    if (sites.length >= 8) break;
+  }
+  if (sites.length) return sites;
   // 名前のある場所が無い。中心線を、いまの地点から近い順にたどる
   const line = r.track
-    .map((q) => ({ latitude: q.latitude, longitude: q.longitude,
+    .map((q) => ({ ...q,
       fromHereKm: AstroNotesTerrain.distanceKm(P.latitude, P.longitude, q.latitude, q.longitude) }))
     .filter((q) => q.fromHereKm <= iss.rangeKm)
     .sort((a, b) => a.fromHereKm - b.fromHereKm);
@@ -251,39 +286,38 @@ async function issStand(r, { isCurrent = () => true, clock = () => performance.n
     const w = await AstroNotesTerrain.waterAt(batch);
     check();
     const k = w.findIndex((v) => v === false);
-    if (k >= 0) return { ...batch[k], name: "", kind: "", offsetKm: 0, others: [] };
+    if (k >= 0) {
+      const time=await AstroNotesISS.transitTimeAt(sat,tle,r.body,batch[k],batch[k].at,{isCurrent});
+      return [{...batch[k],name:"中心線上の陸地",kind:"",offsetKm:0,at:time.at,durationS:time.durationS}];
+    }
+    if (w.some(v=>v===null)) unverified=true;
   }
-  return null;
+  return unverified ? undefined : null;
 }
 
 function issRender() {
-  const P = issFromPoint();
   const rows = iss.result;
   const overWater = iss.overWater
     ? `<p class="tiny" style="color:var(--tertiary)">海や湖の上だけを通る回（${iss.overWater}回）は除外</p>` : "";
   if (!rows.length) {
-    $("issList").innerHTML = `<p class="tiny">この7日、${esc(P.name)}から${iss.rangeKm}km以内で${iss.body === "moon" ? "月" : "太陽"}の前を通る回はありません。</p>${overWater}`;
+    $("issList").innerHTML = `<p class="tiny">この7日、設定した範囲（${iss.rangeKm}km以内）で${iss.body === "moon" ? "月" : "太陽"}の前を通る回はありません。</p>${overWater}`;
     return;
   }
   $("issList").innerHTML = rows.map((r, i) => {
-    const t = new Date(r.at + 9 * 3600000);
-    const hms = t.toISOString().slice(11, 19);
+    const at=issEventAt(r), hms=issHms(at);
     // 立つ場所（陸の上）。探し終わるまでは「探しています」。水の上だけを通る回は並べないので、
     // 探し終わっても無いのは、確かめられなかったとき（通信の失敗など）
     const st = r.stand;
-    const where = st === undefined || st === null
-      ? `<span class="muted">${iss.standsDone ? "立つ場所を確かめられませんでした（地図の帯の中の陸で見てください）" : "立つ場所を探しています…"}</span>`
-      : `<span class="muted">見える場所の例：${st.name ? `<strong>${esc(st.name)}</strong>${st.kind ? `（${esc(st.kind)}）` : ""}` : "名前のない陸の上"}
-          ・ ${issDirection(P, st)}へ ${st.fromHereKm.toFixed(1)}km ・ 中心線から${st.offsetKm < 0.05 ? "すぐ" : `${st.offsetKm.toFixed(1)}km`}${
-          st.others && st.others.length ? `<br>ほかに：${st.others.map((o) => esc(o.name)).join("・")}` : ""}</span>`;
+    const where = st ? `<span class="muted">${esc(st.name)} ${r.sites.length > 1 ? `ほか${r.sites.length-1}件` : ""}</span>`
+      : `<span class="muted">${iss.standsDone ? "帯を地図で確認" : "観測候補を確認中…"}</span>`;
     const lit = r.illuminated !== null ? ` ・ ${moonGlyphAt(r.at, st || r.center)} 輝面${Math.round(r.illuminated * 100)}%` : "";
     const sky = r.sunAltitude < -6 ? "夜" : r.sunAltitude < 0 ? "薄明" : "昼";
     // 3日より先は軌道要素の誤差で数十秒・数kmずれうる。印だけ付ける
     const rough = r.at - Date.now() > 72 * 3600000 ? `<span class="tiny" style="color:var(--tertiary)">（目安）</span>` : "";
     return `<button class="al-row jump" data-iss="${i}" aria-current="${i === iss.pick}">
-      <span class="al-w"><strong>${S.Cal.monthDay(r.at)}(${S.Cal.weekday(r.at)}) ${hms}</strong>${rough}
+      <span class="al-w"><strong>${S.Cal.monthDay(at)}(${S.Cal.weekday(at)}) ${hms}</strong>${rough}
         ${where}
-        <span class="tiny">帯の幅 約${(r.halfWidthKm * 2).toFixed(1)}km ・ ${r.durationS.toFixed(1)}秒</span>
+        <span class="tiny">帯の幅 約${(r.halfWidthKm * 2).toFixed(1)}km ・ ${(st?.durationS ?? r.durationS).toFixed(1)}秒</span>
         <span class="tiny">${iss.body === "moon" ? "月" : "太陽"}の方位${Math.round(r.azimuth)}°・高さ${Math.round(r.altitude)}°${lit} ・ ${sky} ・ 衛星まで${r.rangeKm}km</span>
         ${iss.body === "moon" ? `<span class="tiny">${esc(lightTimingText(r.at, st || r.center))}</span>` : ""}</span>
       <span class="tiny">地図で見る →</span></button>`;
@@ -291,151 +325,81 @@ function issRender() {
 
 }
 
-/// 方角を8方位で言う（いまの地点から、立つ場所へ）
-function issDirection(from, to) {
-  const b = AstroNotesTerrain.bearing(from.latitude, from.longitude, to.latitude, to.longitude);
-  return ["北", "北東", "東", "南東", "南", "南西", "西", "北西"][Math.round(b / 45) % 8];
-}
-
-// ---------------------------------------------------------------- 人工衛星の通過（2026-10-21）
-//
-// 見えるのは、衛星に日が当たっていて、地上が暗い（太陽の高さ −6°以下）区間で、仰角10°以上のところ（判定は astronotes-iss.js）。
-// 明るさ（等級）は衛星ごとの基準の明るさの出典を持っていないので出さない。
 const ISS_DIR16 = ["北", "北北東", "北東", "東北東", "東", "東南東", "南東", "南南東", "南", "南南西", "南西", "西南西", "西", "西北西", "北西", "北北西"];
 const issDir16 = (az) => ISS_DIR16[Math.round(az / 22.5) % 16];
 const issHms = (ms) => new Date(ms + 9 * 3600000).toISOString().slice(11, 19);
 const issHm = (ms) => new Date(ms + 9 * 3600000).toISOString().slice(11, 16);
-const issShownPasses = () => (iss.showAll ? iss.passes : iss.passes.filter((p) => p.visible));
-const issSky = (sunAlt) => (sunAlt < -6 ? "夜" : sunAlt < 0 ? "薄明" : "昼");
-
-async function issApplyPasses(seq, sat, tle, P) {
-  const current = () => issCalculationCurrent(seq, 'pass');
-  if (!current()) return;
-  // 1日に1.5周より遅い（静止衛星など）は空の同じ所に止まって見え、出入りが無い。いまの方角と高さだけ出す
-  const revPerDay = Number(tle.line2.slice(52, 63));
-  if (revPerDay < 1.5) {
-    iss.passes = []; iss.tle = tle; iss.track = []; iss.passesReady = true;
-    const rec = sat.twoline2satrec(tle.line1, tle.line2), d = new Date();
-    const pv = sat.propagate(rec, d);
-    const la = pv && pv.position ? sat.ecfToLookAngles({ latitude: P.latitude * Math.PI / 180, longitude: P.longitude * Math.PI / 180, height: (P.elevation || 0) / 1000 },
-      sat.eciToEcf(pv.position, sat.gstime(d))) : null;
-    const az = la ? ((la.azimuth * 180 / Math.PI) % 360 + 360) % 360 : 0, el = la ? la.elevation * 180 / Math.PI : -90;
-    issUi.state = "stationary";
-    $("issPassList").innerHTML = `<p class="tiny">${esc(issSatName())}は地球の自転と同じ速さで回る高い軌道の衛星で、空のほぼ同じ所に止まって見えます。${
-      el > 0 ? `${esc(P.name)}からは${issDir16(az)}（方位${Math.round(az)}°）の高さ${Math.round(el)}°。肉眼では見えません。` : `${esc(P.name)}からは地平線の下です。`}</p>`;
-    iss.passPick = -1;
-    issRefreshSelection();
-    return;
-  }
-  let rows = [];
-  try {
-    rows = await AstroNotesISS.passesAsync(sat, tle, { observer: { latitude: P.latitude, longitude: P.longitude, elevation: P.elevation || 0 },
-      fromMs: issUi.from, hours: 168 }, { isCurrent: current });
-  } catch (error) { if (error.name === 'AbortError' || !current()) return; rows = []; }
-  if (!current()) return;
-  iss.passes = rows; iss.tle = tle; iss.passPick = -1; iss.track = []; iss.passesReady = true;
-  issUi.state = "ready";
-  issRenderPasses();
-  issSelectInitial();
-}
-
-function issRenderPasses() {
-  const P = issFromPoint(), name = issSatName();
-  const rows = issShownPasses();
-  const hiddenN = iss.passes.length - rows.length;
-  if (!rows.length) {
-    $("issPassList").innerHTML = `<p class="tiny">この7日、${esc(P.name)}で${esc(name)}が見える回はありません${
-      hiddenN ? `（日が当たらない・空が明るいなどで見えない回が${hiddenN}回）` : ""}。</p>`;
-    return;
-  }
-  $("issPassList").innerHTML = rows.map((p, i) => {
-    const v = p.visible;
-    const rough = p.max.at - Date.now() > 72 * 3600000 ? `<span class="tiny" style="color:var(--tertiary)">（目安）</span>` : "";
-    const day = `${S.Cal.monthDay(p.max.at)}(${S.Cal.weekday(p.max.at)})`;
-    // 行は2段: 時刻と、方角の流れ（細かい時刻・距離は押すと開く）
-    const open = i === iss.passPick;
-    if (!v) {
-      const why = p.sunAltitude > -6 ? "空が明るい" : !p.litAtMax ? "地球の影の中" : "日が当たる所が低い";
-      return `<button class="al-row jump" data-pass="${i}" aria-current="${open}">
-        <span class="al-w"><strong>${day} ${issHm(p.rise.at)}〜${issHm(p.set.at)}</strong>${rough}
-          <span class="muted">見えない（${why}）・ 最大${Math.round(p.max.elevation)}° ${issDir16(p.max.azimuth)}</span></span>
-        <span class="tiny">地図で見る →</span></button>`;
-    }
-    return `<button class="al-row jump" data-pass="${i}" aria-current="${open}">
-      <span class="al-w"><strong>${day} ${issHm(v.start.at)}〜${issHm(v.end.at)}</strong>${rough}
-        <span class="muted">${issDir16(v.start.azimuth)} → ${issDir16(v.max.azimuth)} 高さ${Math.round(v.max.elevation)}° → ${
-          issDir16(v.end.azimuth)}${v.entersShadow ? "（影に入って消える）" : ""}</span></span>
-      <span class="tiny">地図で見る →</span></button>`;
-  }).join("") + (hiddenN && !iss.showAll ? `<p class="tiny" style="color:var(--tertiary)">見えない回（${hiddenN}回）は出していません</p>` : "");
-}
-
-// A prediction is selected once at the end of a time gesture. The forecast and
-// geographic track are independent of the movement of the ruler.
 const issDayMs = 86400000;
-const issUi = { at: Date.now(), from: Date.now(), state: "loading", mode: "time", timeline: null, layout: null };
-const issIsPass = () => iss.tab === "pass";
-const issEventRows = () => issIsPass() ? issShownPasses() : iss.result;
-const issEventAt = (row) => issIsPass() ? (row.visible?.max || row.max).at : row.at;
-const issSelectedIndex = () => issIsPass() ? iss.passPick : iss.pick;
-const issSelected = () => issEventRows()[issSelectedIndex()];
+const issUi = { at: Date.now(), from: Date.now(), state: "loading", mode: "time", timeline: null, layout: null, site: null, tle: null, orbit: [] };
+const issEventAt = row => row.stand?.at ?? row.at;
+const issSelected = () => iss.result[iss.pick];
 
 function issSyncTime(moving = false) {
   ToolDateTimeBar.dateText($("issDate"), issUi.at);
   $("issDate").setAttribute("aria-label", ToolDateTimeBar.label(issUi.at));
-  $("issTime").value = issHm(issUi.at);
+  $("issTime").value = issHms(issUi.at);
   ToolDateTimeBar.modeButton($("issScrubMode"), issUi.mode);
+  if (issUi.tle) issBuildOrbit();
+  if (issUi.state==="orbit") $("issStatus").textContent=issUi.orbit.length
+    ? `地上軌跡 ・ ${issSatName()}の位置 ${issHms(issUi.at)}`
+    : "この日時の地上軌跡は表示できません";
   if (!moving) issUi.timeline.sync(issUi.at, issUi.mode);
 }
 
 function issRefreshSelection() {
-  const pass = issIsPass(), row = issSelected();
-  const body = iss.body === "moon" ? "月" : "太陽";
-  $("issSkyOpen").hidden = !pass || !row;
-  if (!pass) issCoordUpdate();
-  const status = $("issStatus");
-  if (issUi.state === "loading") status.textContent = "計算しています…";
-  else if (issUi.state === "unavailable") status.textContent = "軌道要素を取れませんでした";
-  else if (issUi.state === "stationary") status.textContent = "空のほぼ同じ所に見える衛星です";
-  else if (row && pass) {
-    const v = row.visible;
-    status.textContent = v
-      ? `${issFromPoint().name}で見える ${issHms(v.start.at)}〜${issHms(v.end.at)} ・ 最大${Math.round(v.max.elevation)}°`
-      : `${issFromPoint().name}で地平線の上 ${issHm(row.rise.at)}〜${issHm(row.set.at)} ・ 肉眼で見えない回`;
-    $("issPassDetailText").textContent = v
-      ? `${status.textContent} ・ ${issSky(row.sunAltitude)} ・ 最も近いとき${Math.round(row.max.rangeKm)}km`
-      : `${status.textContent} ・ ${issSky(row.sunAltitude)}`;
-  } else if (row) {
-    status.textContent = `${body}を横切る ${issHms(row.at)} ・ ${row.durationS.toFixed(1)}秒 ・ 見える帯 約${(2 * row.halfWidthKm).toFixed(1)}km`;
-  } else if (AstroNotesSkyMap.dayStart(issUi.at) + issDayMs <= issUi.from ||
-             AstroNotesSkyMap.dayStart(issUi.at) >= issUi.from + 7 * issDayMs) {
-    status.textContent = "予報の範囲外です";
-  } else {
-    status.textContent = pass ? `${issFromPoint().name}でこの日の候補はありません` : `この日は${body}を横切る候補がありません`;
+  const row=issSelected(), site=issStandPoint();
+  const body=iss.body==="moon"?"月":"太陽";
+  issCoordUpdate();
+  const status=$("issStatus");
+  if (issUi.state==="loading") status.textContent="計算しています…";
+  else if (issUi.state==="unavailable") status.textContent="軌道要素を取れませんでした";
+  else if (issUi.state==="orbit") { /* The scrubber updates the readout for each instant. */ }
+  else if (row) {
+    status.textContent=`${body}を横切る ${issHms(site?.at ?? row.at)} ・ ${(site?.durationS ?? row.durationS).toFixed(1)}秒${site ? ` ・ ${site.name}` : "（帯の基準点）"}`;
+  } else if (AstroNotesSkyMap.dayStart(issUi.at)+issDayMs<=issUi.from ||
+             AstroNotesSkyMap.dayStart(issUi.at)>=issUi.from+7*issDayMs) status.textContent="予報の範囲外です";
+  else status.textContent=`この日は${body}を横切る候補がありません`;
+  for (const button of $("issList").querySelectorAll("[data-iss]")) {
+    button.setAttribute("aria-current",String(Number(button.dataset.iss)===iss.pick));
   }
-  const selector = pass ? "[data-pass]" : "[data-iss]";
-  for (const [index, button] of Array.from($(pass ? "issPassList" : "issList").querySelectorAll(selector)).entries()) {
-    button.setAttribute("aria-current", String(index === issSelectedIndex()));
-  }
+  $("issSites").hidden=!row?.sites?.length;
+  $("issSiteList").innerHTML=(row?.sites||[]).map((point,i)=>`<button type="button" class="al-row jump" data-iss-site="${i}" aria-current="${point===site}">
+    <span class="al-w"><strong>${esc(point.name)}</strong><span class="muted">${esc(point.kind)} ${issHms(point.at)} ・ ${point.durationS.toFixed(1)}秒</span></span><span class="tiny">地図で見る →</span>
+  </button>`).join("");
   issSyncTime(issUi.moving);
   IssMap.redraw();
 }
 
-function issSelect(index, recenter) {
-  const row = issEventRows()[index];
-  if (issIsPass()) {
-    if (index !== iss.passPick) {
-      iss.passPick = index;
-      iss.track = row ? AstroNotesISS.groundTrack(iss.sat, iss.tle, row.rise.at, row.set.at, 10) : [];
-    }
-    if (recenter && iss.track.length) {
-      const P = issFromPoint(), point = issTrackAt(issEventAt(row));
-      const delta = ((point.longitude - P.longitude + 540) % 360) - 180;
-      IssMap.open({ latitude: (P.latitude + point.latitude) / 2, longitude: P.longitude + delta / 2 }, 5);
-    }
-  } else {
-    iss.pick = index;
-    if (recenter && row) IssMap.open(row.stand || row.center, 10);
-  }
+function issSelect(index,recenter) {
+  if (index!==iss.pick) issUi.site=null;
+  iss.pick=index;
+  const row=issSelected();
+  if (recenter && row) IssMap.open(row.stand||row.center,10);
+  issRequestMapTrack(row);
+  issRefreshSelection();
+}
+
+function issRequestMapTrack(row) {
+  const tle=issUi.tle;
+  if (!row || !tle || row.mapTrack || row.mapPending) return;
+  const isCurrent=()=>viewState.iss&&toolAllowed("iss")&&issUi.tle===tle&&iss.result.includes(row);
+  row.mapPending=true;
+  AstroNotesISS.transitMapTrack(iss.sat,tle,row,{isCurrent}).then(track=>{
+    if (!isCurrent() || track.length<2) return;
+    row.mapTrack=track;
+    if (issSelected()===row) IssMap.redraw();
+  }).catch(error=>{
+    if (error.name!=="AbortError") AstroNotesErrors.note("iss.band",error);
+  }).finally(()=>{row.mapPending=false;});
+}
+
+function issChooseSite(point, recenter) {
+  if (!point) return;
+  issUi.site=point;
+  issUi.timeline.stop();
+  issUi.moving=false;
+  issUi.at=point.at;
+  if (recenter) IssMap.open(point,12);
   issRefreshSelection();
 }
 
@@ -445,19 +409,18 @@ function issSelectAt(at) {
   if (issUi.state !== "ready") { issRefreshSelection(); return; }
   let index = -1, distance = Infinity;
   const day = AstroNotesSkyMap.dayStart(at);
-  for (const [i, row] of issEventRows().entries()) {
+  for (const [i, row] of iss.result.entries()) {
     const t = issEventAt(row), dist = Math.abs(t - at);
     const sameDay = AstroNotesSkyMap.dayStart(t) === day;
-    const duringPass = issIsPass() && row.rise.at <= at && at <= row.set.at;
-    if ((sameDay || duringPass) && dist < distance) { distance = dist; index = i; }
+    if (sameDay && dist < distance) { distance = dist; index = i; }
   }
-  issSelect(index, index >= 0 && index !== issSelectedIndex());
+  issSelect(index, index >= 0 && index !== iss.pick);
 }
 
 function issSelectInitial() {
   if (issUi.moving) { issRefreshSelection(); return; }
   if (issUi.at !== issUi.beforeResults) { issSelectAt(issUi.at); return; }
-  const rows = issEventRows();
+  const rows = iss.result;
   if (rows.length) {
     issUi.at = issEventAt(rows[0]);
     issSelect(0, true);
@@ -465,7 +428,7 @@ function issSelectInitial() {
 }
 
 function issChooseEvent(index) {
-  const row = issEventRows()[index];
+  const row = iss.result[index];
   if (!row) return;
   issUi.timeline.stop();
   issUi.moving = false;
@@ -475,20 +438,13 @@ function issChooseEvent(index) {
 }
 
 function issAnnotations(mode) {
-  const rows = issEventRows();
-  if (!rows.length) return null;
-  const pass = issIsPass();
-  return {key: JSON.stringify([iss.tab, iss.body, iss.showAll, issUi.from, rows.length]), paint(ctx, {start, end, height, pixelsPerMs}) {
-    ctx.fillStyle = !pass && iss.body === "sun" ? "#ffd282" : "#a9dcff";
-    for (const row of rows) {
-      const interval = pass ? [row.visible?.start.at ?? row.rise.at, row.visible?.end.at ?? row.set.at] : [row.at, row.at];
-      if (interval[1] < start || interval[0] >= end) continue;
-      const x = (Math.max(start, interval[0]) - start) * pixelsPerMs;
-      const width = (Math.min(end, interval[1]) - Math.max(start, interval[0])) * pixelsPerMs;
-      ctx.globalAlpha = pass && !row.visible ? 0.6 : 1;
-      ctx.fillRect(x, height - 5, Math.max(mode === "date" ? 2 : 3, width), 5);
+  const times=iss.result.map(issEventAt);
+  if (!times.length) return null;
+  return {key:JSON.stringify([iss.body,times]),paint(ctx,{start,end,height,pixelsPerMs}) {
+    ctx.fillStyle=iss.body==="sun"?"#ffd282":"#a9dcff";
+    for (const at of times) {
+      if (at>=start&&at<end) ctx.fillRect((at-start)*pixelsPerMs,height-5,mode==="date"?2:3,5);
     }
-    ctx.globalAlpha = 1;
   }};
 }
 
@@ -507,16 +463,30 @@ function wireIssTime() {
   $("issPrev").onclick = () => stepTo(issUi.at - issDayMs);
   $("issNext").onclick = () => stepTo(issUi.at + issDayMs);
   time.onchange = () => {
-    const [hour, minute] = time.value.split(":").map(Number);
-    if (Number.isFinite(hour) && Number.isFinite(minute)) stepTo(AstroNotesSkyMap.dayStart(issUi.at) + (hour * 60 + minute) * 60000);
+    const [hour, minute, second=0] = time.value.split(":").map(Number);
+    if (Number.isFinite(hour) && Number.isFinite(minute)) stepTo(AstroNotesSkyMap.dayStart(issUi.at) + (hour * 60 + minute) * 60000 + second * 1000);
   };
   const format = (at, mode) => mode === "date" ? S.Cal.monthDay(at) : issHm(at);
   issUi.timeline = AstroNotesScrollTimeline.mount({root: $("issTimeline"), getAt: () => issUi.at,
     getMode: () => issUi.mode, enabled: () => viewState.iss && toolAllowed("iss"),
     getObserver: issFromPoint, sun: (at, point) => AstroNotesAstro.sun(at, point),
-    annotations: issAnnotations, format,
+    annotations: issAnnotations,
+    feedbackEvents:(from,to)=>{
+      if (!iss.body) return [];
+      const point=issStandPoint()||issFromPoint();
+      const observer={latitude:point.latitude,longitude:point.longitude,elevation:0};
+      return AstroNotesScrollTimeline.feedbackEventsBetween(from,to,AstroNotesSkyMap.dayStart,day=>
+        AstroNotesSkyMap.daily(iss.body,day,observer,(body,at,p)=>{
+          const value=body==="moon"?AstroNotesAstro.moon(at,p):AstroNotesAstro.sun(at,p);
+          return {altitude:value.geometricAltitude,azimuth:value.azimuth};
+        }).events.map(event=>event.at));
+    },
+    format,
     describe: (at, mode) => mode === "date" ? ToolDateTimeBar.label(at) : issHm(at),
-    onChange: at => { issUi.moving = true; issUi.at = at; issSyncTime(true); },
+    onChange: at => {
+      issUi.moving = true; issUi.at = at; issSyncTime(true);
+      if (issUi.tle) IssMap.redraw();
+    },
     onSettle: issSelectAt});
   $("issScrubMode").onclick = () => {
     issUi.timeline.stop();
@@ -524,89 +494,6 @@ function wireIssTime() {
     issSelectAt(issUi.at);
   };
   issUi.layout = bindToolMapLayout($("issView"), footer, () => IssMap.redraw());
-}
-
-/// 空の方角図。真上が中心、外周が地平線。**上が北・右が東**（地図と同じ向き。見上げた空を下から見た向きではない）
-function issDrawSky() {
-  const cv = $("issSky");
-  if (!cv || !$("issSkySheet").open) return;
-  const W = 280, dpr = window.devicePixelRatio || 1;
-  if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(W * dpr); }
-  const ctx = cv.getContext("2d");
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, W, W);
-  const cs = getComputedStyle(document.documentElement), css = (k, d) => cs.getPropertyValue(k).trim() || d;
-  const R = 116, cx = W / 2, cy = W / 2;
-  const xy = (az, el) => { const r = R * (90 - el) / 90, a = az * Math.PI / 180; return [cx + r * Math.sin(a), cy - r * Math.cos(a)]; };
-  ctx.strokeStyle = css("--line", "#ccc"); ctx.lineWidth = 1;
-  for (const el of [0, 30, 60]) { ctx.beginPath(); ctx.arc(cx, cy, R * (90 - el) / 90, 0, Math.PI * 2); ctx.stroke(); }
-  ctx.beginPath(); ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy); ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R); ctx.stroke();
-  ctx.fillStyle = css("--secondary", "#666"); ctx.font = "600 12px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  for (const [t, az] of [["北", 0], ["東", 90], ["南", 180], ["西", 270]]) { const [x, y] = xy(az, -10); ctx.fillText(t, x, y); }
-  ctx.font = "10px system-ui, sans-serif";
-  for (const el of [30, 60]) ctx.fillText(`${el}°`, cx + 10, cy - R * (90 - el) / 90 + 7);
-  const p = issShownPasses()[iss.passPick];
-  if (!p) { cv.setAttribute("aria-label", "空の方角図。選んでいる回はありません"); return; }
-  const color = css("--ray-moon", "#2f7fd0");
-  const line = (pts) => { ctx.beginPath(); pts.forEach((q, k) => { const [x, y] = xy(q.azimuth, Math.max(0, q.elevation)); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke(); };
-  ctx.lineJoin = "round"; ctx.lineCap = "round";
-  ctx.setLineDash([4, 4]); ctx.strokeStyle = css("--tertiary", "#999"); ctx.lineWidth = 1.5; line(p.path); ctx.setLineDash([]);
-  // 月が出ていれば、いちばん高いときの位置に（月の近くを通る回が分かる）
-  const P = issFromPoint();
-  const mo = AstroNotesAstro.moon(p.max.at, { latitude: P.latitude, longitude: P.longitude, elevation: P.elevation || 0 });
-  if (mo.apparentAltitude > 0) {
-    const [mx, my] = xy(mo.azimuth, mo.apparentAltitude);
-    ctx.beginPath(); ctx.arc(mx, my, 6, 0, Math.PI * 2); ctx.fillStyle = "#e8e3c8"; ctx.fill();
-    ctx.strokeStyle = css("--secondary", "#666"); ctx.lineWidth = 1; ctx.stroke();
-    ctx.fillStyle = css("--secondary", "#666"); ctx.fillText("月", mx, my + 14);
-  }
-  const v = p.visible;
-  if (v) {
-    const seg = p.path.filter((q) => q.at >= v.start.at && q.at <= v.end.at);
-    ctx.strokeStyle = color; ctx.lineWidth = 4; line(seg);
-    // 進む向きの矢印（見える区間の終わり）
-    if (seg.length >= 2) {
-      const [x1, y1] = xy(seg[seg.length - 2].azimuth, seg[seg.length - 2].elevation), [x2, y2] = xy(v.end.azimuth, v.end.elevation);
-      const a = Math.atan2(y2 - y1, x2 - x1);
-      ctx.beginPath(); ctx.moveTo(x2 + Math.cos(a) * 6, y2 + Math.sin(a) * 6);
-      ctx.lineTo(x2 + Math.cos(a + 2.5) * 8, y2 + Math.sin(a + 2.5) * 8); ctx.lineTo(x2 + Math.cos(a - 2.5) * 8, y2 + Math.sin(a - 2.5) * 8);
-      ctx.closePath(); ctx.fillStyle = color; ctx.fill();
-    }
-    const [sx, sy] = xy(v.start.azimuth, v.start.elevation), [ex, ey] = xy(v.end.azimuth, v.end.elevation);
-    ctx.beginPath(); ctx.arc(sx, sy, 3.5, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
-    ctx.fillStyle = css("--text", "#222"); ctx.font = "600 11px system-ui, sans-serif";
-    // 見える区間が短いと始めと終わりの時刻が重なる。近ければ1つにまとめる
-    if (Math.hypot(ex - sx, ey - sy) < 48) ctx.fillText(`${issHm(v.start.at)}〜${issHm(v.end.at)}`, (sx + ex) / 2, (sy + ey) / 2 + ((sy + ey) / 2 > cy ? 14 : -14));
-    else { ctx.fillText(issHm(v.start.at), sx, sy + (sy > cy ? 12 : -12)); ctx.fillText(issHm(v.end.at), ex, ey + (ey > cy ? 14 : -14)); }
-  }
-  cv.setAttribute("aria-label", v
-    ? `空の方角図。${issHm(v.start.at)}に${issDir16(v.start.azimuth)}から現れ、${issDir16(v.max.azimuth)}の高さ${Math.round(v.max.elevation)}°を通り、${issHm(v.end.at)}に${issDir16(v.end.azimuth)}で見えなくなります`
-    : `空の方角図。この回は見えません（地平線の上を${issDir16(p.rise.azimuth)}から${issDir16(p.set.azimuth)}へ）`);
-}
-
-/// 通り道の点のうち、その時刻にいちばん近いもの
-const issTrackAt = (ms) => iss.track.reduce((a, b) => (Math.abs(b.at - ms) < Math.abs(a.at - ms) ? b : a));
-/// 地図: 選んだ回の衛星の真下の通り道。見える区間を太く、いちばん高い時刻に印
-function issDrawTrack(ctx, project, color, ink, width, height) {
-  const p = issShownPasses()[iss.passPick], tr = iss.track;
-  if (!p || tr.length < 2) return;
-  const path = (pts) => { ctx.beginPath(); pts.forEach((q, k) => { const [x, y] = project(q.latitude, q.longitude); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke(); };
-  ctx.save();
-  ctx.lineJoin = "round"; ctx.lineCap = "round";
-  ctx.strokeStyle = ink; ctx.lineWidth = 3; path(tr);
-  ctx.strokeStyle = color; ctx.lineWidth = 1.4; path(tr);
-  const v = p.visible;
-  if (v) {
-    const seg = tr.filter((q) => q.at >= v.start.at && q.at <= v.end.at);
-    if (seg.length >= 2) { ctx.strokeStyle = ink; ctx.lineWidth = 7; path(seg); ctx.strokeStyle = color; ctx.lineWidth = 5; path(seg); }
-  }
-  // 印は、見える回なら見える中でいちばん高い時刻、見えない回なら地平線の上でいちばん高い時刻
-  const top = v ? v.max : p.max;
-  const m = issTrackAt(top.at);
-  const [mx, my] = project(m.latitude, m.longitude);
-  ctx.beginPath(); ctx.arc(mx, my, 5, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
-  aimMapLabel(ctx, mx, my - 14, `${issHm(top.at)} 高さ${Math.round(top.elevation)}°`, "#fff", width, height, "center");
-  ctx.restore();
 }
 
 // ---------------------------------------------------------------- 衛星を選ぶ（2026-10-21）
@@ -834,47 +721,97 @@ async function issPickFindVisible() {
   issPickRender();
 }
 
-IssMap.setOverlay((ctx, { project, width, height }) => {
-  const P = issFromPoint();
-  if (!P) return;
-  const r = iss.tab === "transit" ? issSelected() : null;
-  const cs = getComputedStyle(document.documentElement);
-  const color = cs.getPropertyValue(iss.tab === "pass" || iss.body === "moon" ? "--ray-moon" : "--ray-sun").trim() || "#2f7fd0";
-  const ink = "rgba(0,0,0,.55)";
-  if (iss.tab === "pass") issDrawTrack(ctx, project, color, ink, width, height);
-  if (r && r.track.length >= 2) {
-    // 帯: 中心線の左右に半幅ずつ。中心線の向きに直角な向きへずらして塗る
-    const pts = r.track.map((q) => project(q.latitude, q.longitude));
-    const [x0, y0] = project(r.center.latitude, r.center.longitude);
-    const [x1, y1] = project(r.center.latitude + r.halfWidthKm / 111.2, r.center.longitude);
-    const half = Math.max(2, Math.abs(y1 - y0));
-    ctx.save();
-    ctx.lineJoin = "round"; ctx.lineCap = "round";
-    ctx.globalAlpha = 0.28;
-    ctx.strokeStyle = color; ctx.lineWidth = half * 2;
-    ctx.beginPath(); pts.forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = ink; ctx.lineWidth = 4;
-    ctx.beginPath(); pts.forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
-    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
-    // 印は**立つ場所（陸の上）**に付ける。中心線のいちばん近い点は海の上のことがあるので印を付けない
-    if (r.stand) {
-      const [sx, sy] = project(r.stand.latitude, r.stand.longitude);
-      ctx.beginPath(); ctx.arc(sx, sy, 6, 0, Math.PI * 2);
-      ctx.fillStyle = color; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
-      const hms = new Date(r.at + 9 * 3600000).toISOString().slice(11, 19);
-      aimMapLabel(ctx, sx, sy - 16, r.stand.name ? `${r.stand.name} ${hms}` : hms, "#fff", width, height, "center");
-    }
-    ctx.restore();
-  }
-  // 空を通る時刻だけ、時刻の基準になる観察地を表示する。
-  if (!issIsPass()) return;
-  const [px, py] = project(P.latitude, P.longitude);
+function issDrawOrbit(ctx,project,width,height) {
+  if (!issUi.tle || !issUi.orbit.length) return;
   ctx.save();
-  ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2);
-  ctx.fillStyle = ink; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
-  aimMapLabel(ctx, px, py + 14, P.name, "#fff", width, height, "center");
+  ctx.beginPath();
+  let prev=null;
+  for (const q of issUi.orbit) {
+    const [x,y]=project(q.latitude,q.longitude);
+    if (prev && Math.abs(q.longitude-prev.longitude)<=180) ctx.lineTo(x,y); else ctx.moveTo(x,y);
+    prev=q;
+  }
+  ctx.lineJoin="round";ctx.lineCap="round";
+  if (iss.body) ctx.setLineDash([4,5]);
+  ctx.strokeStyle=iss.body?"#f7fbff":"#17232c";ctx.lineWidth=iss.body?3:4;ctx.stroke();
+  ctx.strokeStyle=iss.body?"#536779":"#76b7ff";ctx.lineWidth=iss.body?1.4:2;ctx.stroke();
+  ctx.setLineDash([]);
+  const at=issUi.at;
+  const q=AstroNotesISS.groundTrack(iss.sat,issUi.tle,at,at)[0];
+  if(q) {
+    const [x,y]=project(q.latitude,q.longitude);
+    if(x>=0&&x<=width&&y>=0&&y<=height){
+      ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);
+      ctx.fillStyle="#76b7ff";ctx.fill();ctx.strokeStyle="#fff";ctx.lineWidth=2;ctx.stroke();
+      aimMapLabel(ctx,x,y-16,`${issSatName()} ${issHms(at)}`,"#fff",width,height,"center");
+    }
+  }
   ctx.restore();
+}
+
+IssMap.setOverlay((ctx, {project,width,height})=>{
+  issDrawOrbit(ctx,project,width,height);
+  const row=issSelected();
+  if (!row) return;
+  const color=getComputedStyle(document.documentElement).getPropertyValue(iss.body==="moon"?"--ray-moon":"--ray-sun").trim()||"#2f7fd0";
+  const track=row.mapTrack||row.track;
+  const nodes=track.map(q=>{
+    const [x,y]=project(q.latitude,q.longitude);
+    const [,edge]=project(q.latitude+(q.halfWidthKm??row.halfWidthKm)/111.2,q.longitude);
+    return {x,y,half:Math.max(1,Math.abs(edge-y)),t:q.at,lon:q.longitude};
+  });
+  const runs=[[]];
+  for (const p of nodes) {
+    const run=runs[runs.length-1];
+    if (run.length && Math.abs(p.lon-run[run.length-1].lon)>180) runs.push([p]); else run.push(p);
+  }
+  ctx.save();
+  ctx.lineJoin="round";ctx.lineCap="round";
+  for (const run of runs) {
+    if (run.length<2) continue;
+    const sides=[[],[]];
+    for (const [i,p] of run.entries()) {
+      const a=run[Math.max(0,i-1)],b=run[Math.min(run.length-1,i+1)];
+      const dx=b.x-a.x,dy=b.y-a.y,n=Math.hypot(dx,dy)||1;
+      sides[0].push([p.x-dy*p.half/n,p.y+dx*p.half/n]);
+      sides[1].push([p.x+dy*p.half/n,p.y-dx*p.half/n]);
+    }
+    ctx.beginPath();
+    for (const [i,[x,y]] of [...sides[0],...sides[1].reverse()].entries()) i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    ctx.closePath();ctx.fillStyle=color;ctx.globalAlpha=.28;ctx.fill();ctx.globalAlpha=1;
+    ctx.beginPath();
+    for (const [i,p] of run.entries()) i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);
+    ctx.strokeStyle="#17232c";ctx.lineWidth=4;ctx.stroke();
+    ctx.strokeStyle=color;ctx.lineWidth=2;ctx.stroke();
+  }
+  const chosen=issStandPoint(), keep=[];
+  for (const p of [chosen,...(row.sites||[])]) {
+    if (!p) continue;
+    const [x,y]=project(p.latitude,p.longitude);
+    if (x<5||x>width-5||y<5||y>height-5||keep.some(q=>Math.hypot(q.x-x,q.y-y)<14)) continue;
+    keep.push({x,y});
+    ctx.beginPath();ctx.arc(x,y,p===chosen?6:4,0,Math.PI*2);
+    ctx.fillStyle=color;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle="#fff";ctx.stroke();
+    if (p===chosen) aimMapLabel(ctx,x,y-17,`${p.name} ${issHms(p.at)}`,"#fff",width,height,"center");
+  }
+  const labels=[];
+  for (const p of nodes) {
+    if (p.x<39||p.x>width-78||p.y<97||p.y>height-88||
+        keep.some(q=>Math.hypot(q.x-p.x,q.y-p.y)<85)||
+        labels.some(q=>Math.hypot(q.x-p.x,q.y-p.y)<112)) continue;
+    aimMapLabel(ctx,p.x,p.y-12,issHms(p.t),"#fff",width,height,"center");
+    labels.push(p);
+    if (labels.length>=3) break;
+  }
+  ctx.restore();
+});
+IssMap.onPick((_point,pixel)=>{
+  let nearest=null,distance=19;
+  for (const site of issSelected()?.sites||[]) {
+    const [x,y]=IssMap.project(site.latitude,site.longitude), d=Math.hypot(x-pixel.x,y-pixel.y);
+    if (d<distance) { nearest=site; distance=d; }
+  }
+  issChooseSite(nearest,false);
 });
 
 function openIss() {
@@ -885,47 +822,35 @@ function openIss() {
   if (!iss.wired) {
     iss.wired = true;
     wireIssTime();
-    $("issMoon").onclick = () => { if (iss.body !== "moon") { iss.body = "moon"; issApply(); } };
-    $("issSun").onclick = () => { if (iss.body !== "sun") { iss.body = "sun"; issApply(); } };
+    $("issMoon").onclick = () => issToggleBody("moon");
+    $("issSun").onclick = () => issToggleBody("sun");
     $("issRange").onchange = () => {
       iss.rangeKm = Number($("issRange").value) || 150;
       issCenterSearch();
       issApply();
     };
-    $("issFromButton").onclick = () => {
-      openPlaceSheet("iss");
-      $("placeSheetTitle").textContent = $("issFromLabel").textContent;
+    $("issSearchHere").onclick = () => {
+      $("issSuggestions").close();
+      issSetFrom(IssMap.center());
     };
     $("issSatButton").onclick = () => issPickOpen();
     $("issPickClose").onclick = () => issPickDone();
     $("issPickMore").onclick = () => { issPick.limit += 200; issPickRender(); };
     $("issPickQuery").oninput = () => { clearTimeout(issPick.timer); issPick.timer = setTimeout(issPickRender, 150); };
     $("issPickVisible").onclick = () => issPickFindVisible();
-    $("issPassTab").onclick = () => issSetTab("pass");
-    $("issTransitTab").onclick = () => issSetTab("transit");
     $("issSuggestionsOpen").onclick = () => showSheet($("issSuggestions"));
     $("issSuggestionsClose").onclick = () => $("issSuggestions").close();
-    $("issSkyOpen").onclick = () => { showSheet($("issSkySheet")); issDrawSky(); };
-    $("issSkyClose").onclick = () => $("issSkySheet").close();
-    $("issPassList").onclick = e => {
-      const button = e.target.closest("[data-pass]");
-      if (button) issChooseEvent(Number(button.dataset.pass));
+    $("issSiteList").onclick = e => {
+      const button=e.target.closest("[data-iss-site]");
+      if (!button) return;
+      issChooseSite(issSelected()?.sites?.[Number(button.dataset.issSite)],true);
+      $("issSuggestions").close();
     };
     $("issList").onclick = e => {
       const button = e.target.closest("[data-iss]");
       if (button) issChooseEvent(Number(button.dataset.iss));
     };
-    // This filter changes the existing results even when the calculation is still pending.
-    $("issShowAll").onchange = () => {
-      const picked = issSelected();
-      iss.showAll = $("issShowAll").checked;
-      if (!iss.passesReady || issUi.state !== "ready") return;
-      iss.passPick = issShownPasses().indexOf(picked);
-      if (iss.passPick < 0) iss.track = [];
-      issRenderPasses();
-      if (!issSelected()) issSelectAt(issUi.at);
-      else issRefreshSelection();
-    };
+
   }
   // 日本語名の表は、読めたらカードと一覧の名前を差し替える（読めなくても英語名で動く）
   issLoadNames().then(() => { if (viewState.iss) { issRenderSatCard(); $("issSatName").textContent = issSatName(); } });
@@ -933,7 +858,7 @@ function openIss() {
     if (!viewState.iss || !toolAllowed("iss")) return;
     issUi.layout();
     if (issSelected()) return;
-    issCenterSearch();
+    if (iss.body) issCenterSearch(); else issOpenWorld();
     requestAnimationFrame(() => IssMap.redraw());
   });
   issApply();

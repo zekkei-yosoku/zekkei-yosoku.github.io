@@ -186,13 +186,15 @@
       #issMapBox .iss-map-head{position:absolute;z-index:3;top:8px;left:8px;right:60px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
       #issMapBox .tool-map-actions{position:static;overflow:visible;padding:0;align-items:center}
       #issMapBox .tool-map-action{min-height:44px}
-      #issTabs,#issBodySeg{background:var(--card);box-shadow:0 2px 8px #0003}
-      #issTabs button,#issBodySeg button{min-height:40px;padding-inline:10px}
+      #issBodySeg{background:var(--card);box-shadow:0 2px 8px #0003}
+      #issBodySeg button{min-height:40px;padding-inline:10px}
       #issBodySeg button{min-width:40px}
       #issMapBox .tool-map-status{position:static;flex-basis:100%;cursor:default}
       #issView .tool-map-surface .coord-row{position:absolute;z-index:3;left:8px;right:60px;bottom:28px;margin:0;padding:4px 7px;border-radius:10px;background:var(--card);line-height:1.25}
-      #issTimeFooter .tool-datetime-row{grid-template-columns:44px max-content 44px 56px 44px 44px}
-      #issSuggestions[open],#issSkySheet[open]{max-height:min(75dvh,650px)}
+      #issTimeFooter .tool-datetime-row{grid-template-columns:40px max-content 40px 72px 40px 40px}
+      #issTimeFooter .tool-datetime-row>.tool-datetime-nav{width:40px;min-width:40px}
+      #issTimeFooter .tool-datetime-clock{width:72px;min-width:72px}
+      #issSuggestions[open]{max-height:min(75dvh,650px)}
       #issSuggestions .al-row[aria-current=true]{border-color:var(--accent)}
       #issSuggestions #issTransitRange{margin-block:8px}
       #planeView .plane-here{position:absolute;z-index:3;left:50%;bottom:12px;transform:translateX(-50%);box-shadow:0 2px 8px #0003;background:var(--card)}
@@ -214,8 +216,7 @@
       <div class="mappin" aria-hidden="true"></div>
       <div class="plane-bar tool-map-actions" role="toolbar" aria-label="月丼の設定">
         <button type="button" class="plane-btn tool-map-action" data-plane-pane="op" aria-expanded="false" aria-controls="planeSheet"><span id="planeOpChip">運用</span><small id="planeOpMode"></small></button>
-        <button type="button" class="plane-btn tool-map-action" data-plane-pane="place" aria-expanded="false" aria-controls="planeSheet"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z"/><circle cx="12" cy="9" r="2.5"/></svg><span id="planeFromChip">撮影地点</span></button>
-        <button type="button" class="plane-btn tool-map-action" data-plane-pane="list" aria-expanded="false" aria-controls="planeSheet">狙い目</button>
+        <button type="button" class="plane-btn tool-map-action" data-plane-pane="list" aria-expanded="false" aria-controls="planeSheet">候補</button>
       </div>
       <p id="planeMapStatus" class="plane-status tool-map-status" role="status" data-plane-pane="info" tabindex="0" title="タップで凡例・出典"></p>
       <button id="planePickHere" class="chip plane-here" aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる</button>
@@ -269,7 +270,12 @@
         <span class="chip-split"><button class="chip" data-map-app-open><span data-map-app-label>地図アプリ</span><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg></button><button class="chip chip-more" data-map-app-change aria-label="開くアプリを変える" hidden><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span>
       </div>
       </div>
-      <div data-pane="list" data-title="この日の狙い目" hidden>
+      <div data-pane="list" data-title="候補" hidden>
+        <button type="button" class="chip" data-plane-pane="place" aria-expanded="false" aria-controls="planeSheet">撮影地点の設定</button>
+        <div class="section-h"><h2>いま帯に重なる観測候補</h2></div>
+        <p id="planeBandSitesStatus" class="tiny"></p>
+        <div id="planeBandSites" class="al"></div>
+        <div class="section-h"><h2>この日の狙い目</h2></div>
         <div id="planePick" class="al" style="margin-top:8px"></div>
         <div id="planeInfo" class="tiny" style="margin-top:6px;color:var(--secondary)">計算しています…</div>
         <div id="planeList" class="al" style="margin-top:8px"></div>
@@ -478,18 +484,13 @@
       <div id="issMapBox" class="mapwrap tool-map-surface">
         <canvas id="issCanvas" aria-label="人工衛星の地図"></canvas>
         <div class="iss-map-head">
-          <div class="aim-seg" id="issTabs" role="group" aria-label="人工衛星の見方">
-            <button type="button" id="issPassTab" aria-pressed="true">空を通る</button>
-            <button type="button" id="issTransitTab" aria-pressed="false">月・太陽を横切る</button>
-          </div>
           <div class="tool-map-actions" role="group" aria-label="人工衛星の条件">
             <button type="button" class="tool-map-action" id="issSatButton" aria-haspopup="dialog"><span id="issSatName">ISS</span><span class="sr-only">（衛星を選ぶ）</span><span class="sr-only" id="issSatSub"></span></button>
-            <button type="button" class="tool-map-action" id="issSuggestionsOpen" aria-haspopup="dialog">候補</button>
-            <button type="button" class="tool-map-action" id="issSkyOpen" aria-haspopup="dialog" hidden>空の図</button>
-            <div class="aim-seg" id="issBodySeg" role="group" aria-label="横切る天体" hidden>
+            <div class="aim-seg" id="issBodySeg" role="group" aria-label="横切る天体">
               <button type="button" id="issMoon" aria-pressed="true" aria-label="月" title="月">月</button>
               <button type="button" id="issSun" aria-pressed="false" aria-label="太陽" title="太陽">☀️</button>
             </div>
+            <button type="button" class="tool-map-action" id="issSuggestionsOpen" aria-haspopup="dialog">候補</button>
           </div>
           <p class="tool-map-status" id="issStatus" role="status"></p>
         </div>
@@ -499,8 +500,8 @@
         </div>
         <div class="mapattr">国土地理院</div>
       <div class="coord-row" data-map="iss" hidden>
-        <span class="coord-label">見える場所の例</span>
-        <button class="chip" data-coord-copy aria-label="見える場所の例の座標をコピー"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg><span class="coord" id="issCoord">—</span><span class="copied" hidden>コピーしました</span></button>
+        <span class="coord-label">観測候補</span>
+        <button class="chip" data-coord-copy aria-label="観測候補の座標をコピー"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg><span class="coord" id="issCoord">—</span><span class="copied" hidden>コピーしました</span></button>
         <span class="chip-split"><button class="chip" data-map-app-open><span data-map-app-label>地図アプリ</span><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg></button><button class="chip chip-more" data-map-app-change aria-label="開くアプリを変える" hidden><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span>
       </div>
       </div>
@@ -509,7 +510,7 @@
           <button type="button" id="issPrev" aria-label="前の日">‹</button>
           <button type="button" id="issDate" aria-label="日付を選ぶ"></button>
           <button type="button" id="issNext" aria-label="次の日">›</button>
-          <div><input type="time" id="issTime" step="60" aria-label="時刻を編集"></div>
+          <div><input type="time" id="issTime" step="1" aria-label="時刻を編集"></div>
           <button type="button" id="issTimeMore" aria-label="日時の詳細">⋯</button>
         </div>
         <div class="sky-map-scrub"><div class="sky-map-scrub-modes" role="group" aria-label="バーで動かす対象"><button type="button" id="issScrubMode" data-mode="time">分</button></div><div id="issTrack"><div id="issTimeline" class="sky-map-timeline" tabindex="0" role="slider" aria-label="日時を横スクロールして調整"></div><span class="sky-map-timeline-center" aria-hidden="true"></span></div></div>
@@ -778,43 +779,26 @@
 <dialog class="sheet" id="issSuggestions" aria-labelledby="issSuggestionsTitle" tabindex="-1">
   <div class="sheet-head"><strong id="issSuggestionsTitle">これから7日の候補</strong><button type="button" id="issSuggestionsClose">閉じる</button></div>
   <div class="sheet-body">
-    <button type="button" class="place-pick" id="issFromButton" aria-haspopup="dialog">
-      <span class="place-txt">
-        <span class="muted" id="issFromLabel">観察地</span>
-        <span class="name" id="issFromName"></span>
-        <span class="muted" id="issFromSub"></span>
-      </span>
-      <span aria-hidden="true">›</span>
-    </button>
     <p class="tiny" id="issTle" hidden></p>
-    <div class="aim-legend"><span><i class="aim-k moon" id="issKey"></i><span id="issKeyText"></span></span></div>
-    <section id="issPassPanel" aria-label="空を通る候補">
-      <label class="tiny" style="display:flex;align-items:center;gap:6px;min-height:44px"><input type="checkbox" id="issShowAll">見えない回も出す（日が当たらない・空が明るい）</label>
-      <div id="issPassList" class="al"></div>
-      <p class="tiny">「見える」は、衛星に日が当たっていて空が暗いという意味です。暗い衛星は双眼鏡や望遠鏡が要ります。</p>
-    </section>
-    <section id="issTransitPanel" aria-label="月・太陽を横切る候補" hidden>
-      <div id="issTransitRange">
-        <label class="fav-l" for="issRange">探す範囲</label>
+    <div id="issTransitRange">
+      <label class="fav-l" for="issRange">地図の中心から探す範囲</label>
+      <div class="aim-row">
         <select id="issRange" class="fav-in">
           <option value="50">50km以内</option>
           <option value="150" selected>150km以内</option>
           <option value="400">400km以内</option>
         </select>
+        <button type="button" class="chip" id="issSearchHere">この周辺を探す</button>
       </div>
-      <p class="tiny" id="issSunWarn" style="color:var(--red)" hidden>太陽は必ず減光フィルターを付けて見てください。</p>
-      <div id="issList" class="al"></div>
-    </section>
-  </div>
-</dialog>
-
-<dialog class="sheet" id="issSkySheet" aria-labelledby="issSkyTitle" tabindex="-1">
-  <div class="sheet-head"><strong id="issSkyTitle">空の方角図</strong><button type="button" id="issSkyClose">閉じる</button></div>
-  <div class="sheet-body">
-    <div style="display:flex;justify-content:center">
-      <canvas id="issSky" width="280" height="280" style="width:min(280px,100%);height:auto;aspect-ratio:1" role="img" aria-label="空の方角図"></canvas>
     </div>
-    <p class="tiny" id="issPassDetailText" style="text-align:center"></p>
+    <p class="tiny">点線は衛星の真下の軌跡、色の帯は天体を横切って見える範囲です。</p>
+    <p class="tiny" id="issSunWarn" style="color:var(--red)" hidden>太陽は必ず減光フィルターを付けて見てください。</p>
+    <div id="issList" class="al"></div>
+    <section id="issSites" aria-labelledby="issSitesTitle" hidden>
+      <div class="section-h"><h2 id="issSitesTitle">選んだ回の観測候補</h2></div>
+      <div id="issSiteList" class="al"></div>
+      <p class="tiny">地図の地点データから抽出しています。現地の立入・見通しは撮影前にご確認ください。 <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a></p>
+    </section>
   </div>
 </dialog>
 

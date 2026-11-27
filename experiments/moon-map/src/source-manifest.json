@@ -1454,7 +1454,6 @@
         ],
         "readers": [
           "src/ui/map/picker.js",
-          "src/features/satellites/controller.js",
           "src/features/framing/scene/render.js"
         ],
         "purpose": "既存browser APIの明示adapter",
@@ -2194,6 +2193,7 @@
         "AstroNotesCalendarMoon",
         "AstroNotesCameraUI",
         "AstroNotesCandidatePicker",
+        "AstroNotesErrors",
         "AstroNotesExif",
         "AstroNotesExploreLayout",
         "AstroNotesFuji",

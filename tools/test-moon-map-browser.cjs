@@ -14,10 +14,16 @@ for(const engine of (process.env.MOON_MAP_ENGINES||'chromium,webkit').split(',')
   {at:Date.parse('2026-11-24T12:30:00+09:00'),code:'dnfo1',approach:'ILS Z RWY34L/ILS Z RWY34R',landing:['34L','34R'],takeoff:['05','34R']}],source:'出典：国土交通省 羽田空港飛行コースホームページ'}:{} });});
  await context.route('https://api.open-meteo.com/v1/forecast?**',r=>r.fulfill({json:{hourly:{time:Array.from({length:120},(_,i)=>(day-86400000)/1000+i*3600),wind_direction_10m:Array(120).fill(340),wind_speed_10m:Array(120).fill(4)}}}));
  const p=await context.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));p.setDefaultTimeout(30000);
+ const exerciseSites=width===390&&theme==='light';
+ if(exerciseSites) await context.route('**/data/aim-places.json',async route=>{
+  const point=await p.evaluate(()=>plane.map.centerLines[0].points[0]);
+  const lat=Math.round(point.latitude*1e5),lon=Math.round(point.longitude*1e5),n=350;
+  return route.fulfill({json:{gRelative:true,kinds:{k:'公園'},places:[{n:'試験河川敷',k:'k',s:'a',p:[lat,lon],g:[-n,-n,-n,n,n,n,n,-n]}]}});
+ });
  await p.goto(base);await p.waitForFunction(()=>typeof AstroNotesPlane!=='undefined'&&typeof plane!=='undefined'&&auth?.loginId==='moon-map-test');
  await p.evaluate(async({at})=>{
   await startupSessionReady;
-  AstroNotesTerrain.groundElevation=async()=>20;AstroNotesTerrain.elevations=async points=>points.map(()=>20);
+  AstroNotesTerrain.groundElevation=async()=>20;AstroNotesTerrain.elevations=async points=>points.map(()=>20);AstroNotesTerrain.waterAt=async points=>points.map(()=>false);
   const paths=AstroNotesPlane.pathsFor('dnfi1',{landing:true,takeoff:true});
   const seeds=AstroNotesPlane.groundRibbonSeedsAt(at,paths,{groundM:20,eyeHeightAGL:1.5,stepKm:2,minPlaneKm:2,maxPlaneKm:20});
   const point=seeds.seeds.find(s=>s.edge==='center'&&s.status==='ready');if(!point)throw Error('no real-Moon inverse fixture');
@@ -35,8 +41,14 @@ for(const engine of (process.env.MOON_MAP_ENGINES||'chromium,webkit').split(',')
  const layout=await p.evaluate(()=>{const m=$('planeCanvas').getBoundingClientRect(),f=$('planeTimeFooter').getBoundingClientRect(),h=document.querySelector('main>.masthead').getBoundingClientRect();return {mapTop:m.top,mapBottom:m.bottom,mapWidth:m.width,footTop:f.top,headBottom:h.bottom,sheet:$('planeSheet').hidden};});
  assert(Math.abs(layout.mapWidth-width)<=1&&Math.abs(layout.mapBottom-layout.footTop)<=2&&Math.abs(layout.mapTop-layout.headBottom)<=2&&layout.sheet,'map fills between masthead and time bar: '+JSON.stringify(layout));
 await p.screenshot({path:`${out}/${engine}-${width}-${theme}-map.png`,fullPage:true});
+ if(exerciseSites){
+  await p.waitForFunction(()=>plane.map?.sites?.some(p=>p.name==='試験河川敷'));
+  await p.locator('.plane-btn[data-plane-pane=list]').click();
+  assert.match(await p.locator('#planeBandSites').innerText(),/試験河川敷.*18:00/s);
+  await p.locator('#planeSheetClose').click();
+ }
  if(width===390&&theme==='light'&&engine==='chromium'){
-  await p.locator('.plane-btn[data-plane-pane=place]').click();await p.locator('.plane-height summary').click();
+  await p.locator('.plane-btn[data-plane-pane=list]').click();await p.locator('#planeSheet [data-plane-pane=place]').click();await p.locator('.plane-height summary').click();
   const ground=p.locator('#planeGround');
   assert.equal(await ground.getAttribute('max'),'9000');
   assert.equal(await ground.inputValue(),'20');
