@@ -1582,6 +1582,7 @@
         "readers": [
           "src/features/account/status.js",
           "src/features/account/sync-bridge.js",
+          "src/features/plans/controller.js",
           "src/features/framing/presentation.js"
         ],
         "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",

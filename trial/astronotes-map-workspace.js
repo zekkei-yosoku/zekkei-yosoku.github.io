@@ -74,6 +74,17 @@ function passesOf(h,body,data,eye=h.session.eye){
  passCache.set(key,list);if(passCache.size>8)passCache.delete(passCache.keys().next().value);return list;
 }
 function passAt(h,body,data,eye){const at=h.session.at,list=passesOf(h,body,data,eye);return list.find(p=>p.points[0].at<=at&&at<=p.points.at(-1).at)||list.find(p=>p.points[0].at>at)||list.at(-1)||null;}
+function drawHorizonRays(ctx,body,pass,x,y,far,tint,main=true){
+ ctx.save();ctx.lineCap='round';
+ for(const [event,color,dash] of [[pass.rise,RISE[body]||tint,[]],[pass.set,SET[body]||tint,[9,6]]]){
+  if(!event)continue;
+  const angle=dir(event.azimuth);
+  ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.sin(angle)*far,y-Math.cos(angle)*far);
+  ctx.setLineDash(dash);ctx.strokeStyle='rgba(0,0,0,.85)';ctx.lineWidth=main?6:5;ctx.stroke();
+  ctx.strokeStyle=color;ctx.lineWidth=main?3:2.5;ctx.stroke();
+ }
+ ctx.restore();
+}
 function rimDot(ctx,azimuth,x,y,r,fill,size=4.6,stroke='#000'){const a=dir(azimuth),px=x+Math.sin(a)*r,py=y-Math.cos(a)*r;ctx.beginPath();ctx.arc(px,py,size,0,Math.PI*2);ctx.fillStyle=fill;ctx.fill();ctx.lineWidth=1.6;ctx.strokeStyle=stroke;ctx.stroke();}
 // 出→最高点→入の3点を通る円弧。投影上の最高点が弦に乗る冬の太陽でも、弦長の22%は最高点の方位側へ膨らませる（試作と同じ）。
 function bulge(P0,P1,Pm,C,E){const mx=(P0[0]+P1[0])/2,my=(P0[1]+P1[1])/2,L=Math.hypot(P1[0]-P0[0],P1[1]-P0[1])||1;let nx=-(P1[1]-P0[1])/L,ny=(P1[0]-P0[0])/L;if(nx*(E[0]-C[0])+ny*(E[1]-C[1])<0){nx=-nx;ny=-ny;}
@@ -98,8 +109,7 @@ function drawBodyTrue(ctx,body,data,x,y,r,width,height){
  const pass=passAt(h,body,data);
  if(pass){
   if(main){ctx.beginPath();pass.points.forEach((p,i)=>{const a=dir(p.azimuth),px=x+Math.sin(a)*r,py=y-Math.cos(a)*r;i?ctx.lineTo(px,py):ctx.moveTo(px,py);});ctx.strokeStyle='rgba(0,0,0,.8)';ctx.lineWidth=7;ctx.stroke();ctx.strokeStyle=tint;ctx.lineWidth=4;ctx.stroke();}
-  for(const [event,lineTint,dash] of [[pass.rise,RISE[body]||tint,[]],[pass.set,SET[body]||tint,[9,6]]]){if(!event)continue;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.sin(dir(event.azimuth))*far,y-Math.cos(dir(event.azimuth))*far);ctx.setLineDash(dash);ctx.strokeStyle='rgba(0,0,0,.85)';
-  ctx.lineWidth=main?6:5;ctx.stroke();ctx.strokeStyle=lineTint;ctx.lineWidth=main?3:2.5;ctx.stroke();ctx.setLineDash([]);}
+  drawHorizonRays(ctx,body,pass,x,y,far,tint,main);
   ctx.beginPath();pass.points.forEach((p,i)=>{const q=polar(p.azimuth,p.altitude,x,y,r);i?ctx.lineTo(...q):ctx.moveTo(...q);});ctx.strokeStyle='rgba(0,0,0,.72)';ctx.lineWidth=main?6.5:5;ctx.stroke();ctx.strokeStyle=tint;ctx.lineWidth=main?3.4:2.4;ctx.stroke();
   for(const p of pass.points){if((p.at+JST)%HOUR||p.altitude<1.5)continue;const q=polar(p.azimuth,p.altitude,x,y,r);ctx.beginPath();ctx.arc(q[0],q[1],main?4.2:3.2,0,Math.PI*2);ctx.fillStyle=tint;ctx.fill();ctx.lineWidth=1.2;ctx.strokeStyle='#000';ctx.stroke();hits.push({x:q[0],y:q[1],at:p.at});
   const d=Math.hypot(q[0]-x,q[1]-y)||1,lx=q[0]+(q[0]-x)/d*14,ly=q[1]+(q[1]-y)/d*14;if(d<22||labels.some(v=>Math.hypot(v[0]-lx,v[1]-ly)<17))continue;labels.push([lx,ly]);halo(ctx,String(new Date(p.at+JST).getUTCHours()),lx,ly,tint,'700 12px system-ui');}
@@ -128,8 +138,7 @@ function drawBody(ctx,body,data,x,y,r,width,height){
  ctx.save();ctx.lineCap='round';
  const pass=passAt(h,body,data),arc=pass&&pass.points.length>1?arcOf(pass.points,x,y,r):null;
  if(pass){
-  for(const [event,lineTint,dash] of [[pass.rise,RISE[body]||tint,[]],[pass.set,SET[body]||tint,[9,6]]]){if(!event)continue;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.sin(dir(event.azimuth))*far,y-Math.cos(dir(event.azimuth))*far);ctx.setLineDash(dash);ctx.strokeStyle='rgba(0,0,0,.85)';
-  ctx.lineWidth=6;ctx.stroke();ctx.strokeStyle=lineTint;ctx.lineWidth=3;ctx.stroke();ctx.setLineDash([]);}
+  drawHorizonRays(ctx,body,pass,x,y,far,tint);
   if(arc){ctx.beginPath();arc.path().forEach((q,i)=>i?ctx.lineTo(...q):ctx.moveTo(...q));ctx.strokeStyle='rgba(0,0,0,.72)';ctx.lineWidth=6.5;ctx.stroke();ctx.strokeStyle=tint;ctx.lineWidth=3.4;ctx.stroke();
   for(const p of pass.points){if((p.at+JST)%HOUR||p.altitude<1.5)continue;const q=arc.at(p.at);ctx.beginPath();ctx.arc(q[0],q[1],4.2,0,Math.PI*2);ctx.fillStyle=tint;ctx.fill();ctx.lineWidth=1.2;ctx.strokeStyle='#000';ctx.stroke();hits.push({x:q[0],y:q[1],at:p.at});
   const d=Math.hypot(q[0]-x,q[1]-y)||1,lx=q[0]+(q[0]-x)/d*14,ly=q[1]+(q[1]-y)/d*14;if(d<22||labels.some(v=>Math.hypot(v[0]-lx,v[1]-ly)<17))continue;labels.push([lx,ly]);halo(ctx,String(new Date(p.at+JST).getUTCHours()),lx,ly,tint,'700 12px system-ui');}
@@ -483,6 +492,13 @@ function drawTarget(ctx,{project,width,height}){
   ctx.fillStyle='rgba(242,195,94,.28)';for(const edge of [L,R]){ctx.beginPath();ctx.moveTo(tx,ty);edge.forEach(q=>ctx.lineTo(...q));ctx.closePath();ctx.fill();}
   ctx.beginPath();[...L,...R.slice().reverse()].forEach((q,i)=>i?ctx.lineTo(...q):ctx.moveTo(...q));ctx.closePath();ctx.fill();ctx.setLineDash([4,3]);ctx.lineWidth=1.2;ctx.strokeStyle='rgba(242,195,94,.9)';ctx.stroke();ctx.setLineDash([]);}
  ctx.restore();
+ // 情報欄の出・入と同じ天体・時刻・地点の方位線を描く。
+ const eye=targetSkyPoint(h)||s.eye;
+ const daily=dailyOf(h,s.body,eye),pass=daily&&passAt(h,s.body,daily,eye);
+ if(pass){
+  const [x,y]=project(eye.latitude,eye.longitude),far=Math.hypot(Math.max(Math.abs(x),Math.abs(width-x)),Math.max(Math.abs(y),Math.abs(height-y)));
+  drawHorizonRays(ctx,s.body,pass,x,y,far,colours[s.body]||(colours[s.body]=colour(s.body)));
+ }
  // 天体の中心が先端に来る線と時刻
  for(const l of lines){const pts=l.points.map(p=>project(p.latitude,p.longitude));ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();pts.forEach((q,i)=>i?ctx.lineTo(...q):ctx.moveTo(...q));ctx.strokeStyle='rgba(0,0,0,.6)';ctx.lineWidth=6;ctx.stroke();ctx.strokeStyle=GOLD;ctx.lineWidth=3;ctx.stroke();ctx.restore();
   let last=null;l.points.forEach((p,i)=>{if(i%4!==2)return;const [x,y]=pts[i];if(last&&Math.hypot(x-last[0],y-last[1])<64)return;last=[x,y];labelAt(ctx,fmtAt(p.at),x+7,y-10,GOLD,'left',11);});
@@ -678,12 +694,14 @@ function cloneFormStyles(){
  let style=$('mapWsFormStyles');if(!style){style=document.createElement('style');style.id='mapWsFormStyles';document.head.append(style);}const text=out.join('\n');if(style.textContent!==text)style.textContent=text;
 }
 function createCenterChoice(){
- const group=document.createElement('div');group.id='mapWsMode';group.className='map-ws-choice';
+ const group=document.createElement('div');group.id='mapWsMode';group.className='sky-map-point-tools';
  group.setAttribute('role','radiogroup');group.setAttribute('aria-label','地図の中心');
- for(const [value,text] of [['obs','撮影地点'],['target','対象']]){
-  const segment=document.createElement('label'),radio=document.createElement('input');
+ for(const [value,text,source] of [['obs','撮影地点','skyMapObserverTool'],['target','対象','skyMapTargetTool']]){
+  const label=document.createElement('label'),radio=document.createElement('input');
+  label.className='map-ctl';label.title=text+'を中心に表示';
   radio.type='radio';radio.name=group.id;radio.value=value;radio.checked=value===viewMode;
-  radio.onchange=()=>setViewMode(value);segment.append(radio,document.createTextNode(text));group.append(segment);
+  radio.setAttribute('aria-label',label.title);radio.onchange=()=>setViewMode(value);
+  label.append($(source).querySelector('svg').cloneNode(true),radio);group.append(label);
  }
  return group;
 }
@@ -733,7 +751,14 @@ function build(){
  const retry=document.createElement('button');retry.type='button';retry.id='mapWsBodyRetry';retry.className='map-ws-body-retry';retry.hidden=true;retry.textContent='天体の計算を再試行';retry.onclick=()=>$('skyMapRetry').click();footer.prepend(retry);
  $('skyMapRetry').addEventListener('click',resetBodyCalculations,true);
  const pick=document.createElement('div');pick.id='mapWsPick';pick.className='map-ws-pick';pick.hidden=true;pick.innerHTML='<span role="status"></span><button type="button" id="mapWsUndo" hidden>元に戻す</button>';wrap.append(pick);
- for(const [id,mode] of [['skyMapObserverTool','observer'],['skyMapTargetTool','target']])$(id).addEventListener('click',e=>{if(!active)return;e.stopImmediatePropagation();placeAtCenter(mode);},true);
+ const placement=document.createElement('details');placement.id='mapWsPlacement';
+ placement.innerHTML='<summary>地図の中心に置く</summary><div><button type="button" class="chip" id="mapWsPlaceObserver">撮影地点にする</button><button type="button" class="chip" id="mapWsPlaceTarget">対象にする</button></div>';
+ view.querySelector('.explore-place-tools').after(placement);
+ for(const [id,mode] of [['mapWsPlaceObserver','observer'],['mapWsPlaceTarget','target']])$(id).onclick=()=>{
+  document.dispatchEvent(new CustomEvent('astronotes-explore-toggle-conditions',{detail:{open:false}}));
+  placeAtCenter(mode);
+ };
+ document.addEventListener('astronotes-explore-dropdown',e=>{if(!e.detail.open)placement.open=false;});
  const north=document.createElement('button');north.type='button';north.id='mapWsNorth';north.className='map-ctl map-ws-north';north.setAttribute('aria-label','北を上に戻す');
  north.innerHTML='<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M12 3l4 9h-8z" fill="#e5484d"/><path d="M12 21l-4-9h8z" fill="currentColor" opacity=".7"/></svg>';north.onclick=()=>host()?.map.setRotation(0);wrap.append(north);
  wrap.append(createCenterChoice());syncCenterChoice();

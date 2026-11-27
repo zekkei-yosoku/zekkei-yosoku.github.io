@@ -64,7 +64,10 @@ async function deselectPlacedTarget(browser,engine){
    AstroNotesTerrain.groundElevation=async()=>30;
    SkyMapUI.workspaceHost().map.setCenter(35.653,139.683);
   });
-  await page.locator('#skyMapTargetTool').click();
+  await page.locator('#mapWsTitle').click();
+  await page.locator('#mapWsPlacement summary').click();
+  await page.locator('#mapWsPlaceTarget').click();
+  assert.equal(await page.locator('#mapWsTitle').getAttribute('aria-expanded'),'false');
   await page.waitForFunction(()=>SkyMapUI.selectionState()?.target?.id==='custom');
   await page.locator('#mapWsTitle').click();
   await openTargets();

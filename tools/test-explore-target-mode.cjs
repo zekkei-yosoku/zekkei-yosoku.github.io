@@ -31,7 +31,7 @@ async function open(browser,width,theme,{fixture=null}={}){
   return route.abort();});
  const page=await context.newPage();page.setDefaultTimeout(30000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(base+'index.html#/explore');
- await page.waitForFunction(()=>typeof SkyMapUI==='object'&&typeof aimTargetList==='function'&&typeof startupSessionReady!=='undefined'&&typeof AstroNotesCandidatePicker==='object');
+ await page.waitForFunction(()=>{try{return typeof SkyMapUI==='object'&&typeof aimTargetList==='function'&&typeof startupSessionReady!=='undefined'&&typeof AstroNotesCandidatePicker==='object';}catch{return false;}});
  if(fixture)await page.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>25;aimBuildingDays=async()=>[];navigationHistory.pushRoute('#/explore');SkyMapUI.setTarget('skytree');const b=document.getElementById('skyMapBody');b.value='moon';b.onchange();SkyMapUI.setTime(Date.parse('2026-11-05T03:58:31+09:00'));});
  else await page.evaluate(async ([o,f])=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>30;aimBuildingDays=async()=>[];navigationHistory.pushRoute('#/explore');
   for(let i=0;i<100&&!SkyMapUI.workspaceHost();i++)await new Promise(r=>setTimeout(r,100));
@@ -73,9 +73,10 @@ async function records(type,engine,width,theme,results){
    assert.equal(await page.locator('#mapWsMode input[value=obs]').isChecked(),true);
    await toTarget(page);
    assert.deepEqual(await view(page),{stage:'map',sheet:false,center:'target'});
-   const layout=await page.evaluate(()=>{const r=n=>n.getBoundingClientRect(),mode=r(document.getElementById('mapWsMode')),north=r(document.getElementById('mapWsNorth')),rail=Math.min(...[...document.querySelectorAll('#skyMapView .sky-map-wide .mapzoom>button,#skyMapView .sky-map-wide .map-layers-btn')].filter(n=>n.offsetParent).map(n=>r(n).left)),buttons=[...document.querySelectorAll('#mapWsMode input,#mapWsCardView,#mapWsCardSecond')].filter(b=>b.offsetParent).map(b=>r(b).height);
-    return {overlapNorth:mode.left<north.right-1,overlapRail:mode.right>rail+1,buttons,overflowX:document.documentElement.scrollWidth>innerWidth+1};});
-   assert(!layout.overlapNorth&&!layout.overlapRail&&!layout.overflowX&&layout.buttons.every(h=>h>=44),label+': '+JSON.stringify(layout));
+   const layout=await page.evaluate(()=>{const r=n=>n.getBoundingClientRect(),canvas=r(document.getElementById('skyMapCanvas'));
+    const buttons=[...document.querySelectorAll('#mapWsMode input,#mapWsCardView,#mapWsCardSecond')].filter(b=>b.offsetParent).map(b=>({bounds:r(b),id:b.value||b.id}));
+    return {buttons:buttons.map(({bounds:b,id})=>({id,w:b.width,h:b.height,insideMap:!['obs','target'].includes(id)||b.top>=canvas.top&&b.bottom<=canvas.bottom&&b.left>=canvas.right-105&&b.right<=canvas.right})),overflowX:document.documentElement.scrollWidth>innerWidth+1};});
+   assert(!layout.overflowX&&layout.buttons.every(b=>b.w>=44&&b.h>=44&&b.insideMap),label+': '+JSON.stringify(layout));
    assert(await page.locator('#mapWsCardSecond').evaluate(button=>{
     const {left,top,width,height}=button.getBoundingClientRect();
     return [4,height/2,height-4].every(y=>button.contains(document.elementFromPoint(left+width/2,top+y)));
@@ -235,10 +236,11 @@ async function recordTimeFollow(page,near,label){
  assert.equal((await page.locator('#mapWsCardView').innerText()).trim(),'ここを撮影地点にする');
  await setAt(w.to+120*minute);await waitAlpha(1);assert.equal(await page.locator('#mapWsCardOverlap').innerText(),card,label+': 範囲外であってもカードは実際の重なる時刻');
  await clearSelection();await waitAlpha(0);
- // 手動で撮影地点を変えたら、古い選択を残さない。右側の既存操作導線を使う。
+ // 条件から手動で撮影地点を変えたら、古い選択を残さない。
  await setAt(w.from);await waitAlpha(1);await positionPin();await tapPin();await page.waitForFunction(()=>AstroNotesMapWorkspace.targetState().selection?.kind==='record');
  await page.evaluate(()=>{const h=SkyMapUI.workspaceHost();h.map.setCenter(h.session.observer.latitude+.01,h.session.observer.longitude+.01);h.redraw();});
- await page.locator('#skyMapObserverTool').click();await page.waitForFunction(name=>!AstroNotesMapWorkspace.targetState().selection&&document.getElementById('mapWsCardPlace').textContent!==name,name);
+ await page.locator('#mapWsTitle').click();await page.locator('#mapWsPlacement summary').click();
+ await page.locator('#mapWsPlaceObserver').click();await page.waitForFunction(name=>!AstroNotesMapWorkspace.targetState().selection&&document.getElementById('mapWsCardPlace').textContent!==name,name);
  assert.notEqual(await page.locator('#mapWsCardPlace').innerText(),name,label+': 撮影地点を動かすと記録選択を解除');
  await page.locator('#mapWsUndo').click();await waitAlpha(1);await positionPin();
  // 天体の変更直後、前の記録ピンとカードを消し、計算待ちを0件と混同しない。

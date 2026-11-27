@@ -551,8 +551,9 @@ button[data-ui-control="back"]:focus-visible{outline:2px solid var(--accent)!imp
   <div id="recordsView" hidden>
     <div id="recordsAccess" hidden><div class="sky-map-head"><h2>記録</h2></div><div class="card"><p id="recordsAccessMessage"></p><button id="recordsAccessLogin" class="fav-btn primary">ログイン</button></div></div>
     <div class="sky-map-head" id="recordsHeading"><h2>記録</h2></div>
-    <!-- 2026-10-20 NOTEBOOK：撮影地点と予定のタブ（ユーザー「NOTEBOOK にして、タブは撮影地点と予定」） -->
-    <div class="forecast-tabs notebook-tabs" id="notebookTabs" role="tablist" aria-label="記録の表示"><button type="button" role="tab" id="notebookPointsTab" aria-selected="true" aria-controls="myRecordsHub">撮影地点</button><button type="button" role="tab" id="notebookOpportunitiesTab" aria-selected="false" aria-controls="recordOpportunities" tabindex="-1">重なる日</button><button type="button" role="tab" id="notebookPlansTab" aria-selected="false" aria-controls="scheduleHub" tabindex="-1">予定</button></div>
+    <!-- 記録の撮影地点、対象、重なる日、予定。 -->
+    <div class="forecast-tabs notebook-tabs" id="notebookTabs" role="tablist" aria-label="記録の表示"><button type="button" role="tab" id="notebookPointsTab" aria-selected="true" aria-controls="myRecordsHub">撮影地点</button><button type="button" role="tab" id="notebookTargetsTab" aria-selected="false" aria-controls="recordTargets" tabindex="-1">対象</button><button type="button" role="tab" id="notebookOpportunitiesTab" aria-selected="false" aria-controls="recordOpportunities" tabindex="-1">重なる日</button><button type="button" role="tab" id="notebookPlansTab" aria-selected="false" aria-controls="scheduleHub" tabindex="-1">予定</button></div>
+    <div id="recordTargets" class="card" role="tabpanel" aria-labelledby="notebookTargetsTab" hidden></div>
     <div id="recordOpportunities" class="card" role="tabpanel" aria-labelledby="notebookOpportunitiesTab" hidden></div>
     <div id="myRecordsHub" class="card" role="tabpanel" aria-labelledby="notebookPointsTab"></div>
     <div id="scheduleHub" class="card" role="tabpanel" aria-labelledby="notebookPlansTab" hidden></div>

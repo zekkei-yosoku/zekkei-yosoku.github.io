@@ -9,7 +9,7 @@ const realTiles=process.env.MAP_BODIES_REAL_TILES==='1';
 const engines=(process.env.MAP_BODIES_ENGINES||'chrome,webkit').split(',');
 const widths=(process.env.MAP_BODIES_WIDTHS||'320,390').split(',').map(Number);
 const themes=(process.env.MAP_BODIES_THEMES||'light,dark').split(',');
-const checks=(process.env.MAP_BODIES_CHECKS||'matrix,engine,night,line,card,terrain,vicinity,date-lines,projection').split(',');
+const checks=(process.env.MAP_BODIES_CHECKS||'matrix,engine,night,line,card,terrain,vicinity,date-lines,projection,horizon-rays').split(',');
 const tools=['records','tower','diamond','pearl','skymap','multiscene'];
 const bodies=['moon','sun','sirius','venus','mercury','mars','jupiter','saturn'];
 const names={moon:'月',sun:'太陽',sirius:'シリウス',venus:'金星',mercury:'水星',mars:'火星',jupiter:'木星',saturn:'土星'};
@@ -27,7 +27,7 @@ async function open(browser,width,theme,{engineRoute}={}){
   if(u.origin===new URL(base).origin)return route.continue();return route.abort();});
  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(20000);
  await page.goto(base+'index.html#/explore');
- await page.waitForFunction(()=>typeof SkyMapUI==='object'&&typeof startupSessionReady!=='undefined');
+ await page.waitForFunction(()=>{try{return typeof SkyMapUI==='object'&&typeof startupSessionReady!=='undefined';}catch{return false;}});
  await page.evaluate(async({observer,at})=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>30;aimBuildingDays=async()=>[];navigationHistory.pushRoute('#/explore');
   for(let i=0;i<100&&!SkyMapUI.workspaceHost();i++)await new Promise(r=>setTimeout(r,50));
   const t=aimTargetList().find(t=>t.id==='skytree'),h=SkyMapUI.workspaceHost();h.restoreTarget({target:structuredClone(t),custom:false});h.restoreObserver(observer);
@@ -54,7 +54,7 @@ async function ready(page,body){
 async function pickerLayout(page){
  return page.evaluate(()=>{const nodes=[...document.querySelectorAll('#mapWsBodyPicker')].filter(n=>n.getClientRects().length),view=document.getElementById('skyMapView');
   const box=n=>{const r=n.getBoundingClientRect(),points=[[.5,.5],[.5,.1],[.5,.9],[.1,.5],[.9,.5]],hit=points.every(([x,y])=>{const found=document.elementFromPoint(r.left+r.width*x,r.top+r.height*y);return found===n||n.contains(found);});return {id:n.id||n.value,width:r.width,height:r.height,top:r.top,bottom:r.bottom,visible:!!n.offsetParent&&r.top>=0&&r.bottom<=innerHeight&&r.left>=0&&r.right<=innerWidth,hit};};
-  const center=view.dataset.mapCenter||'obs',map=document.getElementById('skyMapCanvas').getBoundingClientRect(),home=document.getElementById('mapWsHome');return {controls:nodes.map(box),placement:['skyMapObserverTool','skyMapTargetTool',center==='target'?'mapWsCardView':'mapWsNewPlaces'].map(id=>box(document.getElementById(id))),home:home?.offsetParent&&!home.hidden?box(home):null,mapHeight:map.height,mapTop:map.top,mapBottom:map.bottom,overflow:document.documentElement.scrollWidth>innerWidth+1,center};});
+  const center=view.dataset.mapCenter||'obs',map=document.getElementById('skyMapCanvas').getBoundingClientRect(),home=document.getElementById('mapWsHome');return {controls:nodes.map(box),placement:[...document.querySelectorAll('#mapWsMode input'),document.getElementById(center==='target'?'mapWsCardView':'mapWsNewPlaces')].map(box),home:home?.offsetParent&&!home.hidden?box(home):null,mapHeight:map.height,mapTop:map.top,mapBottom:map.bottom,overflow:document.documentElement.scrollWidth>innerWidth+1,center};});
 }
 async function captureMatrix(page,path,mode){
  if(realTiles){
@@ -269,6 +269,66 @@ async function targetVicinity(browser,engine){
  }finally{await f.context.close();}
 }
 
+async function horizonRays(browser,engine){
+ const f=await open(browser,390,'dark'),p=f.page;
+ try{
+  const date=Date.parse('2026-11-28T02:00:00+09:00');
+  await p.evaluate(at=>SkyMapUI.setTime(at),date);
+  const conditions=await p.evaluate(()=>{const s=SkyMapUI.selectionState();return {observer:s.observer,target:s.target.id,body:s.body,at:s.at};});
+  await p.getByRole('radio',{name:'対象を中心に表示'}).click();
+  assert.deepEqual(await p.evaluate(()=>{const s=SkyMapUI.selectionState();return {observer:s.observer,target:s.target.id,body:s.body,at:s.at};}),conditions);
+  assert.equal(await p.locator('#skyMapTargetTool').isVisible(),false);
+  assert.equal(await p.locator('#skyMapObserverTool').isVisible(),false);
+  const check=async(body,colors)=>{
+   await p.waitForFunction(()=>['Rise','Set'].every(side=>+document.getElementById('wsBody'+side).dataset.at>0));
+   const result=await p.evaluate(async colors=>{
+    const h=SkyMapUI.workspaceHost(),api=AstroNotesMapWorkspace,s=h.session;
+    const eye=s.observer?s.eye:api.targetSkyPoint();
+    const heading=['Rise','Set'].map(side=>Number.parseFloat(document.querySelector('#wsBody'+side+' i').textContent));
+    const original=api.drawTarget;
+    let result=null;
+    api.drawTarget=(ctx,args)=>{
+     const strokes=[],origin=args.project(eye.latitude,eye.longitude);
+     const methods={moveTo:ctx.moveTo,lineTo:ctx.lineTo,stroke:ctx.stroke};
+     let from,to;
+     ctx.moveTo=(x,y)=>{from=[x,y];return methods.moveTo.call(ctx,x,y);};
+     ctx.lineTo=(x,y)=>{to=[x,y];return methods.lineTo.call(ctx,x,y);};
+     ctx.stroke=(...rest)=>{
+      if(colors.includes(ctx.strokeStyle)&&ctx.lineWidth===3&&from&&to){
+       const angle=(Math.atan2(to[0]-from[0],from[1]-to[1])*180/Math.PI+h.map.rotation()+360)%360;
+       strokes.push({color:ctx.strokeStyle,dash:ctx.getLineDash(),angle,origin:Math.hypot(from[0]-origin[0],from[1]-origin[1])});
+      }
+      return methods.stroke.apply(ctx,rest);
+     };
+     try{return original(ctx,args);}finally{Object.assign(ctx,methods);result={strokes,heading,body:s.body,observer:!!s.observer};}
+    };
+    try{h.redraw();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return result;}finally{api.drawTarget=original;}
+   },colors);
+   assert.equal(result.body,body);
+   assert.deepEqual(result.strokes.map(x=>x.dash),[[],[9,6]],JSON.stringify(result));
+   assert(result.strokes.every((x,i)=>x.color===colors[i]&&x.origin<.01&&Math.abs(angleDelta(x.angle,result.heading[i]))<.06),JSON.stringify(result));
+   return result;
+  };
+  const angleDelta=(a,b)=>((a-b+540)%360)-180;
+  await ready(p,'moon');
+  assert.equal(await p.locator('#wsBodyRise i').nth(1).innerText(),'11/27');
+  const moon=await check('moon',['#6fb8ff','#2f6fe0']);
+  await p.evaluate(()=>SkyMapUI.workspaceHost().map.setRotation(32));
+  const rotated=await check('moon',['#6fb8ff','#2f6fe0']);
+  assert(rotated.strokes.every((x,i)=>Math.abs(x.angle-moon.strokes[i].angle)<.001));
+  await selectMap(p,'sun');await ready(p,'sun');
+  const sun=await check('sun',['#ff9b3d','#e5484d']);
+  await p.evaluate(()=>SkyMapUI.workspaceHost().restoreObserver(null));
+  await p.waitForFunction(()=>document.querySelector('#wsBody small').textContent.includes('対象付近'));
+  const vicinity=await check('sun',['#ff9b3d','#e5484d']);
+  assert(moon.observer&&sun.observer&&!vicinity.observer);
+  assert(await p.getByRole('radio',{name:'撮影地点を中心に表示'}).isDisabled());
+  assert(await p.getByRole('radio',{name:'対象を中心に表示'}).isChecked());
+  assert.deepEqual(f.errors,[]);
+  return {label:engine+'-horizon-rays',moon,sun,vicinity};
+ }finally{await f.context.close();}
+}
+
 async function dateLineReuse(browser,engine){
  const f=await open(browser,390,'dark');
  const p=f.page,day=Date.parse('2026-11-27T00:00:00+09:00'),offset=19*3600000,oneDay=86400000;
@@ -369,9 +429,9 @@ async function terrainErrorLayout(browser,engine,theme){
    await f.page.locator(`#mapWsMode input[value="${mode}"]`).click();await ready(f.page,'moon');
    if(mode==='target')await f.page.waitForFunction(()=>!AstroNotesMapWorkspace.targetState().lineBusy&&AstroNotesMapWorkspace.searchBand(SkyMapUI.workspaceHost().session)?.status==='ready');
    await f.page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
-   const layout=await pickerLayout(f.page),placement=layout.placement.filter(b=>['skyMapObserverTool','skyMapTargetTool'].includes(b.id));
+   const layout=await pickerLayout(f.page),placement=layout.placement.filter(b=>['obs','target'].includes(b.id));
    assert(layout.mapHeight>=150&&!layout.overflow,engine+' '+theme+' '+mode+': エラー行があっても地図150px以上');
-   assert(placement.length===2&&placement.every(b=>b.visible&&b.hit&&b.width>=44&&b.height>=44&&b.top>=layout.mapTop&&b.bottom<=layout.mapBottom),engine+' '+theme+' '+mode+': 配置ボタン全44px/5点hit '+JSON.stringify(layout));
+   assert(placement.length===2&&placement.every(b=>b.visible&&b.hit&&b.width>=44&&b.height>=44&&b.top>=layout.mapTop&&b.bottom<=layout.mapBottom),engine+' '+theme+' '+mode+': 中心切り替えは44px/5点hit '+JSON.stringify(layout));
    assert(layout.placement.every(b=>b.visible&&b.hit)&&(!layout.home||layout.home.visible&&layout.home.hit),engine+' '+theme+' '+mode+': 新規探索/戻るボタンを遮らない');
    assert(layout.controls.every(b=>b.visible&&b.hit),engine+' '+theme+' '+mode+': 天体列も操作可能');
    await f.page.screenshot({path:`${out}/${engine}-320-${theme}-terrain-error-${mode}.png`});results.push(layout);
@@ -391,6 +451,7 @@ async function terrainErrorLayout(browser,engine,theme){
    if(checks.includes('line'))results.push(await lineSelection(browser,engine));
    if(checks.includes('card'))results.push(await cardEdges(browser,engine));
    if(checks.includes('vicinity'))results.push(await targetVicinity(browser,engine));
+   if(checks.includes('horizon-rays')){const result=await horizonRays(browser,engine);results.push(result);console.log('PASS '+result.label);}
    if(checks.includes('date-lines'))results.push(await dateLineReuse(browser,engine));
    if(checks.includes('projection'))results.push(await mapProjection(browser,engine));
    if(checks.includes('terrain'))for(const theme of themes)results.push(await terrainErrorLayout(browser,engine,theme));

@@ -281,18 +281,7 @@ function renderRecordsHub() {
   // 2026-10-21 ＋は撮影地点の操作行へ。タブで見出し高さを変えない。
   const edit=document.createElement('button');edit.type='button';edit.className='chip';edit.id='notebookEdit';edit.textContent=notebookEdit?'完了':'編集';edit.setAttribute('aria-pressed',String(!!notebookEdit));edit.onclick=()=>{notebookGeneration.cancel();notebookNotice='';
   notebookEdit=notebookEdit?null:{owner:auth.token,ids:new Set(),error:''};renderRecordsHub();};
-  const manage=transferNode('button',{type:'button',className:'chip',id:'notebookManageTargets'},'対象を管理');
-  manage.setAttribute('aria-haspopup','dialog');
-  manage.setAttribute('aria-controls','previewTargetDialog');
-  manage.onclick=()=>{
-   const canManage=()=>!!auth?.token&&toolAllowed('records');
-   if(!canManage())return;
-   AstroTargetPicker.open(null,null,()=>el(manage.id),{
-    manage:true,canManage,title:'対象を管理',
-    getTargets:()=>[...aimTargetList(),...aimFavTargets().map(aimFavTarget)]
-   });
-  };
-  actions.append(edit,add,manage);appendRecordTransfer(actions);if(notebookEdit){add.hidden=true;for(const b of actions.children)if(b!==edit&&b!==add)b.hidden=true;actions.classList.add('notebook-edit-head');const count=document.createElement('strong');count.id='notebookCount';
+  actions.append(edit,add);appendRecordTransfer(actions);if(notebookEdit){add.hidden=true;for(const b of actions.children)if(b!==edit&&b!==add)b.hidden=true;actions.classList.add('notebook-edit-head');const count=document.createElement('strong');count.id='notebookCount';
   count.setAttribute('role','status');count.setAttribute('aria-live','polite');count.textContent=notebookEdit.ids.size+'地点を選択中';actions.prepend(count);}
   host.append(actions);
   const list = document.createElement('div'); list.className = 'al my-list'; host.append(list);

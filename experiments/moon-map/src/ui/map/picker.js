@@ -88,6 +88,7 @@ function mountMapShell(wrap, ids, redraw) {
   }
 
   if(ids.canvas==='skyMapCanvas'){const button=wrap.querySelector('.sky-map-expand');wireMapKeyboard(wrap,button,()=>wrap.classList.contains('sky-map-wide'),()=>button.click(),false);return;}
+  if(ids.canvas==='targetEditorCanvas')return;
   const expand=document.createElement('button');expand.type='button';expand.className='map-ctl sky-map-expand';
   expand.innerHTML=document.getElementById('skyMapExpand').innerHTML;wrap.append(expand);
   const selectionOnly=['mapCanvas','shapeCanvas'].includes(ids.canvas);
@@ -109,9 +110,6 @@ function mountMapShell(wrap, ids, redraw) {
         relocate(document.getElementById('shapeLocationPanel'),search);
         const note=document.getElementById('shapeApply').nextElementSibling;
         for(const id of ['shapeHelp','shapeVertexTools','shapeStatus','shapeApply'])relocate(document.getElementById(id),footer);relocate(note,footer);
-      }else if(ids.canvas==='targetEditorCanvas'){
-        const editor=wrap.closest('[data-target-editor]');relocate(editor.querySelector('.target-location-search'),search);relocate(document.getElementById('targetPlaceResults'),search);
-        const done=document.createElement('button');done.type='button';done.className='fav-btn primary';done.textContent='この位置にする';done.onclick=()=>setWide(false);footer.append(done);
       }
       if(['mapCanvas','shapeCanvas'].includes(ids.canvas)){const cancel=document.createElement('button');cancel.type='button';cancel.className='chip shared-map-cancel';cancel.textContent='戻る';cancel.onclick=()=>dialog.querySelector('.page-back')?.click();footer.append(cancel);}
       search.hidden=!search.children.length;footer.hidden=!footer.children.length;
@@ -131,7 +129,7 @@ function mountMapShell(wrap, ids, redraw) {
   window.addEventListener('hashchange',()=>{if(!dialog||!dialog.open)setWide(false);});
   wireMapKeyboard(wrap,expand,()=>wide,()=>selectionOnly?leaveSelection():setWide(false));
   wrap._mapShell={setWide,isWide:()=>wide};
-  if(['mapCanvas','shapeCanvas','targetEditorCanvas','aimLineCanvas'].includes(ids.canvas))setWide(true);
+  if(['mapCanvas','shapeCanvas','aimLineCanvas'].includes(ids.canvas))setWide(true);
 }
 
 function createMapView(ids) {
@@ -306,7 +304,7 @@ function createMapView(ids) {
       const tap=e.type==='pointerup'&&drag&&e.pointerId===drag.id&&!drag.moved&&Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)<=6;
       if (pinch) { pinch.points.delete(e.pointerId); if (pinch.points.size < 2) pinch = null; }
       if (drag && e.pointerId === drag.id) drag = null;
-      if(tap&&['shapeCanvas','targetEditorCanvas','aimLineCanvas'].includes(ids.canvas)&&scrollMap()){cv.closest('.mapwrap')._mapShell?.setWide(true);return;}
+      if(tap&&['shapeCanvas','aimLineCanvas'].includes(ids.canvas)&&scrollMap()){cv.closest('.mapwrap')._mapShell?.setWide(true);return;}
       if(tap&&onPick){const double=lastTap&&Number.isFinite(e.timeStamp)&&e.timeStamp-lastTap.at>=0&&e.timeStamp-lastTap.at<500&&Math.hypot(e.clientX-lastTap.x,e.clientY-lastTap.y)<=6;lastTap=double?null:{at:e.timeStamp,x:e.clientX,y:e.clientY};if(!double){const r=cv.getBoundingClientRect();
       onPick(coordinateAt(e.clientX-r.left,e.clientY-r.top),{x:e.clientX-r.left,y:e.clientY-r.top});}}
     };
@@ -327,6 +325,7 @@ function createMapView(ids) {
     wrap.querySelector(".mapzoom").insertAdjacentHTML("afterbegin", `<button class="map-locate" aria-label="現在地">${MAP_ICON_LOCATE}</button>`);
     const menu = wrap.querySelector(".map-layer-menu:not([data-shape-menu])"), menuBtn = wrap.querySelector(".map-layers-btn");
     const showMenu = (on) => { menu.hidden = !on; menuBtn.setAttribute("aria-expanded", String(on)); };
+    if(ids.canvas==='targetEditorCanvas')wireMapKeyboard(wrap,menuBtn,()=>!menu.hidden,()=>showMenu(false),false);
     menuBtn.onclick = (e) => { e.stopPropagation(); showMenu(menu.hidden); };
     for (const b of menu.querySelectorAll("[data-layer]")) b.onclick = () => { setLayer(b.dataset.layer, true); showMenu(false); };
     document.addEventListener("pointerdown", (e) => { if (!menu.hidden && !e.target.closest(".map-layer-menu, .map-layers-btn")) showMenu(false); });
@@ -372,7 +371,7 @@ function createMapView(ids) {
     view = { lat: from.latitude, lon: from.longitude, zoom };
     setLayer(store.get(MAP_LAYER_KEY, DEFAULT_MAP_LAYER));
     if (ids.sheet) showSheet($(ids.sheet));
-    if(['mapCanvas','shapeCanvas','targetEditorCanvas','aimLineCanvas'].includes(ids.canvas))cv.closest('.mapwrap')._mapShell?.setWide(true);
+    if(['mapCanvas','shapeCanvas','aimLineCanvas'].includes(ids.canvas))cv.closest('.mapwrap')._mapShell?.setWide(true);
     // dialog が開いてから測る（閉じている間は幅が 0）
     requestAnimationFrame(() => { draw(); requestAnimationFrame(draw); });
   }
