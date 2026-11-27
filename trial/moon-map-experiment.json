@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "20261124-moon-route-map",
-  "revision": 38,
+  "revision": 39,
   "baselineCommit": "f4f35b61359ba5ec8f9da057cf3026902a0402a4",
   "productionSha256": {
     "index.html": "feb5e6c31bbb6014c66615a414cca2477296b89ab8e6a95ba1e98c07907a29c3",
@@ -56,10 +56,10 @@
     "src/features/explore/map-presentation.js": "891e73b0da9daa33164eb6ae5beee7270bc591019e0aeec0972e5b70046395b6",
     "astronotes-map-workspace.js": "213b168508f9015853dca94b078d9f552db2e55f76effc9bc6fe4b8b2935c6eb",
     "astronotes-map-workspace.css": "eef941f7948b0e9caaaa65bf0ff4d2f72a7352955f3a0963933609639ad07605",
-    "src/features/candidates/ui.js": "9b1e7b9689acb6f7577e6837073db162a72529da888e19adf4404719feb3982f",
+    "src/features/candidates/ui.js": "d7586f1ab428700d9ce5022abaddb4f25b51e60327aa151cf449a52e9c1eb552",
     "src/features/candidates/generic-search.js": "0f78f4fe1e6924997dd96edf4787e4612e1721f3ede20522fe05bce2b21be727",
     "astronotes-shooting.js": "69ed04693c74005445a7755f4beb7d3f181efd81db3baad9ab9b5a4505572509",
-    "astronotes-target-ui.js": "8b00e2c9572d2c9da0686a0bdd66a0257e18934cf016e80af8541f7cf8e86c3f",
+    "astronotes-target-ui.js": "02f8516f9802b4ffa2e8b5f4ae9eb2e9d23c24fed0ad21158011b25a7e9519a8",
     "astronotes-scroll-timeline.js": "7fb99721b9a226241912887d291c371bddfdc8a13b3f11fd95e6c29fca5967d6",
     "src/ui/presentation-helpers.js": "850bafadc669bca54c3f97ec8a834b4e2280d76d95b72c4d0e6b722e5d07cfbb",
     "src/features/framing/observer.js": "14205e7c9c4cf8bb1e9af85cbbfcf9df0f760f67e3f4964b8558638ed85a8e65",
@@ -67,7 +67,7 @@
     "src/features/candidates/building-model.js": "a51117cf2f3abb16cfa220d145964666fab1b9b3911083a3ad391e693719dbde",
     "src/features/candidates/terrain-model.js": "38d06defc6430f81f15f54b84fc822fad33f52383d328170ef7a2fd5fd217fd7",
     "src/features/candidates/height-grid.js": "dad9f9b1c58da7c7eddad5506f5e335a257ec84cc8ee54c34ef66ba9ca86f12e",
-    "src/features/candidates/plateau-buildings.js": "6937fd39b3bd206ffd18ece69b774fb9185904a3d87c113b746e2fe5149ef4ec",
+    "src/features/candidates/plateau-buildings.js": "a057f5a8e521f2391a30887a542d6608b64fbf9a3c88b1a7899afa9bb2fad4b0",
     "src/features/candidates/osm-places.js": "bb0baf2a71b1d9b13ccf24ea6acb3cb806c7b0a5aba1e2b786b956d6f43937e4",
     "src/features/candidates/tree-heights.js": "d32ce665a8305f7f2aa2d1b1a2ce785ee381db9f09cba168a27aa78b3246e11d",
     "src/features/satellites/controller.js": "8729ff810c41e0d768946096be644a8e70d4f263fb8ee09f61f4216db60ef58d",
@@ -87,12 +87,12 @@
     "astronotes-map-workspace.js": "213b168508f9015853dca94b078d9f552db2e55f76effc9bc6fe4b8b2935c6eb",
     "astronotes-map-workspace.css": "eef941f7948b0e9caaaa65bf0ff4d2f72a7352955f3a0963933609639ad07605",
     "astronotes-shooting.js": "69ed04693c74005445a7755f4beb7d3f181efd81db3baad9ab9b5a4505572509",
-    "astronotes-target-ui.js": "8b00e2c9572d2c9da0686a0bdd66a0257e18934cf016e80af8541f7cf8e86c3f",
+    "astronotes-target-ui.js": "02f8516f9802b4ffa2e8b5f4ae9eb2e9d23c24fed0ad21158011b25a7e9519a8",
     "astronotes-scroll-timeline.js": "7fb99721b9a226241912887d291c371bddfdc8a13b3f11fd95e6c29fca5967d6",
     "astronotes-iss.js": "7c864a204182a42de1a248d3a965dfc157e6a76e737c2745ce573a48fbc6f3a7",
     "astronotes-explore-simple.js": "21c2977f019bc8a8b2217b68f4e7c975c559e959ce8bba7460c27ba7f23d9def",
-    "astronotes-candidate-search.js": "3821ed34f373fa4259a1cf55a1c6f311b4d7a0428232b298fafb149b6642c084",
-    "index.html": "0f0d98297e554bc64e6561a97812b918c1b71331071eaf7b34b1347a8f12def0",
-    "app-version.txt": "8d49db24d08ef62e36e9c5c0e50ac8af9d423f6d0d61c616477f124457138843"
+    "astronotes-candidate-search.js": "21ff089c72cb6b0a63251306ad150010e2b9d1bd63189a773b3b7f04351b3a97",
+    "index.html": "e813d8dc8ce5eadff8f49caf880bfbcfa24f8f32fc15ce264bf56f887f2cbba1",
+    "app-version.txt": "9957447fee1ccb59311780b21490a525df4ba69bc84f08e24ae6534cd9758f9c"
   }
 }

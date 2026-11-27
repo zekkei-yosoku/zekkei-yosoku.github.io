@@ -13,7 +13,7 @@ function mount(deps){
 <button type="button" class="chip" data-target-none hidden>選択を解除</button></div><div class="preview-target-list"></div><p class="tiny" data-target-empty hidden>見つかりませんでした。</p><div class="target-selection-actions" data-target-selection-actions hidden>\
 <button type="button" class="fav-btn primary" data-target-done>選択を適用</button></div></section><section data-target-editor hidden><div class="target-location-search"><input id="targetPlaceSearch" type="search" class="fav-in" placeholder="地名・緯度経度・地図のURL" aria-label="対象の場所を検索">\
 <button type="button" class="chip" id="targetPlaceSearchGo">検索</button></div><div id="targetPlaceResults"></div><div class="mapwrap target-editor-map"><canvas id="targetEditorCanvas" aria-label="対象の位置を選ぶ地図"></canvas><div class="map-cross" aria-hidden="true">＋</div><div class="mapzoom">\
-<button type="button" id="targetEditorIn" aria-label="拡大">＋</button><button type="button" id="targetEditorOut" aria-label="縮小">−</button></div></div><div class="target-plateau" data-target-plateau hidden><p class="tiny">PLATEAUの建物（地図の＋の近く）。選ぶと形・位置・高さを使います</p><div data-target-plateau-list></div>\
+<button type="button" id="targetEditorIn" aria-label="拡大">＋</button><button type="button" id="targetEditorOut" aria-label="縮小">−</button></div></div><div class="target-plateau" data-target-plateau hidden><p class="tiny">PLATEAUの建物（地図の＋の近く）。選ぶと形・位置・高さを使います</p><div data-target-plateau-list></div><p class="tiny" data-target-osm-credit hidden><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">建物名 © OpenStreetMap contributors</a></p>\
 </div><label>名前<input type="text" class="fav-in" data-target-name maxlength="200" placeholder="対象の名前"></label><label>地上からの高さ（m）<input type="number" class="fav-in" data-target-height min="0" max="1000" step="any" value="0"></label><label>カテゴリ<select class="fav-in" data-target-category></select>\
 </label><label data-target-category-new-row hidden>新しいカテゴリの名前<input type="text" class="fav-in" data-target-category-new maxlength="20" placeholder="例：橋、神社、灯台"></label><p class="tiny" data-target-coordinate></p><p class="warn" data-target-error role="status" hidden></p>\
 <div data-target-duplicates hidden></div><div class="my-actions"><button type="button" class="chip" data-target-back>対象一覧に戻る</button><button type="button" class="fav-btn primary" data-target-add>対象を登録</button></div></section><section data-target-cat-panel data-no-dirty hidden>\
@@ -160,18 +160,42 @@ function mount(deps){
   const h=p.targetHeightM??p.structureM;if(L.height(h))q('[data-target-height]').value=String(h);
   q('[data-target-coordinate]').textContent=p.latitude.toFixed(5)+', '+p.longitude.toFixed(5);syncDirty();
  }
- let plateauTimer=0,plateauSeq=AstroNotesLibrary.gate();
+ let plateauTimer=0,plateauPoint='',plateauSeq=AstroNotesLibrary.gate();
  function plateauNear(){
-  clearTimeout(plateauTimer);
+  const c=map?.center(),s=state,api=globalThis.AstroNotesPlateauShapes;
+  if(!api||editor.hidden||!dialog.open||!valid(s)||!c||!L.point(c))return;
+  const key=c.latitude+','+c.longitude;
+  if(key===plateauPoint)return;
+  plateauPoint=key;clearTimeout(plateauTimer);
+  const seq=plateauSeq.next();
   plateauTimer=setTimeout(async()=>{
-   const box=q('[data-target-plateau]'),host=q('[data-target-plateau-list]'),api=globalThis.AstroNotesPlateauShapes,c=map?.center?.();
-   if(!box||!host||!api||editor.hidden||!c||!L.point(c)){if(box)box.hidden=true;return;}
-   const seq=plateauSeq.next();let list=[];try{list=await api.near(c.latitude,c.longitude,{radiusM:250,limit:6});}catch{list=[];}
-   if(!plateauSeq.current(seq)||editor.hidden||!valid(state))return;
-   host.replaceChildren(...list.map(b=>{const button=d.createElement('button');button.type='button';button.className='list-item';button.dataset.plateauBuilding=b.id;
-    button.textContent=(b.name||'名前のない建物')+' ・ 高さ'+Math.round(b.heightM)+'m'+(b.distanceM?' ・ '+b.distanceM+'m先':'');
-    button.onclick=()=>move({latitude:b.latitude,longitude:b.longitude,name:b.name||'',targetHeightM:Math.round(b.heightM*10)/10,zoom:18});return button;}));
-   box.hidden=!list.length;
+   const box=q('[data-target-plateau]'),host=q('[data-target-plateau-list]'),credit=q('[data-target-osm-credit]');
+   const current=()=>plateauSeq.current(seq)&&dialog.open&&!editor.hidden&&valid(s);
+   let list=[];try{list=await api.near(c.latitude,c.longitude,{radiusM:250,limit:16});}catch{/* The editor still accepts any point. */}
+   if(!current())return;
+   const visible=list.slice(0,6),buttons=new Map();
+   let names=new Map();
+   const nameOf=b=>b.name||names.get(b.id)||'';
+   const updateName=(button,b)=>{button.textContent=(nameOf(b)||'名前のない建物')+' ・ 高さ'+Math.round(b.heightM)+'m'+(b.distanceM?' ・ '+b.distanceM+'m先':'');};
+   const row=b=>{
+    const button=d.createElement('button');button.type='button';button.className='list-item';button.dataset.plateauBuilding=b.id;
+    buttons.set(b.id,button);updateName(button,b);
+    button.onclick=()=>{if(current())move({latitude:b.latitude,longitude:b.longitude,name:nameOf(b),targetHeightM:Math.round(b.heightM*10)/10,zoom:18,plateauId:b.id});};return button;
+   };
+   host.replaceChildren(...visible.map(row));box.hidden=!visible.length;credit.hidden=true;
+   if(!visible.some(b=>!b.name)||!api.namesFor)return;
+   try{
+    names=await api.namesFor(list.filter(b=>!b.name).map(b=>b.id));
+    if(!current())return;
+    let complemented=false;
+    for(const b of visible){if(names.has(b.id)){updateName(buttons.get(b.id),b);complemented=true;}}
+    // Keep the distance-ordered rows and offer one more labelled building in the same search radius.
+    const extra=complemented?null:list.slice(visible.length).find(b=>names.has(b.id));
+    if(extra)host.append(row(extra));
+    credit.hidden=!complemented&&!extra;
+    const selected=s.searchPoint,input=q('[data-target-name]'),name=names.get(selected?.plateauId);
+    if(name&&L.distance(c,selected)<1&&input.dataset.auto==='true'&&!input.value.trim()){input.value=name;syncDirty();}
+   }catch{/* A missing supplement leaves the original rows usable. */}
   },350);
  }
  function openEditor(target=null){
@@ -179,6 +203,7 @@ function mount(deps){
   s.editingFavorite=s.options.manage&&target?JSON.stringify(deps.favorite(target.favId)):null;
   s.searchPoint=target?deps.favorite(target.favId)||{...target,elevation:target.groundM}:null;q('[data-target-name]').value=target?.name||'';q('[data-target-name]').dataset.auto='true';
   q('[data-target-height]').value=String(target?((s.drafts.find(x=>x.entry.id===target.favId)?.entry||deps.favorite(target.favId))?.targetHeightM??Math.max(0,(target.parts?.[0]?.m??0)-(target.groundM??0))):0);
+  plateauPoint='';plateauSeq.cancel();q('[data-target-plateau]').hidden=true;
   by('targetPlaceSearch').value='';by('targetPlaceResults').replaceChildren();q('[data-target-error]').hidden=true;q('[data-target-duplicates]').hidden=true;
   fillCategory(target?catOf(target):catFilter&&catFilter!==NONE?catFilter:'');
   panel.hidden=true;editor.hidden=false;q('[data-target-head-actions]').hidden=true;q('#previewTargetTitle').textContent=target?'対象を編集':'対象を登録';q('[data-target-add]').textContent=target?(s.options.manage?'変更を保存':'変更を適用'):'対象を登録';

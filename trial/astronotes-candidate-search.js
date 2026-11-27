@@ -1010,7 +1010,7 @@ function cityModel(b){
  return {id:'plateau-'+b.id,buildingId:b.id,heightM:b.heightM,groundM:b.groundM,vertices,geoVertices,faces,approximate:true,
   sourceLabel:'PLATEAU（加工）・LOD'+b.lod,sourceUrl:'https://www.mlit.go.jp/plateau/site-policy/'};
 }
-function create({load=null,fetchImpl=(typeof fetch==='function'?fetch.bind(root):null),base='data/building-shapes/'}={}){
+function create({load=null,loadNames=null,fetchImpl=(typeof fetch==='function'?fetch.bind(root):null),base='data/building-shapes/'}={}){
  let indexPromise=null;const parts=new Map(),ready=new Map(),attached=new Map();
  const index=()=>indexPromise||(indexPromise=(load?load('building-shapes/index.json'):fetchImpl(base+'index.json').then(r=>{if(!r.ok)throw Error('shape-index');return r.json();})).catch(e=>{indexPromise=null;throw e;}));
  async function partAt(lat,lon){
@@ -1032,6 +1032,18 @@ function create({load=null,fetchImpl=(typeof fetch==='function'?fetch.bind(root)
   return list.filter(b=>b.heightM>=minHeightM).map(b=>({b,d:distance(b,lat,lon)})).filter(x=>x.d<=radiusM).sort((a,c)=>a.d-c.d||c.b.heightM-a.b.heightM).slice(0,limit)
    .map(({b,d})=>({id:b.id,name:b.name,latitude:b.latitude,longitude:b.longitude,groundM:b.groundM,heightM:b.heightM,lod:b.lod,distanceM:Math.round(d)}));
  }
+ // This ID lookup augments the editor only. Geometry and saved names do not depend on it.
+ async function namesFor(ids){
+  const result=new Map();
+  if(!loadNames||!ids.length)return result;
+  const data=await loadNames();
+  if(data?.format!=='AstroNotes OSM building name matches v1')return result;
+  for(const id of ids){
+   const row=Object.hasOwn(data.names||{},id)?data.names[id]:null;
+   if(typeof row?.[0]==='string'&&row[0].length<=200)result.set(id,row[0]);
+  }
+  return result;
+ }
  // A saved target (id "fav:…") on a PLATEAU building whose height is within 15% (5 m) of the target's takes its shape.
  function match(target){
   if(!target||!String(target.id||'').startsWith('fav:')||target.rim)return null;
@@ -1051,7 +1063,7 @@ function create({load=null,fetchImpl=(typeof fetch==='function'?fetch.bind(root)
  }
  // Footprint of the building a target stands on (lat/lon rings), for leaving it out of its own sight lines.
  function footprint(targetId){const b=attached.get(targetId);return b?b.rings.map(({ring})=>ring.map(p=>b.geo(p))):null;}
- return {near,prepare,match,footprint,attachedTo:id=>attached.get(id)||null};
+ return {near,namesFor,prepare,match,footprint,attachedTo:id=>attached.get(id)||null};
 }
 return {create,part,shape,cityModel,aimPoint};
 });
@@ -4876,8 +4888,8 @@ const dataTag=new URL(document.currentScript.src,location.href).searchParams.get
 const dataHashes={"candidate-viewpoints.json":"f9496da00f09be194ea770c3c7e851afd84f388fe5fa388922635e53c86950c5","candidate-surveyed-viewpoints.json":"04cdbec2b777e9e2725cca737e194efb8cfcab94544cedaa62f16ed9873187ff","candidate-terrain.json":"5c78165203510383eab45feb0e2195a06c6f4d8ec5f3e682db941ca705279779","candidate-buildings.json":"e4ec51ed732be60108959a7854cdd5ae8aab46a94aaa026f0d5094101e1f4c8a","building-heights/index.json":"77a390e9e8a76264d0aad3e53b60a8ed1f7efc4243abc39c1dd65e9d5994fb12","building-shapes/index.json":"0298fc54cd928ed403b637b456b0871fe984d3978a02961a40e89e07c7d6c10c","osm-places/index.json":"101f0c969fcfdf205b775f6dad761b00b99264fd4c6905a751da38de859a4bdc","candidate-surfaces.json":"de16ae6e56aa05a1d4a7d6d0fa8974a4373183f35e8282f412f7fbd7c637751f","candidate-sidewalks.json":"efc42ec01902232f52ec36e84808dc3400892d91c5ddf663d91ef34bb123e48a","candidate-label-addresses.json":"3919fc5e919863ba593174cdd805f860d41882938667055ab456b9abe33d869b","candidate-label-facilities.json":"ca92359defa9b765fe86db8bf5053cd5921182a39af1975b9324274615efdf53","candidate-towns/index.json":"5ef17e0a21bd0dbad7d4b7244b157cafa0205a07d0e088d1f1876c06435df1b1","visibility/tokyotower.json":"c84ac9ff18a62aa3441c6a7a099f94de7873e7a4c49e86c39cec7dd52d65fdc6","visibility/skytree.json":"014ae6629d51233b56fb73f8dcafdfd7df45a632070e08c030defeae75cb7630","visibility/tocho-building.json":"9d953e2b62591e2b67fafd7f841cfc8d4643ab945309bb2eb89f495e88c40458","visibility/shibuya-sky.json":"fb4c4990b1fcd55dac45d92a96cffc0062c0fb5dbaaedc14b31c466f2e3b6bc5","visibility/azabudai-hills.json":"ac28e1b2ec05a20d5e98159e19961428e2e137e70a33e1ad644c1f2c2a907a64","visibility/kabukicho-tower.json":"f237c33491c5643248c5a8e5acd40671b604b5cc559fe1f05440d4df7903c298","visibility/tower-terror.json":"8c7c0e667c8ee8699cfe44db094b40668a8596f36edd9e9558554451f07c037f","visibility/cinderella.json":"d8df5afa0b15b14d1ccfb448c4a035c3821f9f0b63f34895d6ac112dc9902201","visibility/tinkerbell.json":"4f8936733b89e0816c1146e71b1dd20f57f79e99020a1202f31fd52e005b50ac"};
 // The trial keeps no copy of this data: its page points at the production folder (build-preview.py).
 const dataBase=document.querySelector('meta[name="astronotes-data-base"]')?.content||'data/';
-async function readData(name,{signal,expectedHash=dataHashes[name],priority}={}){
- const r=await fetch(dataBase+name+'?v='+dataTag,{signal,priority});
+async function readData(name,{signal,expectedHash=dataHashes[name],version=dataTag,priority}={}){
+ const r=await fetch(dataBase+name+'?v='+version,{signal,priority});
  if(!r.ok)throw Error('data');
  const bytes=await r.arrayBuffer(),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
  if(hash!==expectedHash)throw Error('data-version');
@@ -4892,7 +4904,11 @@ function loaded(name,options={}){
  return cachedData.get(name);
 }
 // Saved targets standing on a PLATEAU building take its shape on this page (見え方 and new places).
-const plateauShapes=globalThis.AstroNotesPlateauBuildings?.create({load:loaded,base:dataBase+'building-shapes/'})||null;globalThis.AstroNotesPlateauShapes=plateauShapes;
+const osmNamesHash=document.querySelector('meta[name="astronotes-osm-building-names"]')?.content;
+const plateauShapes=globalThis.AstroNotesPlateauBuildings?.create({
+ load:loaded,base:dataBase+'building-shapes/',
+ loadNames:osmNamesHash?()=>loaded('building-shapes/osm-names.json',{expectedHash:osmNamesHash,version:osmNamesHash}):null
+})||null;globalThis.AstroNotesPlateauShapes=plateauShapes;
 // The targets the app lists carry their PLATEAU shape, so the overlap list and registered places (calculation
 // workers) use it too; it is part of a pair's geometry key, so geometry made with the estimate is not reused.
 if(typeof globalThis.aimTargetList==='function'&&!globalThis.aimTargetList.plateauShapes){

@@ -34,7 +34,7 @@ function cityModel(b){
  return {id:'plateau-'+b.id,buildingId:b.id,heightM:b.heightM,groundM:b.groundM,vertices,geoVertices,faces,approximate:true,
   sourceLabel:'PLATEAU（加工）・LOD'+b.lod,sourceUrl:'https://www.mlit.go.jp/plateau/site-policy/'};
 }
-function create({load=null,fetchImpl=(typeof fetch==='function'?fetch.bind(root):null),base='data/building-shapes/'}={}){
+function create({load=null,loadNames=null,fetchImpl=(typeof fetch==='function'?fetch.bind(root):null),base='data/building-shapes/'}={}){
  let indexPromise=null;const parts=new Map(),ready=new Map(),attached=new Map();
  const index=()=>indexPromise||(indexPromise=(load?load('building-shapes/index.json'):fetchImpl(base+'index.json').then(r=>{if(!r.ok)throw Error('shape-index');return r.json();})).catch(e=>{indexPromise=null;throw e;}));
  async function partAt(lat,lon){
@@ -56,6 +56,18 @@ function create({load=null,fetchImpl=(typeof fetch==='function'?fetch.bind(root)
   return list.filter(b=>b.heightM>=minHeightM).map(b=>({b,d:distance(b,lat,lon)})).filter(x=>x.d<=radiusM).sort((a,c)=>a.d-c.d||c.b.heightM-a.b.heightM).slice(0,limit)
    .map(({b,d})=>({id:b.id,name:b.name,latitude:b.latitude,longitude:b.longitude,groundM:b.groundM,heightM:b.heightM,lod:b.lod,distanceM:Math.round(d)}));
  }
+ // This ID lookup augments the editor only. Geometry and saved names do not depend on it.
+ async function namesFor(ids){
+  const result=new Map();
+  if(!loadNames||!ids.length)return result;
+  const data=await loadNames();
+  if(data?.format!=='AstroNotes OSM building name matches v1')return result;
+  for(const id of ids){
+   const row=Object.hasOwn(data.names||{},id)?data.names[id]:null;
+   if(typeof row?.[0]==='string'&&row[0].length<=200)result.set(id,row[0]);
+  }
+  return result;
+ }
  // A saved target (id "fav:…") on a PLATEAU building whose height is within 15% (5 m) of the target's takes its shape.
  function match(target){
   if(!target||!String(target.id||'').startsWith('fav:')||target.rim)return null;
@@ -75,7 +87,7 @@ function create({load=null,fetchImpl=(typeof fetch==='function'?fetch.bind(root)
  }
  // Footprint of the building a target stands on (lat/lon rings), for leaving it out of its own sight lines.
  function footprint(targetId){const b=attached.get(targetId);return b?b.rings.map(({ring})=>ring.map(p=>b.geo(p))):null;}
- return {near,prepare,match,footprint,attachedTo:id=>attached.get(id)||null};
+ return {near,namesFor,prepare,match,footprint,attachedTo:id=>attached.get(id)||null};
 }
 return {create,part,shape,cityModel,aimPoint};
 });

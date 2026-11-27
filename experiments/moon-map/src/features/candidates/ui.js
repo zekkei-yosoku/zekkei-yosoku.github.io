@@ -11,8 +11,8 @@ const dataTag=new URL(document.currentScript.src,location.href).searchParams.get
 const dataHashes=/* BUILD_DATA_HASHES */{};
 // The trial keeps no copy of this data: its page points at the production folder (build-preview.py).
 const dataBase=document.querySelector('meta[name="astronotes-data-base"]')?.content||'data/';
-async function readData(name,{signal,expectedHash=dataHashes[name],priority}={}){
- const r=await fetch(dataBase+name+'?v='+dataTag,{signal,priority});
+async function readData(name,{signal,expectedHash=dataHashes[name],version=dataTag,priority}={}){
+ const r=await fetch(dataBase+name+'?v='+version,{signal,priority});
  if(!r.ok)throw Error('data');
  const bytes=await r.arrayBuffer(),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
  if(hash!==expectedHash)throw Error('data-version');
@@ -27,7 +27,11 @@ function loaded(name,options={}){
  return cachedData.get(name);
 }
 // Saved targets standing on a PLATEAU building take its shape on this page (見え方 and new places).
-const plateauShapes=globalThis.AstroNotesPlateauBuildings?.create({load:loaded,base:dataBase+'building-shapes/'})||null;globalThis.AstroNotesPlateauShapes=plateauShapes;
+const osmNamesHash=document.querySelector('meta[name="astronotes-osm-building-names"]')?.content;
+const plateauShapes=globalThis.AstroNotesPlateauBuildings?.create({
+ load:loaded,base:dataBase+'building-shapes/',
+ loadNames:osmNamesHash?()=>loaded('building-shapes/osm-names.json',{expectedHash:osmNamesHash,version:osmNamesHash}):null
+})||null;globalThis.AstroNotesPlateauShapes=plateauShapes;
 // The targets the app lists carry their PLATEAU shape, so the overlap list and registered places (calculation
 // workers) use it too; it is part of a pair's geometry key, so geometry made with the estimate is not reused.
 if(typeof globalThis.aimTargetList==='function'&&!globalThis.aimTargetList.plateauShapes){

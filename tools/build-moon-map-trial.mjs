@@ -108,6 +108,16 @@ export function buildMoonMapTrial({directory=root,
  let html=replaceOnce(rendered.html,'<title>AstroNotes</title>',
   '<title>AstroNotes 試用版</title>\n<meta name="astronotes-data-base" content="../data/">'+
   '\n<meta name="astronotes-trial-experiment" content="'+manifest.id+'-r'+manifest.revision+'">');
+ // The supplemental name index is fetched only in the target editor, from the shared data directory.
+ const buildingNames='data/building-shapes/osm-names.json';
+ if(existsFile(buildingNames)){
+  const bytes=readFile(buildingNames),release=JSON.parse(bytes),plateauIndex='data/building-shapes/index.json';
+  if(release.format!=='AstroNotes OSM building name matches v1'||release.plateauIndexSha256!==digest(readFile(plateauIndex))){
+   throw Error('Building names must be matched against the current PLATEAU index');
+  }
+  html=replaceOnce(html,'<meta name="astronotes-data-base" content="../data/">',
+   '<meta name="astronotes-data-base" content="../data/">\n<meta name="astronotes-osm-building-names" content="'+digest(bytes)+'">');
+ }
  html=replaceOnce(html,'name="apple-mobile-web-app-title" content="AstroNotes"',
   'name="apple-mobile-web-app-title" content="AstroNotes 試用版"');
  html=replaceOnce(html,'  <div class="masthead">',

@@ -69,6 +69,16 @@ test('an overlaid explore source re-renders the trial explore bundle; untouched 
  assert.equal(plain['astronotes-explore-simple.js'],undefined,'without an explore overlay the bundle is copied from production');
 });
 
+test('the building-name index is versioned and tied to the same PLATEAU dataset',()=>{
+ const path='data/building-shapes/osm-names.json';
+ const original={format:'AstroNotes OSM building name matches v1',plateauIndexSha256:sha(baseline('data/building-shapes/index.json')),names:{'bldg_sample':['建物名','way/1']}};
+ const bytes=JSON.stringify(original),files=buildMoonMapTrial(inputs({[path]:bytes}));
+ assert(files['index.html'].includes(`name="astronotes-osm-building-names" content="${sha(bytes)}"`));
+ assert.notEqual(files['app-version.txt'],buildMoonMapTrial(inputs())['app-version.txt']);
+ const stale=JSON.stringify({...original,plateauIndexSha256:'obsolete'});
+ assert.throws(()=>buildMoonMapTrial(inputs({[path]:stale})),/matched against the current PLATEAU index/);
+});
+
 test('trial candidate sources share a byte stream for gzip and deflate, including buffers and offsets',async()=>{
  const files=buildMoonMapTrial();
  const bundle=files['astronotes-candidate-search.js'];
