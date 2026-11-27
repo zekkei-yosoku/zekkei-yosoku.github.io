@@ -200,12 +200,20 @@ async function reopenKeepsSearch(type,engine){
       return {top:Math.abs(p.top-top.bottom)<=1,aboveFooter:p.bottom<=footer.top+1,fields:['skyMapBody','skyMapTarget','skyMapChoose'].every(visible),hidden:['exploreShowResult','candidateWorkspaceAction','exploreOpportunityLink'].every(id=>!visible(id)),noFind:!document.getElementById('exploreFindFromMap'),
       map:!!document.getElementById('skyMapCanvas').offsetParent,ws:document.getElementById('skyMapView').classList.contains('map-ws'),overflowX:document.documentElement.scrollWidth>innerWidth+1,footer:!!document.getElementById('skyMapCalendarOpen').offsetParent};});
      assert(panel.top&&panel.aboveFooter&&panel.fields&&panel.hidden&&panel.noFind&&panel.map&&panel.ws&&!panel.overflowX&&panel.footer,label+': '+JSON.stringify(panel));
+     const formBody=page.locator('#skyMapBodyOpen');
+     assert(await formBody.isVisible()&&!await bodyButton.isVisible(),label+': 展開中は条件欄にだけ天体選択がある');
+     const bandRightGap=await page.locator('#mapWsTitle').evaluate(title=>title.parentElement.getBoundingClientRect().right-title.getBoundingClientRect().right);
+     assert(bandRightGap>=0&&bandRightGap<=1.5,label+': 展開中は条件帯を横幅いっぱいに使う '+bandRightGap);
      await page.screenshot({path:`${out}/${label}-conditions.png`});
-     await chooseBody('sun');
+     await formBody.click();
+     await page.locator('#skyMapBodyDialog [data-body-value=sun]').click();
      await page.waitForFunction(()=>document.querySelector('#mapWsTitle [data-chip=body]').textContent==='太陽'&&AstroNotesMapWorkspace.onlyBody()==='sun');assert(await dropdown(),label+': 変えても展開は開いたまま');
-     await page.evaluate(()=>{const b=document.getElementById('skyMapBody');b.value='moon';b.dispatchEvent(new Event('change',{bubbles:true}));SkyMapUI.setTime(Date.parse('2026-12-24T16:41:00+09:00'));});
      await page.locator('#mapWsTitle').click();assert(!await dropdown(),label+': 帯で畳む');assert.equal(await page.locator('#mapWsTitle').getAttribute('aria-expanded'),'false');
-     await page.locator('#mapWsTitle').click();await bodyButton.focus();await page.keyboard.press('Escape');assert(!await dropdown(),label+': 天体にフォーカスしたままEscapeで畳む');
+     assert(await bodyButton.isVisible()&&!await formBody.isVisible(),label+': 閉じた状態では条件帯にだけ天体選択がある');
+     assert.equal(await bodyButton.innerText(),'太陽');
+     await chooseBody('moon');
+     await page.evaluate(()=>SkyMapUI.setTime(Date.parse('2026-12-24T16:41:00+09:00')));
+     await page.locator('#mapWsTitle').click();await formBody.focus();await page.keyboard.press('Escape');assert(!await dropdown()&&await bodyButton.isVisible(),label+': 天体にフォーカスしたままEscapeで畳む');
      await page.locator('#mapWsTitle').click();const mapPoint=await page.evaluate(()=>{const c=document.getElementById('skyMapCanvas').getBoundingClientRect(),p=document.getElementById('exploreConditions').getBoundingClientRect();return {x:c.left+c.width/2,y:Math.min(c.bottom-8,p.bottom+(c.bottom-p.bottom)/2),below:c.bottom-p.bottom};});
      assert(mapPoint.below>=10,label+': 展開の下に地図が見える '+JSON.stringify(mapPoint));
      // 日時バーは展開を開いたまま使える（時刻を動かして見比べる）
@@ -214,7 +222,7 @@ async function reopenKeepsSearch(type,engine){
      await page.locator('#mapWsMenuButton').dispatchEvent('pointerdown',{bubbles:true,pointerType:'touch'});assert(await dropdown(),label+': 枠外を押しても条件は開いたまま');
      const confirm=page.getByRole('button',{name:'確定',exact:true});
      assert((await confirm.boundingBox())?.height>=44,label+': 確定は44px以上');
-     await confirm.click();assert(!await dropdown(),label+': 確定で畳む');
+     await confirm.click();assert(!await dropdown()&&await bodyButton.isVisible()&&!await formBody.isVisible(),label+': 確定で畳み、天体選択は条件帯へ戻る');
      // 新しい地点は地図のボタン→下部シート（地図を残し、新規探索だけ）→閉じると地図。展開には撮影地点を探すの行は無い。
      const findButton=await page.evaluate(()=>{const b=document.getElementById('mapWsNewPlaces').getBoundingClientRect(),c=document.getElementById('skyMapCanvas').getBoundingClientRect();return {h:b.height,w:b.width,inside:b.left>=c.left&&b.right<=c.right&&b.bottom<=c.bottom&&b.top>=c.top};});
      assert(findButton.h>=44&&findButton.w>=44&&findButton.inside,label+': '+JSON.stringify(findButton));

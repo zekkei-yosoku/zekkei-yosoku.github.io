@@ -138,7 +138,8 @@ html:has(#skyMapView[data-explore-stage=map].map-ws:not([hidden])),body:has(#sky
 /* 2026-11-26 trial（段階②）: 撮影地点が中心／目標物が中心の切替、カードの操作、下部シート */
 /* 条件帯の右側は天体の選択、地図上の二択は中心の切り替え。 */
 .map-ws-choice{display:none;flex:none;border:1px solid var(--line);border-radius:9px;background:var(--card);overflow:hidden}
-#skyMapView.map-ws:not([data-explore-sheet]) :is(#mapWsBodyPicker,#mapWsMode){display:flex}
+#skyMapView.map-ws:not([data-explore-sheet]) #mapWsMode,
+#skyMapView.map-ws:not([data-explore-sheet],[data-explore-dropdown]) #mapWsBodyPicker{display:flex}
 .map-ws-top #mapWsBodyPicker{display:none;flex:none;align-self:stretch;justify-content:center;align-items:center;gap:4px;min-width:88px;padding:0 8px;border-radius:0;border-inline-start:1px solid var(--line);background:var(--accent);color:var(--on-accent);font-size:12.5px;font-weight:700;white-space:nowrap}
 #mapWsBodyPicker:focus-visible{box-shadow:inset 0 0 0 2px currentColor}
 #mapWsMode{position:absolute;z-index:4;top:8px;left:50%;transform:translateX(-50%);box-shadow:0 2px 8px #0003}
