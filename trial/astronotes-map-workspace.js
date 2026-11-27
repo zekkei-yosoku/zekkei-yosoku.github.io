@@ -526,6 +526,17 @@ function createChoice(id,label,options,selected,onSelect){
 function syncChoice(id,value){
  for(const radio of $(id)?.querySelectorAll('input')||[])if(radio.checked!==(radio.value===value))radio.checked=radio.value===value;
 }
+function openMapBodyPicker(opener){
+ const picker=$('skyMapBodyOpen'),dialog=$('skyMapBodyDialog');
+ if(!picker||picker.disabled||!dialog||dialog.open)return;
+ picker.click();
+ if(!dialog.open)return;
+ dialog.addEventListener('close',()=>requestAnimationFrame(()=>{
+  if(!active||document.querySelector('dialog[open]'))return;
+  const focus=opener.hidden?$('mapWsBodyPicker').querySelector('input:checked'):opener;
+  focus?.focus({preventScroll:true});
+ }),{once:true});
+}
 function build(){
  if(built)return;built=true;const view=$('skyMapView'),footer=view.querySelector('.sky-map-footer'),wrap=view.querySelector('.sky-map-wrap');
  const top=document.createElement('header');top.id='mapWsTop';top.className='map-ws-top';
@@ -533,7 +544,12 @@ function build(){
  view.append(top);
  const menu=document.createElement('div');menu.id='mapWsMenu';menu.className='map-ws-menu';menu.setAttribute('role','menu');menu.hidden=true;view.append(menu);
  const bodies=createChoice('mapWsBodyPicker','月と太陽の切り替え',['moon','sun'].map(body=>[body,AstroNotesBodies.definition(body).name]),host()?.session.body,chooseBody);
- top.querySelector('.map-ws-band-conditions').append(bodies);
+ const bodyTools=document.createElement('div');bodyTools.className='map-ws-body-tools';
+ const other=document.createElement('button');other.type='button';other.id='mapWsOtherBody';other.className='map-ws-other-body';other.hidden=true;
+ other.setAttribute('aria-haspopup','dialog');other.setAttribute('aria-controls','skyMapBodyDialog');
+ other.innerHTML='<span></span><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+ other.onclick=()=>openMapBodyPicker(other);
+ bodyTools.append(bodies,other);top.querySelector('.map-ws-band-conditions').append(bodyTools);
  const retry=document.createElement('button');retry.type='button';retry.id='mapWsBodyRetry';retry.className='map-ws-body-retry';retry.hidden=true;retry.textContent='天体の計算を再試行';retry.onclick=()=>$('skyMapRetry').click();footer.prepend(retry);
  $('skyMapRetry').addEventListener('click',resetBodyCalculations,true);
  const pick=document.createElement('div');pick.id='mapWsPick';pick.className='map-ws-pick';pick.hidden=true;pick.innerHTML='<span role="status"></span><button type="button" id="mapWsUndo" hidden>元に戻す</button>';wrap.append(pick);
@@ -682,6 +698,10 @@ function setTitle(h){
  const s=h.session,title=$('mapWsTitle'),body=AstroNotesBodies.definitions.find(d=>d.id===s.body)?.name||'天体',extras=h.extraCount?.()||0,
  select=$('skyMapAlignmentControls')?.querySelector('select'),alignment=s.target?(select?.selectedOptions?.[0]?.textContent?.trim()||'重ね方'):'重ね方',
  place=!validPoint(s.observer)?'撮影地点を選ぶ':(/^-?[\d.]+, -?[\d.]+$/.test(s.observer.name||'')?'撮影地点':s.observer.name||'撮影地点');
+ const other=$('mapWsOtherBody'),quick=s.body==='sun'||s.body==='moon';
+ $('mapWsBodyPicker').hidden=!quick;other.hidden=quick;
+ if(other.firstElementChild.textContent!==body){other.firstElementChild.textContent=body;other.setAttribute('aria-label',body+'、天体を選ぶ');}
+ other.disabled=!!$('skyMapBody').disabled;
  const values={body,target:s.target?.name?s.target.name+(extras?'ほか'+extras+'件':''):'対象を選ぶ',alignment,observer:place};
  for(const chip of title.querySelectorAll('[data-chip]')){const v=values[chip.dataset.chip];if(chip.textContent!==v)chip.textContent=v;}
  const label=(title.getAttribute('aria-expanded')==='true'?'撮影条件を閉じる：':'撮影条件を開く：')+Object.values(values).join('、');if(title.getAttribute('aria-label')!==label)title.setAttribute('aria-label',label);
