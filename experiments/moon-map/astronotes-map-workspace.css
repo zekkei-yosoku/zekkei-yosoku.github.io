@@ -142,7 +142,7 @@ html:has(#skyMapView[data-explore-stage=map].map-ws:not([hidden])),body:has(#sky
 #skyMapView.map-ws:not([data-explore-sheet],[data-explore-dropdown]) #mapWsBodyPicker{display:flex}
 .map-ws-top #mapWsBodyPicker{display:none;flex:none;align-self:stretch;justify-content:center;align-items:center;gap:4px;min-width:88px;padding:0 8px;border-radius:0;border-inline-start:1px solid var(--line);background:var(--accent);color:var(--on-accent);font-size:12.5px;font-weight:700;white-space:nowrap}
 #mapWsBodyPicker:focus-visible{outline:none}
-#mapWsBodyPicker:focus-visible>span{text-decoration:underline 2px;text-underline-offset:3px}
+#mapWsBodyPicker:focus-visible:not([data-pointer-focus])>span{text-decoration:underline 2px;text-underline-offset:3px}
 #mapWsMode{position:absolute;z-index:4;top:8px;left:50%;transform:translateX(-50%);box-shadow:0 2px 8px #0003}
 .map-ws-choice label{position:relative;display:grid;place-items:center;box-sizing:border-box;min-width:44px;min-height:44px;padding:0 8px;color:var(--secondary);font-size:12.5px;font-weight:700;white-space:nowrap;cursor:pointer}
 .map-ws-choice label+label:not(:has(input:checked)){box-shadow:inset 1px 0 var(--line)}

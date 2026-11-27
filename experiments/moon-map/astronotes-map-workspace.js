@@ -570,14 +570,26 @@ function createCenterChoice(){
 function syncCenterChoice(value){
  for(const radio of $('mapWsMode')?.querySelectorAll('input')||[])if(radio.checked!==(radio.value===value))radio.checked=radio.value===value;
 }
-function openMapBodyPicker(opener){
+function openMapBodyPicker(opener,event){
  const picker=$('skyMapBodyOpen'),dialog=$('skyMapBodyDialog');
  if(!picker||picker.disabled||!dialog||dialog.open)return;
+ // WebKit can retain :focus-visible when a dialog returns focus after a tap.
+ let pointer=event.detail>0;
+ const setPointer=value=>{pointer=value;opener.toggleAttribute('data-pointer-focus',value);};
+ setPointer(pointer);
  picker.click();
  if(!dialog.open)return;
- dialog.addEventListener('close',()=>requestAnimationFrame(()=>{
-  if(active&&opener.getClientRects().length&&!document.querySelector('dialog[open]'))opener.focus({preventScroll:true});
- }),{once:true});
+ const input=new AbortController(),options={capture:true,signal:input.signal};
+ dialog.addEventListener('pointerdown',()=>setPointer(true),options);
+ dialog.addEventListener('keydown',e=>{if(!e.metaKey&&!e.ctrlKey)setPointer(false);},options);
+ dialog.addEventListener('close',()=>{
+  input.abort();
+  requestAnimationFrame(()=>{
+   if(!active||dialog.open||!opener.getClientRects().length||document.querySelector('dialog[open]'))return;
+   setPointer(pointer);
+   opener.focus({preventScroll:true});
+  });
+ },{once:true});
 }
 function build(){
  if(built)return;built=true;const view=$('skyMapView'),footer=view.querySelector('.sky-map-footer'),wrap=view.querySelector('.sky-map-wrap');
@@ -588,7 +600,9 @@ function build(){
  const bodyButton=document.createElement('button');bodyButton.type='button';bodyButton.id='mapWsBodyPicker';
  bodyButton.setAttribute('aria-haspopup','dialog');bodyButton.setAttribute('aria-controls','skyMapBodyDialog');
  bodyButton.innerHTML='<span></span><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
- bodyButton.onclick=()=>openMapBodyPicker(bodyButton);
+ bodyButton.onclick=event=>openMapBodyPicker(bodyButton,event);
+ bodyButton.addEventListener('keydown',e=>{if(!e.metaKey&&!e.ctrlKey)bodyButton.removeAttribute('data-pointer-focus');});
+ bodyButton.addEventListener('blur',()=>{if(!$('skyMapBodyDialog')?.open)bodyButton.removeAttribute('data-pointer-focus');});
  top.querySelector('.map-ws-band-conditions').append(bodyButton);
  const retry=document.createElement('button');retry.type='button';retry.id='mapWsBodyRetry';retry.className='map-ws-body-retry';retry.hidden=true;retry.textContent='天体の計算を再試行';retry.onclick=()=>$('skyMapRetry').click();footer.prepend(retry);
  $('skyMapRetry').addEventListener('click',resetBodyCalculations,true);

@@ -13,7 +13,7 @@ const OBSERVER={latitude:35.5869,longitude:139.5744,elevation:30,name:'確認地
 const stage=page=>page.evaluate(()=>document.getElementById('skyMapView').dataset.exploreStage);
 
 async function open(browser,width,theme){
- const context=await browser.newContext({viewport:{width,height:width===320?568:844},locale:'ja-JP',timezoneId:'Asia/Tokyo',colorScheme:theme,reducedMotion:'reduce'});
+ const context=await browser.newContext({viewport:{width,height:width===320?568:844},hasTouch:true,locale:'ja-JP',timezoneId:'Asia/Tokyo',colorScheme:theme,reducedMotion:'reduce'});
  await context.addInitScript(t=>sessionStorage.setItem('sorami.token',JSON.stringify({token:'synthetic-ui',loginId:'map-stage',tools:t})),tools);
  await context.route('**/*',route=>{const u=new URL(route.request().url());
   if(/zekkei-api|localhost:8787/.test(u.origin))return route.fulfill({json:{allowed:true,tool:'skymap',loginId:'map-stage',tools,favorites:[],sightings:[],records:[],rev:1}});
@@ -184,8 +184,12 @@ async function reopenKeepsSearch(type,engine){
       return {bounds:[x,y,width,height],background:style.backgroundColor,shadow:style.boxShadow,outline:style.outlineStyle};
      });
      const bodyBefore=await bodyAppearance();
-     const chooseBody=async body=>{await bodyButton.click();await page.locator(`#skyMapBodyDialog [data-body-value=${body}]`).click();};
+     const labelDecoration=()=>bodyButton.locator('span').evaluate(label=>getComputedStyle(label).textDecorationLine);
+     const waitForBodyFocus=()=>page.waitForFunction(()=>document.activeElement?.id==='mapWsBodyPicker'&&!document.getElementById('skyMapBodyDialog').open);
+     const chooseBody=async body=>{await bodyButton.tap();await page.locator(`#skyMapBodyDialog [data-body-value=${body}]`).tap();};
      await chooseBody('sun');
+     await waitForBodyFocus();
+     assert.equal(await labelDecoration(),'none',label+': タップ後はフォーカスが戻っても下線を出さない');
      assert.equal(await page.locator('#mapWsTitle').getAttribute('aria-expanded'),'false');
      await page.evaluate(()=>SkyMapUI.setTime(Date.parse('2026-12-24T12:00:00+09:00')));
      await page.waitForFunction(()=>AstroNotesMapWorkspace.onlyBody()==='sun'&&document.querySelector('#mapWsTitle [data-chip=body]').textContent==='太陽'&&/太陽/.test(document.getElementById('mapWsCardOverlap').textContent));
@@ -196,7 +200,11 @@ async function reopenKeepsSearch(type,engine){
      await moonChoice.press('Enter');
      await page.waitForFunction(()=>document.activeElement?.matches('#mapWsBodyPicker:focus-visible'));
      assert.deepEqual(await bodyAppearance(),bodyBefore,label+': フォーカスが戻ってもボタンの青い面を覆わない');
-     assert.equal(await bodyButton.locator('span').evaluate(label=>getComputedStyle(label).textDecorationLine),'underline');
+     assert.equal(await labelDecoration(),'underline',label+': キーボードでは下線で位置が分かる');
+     await bodyButton.press('Enter');
+     await moonChoice.tap();
+     await waitForBodyFocus();
+     assert.equal(await labelDecoration(),'none',label+': キーボードで開いてもタップで選んだら下線を出さない');
      await page.evaluate(()=>SkyMapUI.setTime(Date.parse('2026-12-24T16:41:00+09:00')));
      await page.waitForFunction(()=>document.querySelector('#mapWsTitle [data-chip=body]').textContent==='月'&&/^重なる /.test(document.getElementById('mapWsCardOverlap').textContent));
      await page.screenshot({path:`${out}/${label}-map.png`});
