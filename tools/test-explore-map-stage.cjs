@@ -30,6 +30,28 @@ async function open(browser,width,theme){
  return {context,page,errors};
 }
 
+async function chooseTargetFromMapCard(browser,engine){
+ const {context,page,errors}=await open(browser,390,'dark');
+ try{
+  await page.evaluate(()=>SkyMapUI.workspaceHost().restoreObserver(null));
+  await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.mapCenter==='target');
+  await page.evaluate(()=>SkyMapUI.workspaceHost().restoreTarget({target:null,custom:false}));
+  const conditions=page.getByRole('button',{name:'撮影条件を開く',exact:true});
+  await conditions.click();
+  assert.equal(await stage(page),'map',engine+': カードから地図の条件だけを開く');
+  const picker=page.locator('#skyMapTargetOpen');
+  await picker.click();
+  const dialog=page.locator('#previewTargetDialog[open]');
+  await dialog.locator('[data-target-key="tokyotower"]').click();
+  await dialog.locator('[data-target-done]').click();
+  await dialog.waitFor({state:'hidden'});
+  assert.equal(await stage(page),'map',engine+': 対象を適用しても地図を表示');
+  await page.waitForFunction(()=>SkyMapUI.selectionState()?.target?.id==='tokyotower'&&document.getElementById('skyMapView').hasAttribute('data-explore-dropdown'));
+  assert(await page.locator('#skyMapCanvas').isVisible());
+  assert.deepEqual(errors,[],engine+': page errors');
+ }finally{await context.close();}
+}
+
 async function deselectPlacedTarget(browser,engine){
  const {context,page,errors}=await open(browser,390,'dark');
  try{
@@ -103,7 +125,9 @@ async function reopenKeepsSearch(type,engine){
   try{
    await page.goto(base+'#/explore');await page.waitForFunction(()=>typeof SkyMapUI==='object'&&typeof AstroNotesCandidatePicker==='object');
    await page.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>25;aimBuildingDays=async()=>[];navigationHistory.pushRoute('#/explore');SkyMapUI.setTarget('skytree');const b=document.getElementById('skyMapBody');b.value='moon';b.onchange();SkyMapUI.setTime(Date.parse('2026-11-05T03:58:31+09:00'));});
-   await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='map');
+   await page.waitForFunction(()=>document.getElementById('skyMapView').classList.contains('map-ws'));
+   await page.evaluate(observer=>SkyMapUI.workspaceHost().restoreObserver(observer),OBSERVER);
+   await page.locator('#mapWsMode input[value=obs]').click();
    // 新しい地点は地図のボタンから（下部シートで探し始める）
    if(interrupted)await page.evaluate(()=>dateFixture.holdNext=true);
    await page.locator('#mapWsNewPlaces').click();
@@ -130,6 +154,7 @@ async function reopenKeepsSearch(type,engine){
   const browser=await type.launch(engine==='chrome'?{channel:'chrome',headless:true}:{headless:true});
   try{
    await deselectPlacedTarget(browser,engine);
+   await chooseTargetFromMapCard(browser,engine);
    for(const width of widths)for(const theme of themes){
     const label=`${engine}-${width}-${theme}`,{context,page,errors}=await open(browser,width,theme);
     try{

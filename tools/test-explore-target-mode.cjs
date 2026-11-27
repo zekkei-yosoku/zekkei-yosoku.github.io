@@ -43,7 +43,8 @@ async function open(browser,width,theme,{fixture=null}={}){
  return {context,page,errors};
 }
 async function toTarget(page){
- await page.locator('#mapWsMode input[value=target]').click();
+ const targetChoice=page.locator('#mapWsMode input[value=target]');
+ if(!await targetChoice.isChecked())await targetChoice.click();
  await page.waitForFunction(()=>{const s=AstroNotesMapWorkspace.targetState();return s.line&&!s.lineBusy&&s.band>0&&!document.getElementById('mapWsCardView').disabled&&/中心が先端に来る線: /.test(document.getElementById('mapWsCardMeta').textContent);},null,{timeout:30000});
 }
 // 地図上の緯度経度を画面の点へ。
@@ -283,6 +284,8 @@ async function newPlaces(type,engine,center){
   const {context,page,errors}=await open(browser,390,'dark',{fixture});
   try{
    if(center==='target'){
+    await page.waitForFunction(()=>document.querySelector('#mapWsMode input[value=target]').checked);
+    assert.deepEqual(await view(page),{stage:'map',sheet:false,center:'target'},label+': 対象だけを選んで開くと自動で対象中心');
     await toTarget(page);
     const observerChoice=page.locator('#mapWsMode input[value=obs]');
     const targetChoice=page.locator('#mapWsMode input[value=target]');
@@ -290,6 +293,9 @@ async function newPlaces(type,engine,center){
     await observerChoice.evaluate(input=>input.closest('label').click());
     await targetChoice.press('ArrowLeft');
     assert(await targetChoice.isChecked(),label+': 撮影地点なしでクリック・矢印キーを使っても対象中心のまま');
+   }else{
+    await page.evaluate(observer=>SkyMapUI.workspaceHost().restoreObserver(observer),OBSERVER);
+    await page.locator('#mapWsMode input[value=obs]').click();
    }
    const entry=center==='target'?'#mapWsCardView':'#mapWsNewPlaces';
    await page.locator(entry).click();
@@ -350,10 +356,30 @@ async function newPlaces(type,engine,center){
     await page.evaluate(observer=>SkyMapUI.workspaceHost().restoreObserver(observer),OBSERVER);
     await observerChoice.click();
     assert.equal((await view(page)).center,'obs',label+': 撮影地点を選んだら切り替えられる');
-    await page.locator('#mapWsMode input[value=target]').click();
     await page.evaluate(()=>SkyMapUI.workspaceHost().restoreObserver(null));
-    await page.waitForFunction(()=>document.querySelector('#mapWsMode input[value=obs]').disabled);
-    assert.equal((await view(page)).center,'target',label+': 撮影地点を外したら対象中心のまま');
+    await page.waitForFunction(()=>document.querySelector('#mapWsMode input[value=obs]').disabled&&document.querySelector('#mapWsMode input[value=target]').checked);
+    assert.equal((await view(page)).center,'target',label+': 撮影地点を外したら自動で対象中心に切り替わる');
+    assert(!await observerChoice.isChecked(),label+': 無効な撮影地点に選択表示を残さない');
+    await toTarget(page);
+    await page.screenshot({path:`${out}/${label}-without-observer.png`});
+    await page.locator('#mapWsCardView').click();
+    await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet'));
+    await page.locator('#mapWsTitle').click();
+    const targetPicker=page.locator('#skyMapTargetOpen');
+    const dialog=page.locator('#previewTargetDialog[open]');
+    await targetPicker.click();
+    await dialog.locator('[data-target-key="skytree"]').click();
+    await dialog.locator('[data-target-key="tokyotower"]').click();
+    await dialog.getByRole('button',{name:'戻る',exact:true}).click();
+    assert.equal((await view(page)).stage,'search',label+': 対象選択の取り消しで条件に戻る');
+    assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().target.id),'skytree',label+': 対象選択の取り消しで元の対象を保持');
+    await targetPicker.click();
+    await dialog.locator('[data-target-key="skytree"]').click();
+    await dialog.locator('[data-target-key="tokyotower"]').click();
+    await dialog.locator('[data-target-done]').click();
+    await page.waitForFunction(()=>!document.querySelector('#previewTargetDialog[open]')&&document.getElementById('skyMapView').hasAttribute('data-explore-dropdown')&&SkyMapUI.selectionState().target?.id==='tokyotower');
+    assert.deepEqual(await view(page),{stage:'map',sheet:false,center:'target'});
+    assert(await page.locator('#skyMapCanvas').isVisible(),label+': 候補シート経由でも対象の適用後は地図へ戻る');
    }
    assert.deepEqual(errors,[]);
   }finally{await context.close();}
