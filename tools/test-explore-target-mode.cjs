@@ -125,6 +125,7 @@ async function records(type,engine,width,theme,results){
    const after=await page.evaluate(()=>{const s=SkyMapUI.selectionState();return {at:s.at,lat:s.observer.latitude,lon:s.observer.longitude};});
    assert.equal(after.at,Math.round(sel.at/60000)*60000);assert(Math.abs(after.lat-sel.latitude)<1e-6&&Math.abs(after.lon-sel.longitude)<1e-6);
    assert.equal(await page.locator('#mapWsMode input[value=obs]').isChecked(),true);
+   assert(await page.locator('#mapWsMode input[value=obs]').isEnabled(),label+': 線から撮影地点を選ぶと切り替え可能');
    // 線の上なので、その時刻に月の円盤が塔に掛かる（カードの重なる時間がその時刻を含む）。
    const minute=new Date(after.at+32400000),m=minute.getUTCHours()*60+minute.getUTCMinutes();
    await page.waitForFunction(m=>{const ov=document.getElementById('mapWsCardOverlap').textContent.match(/重なる (\d\d):(\d\d)〜(\d\d):(\d\d)/);return !!ov&&+ov[1]*60+ +ov[2]<=m+1&&m-1<=+ov[3]*60+ +ov[4];},m,{timeout:15000})
@@ -281,7 +282,15 @@ async function newPlaces(type,engine,center){
  try{
   const {context,page,errors}=await open(browser,390,'dark',{fixture});
   try{
-   if(center==='target')await toTarget(page);
+   if(center==='target'){
+    await toTarget(page);
+    const observerChoice=page.locator('#mapWsMode input[value=obs]');
+    const targetChoice=page.locator('#mapWsMode input[value=target]');
+    assert(await observerChoice.isDisabled(),label+': 撮影地点を選ぶまでは撮影地点中心へ切り替えられない');
+    await observerChoice.evaluate(input=>input.closest('label').click());
+    await targetChoice.press('ArrowLeft');
+    assert(await targetChoice.isChecked(),label+': 撮影地点なしでクリック・矢印キーを使っても対象中心のまま');
+   }
    const entry=center==='target'?'#mapWsCardView':'#mapWsNewPlaces';
    await page.locator(entry).click();
    await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet')&&document.getElementById('exploreDiscovery-new')?.getAttribute('aria-selected')==='true');
@@ -336,6 +345,16 @@ async function newPlaces(type,engine,center){
    assert((await readLayout()).visible,label+': 見え方から地図と候補へ戻る');
    await page.locator('#exploreBackToMap').click();
    assert.deepEqual(await view(page),{stage:'map',sheet:false,center});
+   if(center==='target'){
+    const observerChoice=page.locator('#mapWsMode input[value=obs]');
+    await page.evaluate(observer=>SkyMapUI.workspaceHost().restoreObserver(observer),OBSERVER);
+    await observerChoice.click();
+    assert.equal((await view(page)).center,'obs',label+': 撮影地点を選んだら切り替えられる');
+    await page.locator('#mapWsMode input[value=target]').click();
+    await page.evaluate(()=>SkyMapUI.workspaceHost().restoreObserver(null));
+    await page.waitForFunction(()=>document.querySelector('#mapWsMode input[value=obs]').disabled);
+    assert.equal((await view(page)).center,'target',label+': 撮影地点を外したら対象中心のまま');
+   }
    assert.deepEqual(errors,[]);
   }finally{await context.close();}
  }finally{await browser.close();}
