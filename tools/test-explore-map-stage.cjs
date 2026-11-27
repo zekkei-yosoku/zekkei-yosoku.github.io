@@ -139,12 +139,12 @@ async function reopenKeepsSearch(type,engine){
      const layout=await page.evaluate(()=>{const r=n=>n.getBoundingClientRect(),top=r(document.getElementById('mapWsTop')),picker=document.getElementById('mapWsBodyPicker'),bodyPicker=picker&&r(picker).height>0?r(picker):null,canvas=r(document.getElementById('skyMapCanvas')),footer=r(document.querySelector('#skyMapView .sky-map-footer')),bandNode=document.getElementById('mapWsTitle'),band=r(bandNode),view=r(document.getElementById('mapWsCardView'));
       const frame=r(bandNode.parentElement),edges=getComputedStyle(bandNode.parentElement),border=(side)=>parseFloat(edges[`border${side}Width`]);
       const flush=!!bodyPicker&&Math.abs(bodyPicker.right-(frame.right-border("Right")))<.5&&Math.abs(bodyPicker.top-(frame.top+border("Top")))<.5&&Math.abs(bodyPicker.bottom-(frame.bottom-border("Bottom")))<.5&&getComputedStyle(picker).borderRightWidth==="0px";
-      return {top:top.bottom,headerBottom:top.bottom,bodyPicker:bodyPicker&&{top:bodyPicker.top,bottom:bodyPicker.bottom,height:bodyPicker.height,left:bodyPicker.left,flush,inside:top.top<=bodyPicker.top&&bodyPicker.bottom<=top.bottom,afterSummary:band.right<=bodyPicker.left&&bandNode.parentElement.contains(picker),hitAreas:[...picker.querySelectorAll("input")].map(n=>[r(n).width,r(n).height])},canvasTop:canvas.top,canvasBottom:canvas.bottom,footerTop:footer.top,footerBottom:footer.bottom,height:innerHeight,overflowX:document.documentElement.scrollWidth>innerWidth+1,scrollable:document.scrollingElement.scrollHeight>innerHeight+1&&getComputedStyle(document.documentElement).overflow!=='hidden',
+      return {top:top.bottom,headerBottom:top.bottom,bodyPicker:bodyPicker&&{top:bodyPicker.top,bottom:bodyPicker.bottom,height:bodyPicker.height,left:bodyPicker.left,flush,inside:top.top<=bodyPicker.top&&bodyPicker.bottom<=top.bottom,afterSummary:band.right<=bodyPicker.left&&bandNode.parentElement.contains(picker),hitArea:[bodyPicker.width,bodyPicker.height]},canvasTop:canvas.top,canvasBottom:canvas.bottom,footerTop:footer.top,footerBottom:footer.bottom,height:innerHeight,overflowX:document.documentElement.scrollWidth>innerWidth+1,scrollable:document.scrollingElement.scrollHeight>innerHeight+1&&getComputedStyle(document.documentElement).overflow!=='hidden',
       band:{h:band.height,w:band.width},view:{h:view.height,w:view.width},chips:[...document.querySelectorAll('#mapWsTitle [data-chip]')].map(n=>n.textContent),date:!!document.getElementById('skyMapCalendarOpen').offsetParent,time:!!document.getElementById('skyMapTimeline').offsetParent,
       conditionsHidden:!document.getElementById('exploreConditions').offsetParent,card:document.getElementById('mapWsCardPlace').textContent+' / '+document.getElementById('mapWsCardMeta').textContent};});
      assert(!layout.overflowX&&!layout.scrollable,label+': 地図の段は横にも縦にも動かない '+JSON.stringify(layout));
      assert(layout.bodyPicker?.flush,label+': 天体の切り替えは条件帯の外枠まで届く '+JSON.stringify(layout.bodyPicker));
-     assert(layout.bodyPicker.inside&&layout.bodyPicker.afterSummary&&layout.bodyPicker.hitAreas.length===2&&layout.bodyPicker.hitAreas.every(([w,h])=>w>=44&&h>=44),label+': 天体は条件帯の右に配置 '+JSON.stringify(layout));
+     assert(layout.bodyPicker.inside&&layout.bodyPicker.afterSummary&&layout.bodyPicker.hitArea.every(size=>size>=44),label+': 天体は条件帯の右に配置 '+JSON.stringify(layout));
      assert(Math.abs(layout.canvasTop-layout.top)<=1&&Math.abs(layout.canvasBottom-layout.footerTop)<=1&&layout.footerBottom<=layout.height+1&&layout.canvasBottom-layout.canvasTop>=150,label+': 地図は上部帯と下部の間を埋める '+JSON.stringify(layout));
      assert.deepEqual(layout.chips,['確認地点','月','東京スカイツリー','全体'],label);
      assert(layout.band.h>=44&&layout.view.h>=44&&layout.view.w>=44&&layout.date&&layout.time&&layout.conditionsHidden,label+' '+JSON.stringify(layout));
@@ -178,12 +178,16 @@ async function reopenKeepsSearch(type,engine){
      await page.evaluate(()=>SkyMapUI.setTime(Date.parse('2026-12-26T16:41:00+09:00')));
      await page.waitForFunction(()=>document.getElementById('mapWsCardOverlap').textContent==='この日は月が対象に重ならない');
      // 上部の天体を太陽にすると太陽だけ。冬の太陽も南へ膨らむ弧。
-     await page.locator('#mapWsBodyPicker input[value=sun]').click();
+     const bodyButton=page.locator('#mapWsBodyPicker');
+     const chooseBody=async body=>{await bodyButton.click();await page.locator(`#skyMapBodyDialog [data-body-value=${body}]`).click();};
+     await chooseBody('sun');
      assert.equal(await page.locator('#mapWsTitle').getAttribute('aria-expanded'),'false');
      await page.evaluate(()=>SkyMapUI.setTime(Date.parse('2026-12-24T12:00:00+09:00')));
      await page.waitForFunction(()=>AstroNotesMapWorkspace.onlyBody()==='sun'&&document.querySelector('#mapWsTitle [data-chip=body]').textContent==='太陽'&&/太陽/.test(document.getElementById('mapWsCardOverlap').textContent));
      await page.waitForTimeout(200);const sunArc=await arcResidual(page);assert(sunArc.count>=6&&sunArc.residual<1.5&&!sunArc.straight,label+': 太陽も円弧 '+JSON.stringify(sunArc));
-     await page.locator('#mapWsBodyPicker input[value=sun]').press('ArrowLeft');
+     await bodyButton.press('Enter');
+     await page.locator('#skyMapBodyDialog [data-body-value=moon]').click();
+     await page.waitForFunction(()=>document.activeElement?.id==='mapWsBodyPicker');
      await page.evaluate(()=>SkyMapUI.setTime(Date.parse('2026-12-24T16:41:00+09:00')));
      await page.waitForFunction(()=>document.querySelector('#mapWsTitle [data-chip=body]').textContent==='月'&&/^重なる /.test(document.getElementById('mapWsCardOverlap').textContent));
      await page.screenshot({path:`${out}/${label}-map.png`});
@@ -197,11 +201,11 @@ async function reopenKeepsSearch(type,engine){
       map:!!document.getElementById('skyMapCanvas').offsetParent,ws:document.getElementById('skyMapView').classList.contains('map-ws'),overflowX:document.documentElement.scrollWidth>innerWidth+1,footer:!!document.getElementById('skyMapCalendarOpen').offsetParent};});
      assert(panel.top&&panel.aboveFooter&&panel.fields&&panel.hidden&&panel.noFind&&panel.map&&panel.ws&&!panel.overflowX&&panel.footer,label+': '+JSON.stringify(panel));
      await page.screenshot({path:`${out}/${label}-conditions.png`});
-     await page.locator('#mapWsBodyPicker input[value=sun]').click();
+     await chooseBody('sun');
      await page.waitForFunction(()=>document.querySelector('#mapWsTitle [data-chip=body]').textContent==='太陽'&&AstroNotesMapWorkspace.onlyBody()==='sun');assert(await dropdown(),label+': 変えても展開は開いたまま');
      await page.evaluate(()=>{const b=document.getElementById('skyMapBody');b.value='moon';b.dispatchEvent(new Event('change',{bubbles:true}));SkyMapUI.setTime(Date.parse('2026-12-24T16:41:00+09:00'));});
      await page.locator('#mapWsTitle').click();assert(!await dropdown(),label+': 帯で畳む');assert.equal(await page.locator('#mapWsTitle').getAttribute('aria-expanded'),'false');
-     await page.locator('#mapWsTitle').click();await page.locator('#mapWsBodyPicker input:checked').focus();await page.keyboard.press('Escape');assert(!await dropdown(),label+': 天体にフォーカスしたままEscapeで畳む');
+     await page.locator('#mapWsTitle').click();await bodyButton.focus();await page.keyboard.press('Escape');assert(!await dropdown(),label+': 天体にフォーカスしたままEscapeで畳む');
      await page.locator('#mapWsTitle').click();const mapPoint=await page.evaluate(()=>{const c=document.getElementById('skyMapCanvas').getBoundingClientRect(),p=document.getElementById('exploreConditions').getBoundingClientRect();return {x:c.left+c.width/2,y:Math.min(c.bottom-8,p.bottom+(c.bottom-p.bottom)/2),below:c.bottom-p.bottom};});
      assert(mapPoint.below>=10,label+': 展開の下に地図が見える '+JSON.stringify(mapPoint));
      // 日時バーは展開を開いたまま使える（時刻を動かして見比べる）
@@ -211,13 +215,22 @@ async function reopenKeepsSearch(type,engine){
      const confirm=page.getByRole('button',{name:'確定',exact:true});
      assert((await confirm.boundingBox())?.height>=44,label+': 確定は44px以上');
      await confirm.click();assert(!await dropdown(),label+': 確定で畳む');
-     // 新しい地点は地図のボタン→下部シート（地図を残し、新規探索と「記録の地点の重なる日」の入口）→閉じると地図。展開には撮影地点を探すの行は無い。
+     // 新しい地点は地図のボタン→下部シート（地図を残し、新規探索だけ）→閉じると地図。展開には撮影地点を探すの行は無い。
      const findButton=await page.evaluate(()=>{const b=document.getElementById('mapWsNewPlaces').getBoundingClientRect(),c=document.getElementById('skyMapCanvas').getBoundingClientRect();return {h:b.height,w:b.width,inside:b.left>=c.left&&b.right<=c.right&&b.bottom<=c.bottom&&b.top>=c.top};});
      assert(findButton.h>=44&&findButton.w>=44&&findButton.inside,label+': '+JSON.stringify(findButton));
      await page.locator('#mapWsNewPlaces').click();
      await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet'));assert.equal(await stage(page),'search');assert(!await dropdown());
-     assert(await page.evaluate(()=>!!document.getElementById('skyMapCanvas').offsetParent&&!!document.getElementById('candidateWorkspaceAction').offsetParent&&!!document.getElementById('exploreOpportunityLink').offsetParent&&document.getElementById('exploreDiscovery-records').hidden),label+': シートは地図を残して新規と重なる日の入口を出す（記録タブは無い）');
-     await page.locator('#exploreBackToMap').click();assert.equal(await stage(page),'map');
+     const sheet=await page.evaluate(()=>{
+      const rect=id=>document.getElementById(id).getBoundingClientRect();
+      const visible=id=>document.getElementById(id).getClientRects().length>0;
+      const title=rect('candidateWorkspaceHeading'),close=rect('exploreBackToMap');
+      return {map:visible('skyMapCanvas'),search:visible('candidateWorkspaceAction'),records:visible('exploreOpportunityLink'),tab:visible('exploreDiscovery-new'),
+       width:close.width,height:close.height,aligned:Math.abs((title.top+title.bottom-close.top-close.bottom)/2)<=1,
+       separate:title.right<close.left,inside:close.right<=innerWidth};
+     });
+     assert(sheet.map&&sheet.search&&!sheet.records&&!sheet.tab&&sheet.aligned&&sheet.separate&&sheet.inside&&sheet.width>=44&&sheet.height>=44,label+': '+JSON.stringify(sheet));
+     await page.screenshot({path:`${out}/${label}-sheet.png`});
+     await page.getByRole('button',{name:'閉じる',exact:true}).click();assert.equal(await stage(page),'map');
      // 地図のカードから見え方→戻ると地図。
      await page.locator('#mapWsCardView').click();assert.equal(await stage(page),'preview');
      await page.waitForFunction(()=>{const l=document.getElementById('aimLook');return l&&!l.hidden;});
@@ -229,7 +242,7 @@ async function reopenKeepsSearch(type,engine){
      // 全画面の撮影条件は、シートの条件帯から。そこでの検索から見え方→戻ると撮影条件。
      await page.locator('#mapWsNewPlaces').click();await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet'));
      await page.locator('#mapWsTitle').click();await page.waitForFunction(()=>!document.getElementById('skyMapView').hasAttribute('data-explore-sheet'));assert.equal(await stage(page),'search');
-     const popup=await page.evaluate(()=>{const visible=id=>{const n=document.getElementById(id);return !!(n?.closest('.condition-field')||n)?.offsetParent;};return {back:document.getElementById('exploreBackToMap').getBoundingClientRect().height,mapHidden:!document.getElementById('skyMapCanvas').offsetParent,fields:['skyMapBody','skyMapTarget','skyMapChoose','exploreShowResult','candidateWorkspaceAction'].every(visible),overflowX:document.documentElement.scrollWidth>innerWidth+1};});
+     const popup=await page.evaluate(()=>{const visible=id=>{const n=document.getElementById(id);return !!(n?.closest('.condition-field')||n)?.offsetParent;};return {back:document.getElementById('exploreBackToMap').getBoundingClientRect().height,mapHidden:!document.getElementById('skyMapCanvas').offsetParent,fields:['skyMapBody','skyMapTarget','skyMapChoose','exploreShowResult','candidateWorkspaceAction','exploreOpportunityLink'].every(visible),overflowX:document.documentElement.scrollWidth>innerWidth+1};});
      assert(popup.back>=44&&popup.mapHidden&&popup.fields&&!popup.overflowX,label+': '+JSON.stringify(popup));
      await page.locator('#exploreShowResult').click();assert.equal(await stage(page),'preview');
      assert.notEqual(await page.locator('#exploreBackToCandidates').getAttribute('aria-label'),'地図へ戻る');

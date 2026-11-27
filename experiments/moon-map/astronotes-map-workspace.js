@@ -421,7 +421,7 @@ function useSelectionAsObserver(){
 }
 function setViewMode(mode){
  if(mode===viewMode)return;viewMode=mode;targetSel=null;targetFitKey='';fittedKey=null;resetObsRecords();
- syncChoice('mapWsMode',mode);
+ syncCenterChoice(mode);
  $('skyMapView')?.setAttribute('data-map-center',mode);
  const h=host();if(h){if(mode==='obs')fitTarget(h);h.redraw();}schedule();
 }
@@ -513,18 +513,18 @@ function cloneFormStyles(){
  for(const sheet of document.styleSheets){if(sheet.ownerNode?.id==='mapWsFormStyles')continue;try{walk(sheet.cssRules);}catch{/* 別オリジンの指定は読まない */}}
  let style=$('mapWsFormStyles');if(!style){style=document.createElement('style');style.id='mapWsFormStyles';document.head.append(style);}const text=out.join('\n');if(style.textContent!==text)style.textContent=text;
 }
-function createChoice(id,label,options,selected,onSelect){
- const group=document.createElement('div');group.id=id;group.className='map-ws-choice';
- group.setAttribute('role','radiogroup');group.setAttribute('aria-label',label);
- for(const [value,text] of options){
+function createCenterChoice(){
+ const group=document.createElement('div');group.id='mapWsMode';group.className='map-ws-choice';
+ group.setAttribute('role','radiogroup');group.setAttribute('aria-label','地図の中心');
+ for(const [value,text] of [['obs','撮影地点'],['target','対象']]){
   const segment=document.createElement('label'),radio=document.createElement('input');
-  radio.type='radio';radio.name=id;radio.value=value;radio.checked=value===selected;
-  radio.onchange=()=>onSelect(value);segment.append(radio,document.createTextNode(text));group.append(segment);
+  radio.type='radio';radio.name=group.id;radio.value=value;radio.checked=value===viewMode;
+  radio.onchange=()=>setViewMode(value);segment.append(radio,document.createTextNode(text));group.append(segment);
  }
  return group;
 }
-function syncChoice(id,value){
- for(const radio of $(id)?.querySelectorAll('input')||[])if(radio.checked!==(radio.value===value))radio.checked=radio.value===value;
+function syncCenterChoice(value){
+ for(const radio of $('mapWsMode')?.querySelectorAll('input')||[])if(radio.checked!==(radio.value===value))radio.checked=radio.value===value;
 }
 function openMapBodyPicker(opener){
  const picker=$('skyMapBodyOpen'),dialog=$('skyMapBodyDialog');
@@ -532,9 +532,7 @@ function openMapBodyPicker(opener){
  picker.click();
  if(!dialog.open)return;
  dialog.addEventListener('close',()=>requestAnimationFrame(()=>{
-  if(!active||document.querySelector('dialog[open]'))return;
-  const focus=opener.hidden?$('mapWsBodyPicker').querySelector('input:checked'):opener;
-  focus?.focus({preventScroll:true});
+  if(active&&opener.getClientRects().length&&!document.querySelector('dialog[open]'))opener.focus({preventScroll:true});
  }),{once:true});
 }
 function build(){
@@ -543,20 +541,18 @@ function build(){
  top.innerHTML=`<button type="button" id="mapWsMenuButton" aria-label="メニュー">${svg(ICON.menu)}</button><div class="map-ws-band-conditions"><button type="button" id="mapWsTitle" class="map-ws-title" aria-label="撮影条件を開く" aria-controls="exploreConditions" aria-expanded="false"><strong class="map-ws-chip-place" data-chip="observer"></strong><span class="map-ws-band-sub"><span class="map-ws-chip" data-chip="body"></span><span class="map-ws-chip" data-chip="target"></span><span class="map-ws-chip" data-chip="alignment"></span></span></button></div><button type="button" id="mapWsShare" aria-label="保存と共有" aria-haspopup="menu">${svg(ICON.share)}</button>`;
  view.append(top);
  const menu=document.createElement('div');menu.id='mapWsMenu';menu.className='map-ws-menu';menu.setAttribute('role','menu');menu.hidden=true;view.append(menu);
- const bodies=createChoice('mapWsBodyPicker','月と太陽の切り替え',['moon','sun'].map(body=>[body,AstroNotesBodies.definition(body).name]),host()?.session.body,chooseBody);
- const bodyTools=document.createElement('div');bodyTools.className='map-ws-body-tools';
- const other=document.createElement('button');other.type='button';other.id='mapWsOtherBody';other.className='map-ws-other-body';other.hidden=true;
- other.setAttribute('aria-haspopup','dialog');other.setAttribute('aria-controls','skyMapBodyDialog');
- other.innerHTML='<span></span><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
- other.onclick=()=>openMapBodyPicker(other);
- bodyTools.append(bodies,other);top.querySelector('.map-ws-band-conditions').append(bodyTools);
+ const bodyButton=document.createElement('button');bodyButton.type='button';bodyButton.id='mapWsBodyPicker';
+ bodyButton.setAttribute('aria-haspopup','dialog');bodyButton.setAttribute('aria-controls','skyMapBodyDialog');
+ bodyButton.innerHTML='<span></span><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+ bodyButton.onclick=()=>openMapBodyPicker(bodyButton);
+ top.querySelector('.map-ws-band-conditions').append(bodyButton);
  const retry=document.createElement('button');retry.type='button';retry.id='mapWsBodyRetry';retry.className='map-ws-body-retry';retry.hidden=true;retry.textContent='天体の計算を再試行';retry.onclick=()=>$('skyMapRetry').click();footer.prepend(retry);
  $('skyMapRetry').addEventListener('click',resetBodyCalculations,true);
  const pick=document.createElement('div');pick.id='mapWsPick';pick.className='map-ws-pick';pick.hidden=true;pick.innerHTML='<span role="status"></span><button type="button" id="mapWsUndo" hidden>元に戻す</button>';wrap.append(pick);
  for(const [id,mode] of [['skyMapObserverTool','observer'],['skyMapTargetTool','target']])$(id).addEventListener('click',e=>{if(!active)return;e.stopImmediatePropagation();placeAtCenter(mode);},true);
  const north=document.createElement('button');north.type='button';north.id='mapWsNorth';north.className='map-ctl map-ws-north';north.setAttribute('aria-label','北を上に戻す');
  north.innerHTML='<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M12 3l4 9h-8z" fill="#e5484d"/><path d="M12 21l-4-9h8z" fill="currentColor" opacity=".7"/></svg>';north.onclick=()=>host()?.map.setRotation(0);wrap.append(north);
- wrap.append(createChoice('mapWsMode','地図の中心',[['obs','撮影地点'],['target','対象']],viewMode,setViewMode));
+ wrap.append(createCenterChoice());
  // 2026-11-26: 新しい地点は地図のボタンから（撮影地点が中心の時。目標物が中心ではカードの「新しい地点を探す」）
  const findNew=document.createElement('button');findNew.type='button';findNew.id='mapWsNewPlaces';findNew.className='map-ws-new';findNew.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><span>新しい地点を探す</span>';
  findNew.setAttribute('aria-label','新しい撮影地点を探す');findNew.onclick=()=>document.dispatchEvent(new CustomEvent('astronotes-explore-open-sheet',{detail:{tab:'new',search:true}}));wrap.append(findNew);
@@ -610,9 +606,6 @@ const lightCache=new Map();
 function updateSelectedBody(h){
  const s=h.session,body=s.body,def=AstroNotesBodies.definition(body),data=dailyOf(h,body),page=$('mapWsSelectedBodyPage'),prefix='wsBody';
  page.dataset.body=body;page.classList.add('map-ws-current');page.style.setProperty('--ws-c',colour(body));
- const options=$('skyMapBody').options;
- for(const radio of $('mapWsBodyPicker').querySelectorAll('input')){const option=[...options].find(o=>o.value===radio.value);radio.disabled=!option||option.disabled||option.hidden;}
- syncChoice('mapWsBodyPicker',body);
  let st=null;if(data&&s.eye)try{st=h.skyState(body,s.at,s.eye);}catch{/* 読込・計算の欠測は—にする */}
  let light='';if(st){if(body==='sun')light=st.altitude>.5?'影 '+(1/Math.tan(st.altitude*RAD)).toFixed(1)+'倍':'影 —';
   else if(body==='moon')light=Number.isFinite(st.illuminatedFraction)?'輝面 '+Math.round(st.illuminatedFraction*100)+'%':'輝面 —';
@@ -698,13 +691,13 @@ function setTitle(h){
  const s=h.session,title=$('mapWsTitle'),body=AstroNotesBodies.definitions.find(d=>d.id===s.body)?.name||'天体',extras=h.extraCount?.()||0,
  select=$('skyMapAlignmentControls')?.querySelector('select'),alignment=s.target?(select?.selectedOptions?.[0]?.textContent?.trim()||'重ね方'):'重ね方',
  place=!validPoint(s.observer)?'撮影地点を選ぶ':(/^-?[\d.]+, -?[\d.]+$/.test(s.observer.name||'')?'撮影地点':s.observer.name||'撮影地点');
- const other=$('mapWsOtherBody'),quick=s.body==='sun'||s.body==='moon';
- $('mapWsBodyPicker').hidden=!quick;other.hidden=quick;
- if(other.firstElementChild.textContent!==body){other.firstElementChild.textContent=body;other.setAttribute('aria-label',body+'、天体を選ぶ');}
- other.disabled=!!$('skyMapBody').disabled;
+ const bodyButton=$('mapWsBodyPicker');
+ if(bodyButton.firstElementChild.textContent!==body){bodyButton.firstElementChild.textContent=body;bodyButton.setAttribute('aria-label',`天体を選ぶ（現在：${body}）`);}
+ bodyButton.disabled=!!$('skyMapBody').disabled;
  const values={body,target:s.target?.name?s.target.name+(extras?'ほか'+extras+'件':''):'対象を選ぶ',alignment,observer:place};
  for(const chip of title.querySelectorAll('[data-chip]')){const v=values[chip.dataset.chip];if(chip.textContent!==v)chip.textContent=v;}
- const label=(title.getAttribute('aria-expanded')==='true'?'撮影条件を閉じる：':'撮影条件を開く：')+Object.values(values).join('、');if(title.getAttribute('aria-label')!==label)title.setAttribute('aria-label',label);
+ const view=$('skyMapView'),showBodyInTitle=!view.classList.contains('map-ws')||view.hasAttribute('data-explore-sheet');
+ const label=(title.getAttribute('aria-expanded')==='true'?'撮影条件を閉じる：':'撮影条件を開く：')+[place,...(showBodyInTitle?[body]:[]),values.target,alignment].join('、');if(title.getAttribute('aria-label')!==label)title.setAttribute('aria-label',label);
 }
 const pad2=n=>String(n).padStart(2,'0');
 // 撮影条件や見え方から地図へ戻った時、同じ撮影地点と対象なら利用者が動かした位置と縮尺を保つ。
@@ -774,7 +767,7 @@ function keepWide(){if(!active)return;if(!$('skyMapView').querySelector('.sky-ma
 const resuming=()=>{try{return !!SkyMapUI?.resuming?.();}catch{return false;}};
 function shouldShow(){const view=$('skyMapView');return !!view&&(view.dataset.exploreStage==='map'||view.dataset.exploreStage==='search'&&view.hasAttribute('data-explore-sheet'))&&!view.hidden&&view.classList.contains('explore-mounted')&&view.dataset.exploreMode==='map'&&!$('skyMapContent')?.hidden&&!!host();}
 function evaluate(){
- const view=$('skyMapView');if(view.hidden){wanted=false;if(sceneFull)leaveScene();if(viewMode!=='obs'){viewMode='obs';targetSel=null;targetFitKey='';syncChoice('mapWsMode','obs');view.setAttribute('data-map-center','obs');}}const show=shouldShow();if(show&&!active)enter();else if(!show&&active&&(view.hidden||!resuming()))exit();
+ const view=$('skyMapView');if(view.hidden){wanted=false;if(sceneFull)leaveScene();if(viewMode!=='obs'){viewMode='obs';targetSel=null;targetFitKey='';syncCenterChoice('obs');view.setAttribute('data-map-center','obs');}}const show=shouldShow();if(show&&!active)enter();else if(!show&&active&&(view.hidden||!resuming()))exit();
  if(view.dataset.exploreMode!=='map'){fittedKey=null;return;}
  const h=host();if(h&&!view.hidden&&view.classList.contains('explore-mounted')&&!$('skyMapContent')?.hidden)fitTarget(h);
 }

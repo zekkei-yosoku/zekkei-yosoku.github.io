@@ -510,9 +510,10 @@ function placeBack(){
 const stageOf=()=>resultRequested?'preview':conditionsOpen?'search':'map';
 const sheetOn=()=>sheetMode&&stageOf()==='search';
 const mapStage=()=>stageOf()==='map'||sheetOn();
+const sheetHeading=node('div',{className:'explore-sheet-heading'});
 const mapReturn=node('button',{id:'exploreBackToMap',type:'button',className:'explore-map-return',hidden:true});
-mapReturn.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5V4l-6 2.5L9 4Zm0 0v13m6-10.5v13"/></svg><span>地図へ</span>';
-mapReturn.setAttribute('aria-label','撮影条件を閉じて地図へ戻る');mapReturn.onclick=()=>closeConditions();
+mapReturn.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5V4l-6 2.5L9 4Zm0 0v13m6-10.5v13"/></svg><span class="explore-return-map-text">地図へ</span><span class="explore-return-sheet-text">閉じる</span>';
+mapReturn.onclick=()=>closeConditions();
 function openConditions(){
  if(conditionsOpen&&sheetMode&&!resultRequested){sheetMode=false;syncWorkspace();document.scrollingElement.scrollTop=0;return;}
  if(!active()||resultRequested||selectionPending||conditionsOpen)return;
@@ -596,7 +597,21 @@ document.addEventListener('astronotes-explore-open-view',()=>showViewFromMap());
 function syncWorkspace(){
  if(!layout.mounted)return;ensureSearchRoot();
  if(flowOwner!==auth?.loginId||flowGeneration!==accessState.generation){resultRequested=false;selectionPending=false;searchStarted=false;returnIntent=null;pendingScroll=null;$('candidateSearchEmpty').textContent='';flowOwner=auth?.loginId;flowGeneration=accessState.generation;invalidate();}
- mapView.dataset.exploreStage=stageOf();if(dropdownOpen&&stageOf()!=='map')setDropdown(false);if(mapReturn.nextSibling!==layout.conditions)layout.conditions.before(mapReturn);if(sheetOn())mapView.dataset.exploreSheet='';else delete mapView.dataset.exploreSheet;mapReturn.hidden=stageOf()!=='search';{const label=sheetOn()?'閉じる':'地図へ';if(mapReturn.lastChild.textContent!==label)mapReturn.lastChild.textContent=label;}
+ mapView.dataset.exploreStage=stageOf();
+ if(dropdownOpen&&stageOf()!=='map')setDropdown(false);
+ if(sheetOn()){
+  mapView.dataset.exploreSheet='';
+  if(!sheetHeading.isConnected){
+   const heading=$('candidateWorkspaceHeading');
+   heading.before(sheetHeading);
+   sheetHeading.append(heading);
+  }
+  if(mapReturn.parentNode!==sheetHeading)sheetHeading.append(mapReturn);
+ }else{
+  delete mapView.dataset.exploreSheet;
+  if(mapReturn.nextSibling!==layout.conditions)layout.conditions.before(mapReturn);
+ }
+ mapReturn.hidden=stageOf()!=='search';
  const nextMode=mapStage()?'map':'scene';if(nextMode!==mode)choose(nextMode);
  layout.conditions.hidden=false;if(!resultRequested)layout.conditions.open=true;placeBack();
  searchRoot.hidden=resultRequested;scene.hidden=!resultRequested;candidateBack.hidden=!resultRequested;
