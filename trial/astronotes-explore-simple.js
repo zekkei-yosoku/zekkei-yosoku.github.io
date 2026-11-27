@@ -192,9 +192,9 @@ let searchRoot=null,candidatePanelHome=null,searchStarted=false,returnIntent=nul
 let pendingCompositionSearch=null;
 // 2026-11-11 ユーザー「探すへ戻るのボタンの形状と配置場所」「見え方に入ったらなんの条件の見え方なのかがわからない」
 // 「重ねる天体とかの条件が気軽に変えられない」: 見え方でも条件の欄をたたんで先頭に残し（何×何・撮影地点・重ね方）、
-// 戻るは丸い枠なしの ＜ だけにしてその左端に置く（2026-11-11 ユーザー「戻るボタンがなんかダサい」→「丸をやめて ＜ だけ」）。条件を開けば、その場で天体・対象・重ね方を変えられる。
-const candidateBack=node('button',{id:'exploreBackToCandidates',type:'button',className:'explore-back',hidden:true});
-candidateBack.innerHTML='<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+// 左端の戻るは共通の山形と「戻る」の表記。条件は見え方の画面でも変更できる。
+const candidateBack=node('button',{id:'exploreBackToCandidates',type:'button',className:'explore-back',hidden:true},'戻る');
+candidateBack.dataset.backControl='';
 // Inside the summary: a click goes back and never toggles the conditions.
 candidateBack.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();});scene.prepend(candidateBack);
 const resultActive=()=>active()&&resultRequested;
@@ -1025,7 +1025,7 @@ const style=node('style');style.textContent=
 "#skyMapView[data-explore-stage=\"search\"] .sky-map-candidates,#skyMapView[data-explore-stage=\"search\"] #skyMapShareRow{display:none!important}"+
 "#skyMapView[data-explore-stage=\"preview\"] #exploreSearchResults{display:none!important}#skyMapView[data-explore-stage=\"preview\"] .explore-conditions>summary{grid-template-columns:auto minmax(0,1fr) auto}"+
 "#skyMapView[data-explore-stage=\"preview\"] #exploreConditionTitle,#skyMapView[data-explore-stage=\"preview\"] #exploreConditionDetail{grid-column:2}#skyMapView[data-explore-stage=\"preview\"] .explore-condition-edit{grid-column:3}#exploreBackToCandidates{grid-column:1;grid-row:1/3;"+
-"align-self:center;width:30px;height:44px;margin:0 2px 0 -8px;padding:0;border:0;border-radius:8px;background:none;color:var(--secondary);display:grid;place-items:center;cursor:pointer;-webkit-tap-highlight-color:transparent}#exploreBackToCandidates:active{color:var(--text)}"+
+"align-self:center;min-height:44px;margin:0 2px 0 -8px;padding:0 4px;border:0;border-radius:8px;background:none;color:var(--accent);cursor:pointer;-webkit-tap-highlight-color:transparent}#exploreBackToCandidates:active{color:var(--text)}"+
 "#exploreBackToCandidates[hidden]{display:none}\n#skyMapView[data-explore-stage=\"search\"] #candidateWorkspaceAction{display:block}\n.explore-discovery-tabs{display:flex;gap:24px;border-bottom:1px solid var(--line);margin:12px 0 16px}\n.explore-discovery-tabs button{min-height:44px;"+
 "padding:8px 2px;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--secondary);font-size:.85rem;font-weight:600}\n.explore-discovery-tabs button[aria-selected=\"true\"]{color:var(--accent);border-bottom-color:var(--accent)}"+
 "\n#exploreNewPlaces:not([hidden]){display:grid;gap:12px}\n.record-calendar-scan{min-height:44px}\n#exploreRecordedPlaces[hidden],#exploreNewPlaces[hidden]{display:none!important}\n.explore-record-row{display:grid;grid-template-columns:minmax(0,1fr) auto 14px;gap:4px 12px;align-items:center;"+

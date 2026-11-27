@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "20261124-moon-route-map",
-  "revision": 22,
+  "revision": 23,
   "baselineCommit": "f4f35b61359ba5ec8f9da057cf3026902a0402a4",
   "baselineSha256": {
     "index.html": "feb5e6c31bbb6014c66615a414cca2477296b89ab8e6a95ba1e98c07907a29c3",
@@ -38,7 +38,8 @@
     "src/features/satellites/state.js": "892e8dc00f0dceda0a73fbbbcce87cbbb7602158ab3138b14fe4a286b25b1e94",
     "src/features/places/search.js": "bd870926785d9230e5a942b20b3cba798b9526ee1f9483f1bd6d078b9005d592",
     "src/ui/map/picker.js": "c2adcc13bf9db094c0248a1e80d9c0f8afc575e106349e44f8ea87c2fdfdc747",
-    "src/app/gestures.js": "e5aa1dac5b04c4c81d8ee00845b2ebc17b6dac6e8be2ba1a84181148fb5c6d31"
+    "src/app/gestures.js": "e5aa1dac5b04c4c81d8ee00845b2ebc17b6dac6e8be2ba1a84181148fb5c6d31",
+    "src/ui/panel-controls.js": "661c5b0cae002d4311b321bb9854670f34ec4fe6cde60d7f565e81f2a82cdc83"
   },
   "overlays": [
     {
@@ -171,6 +172,10 @@
     },
     {
       "path": "src/app/gestures.js",
+      "required": false
+    },
+    {
+      "path": "src/ui/panel-controls.js",
       "required": false
     }
   ]

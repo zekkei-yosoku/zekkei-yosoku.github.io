@@ -30,12 +30,21 @@ module.exports = async function checkOpportunityBack(page, engine, ready) {
  const shortcut = point.locator('..').locator('.journey-place-find');
  const scope = page.locator('#recordOpportunityScope');
  const sheet = page.locator('#myPlaceSheet');
+ const checkBackLabel = async selector => {
+  const button = page.locator(selector).locator('[data-ui-control="back"] .ui-back-label');
+  await button.waitFor({state: 'visible'});
+  assert.equal(await button.innerText(), '戻る');
+  assert.equal(await button.evaluate(label => label.previousElementSibling.querySelector('path').getAttribute('d')), 'm14 5-7 7 7 7');
+ };
  try {
   await pointsTab.click();
   await shortcut.click();
   await ready(page);
+  await checkBackLabel('#recordOpportunityScope');
   await swipe({start: 60});
   assert(await scope.isVisible(), 'a swipe away from the screen edge stays on the list');
+  await swipe({distance: 18});
+  assert(await scope.isVisible(), 'a short edge swipe stays on the list');
   await swipe({cancel: true});
   assert(await scope.isVisible(), 'a cancelled edge swipe stays on the list');
   assert.equal(await openMenu.count(), 0);
@@ -52,6 +61,7 @@ module.exports = async function checkOpportunityBack(page, engine, ready) {
   await ready(page);
   await swipe();
   await sheet.waitFor({state: 'visible'});
+  await checkBackLabel('#myPlaceSheet > .sheet-head');
   assert(await page.locator('#myPlacePlanning').evaluate(node => node.open));
   assert.equal(await openMenu.count(), 0);
   await page.waitForTimeout(125);
@@ -88,7 +98,16 @@ module.exports = async function checkOpportunityBack(page, engine, ready) {
   assert.equal(await openMenu.count(), 0);
   assert.equal(await page.evaluate(() => SkyMapUI.selectionState().target?.id), 'skytree');
   await page.evaluate(() => navigationHistory.pushRoute('#/records'));
-  return {shortcut: true, placeDetails: true, backButtonMatches: true, mainTabKeepsMenu: true, explore: true, driver: cdp ? 'CDP touch' : 'DOM touch'};
+  await page.waitForTimeout(125);
+  await page.locator('#authButton').click();
+  await page.locator('#settingsScreen').click();
+  await checkBackLabel('#appSettings > .sheet-head');
+  await page.locator('#settingsBack').click();
+  await page.locator('#settingsAccount').click();
+  await checkBackLabel('#accountSheet > .sheet-head');
+  await page.locator('#accountBack').click();
+  await page.locator('#appSettingsClose').click();
+  return {shortcut: true, placeDetails: true, backButtonMatches: true, mainTabKeepsMenu: true, explore: true, sharedBackLabels: true, driver: cdp ? 'CDP touch' : 'DOM touch'};
  } finally {
   if (cdp) await cdp.detach();
  }

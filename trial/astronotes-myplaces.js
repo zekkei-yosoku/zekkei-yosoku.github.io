@@ -1092,8 +1092,12 @@ style.textContent+=`
 .record-opportunity-filters .record-opportunity-select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;font-size:16px;margin:0;background-color:var(--card)}
 .record-opportunity-scope{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;min-width:0}
 .record-opportunity-scope[hidden]{display:none}#recordsView[data-place-list] #notebookTabs{display:none}#recordOpportunities :is([data-candidate-address],[data-place-kind]){display:none}
-.record-opportunity-scope span{min-width:0;overflow-wrap:anywhere;font-size:17px;font-weight:700}
+#recordOpportunityScopeName{min-width:0;overflow-wrap:anywhere;font-size:17px;font-weight:700}
 .record-opportunity-scope .chip{min-height:44px;padding:4px 12px;font-size:14px;white-space:nowrap}
+@media(max-width:360px){
+ .record-opportunity-scope{grid-template-columns:1fr auto;grid-template-areas:'back all' 'name name';gap:4px 8px}
+ #recordOpportunityScopeBack{grid-area:back;justify-self:start}#recordOpportunityScopeClear{grid-area:all}#recordOpportunityScopeName{grid-area:name}
+}
 .record-opportunity-select{text-align:left;position:relative;padding:10px 30px 10px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);border:1px solid var(--line);border-radius:10px}
 .record-opportunity-select::after{content:'';position:absolute;right:13px;top:17px;width:7px;height:7px;border-right:2px solid var(--secondary);border-bottom:2px solid var(--secondary);transform:rotate(45deg)}
 .record-opportunity-select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -3421,7 +3425,8 @@ function opportunityBuild(){
  control.setAttribute('aria-haspopup','dialog');control.setAttribute('aria-expanded','false');control.onclick=()=>opportunityOpenPicker(kind,control);wrap.append(caption,control);filters.append(wrap);}
  const scope=opportunityNode('div',{id:'recordOpportunityScope',className:'record-opportunity-scope',hidden:true}),scopeName=opportunityNode('span',{id:'recordOpportunityScopeName'}),
  scopeClear=opportunityNode('button',{type:'button',id:'recordOpportunityScopeClear',className:'chip'},'すべての地点');
- const scopeBack=opportunityNode('button',{type:'button',id:'recordOpportunityScopeBack',className:'chip'},'‹');
+ const scopeBack=opportunityNode('button',{type:'button',id:'recordOpportunityScopeBack'},'戻る');
+ scopeBack.dataset.backControl='';
  // 2026-11-25 撮影地点の「重なる日」から来たら、その地点の今日からの一覧を見出し付きで出し、日付の操作は出さない（ユーザー「その記録の地点の一覧が見たい」「日付が邪魔」）
  scopeBack.setAttribute('aria-label','撮影地点へ戻る');scopeBack.onclick=returnFromOpportunityList;
  scopeClear.setAttribute('aria-label','撮影地点の絞り込みを外す');scopeClear.onclick=()=>{opportunitySet({placeId:''});requestAnimationFrame(()=>el('recordOpportunityTarget')?.focus({preventScroll:true}));};scope.append(scopeBack,scopeName,scopeClear);

@@ -50,6 +50,17 @@
 </style>
 <link rel="stylesheet" href="astronotes-datetime-ui.css?v=0">
 <link rel="stylesheet" href="astronotes-map-workspace.css?v=0">
+<style id="trialBackControlsStyle">
+button[data-ui-control="back"]{display:inline-flex;flex:none;align-items:center;gap:2px;min-width:44px;min-height:44px;padding:0 4px;border:0;background:transparent;color:var(--accent);white-space:nowrap}
+button[data-ui-control="back"][hidden]{display:none!important}
+button[data-ui-control="back"] .ui-back-label{font-size:14px;font-weight:600}
+button[data-ui-control="back"] .ui-control-icon{width:18px;height:18px;flex:none}
+button[data-ui-control="back"]:focus-visible{outline:2px solid var(--accent)!important;outline-offset:2px}
+#backLink[data-ui-control="back"]{min-height:44px}
+:is(#appSettings,#accountSheet)>.sheet-head{grid-template-columns:64px minmax(0,1fr) 64px}
+:is(#appSettings,#accountSheet)>.sheet-head>button:last-child{justify-self:end}
+:is(#appSettings,#accountSheet) .panel-back[data-ui-control="back"]{display:inline-flex;width:auto;justify-self:start;color:var(--accent)}
+</style>
 <style id="trialPreviewControlsStyle">
 #exploreScenePanel #aimLook .trial-scene-toolbar:has(#exploreExternalMap){grid-template-columns:repeat(4,minmax(0,1fr))}
 #exploreScenePanel #aimLook .trial-scene-toolbar:has(#trialCompositionToggle:not([hidden])){grid-template-columns:repeat(5,minmax(0,1fr))}
@@ -104,7 +115,7 @@
        **ひとつ前の画面へ戻る**（月の詳細 → 空の見え方 → 戻る で月の詳細）。一気に一覧へは題名を押す。
        iPhone のホーム画面から開くとブラウザの戻るが無いので、画面の中に要る -->
   <div class="backbar" id="backBar" hidden>
-    <button id="backLink" class="tap" aria-label="前の画面へ戻る"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H3.5M7.5 3.5 3 8l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>戻る</button>
+    <button id="backLink" class="tap" aria-label="前の画面へ戻る" data-back-control>戻る</button>
   </div>
 
   <div id="startupStatus" class="note-wait" role="status"><span class="note-wait-character" aria-hidden="true"></span><span id="startupMessage" class="note-wait-message">起動画面を開いています…</span></div>
