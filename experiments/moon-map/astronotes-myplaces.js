@@ -3521,7 +3521,7 @@ function opportunityDraw(job){
   airPending?'大気差を確認しています…':airFailed?'大気差を確認できなかった日があります':
   rows.length?'':'確認した期間に重なる組み合わせはありません';
  }
- const coverage=failures||s.error||airFailed?'まで探索（未確認あり）':airPending?'まで探索（大気差を確認中）':'まで確認';
+ const coverage=failures||s.error||airFailed?'まで探索':airPending?'まで探索（大気差を確認中）':'まで確認';
  d.through.textContent=job.pairs.length&&s.through>job.start?opportunityDateAt(s.through-1).replaceAll('-','/')+coverage:'';
  d.retry.hidden=!s.done||airPending||(!s.failures.length&&!s.error&&!job.displayError&&!airFailed);
  d.more.hidden=!job.pairs.length||s.done&&s.through>=aimCandidateSearchEnd();

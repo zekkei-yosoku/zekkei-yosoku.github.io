@@ -46,7 +46,7 @@ module.exports=async(page,ready,path)=>{
  await page.waitForFunction(()=>/（大気差未確認）/.test(document.getElementById('recordOpportunityList')?.innerText||''),null,{timeout:120000});
  assert.match(await text(),/11\/25\([^)]+\)（大気差未確認）/,'判定に失敗した行は残して未確認');
  await settled();
- assert.match(await coverage(),/まで探索（未確認あり）$/);
+ assert.match(await coverage(),/^\d{4}\/\d{2}\/\d{2}まで探索$/);
  const retry=page.locator('#recordOpportunityRetry');
  await retry.waitFor();
  await page.evaluate(()=>{MyPlacesUI.discoverySearch=window.__airOriginal;});
