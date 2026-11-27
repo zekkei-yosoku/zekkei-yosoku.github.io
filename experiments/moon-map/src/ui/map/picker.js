@@ -20,13 +20,20 @@ const MAP_ICON_LAYERS = `<svg viewBox="0 0 24 24" width="20" height="20" fill="n
 const MAP_ICON_LOCATE = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="m21 3-7 18-3-8-8-3Z"/></svg>`;
 /// 現在地（どの地図でも共通）。{ latitude, longitude, accuracyM }
 let myPos = null;
-const MAP_VIEWS = new Set();          // 現在地が変わったら描き直す地図
+const MAP_LAYER_KEY = "sorami.mapLayer";
+const DEFAULT_MAP_LAYER = "map";
+const MAP_VIEWS = new Set();          // 現在地と地図の種類を共有する地図
+window.addEventListener("storage", event => {
+  if (event.key !== MAP_LAYER_KEY) return;
+  const next = store.get(MAP_LAYER_KEY, DEFAULT_MAP_LAYER);
+  for (const view of MAP_VIEWS) view.setLayer(next);
+});
 function locateMe({ quiet = false } = {}) {
   return new Promise((resolve) => {
     if (!navigator.geolocation) { resolve(null); return; }
     navigator.geolocation.getCurrentPosition((pos) => {
       myPos = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracyM: pos.coords.accuracy, at: Date.now() };
-      for (const redraw of MAP_VIEWS) redraw();
+      for (const view of MAP_VIEWS) view.redraw();
       resolve(myPos);
     }, () => resolve(null), { enableHighAccuracy: !quiet, timeout: 10000, maximumAge: 60000 });
   });
@@ -129,7 +136,7 @@ function mountMapShell(wrap, ids, redraw) {
 
 function createMapView(ids) {
   const TILE = 256;
-  let layer = "map";
+  let layer = DEFAULT_MAP_LAYER;
   const URL = (src, z, x, y) => `https://cyberjapandata.gsi.go.jp/xyz/${src.key}/${z}/${x}/${y}.${src.ext}`;
   const MIN_Z = ids.minTileZoom ?? 5;
   const minViewZoom = ids.minViewZoom ?? MIN_Z;
@@ -335,18 +342,21 @@ function createMapView(ids) {
     };
     if(!wrap.querySelector('.mapattr'))wrap.insertAdjacentHTML('beforeend','<div class="mapattr">国土地理院</div>');
     mountMapShell(wrap,ids,schedule);
-    MAP_VIEWS.add(schedule);
+    MAP_VIEWS.add({redraw:schedule,setLayer});
     window.addEventListener("resize", schedule);
   }
   /// 種類を替える。選んだ種類はどの地図でも次から使う（写真で置く人は次も写真で置く）
   function setLayer(next, remember = false) {
-    if (!MAP_LAYERS[next]) next = "map";
+    if (!Object.hasOwn(MAP_LAYERS, next)) next = DEFAULT_MAP_LAYER;
     layer = next;
-    if (remember) store.set("sorami.mapLayer", next);
+    if (remember) {
+      store.set(MAP_LAYER_KEY, next);
+      for (const map of MAP_VIEWS) if (map.setLayer !== setLayer) map.setLayer(next);
+    }
     view.zoom = Math.min(view.zoom, maxViewZoom());
     const wrap = cv && cv.closest(".mapwrap");
     if (wrap) for (const b of wrap.querySelectorAll("[data-layer]")) b.setAttribute("aria-checked", String(b.dataset.layer === next));
-    schedule();
+    if (cv?.clientWidth && cv.clientHeight) schedule();
   }
 
   function open(from, zoom = 15) {
@@ -354,7 +364,7 @@ function createMapView(ids) {
     // 位置情報が許されていれば、開いたときから現在地の点を出す（地図は動かさない）。許されていなければ聞かない（現在地の釦を押したときだけ聞く）
     locateIfAllowed();
     view = { lat: from.latitude, lon: from.longitude, zoom };
-    setLayer(store.get("sorami.mapLayer", "map"));
+    setLayer(store.get(MAP_LAYER_KEY, DEFAULT_MAP_LAYER));
     if (ids.sheet) showSheet($(ids.sheet));
     if(['mapCanvas','shapeCanvas','targetEditorCanvas','aimLineCanvas'].includes(ids.canvas))cv.closest('.mapwrap')._mapShell?.setWide(true);
     // dialog が開いてから測る（閉じている間は幅が 0）

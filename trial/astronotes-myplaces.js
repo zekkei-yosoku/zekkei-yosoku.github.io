@@ -308,8 +308,7 @@ function renderRecordsHub() {
   };
   // Favorites are location candidates, not records. Keep historical records
   // and explicitly saved line/area locations visible without adding bare favorites.
-  const recordedIds=new Set(records.map(r=>r.placeId));
-  const recordedPlaces=favorites.filter(f=>f.recordRegistered||recordedIds.has(f.id)||!!placeShape(f));
+  const recordedPlaces=registeredRecordPlaces(records,placeShape);
   if(recordsFilterOwner!==auth.token){recordsFilterOwner=auth.token;recordsTargetFilter='';recordsBodyFilter='';}
   if(notebookEdit){const ids=new Set(recordedPlaces.map(f=>f.id));for(const id of notebookEdit.ids)if(!ids.has(id))notebookEdit.ids.delete(id);}
   if(notebookEdit)el('notebookCount').textContent=notebookEdit.ids.size+'地点を選択中';
@@ -3834,6 +3833,15 @@ function discoveryPoints(){
  }
  return out;
 }
+function registeredRecordPlaces(records,getShape){
+ const ids=new Set(records.map(r=>r.placeId));
+ return favorites.filter(f=>f.recordRegistered||ids.has(f.id)||getShape(f));
+}
+function mapPickerPlaces(){
+ if(!auth?.token||!toolAllowed('records'))return [];
+ const {records,shapes}=recordSearchIndex();
+ return registeredRecordPlaces(records,f=>recordSearchShape(f,shapes)).filter(AstroNotesShooting.point);
+}
 function discoveryRevision(){return version;}
 // The saved shooting places, as positions and standing heights only: 探す（新しい撮影地点）leaves out the places that are
 // already here (candidate-picker.js inRecords, 2026-11-14).
@@ -3846,7 +3854,7 @@ async function discoverySearch(plan,points,isCurrent,terrainCache,onProgress){
  return recordSearch(plan,points,{isCurrent,terrainCache,onProgress});
 }
 
-window.MyPlacesUI = { discoveryPoints,discoverySearch,discoveryRevision,savedPlaces,alignmentText:RecordAlignment.text,
+window.MyPlacesUI = { discoveryPoints,discoverySearch,discoveryRevision,savedPlaces,mapPickerPlaces,alignmentText:RecordAlignment.text,
   recordSortControl,sortRecordPlaces, eyeAdjustmentFor, opportunities,recordProgress:showRecordProgress, backupState:()=>({observations:load(),shapes:shapeData()}),imported:()=>{notebookNotice='';version++;candidateCache.clear();changed();
 },selectShape, resetShapePicker, shapeFor, withShape, drawShape, renderAim, renderPickerPanel, skyDraw, skyRender, skyPreview, skyOverlap:s=>{if(s===skySession&&skyOwner===auth?.token)checkOverlap(s);}, leaveSky, pickSky, badge, openPlace, recordFor, quickRecord, load, renderRecordsHub };
 // 読み込みより先に構図が描かれていたら、ここで一覧を出す

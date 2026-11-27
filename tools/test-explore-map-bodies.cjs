@@ -45,15 +45,15 @@ async function selectFromConditions(page,body){
  await page.locator('#mapWsTitle').click();
 }
 async function selectMap(page,body){
- if(body==='moon'||body==='sun')await page.locator(`#mapWsBodyPicker [data-map-body="${body}"]`).click();
+ if(body==='moon'||body==='sun')await page.locator(`#mapWsBodyPicker input[value="${body}"]`).click();
  else await selectFromConditions(page,body);
 }
 async function ready(page,body){
  await page.waitForFunction(body=>{const h=SkyMapUI.workspaceHost(),p=document.getElementById('mapWsSelectedBodyPage');return h?.session.body===body&&h.session.dailies?.[body]&&!h.session.timelinePending&&p?.dataset.body===body&&document.getElementById('mapWsBodyPicker').getAttribute('aria-busy')==='false'&&document.querySelector('#wsBody b').textContent!=='—';},body);
 }
 async function pickerLayout(page){
- return page.evaluate(()=>{const nodes=[...document.querySelectorAll('#mapWsBodyPicker button,#mapWsBodyPicker select')].filter(n=>!n.hidden),view=document.getElementById('skyMapView');
-  const box=n=>{const r=n.getBoundingClientRect(),points=[[.5,.5],[.5,.1],[.5,.9],[.1,.5],[.9,.5]],hit=points.every(([x,y])=>{const found=document.elementFromPoint(r.left+r.width*x,r.top+r.height*y);return found===n||n.contains(found);});return {id:n.id||n.dataset.mapBody,width:r.width,height:r.height,top:r.top,bottom:r.bottom,visible:!!n.offsetParent&&r.top>=0&&r.bottom<=innerHeight&&r.left>=0&&r.right<=innerWidth,hit};};
+ return page.evaluate(()=>{const nodes=[...document.querySelectorAll('#mapWsBodyPicker input')].filter(n=>!n.hidden),view=document.getElementById('skyMapView');
+  const box=n=>{const r=n.getBoundingClientRect(),points=[[.5,.5],[.5,.1],[.5,.9],[.1,.5],[.9,.5]],hit=points.every(([x,y])=>{const found=document.elementFromPoint(r.left+r.width*x,r.top+r.height*y);return found===n||n.contains(found);});return {id:n.id||n.value,width:r.width,height:r.height,top:r.top,bottom:r.bottom,visible:!!n.offsetParent&&r.top>=0&&r.bottom<=innerHeight&&r.left>=0&&r.right<=innerWidth,hit};};
   const center=view.dataset.mapCenter||'obs',map=document.getElementById('skyMapCanvas').getBoundingClientRect(),home=document.getElementById('mapWsHome');return {controls:nodes.map(box),placement:['skyMapObserverTool','skyMapTargetTool',center==='target'?'mapWsCardView':'mapWsNewPlaces'].map(id=>box(document.getElementById(id))),home:home?.offsetParent&&!home.hidden?box(home):null,mapHeight:map.height,mapTop:map.top,mapBottom:map.bottom,overflow:document.documentElement.scrollWidth>innerWidth+1,center};});
 }
 async function captureMatrix(page,path,mode){
@@ -73,7 +73,7 @@ async function verifySelection(page,body,mode,label){
  const value=await page.evaluate(body=>{const h=SkyMapUI.workspaceHost(),s=h.session,p=document.getElementById('mapWsSelectedBodyPage'),st=h.bodyState(body),daily=s.dailies[body];
   return {condition:document.getElementById('skyMapBody').value,conditionLabel:document.getElementById('skyMapBodyOpen').textContent,only:AstroNotesMapWorkspace.onlyBody(),shown:h.shownBodies(),body:p.dataset.body,text:p.textContent,
    bodyText:document.getElementById('wsBody').textContent,angle:document.querySelector('#wsBody b').textContent,altText:document.querySelector('#wsBody i').textContent,rise:document.getElementById('wsBodyRise').textContent,set:document.getElementById('wsBodySet').textContent,
-   selected:[...document.querySelectorAll('#mapWsBodyPicker [data-map-body][aria-pressed="true"]')].map(n=>n.dataset.mapBody),
+   selected:[...document.querySelectorAll('#mapWsBodyPicker input:checked')].map(n=>n.value),
    altitude:st.altitude,azimuth:st.azimuth,magnitude:['mercury','venus','mars','jupiter','saturn'].includes(body)?AstroNotesBodies.light(body,s.at).magnitude:null,events:daily.events.length,finite:daily.points.every(p=>Number.isFinite(p.altitude)&&Number.isFinite(p.azimuth)),targetCard:document.getElementById('mapWsCardPlace').textContent};
  },body);
  assert.equal(value.condition,body,label);assert(value.conditionLabel.includes(names[body]),label+': 条件の天体名');
@@ -99,7 +99,7 @@ async function screenMatrix(browser,engine,width,theme){
  try{
   const ids=await f.page.locator('#skyMapBody option').evaluateAll(ns=>ns.filter(n=>!n.disabled&&!n.hidden).map(n=>n.value));assert.deepEqual(new Set(ids),new Set(bodies),label+': 全8天体が利用可能');
   for(const mode of ['obs','target']){
-   await f.page.locator(`#mapWsMode [data-mode="${mode}"]`).click();
+   await f.page.locator(`#mapWsMode input[value="${mode}"]`).click();
    for(const body of bodies){await selectMap(f.page,body);checks.push(await verifySelection(f.page,body,mode,label));
     if(width===390&&theme==='dark'&&['sirius','venus'].includes(body))await captureMatrix(f.page,`${out}/${label}-${mode}-${body}.png`,mode);
    }
@@ -109,7 +109,7 @@ async function screenMatrix(browser,engine,width,theme){
   // 条件側の実pickerから変更し、地図列への逆方向同期も全8天体で確かめる。
   for(const body of bodies){
    await selectFromConditions(f.page,body);await ready(f.page,body);
-   const selected=await f.page.evaluate(()=>({body:SkyMapUI.selectionState().body,pressed:[...document.querySelectorAll('#mapWsBodyPicker [aria-pressed="true"]')].map(n=>n.dataset.mapBody)}));
+   const selected=await f.page.evaluate(()=>({body:SkyMapUI.selectionState().body,pressed:[...document.querySelectorAll('#mapWsBodyPicker input:checked')].map(n=>n.value)}));
    assert.equal(selected.body,body);assert.deepEqual(selected.pressed,body==='moon'||body==='sun'?[body]:[],label+': 条件→地図 '+body);
   }
   assert.deepEqual(f.errors,[],label);return {label,checks};
@@ -149,12 +149,12 @@ async function realNightCases(browser,engine){
   await selectMap(f.page,fixture.body);await ready(f.page,fixture.body);
   const oracle=await f.page.evaluate(({body,places})=>{const target=SkyMapUI.selectionState().target;return places.map(p=>{const eye={...p,elevation:31.5},raw=AstroNotesAlign.prepareDailyView(eye,target,body,{partId:'__whole',eyeM:0})(p.at,p.at)[0];return {id:p.id,intersects:raw?.intersects,sun:AstroNotesBodies.state('sun',p.at,eye,{refraction:false}).altitude};});},{body:fixture.body,places});
   assert(oracle.every(x=>x.intersects),fixture.body+': 生の幾何は昼夜とも重なる '+JSON.stringify(oracle));assert(oracle[0].sun<-6&&oracle[1].sun>-6);
-  await f.page.locator('#mapWsMode [data-mode="target"]').click();
+  await f.page.locator('#mapWsMode input[value="target"]').click();
   await f.page.waitForFunction(()=>{const s=AstroNotesMapWorkspace.targetState();return s.records?.length===2&&!s.recordsPending&&!s.lineBusy;});
   const records=await f.page.evaluate(()=>AstroNotesMapWorkspace.targetState().records);
   assert(records.find(r=>r.name==='夜に重なる地点').windows.length>0,fixture.body+': 夜の実記録を残す');assert.equal(records.find(r=>r.name==='昼に重なる地点').windows.length,0,fixture.body+': 幾何は重なっても昼の記録を除く');
   const bounds=await f.page.evaluate(({body,places})=>AstroNotesMapWorkspace.targetState().records.flatMap(r=>r.windows.flatMap(w=>[w.from,w.to].map(at=>({at,sun:AstroNotesBodies.state('sun',at,{...places.find(p=>p.name===r.name),elevation:31.5},{refraction:false}).altitude})))),{body:fixture.body,places});assert(bounds.every(x=>x.sun<=-6));
-  await f.page.locator('#mapWsMode [data-mode="obs"]').click();
+  await f.page.locator('#mapWsMode input[value="obs"]').click();
   for(const p of places){
    await f.page.evaluate(p=>{SkyMapUI.workspaceHost().restoreObserver(p);SkyMapUI.setTime(p.at);},p);
    await f.page.waitForFunction(name=>document.getElementById('mapWsCardPlace').textContent.startsWith(name+' → ')&&!/調べ|計算|準備/.test(document.getElementById('mapWsCardOverlap').textContent),p.name);
@@ -177,7 +177,7 @@ async function lineSelection(browser,engine){
   await f.page.evaluate(()=>{AstroNotesTerrain.groundElevation=async()=>30;});
   for(const fixture of lineFixtures){
    await f.page.evaluate(at=>{SkyMapUI.setTime(at);SkyMapUI.setAlignment('__whole','center','overlap');},fixture.at);
-   await selectMap(f.page,fixture.body);await ready(f.page,fixture.body);await f.page.locator('#mapWsMode [data-mode="target"]').click();
+   await selectMap(f.page,fixture.body);await ready(f.page,fixture.body);await f.page.locator('#mapWsMode input[value="target"]').click();
    await f.page.waitForFunction(body=>{const s=AstroNotesMapWorkspace.targetState();return s.lineBody===body&&!s.lineBusy&&s.line?.length;},fixture.body);
    // 同梱モデル読込後のsolverでfixture付近の点を取得し、Node/browserの微小な数値差を固定座標へ押し付けない。
    const point=await f.page.evaluate(async fixture=>{const h=SkyMapUI.workspaceHost(),s=h.session,lines=await AstroNotesAlign.line(s.target,s.body,AstroNotesSkyMap.dayStart(s.at),{partId:'__whole',limb:'center',eyeM:s.eyeM??1.5,elevationAt:async()=>30});
@@ -229,7 +229,7 @@ async function terrainErrorLayout(browser,engine,theme){
   await f.page.waitForFunction(()=>document.getElementById('skyMapStatus').textContent.includes('標高を取得できません')&&!document.getElementById('skyMapRetry').hidden);
   assert(await f.page.locator('#skyMapRetry').isVisible(),'標高失敗の再試行行が実表示される');
   for(const mode of ['obs','target']){
-   await f.page.locator(`#mapWsMode [data-mode="${mode}"]`).click();await ready(f.page,'moon');
+   await f.page.locator(`#mapWsMode input[value="${mode}"]`).click();await ready(f.page,'moon');
    if(mode==='target')await f.page.waitForFunction(()=>!AstroNotesMapWorkspace.targetState().lineBusy&&AstroNotesMapWorkspace.searchBand(SkyMapUI.workspaceHost().session)?.status==='ready');
    await f.page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
    const layout=await pickerLayout(f.page),placement=layout.placement.filter(b=>['skyMapObserverTool','skyMapTargetTool'].includes(b.id));

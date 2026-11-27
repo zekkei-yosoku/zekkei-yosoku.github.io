@@ -43,7 +43,7 @@ async function open(browser,width,theme,{fixture=null}={}){
  return {context,page,errors};
 }
 async function toTarget(page){
- await page.locator('#mapWsMode [data-mode=target]').click();
+ await page.locator('#mapWsMode input[value=target]').click();
  await page.waitForFunction(()=>{const s=AstroNotesMapWorkspace.targetState();return s.line&&!s.lineBusy&&s.band>0&&!document.getElementById('mapWsCardView').disabled&&/中心が先端に来る線: /.test(document.getElementById('mapWsCardMeta').textContent);},null,{timeout:30000});
 }
 // 地図上の緯度経度を画面の点へ。
@@ -69,10 +69,10 @@ async function records(type,engine,width,theme,results){
  try{
   const {context,page,errors}=await open(browser,width,theme);
   try{
-   assert.equal(await page.locator('#mapWsMode [data-mode=obs]').getAttribute('aria-pressed'),'true');
+   assert.equal(await page.locator('#mapWsMode input[value=obs]').isChecked(),true);
    await toTarget(page);
    assert.deepEqual(await view(page),{stage:'map',sheet:false,center:'target'});
-   const layout=await page.evaluate(()=>{const r=n=>n.getBoundingClientRect(),mode=r(document.getElementById('mapWsMode')),north=r(document.getElementById('mapWsNorth')),rail=Math.min(...[...document.querySelectorAll('#skyMapView .sky-map-wide .mapzoom>button,#skyMapView .sky-map-wide .map-layers-btn')].filter(n=>n.offsetParent).map(n=>r(n).left)),buttons=[...document.querySelectorAll('#mapWsMode button,#mapWsCardView,#mapWsCardSecond')].filter(b=>b.offsetParent).map(b=>r(b).height);
+   const layout=await page.evaluate(()=>{const r=n=>n.getBoundingClientRect(),mode=r(document.getElementById('mapWsMode')),north=r(document.getElementById('mapWsNorth')),rail=Math.min(...[...document.querySelectorAll('#skyMapView .sky-map-wide .mapzoom>button,#skyMapView .sky-map-wide .map-layers-btn')].filter(n=>n.offsetParent).map(n=>r(n).left)),buttons=[...document.querySelectorAll('#mapWsMode input,#mapWsCardView,#mapWsCardSecond')].filter(b=>b.offsetParent).map(b=>r(b).height);
     return {overlapNorth:mode.left<north.right-1,overlapRail:mode.right>rail+1,buttons,overflowX:document.documentElement.scrollWidth>innerWidth+1};});
    assert(!layout.overlapNorth&&!layout.overlapRail&&!layout.overflowX&&layout.buttons.every(h=>h>=44),label+': '+JSON.stringify(layout));
    assert(await page.locator('#mapWsCardSecond').evaluate(button=>{
@@ -124,7 +124,7 @@ async function records(type,engine,width,theme,results){
    await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.mapCenter==='obs'&&SkyMapUI.selectionState().observer?.name==='線上の地点');
    const after=await page.evaluate(()=>{const s=SkyMapUI.selectionState();return {at:s.at,lat:s.observer.latitude,lon:s.observer.longitude};});
    assert.equal(after.at,Math.round(sel.at/60000)*60000);assert(Math.abs(after.lat-sel.latitude)<1e-6&&Math.abs(after.lon-sel.longitude)<1e-6);
-   assert.equal(await page.locator('#mapWsMode [data-mode=obs]').getAttribute('aria-pressed'),'true');
+   assert.equal(await page.locator('#mapWsMode input[value=obs]').isChecked(),true);
    // 線の上なので、その時刻に月の円盤が塔に掛かる（カードの重なる時間がその時刻を含む）。
    const minute=new Date(after.at+32400000),m=minute.getUTCHours()*60+minute.getUTCMinutes();
    await page.waitForFunction(m=>{const ov=document.getElementById('mapWsCardOverlap').textContent.match(/重なる (\d\d):(\d\d)〜(\d\d):(\d\d)/);return !!ov&&+ov[1]*60+ +ov[2]<=m+1&&m-1<=+ov[3]*60+ +ov[4];},m,{timeout:15000})

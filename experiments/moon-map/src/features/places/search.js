@@ -6,7 +6,7 @@ import {PLACE_PICKERS,choosePlace,clearFavMapReturn,favDraft,favMapReturn,openFa
 import {MapPick} from '../../ui/map/picker.js';
 import {aimSetFrom} from '../framing/observer.js';
 import {aimRenderSheetCands} from '../framing/candidates.js';
-import {API,auth} from '../account/session-and-access.js';
+import {API,auth,toolAllowed} from '../account/session-and-access.js';
 import {showSheet} from '../../app/overlays.js';
 import {recentHistory} from '../framing/presentation.js';
 let placeSheetFor = null;
@@ -17,14 +17,26 @@ const JP_PREFECTURES = ["北海道","青森県","岩手県","宮城県","秋田�
   "鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"];
 /// 地図・記録・構図で共用。施設名→通称のある通り/番号付き幹線→住所。手入力名は変更しない。
 const nearbyNameCache = new Map();
+async function reverseGsiAddress(lat, lon) {
+  const url = `https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress?lat=${lat.toFixed(6)}&lon=${lon.toFixed(6)}`;
+  const [data, supplement] = await Promise.all([searchJson(url), searchSupplement()]);
+  const result = data?.results;
+  const municipality = supplement.municipalities?.[String(Number(result?.muniCd))];
+  return municipality ? municipality + (typeof result.lv01Nm === "string" && result.lv01Nm !== "－" ? result.lv01Nm : "") : "";
+}
 async function nearName(lat, lon, { signal } = {}) {
   const key = lat.toFixed(6) + "," + lon.toFixed(6);
   if (!signal?.aborted && nearbyNameCache.has(key)) return { ...nearbyNameCache.get(key) };
-  let name = `${lat.toFixed(4)}, ${lon.toFixed(4)}`, area = "", road = "";
+  const coordinates = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+  let name = coordinates, area = "", road = "", locality = "";
+  if (signal?.aborted) return {name, area, road, subtitle: area};
+  const controller = new AbortController(), abort = () => controller.abort();
+  signal?.addEventListener("abort", abort, {once: true});
+  const timer = setTimeout(abort, 4000);
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&accept-language=ja`
       + `&lat=${lat.toFixed(6)}&lon=${lon.toFixed(6)}`;
-    const r = await fetch(url, { signal, headers: { accept: "application/json" } });
+    const r = await fetch(url, { signal: controller.signal, headers: { accept: "application/json" } });
     if (r.ok) {
       const a = (await r.json()).address || {};
       // 知名度は推測しない。通り/街道の通称か、国道/都道等の番号がある時だけ
@@ -35,28 +47,42 @@ async function nearName(lat, lon, { signal } = {}) {
       // 東京都の区などは都道府県が入らない返事があるので、ISO 3166-2（JP-13 など）から補う（2026-10-21、現在地で「墨田区」だけになった）
       const iso = /^JP-(\d\d)$/.exec(a["ISO3166-2-lvl4"] || "");
       const pref = a.province || a.state || (iso ? JP_PREFECTURES[Number(iso[1]) - 1] : "") || "";
-      const locality = a.city || a.town || a.village || "";
-      const town = a.neighbourhood || a.quarter || a.hamlet || a.suburb || "";
-      area = [pref, locality, town && !locality.includes(town) ? town : ""].join("");
+      locality = a.city || a.town || a.village || a.municipality || a.city_district || a.county || "";
+      const town = a.neighbourhood || a.quarter || a.hamlet || a.suburb;
+      area = [pref, locality, a.city_district, town].reduce((label, part) => !part || label.includes(part) ? label : label + part, "");
       const near = facility || street || area || a.hamlet;
       if (near) name = String(near).slice(0, 100);
-      nearbyNameCache.set(key, { name, area, road, subtitle: area === name ? "" : area });
-      if (nearbyNameCache.size > 256) nearbyNameCache.delete(nearbyNameCache.keys().next().value);
     }
-  } catch { /* 名前が取れなくても座標で進める */ }
-  return { name, area, road, subtitle: area === name ? "" : area };
+  } catch { /* 住所は地理院でも確認できる。 */ }
+  finally { clearTimeout(timer); signal?.removeEventListener("abort", abort); }
+  if (!locality && !signal?.aborted) {
+    try {
+      const found = await reverseGsiAddress(lat, lon);
+      if (!signal?.aborted && found) { if (name === coordinates || name === area) name = found; area = found; }
+    } catch { /* 住所が分からなければ座標を使う。 */ }
+  }
+  const value = { name, area, road, subtitle: area === name ? "" : area };
+  if (area && !signal?.aborted) {
+    nearbyNameCache.set(key, value);
+    if (nearbyNameCache.size > 256) nearbyNameCache.delete(nearbyNameCache.keys().next().value);
+  }
+  return {...value};
 }
 
 /// 緯度経度の点を地点にする（地図の「この場所にする」と、検索欄に緯度経度を入れたとき）。
 /// 標高はその場所の値を読む（**地点検索の代表点と違い、ここが効く**）。取れなければ標高なしで進める。
 /// 名前は近くの地名を当てる。取れなければ座標そのものを名前にする。
-async function selectPointAt(lat, lon, subtitle, options = {}) {
-  const elevation = await groundAt(lat, lon);
-  const { name, area } = await nearName(lat, lon);
+async function selectPointAt(lat, lon, options = {}) {
+  const saved = options.savedPlace;
+  const address = placeAddress(saved);
+  const [elevation, nearby] = await Promise.all([
+    saved?.groundManualM ?? saved?.elevation ?? groundAt(lat, lon),
+    address ? {name: saved.name, area: address} : nearName(lat, lon),
+  ]);
   if (options.isCurrent && !options.isCurrent()) return;
   if (options.closeMap) $("mapSheet").close();
-  choosePlace({ id: `map:${lat.toFixed(5)},${lon.toFixed(5)}`,
-    name, subtitle: area && area !== name ? area : subtitle, latitude: lat, longitude: lon,
+  choosePlace({ ...saved, id: saved?.id || `map:${lat.toFixed(5)},${lon.toFixed(5)}`,
+    name: saved?.name || nearby.name, subtitle: nearby.area || `緯度経度 ${lat.toFixed(5)}, ${lon.toFixed(5)}`, latitude: lat, longitude: lon,
     elevation: elevation === null || elevation === undefined ? null : Math.round(elevation * 10) / 10,
     // **点は代表点ではない。** ダイヤモンド富士や建物の地平線が出せる
     locationScope: "point" }, { ...options, keepSheet: !!options.closeMap || !!options.keepSheet });
@@ -68,14 +94,14 @@ $("mapPick").onclick = async () => {
   const request = ++mapPickRequest, owner = auth?.token, mode = placeSheetFor;
   const c = MapPick.center();
   $("mapPick").disabled = true;
-  $("mapPick").textContent = "標高を読んでいます…";
+  $("mapPick").textContent = "住所と標高を確認しています…";
   if (favMapReturn && favDraft) {
     const draft = favDraft, origin = draft.origin;
     const [elevation, nearby] = await Promise.all([groundAt(c.latitude, c.longitude), nearName(c.latitude, c.longitude)]);
     if (request !== mapPickRequest || !$("mapSheet").open || owner !== auth?.token || !favMapReturn || favDraft !== draft || draft.ownerToken !== owner) return;
     favDraft.latitude = c.latitude;
     favDraft.longitude = c.longitude;
-    favDraft.subtitle = nearby.area === favDraft.name ? "" : nearby.area || "地図で選んだ地点";
+    favDraft.subtitle = nearby.area || `緯度経度 ${c.latitude.toFixed(5)}, ${c.longitude.toFixed(5)}`;
     favDraft.elevation = elevation == null ? null : Math.round(elevation * 10) / 10;
     favDraft.locationScope = "point";
     $("mapSheet").close();
@@ -87,7 +113,7 @@ $("mapPick").onclick = async () => {
     favDraft.origin = origin;
     return;
   }
-  await selectPointAt(c.latitude, c.longitude, "地図で選んだ地点", { closeMap: true, isCurrent: () => request === mapPickRequest && $("mapSheet").open && owner === auth?.token && mode === placeSheetFor });
+  await selectPointAt(c.latitude, c.longitude, { closeMap: true, savedPlace: pointSelectedOnMap(c), isCurrent: () => request === mapPickRequest && $("mapSheet").open && owner === auth?.token && mode === placeSheetFor });
   if (request !== mapPickRequest) return;
   $("mapSheet").close();
   $("mapPick").disabled = false;
@@ -103,6 +129,9 @@ function refreshPlacePickerActions(picker) {
   $("placeHeadActions").hidden = !clearable;
   $("sheetInherit").hidden = !back || clearable;
   if (back) $("sheetInherit").textContent = picker.resetLabel || `📍 AstroNotesの地点（${place.name}）にする`;
+  const point = picker?.custom() ? picker.point() : null, summary = $("placeSelectedAddress");
+  summary.hidden = !point;
+  summary.textContent = point ? [point.name, point.subtitle && point.subtitle !== point.name ? point.subtitle : ""].filter(Boolean).join(" ・ ") : "";
 }
 function openPlaceSheet(mode = null, { focusSearch = false } = {}) {
   placeSheetFor = mode;$("geoStatus").textContent = "";window.MyPlacesUI?.resetShapePicker?.();
@@ -322,6 +351,21 @@ function searchJson(url) {
 // OSM の住所は「名前, 番地, 町, 市, 県, 郵便番号, 日本」の順なので、日本語の住所の順に直す。
 const osmAddress = (display, name) => String(display).split(",").map(s => s.trim())
   .filter((s, i) => s && !(i === 0 && s === name) && s !== "日本" && !/^\d{3}-?\d{4}$/.test(s)).reverse().join(" ");
+function normalizeAddressText(text) {
+  const digits = "〇一二三四五六七八九";
+  return AstroNotesPlaceSearch.norm(text).replace(/([一二三四五六七八九]?十[一二三四五六七八九]?|[一二三四五六七八九])(?=丁目)/g, (_, number) => {
+    if (!number.includes("十")) return String(digits.indexOf(number));
+    const [tens, ones] = number.split("十");
+    return String(10 * (tens ? digits.indexOf(tens) : 1) + (ones ? digits.indexOf(ones) : 0));
+  });
+}
+function savedPlaceMatches(q, point) {
+  const address = placeAddress(point), normalized = normalizeAddressText(address);
+  if (AstroNotesPlaceSearch.match(q, {...point, address})) return true;
+  if (!normalized) return false;
+  const terms = q.trim().split(/\s+/).map(normalizeAddressText).filter(Boolean);
+  return terms.length > 0 && terms.every(term => normalized.includes(term));
+}
 async function searchPlaces(q, {localOnly = false, near = place, localityOnly = false} = {}) {
   q = String(q).normalize("NFKC").trim().replace(/\s+/g, " ");
   const gsiUrl = s => "https://msearch.gsi.go.jp/address-search/AddressSearch?q=" + encodeURIComponent(s);
@@ -357,7 +401,10 @@ async function searchPlaces(q, {localOnly = false, near = place, localityOnly = 
     ...r.place, decks:r.decks, scope:"point", source:"landmark", lookout:"observation",
   }));
   const landmarks = namedPlaceMatches(q, [...landmarkRows, ...registeredLookouts]);
-  const saved = namedPlaceMatches(q, favorites).map(r => ({...r, detail: r.subtitle || "お気に入り", scope: r.locationScope || "point", source: "saved", kind: Number.isFinite(r.targetHeightM)?"登録済みの対象":"お気に入り", savedPlace: r}));
+  const records = new Set(recordedMapPlaces().map(p => p.id));
+  const saved = favorites.filter(r => savedPlaceMatches(q, r))
+    .map(r => ({...r, address: placeAddress(r), detail: r.subtitle || (records.has(r.id) ? "記録" : "お気に入り"),
+      scope: r.locationScope || "point", source: "saved", kind: records.has(r.id) ? "記録" : Number.isFinite(r.targetHeightM) ? "登録済みの対象" : "お気に入り", savedPlace: r}));
   const supplemented = namedPlaceMatches(q, supplementRes.status === "fulfilled" ? supplementRes.value.places || [] : [])
     .map(r => ({...r, scope: "point", kind: r.kind || "公園", source: "supplement", decks: AstroNotesTerrain.decksFor(r.name)}));
   const fuji = AstroNotesAlign.TARGETS.find(r => r.id === "fuji");
@@ -426,7 +473,7 @@ async function searchPlaces(q, {localOnly = false, near = place, localityOnly = 
     if (names.includes(normQuery)) return 0;
     if (names.some(n => n.startsWith(normQuery))) return 1;
     if (names.some(n => n.includes(normQuery))) return 2;
-    if (r.source === "photo" && AstroNotesPlaceSearch.match(q, r)) return 2;
+    if (r.source === "saved" || r.source === "photo" && AstroNotesPlaceSearch.match(q, r)) return 2;
     return r.source === "index" && r.indexScore >= 60 ? 2 : 3;
   };
   const away = (r) => AstroNotesTerrain.distanceKm(near.latitude, near.longitude, r.latitude, r.longitude);
@@ -434,8 +481,8 @@ async function searchPlaces(q, {localOnly = false, near = place, localityOnly = 
   const everyday = r => !r.kind && !r.decks?.length && (r.source === "gsi" ? INSTITUTION_NAME.test(r.name)
     : r.source === "osm" && r.everydayFacility && !r.lookout && r.structureM == null && !r.wikidata);
   const namedRegion = r => r.scope === "area" && /[都道府県市区町村郡]$/.test(r.name) && nameKey(r.name.slice(0, -1)).endsWith(normQuery);
-  const hasLocalAnd = q.includes(" ") && [...saved, ...landmarks, ...supplemented, ...photos, ...local]
-    .some(r => AstroNotesPlaceSearch.match(q, {...r, address: r.address || r.detail}));
+  const hasLocalAnd = q.includes(" ") && (saved.length > 0 || [...landmarks, ...supplemented, ...photos, ...local]
+    .some(r => AstroNotesPlaceSearch.match(q, {...r, address: r.address || r.detail})));
   // 出典ごとの優先枠を廃止。一致の強さを全候補で比較し、眺望地が本体を追い越さない。
   const priority = r => isFuji(r) ? -1 : r.source === "saved" ? 0 : r.source === "landmark" ? 1 : r.source === "supplement" ? 2
     : everyday(r) ? 6 : ["gsi", "osm"].includes(r.source) ? 5 : r.lookout === "viewpoint" ? 4 : 3;
@@ -451,11 +498,11 @@ async function searchPlaces(q, {localOnly = false, near = place, localityOnly = 
   const exactFacility = landmarks.some(r => score(r) === 0);
   for (const r of ordered) {
     // 施設名に完全一致したとき「役所」だけで当たった遠方の別施設を混ぜない。
-    if (exactFacility && ![r.name, ...(r.aliases || [])].map(nameKey).some(n => n && (n.includes(normQuery) || normQuery.includes(n)))) continue;
+    if (exactFacility && r.source !== "saved" && ![r.name, ...(r.aliases || [])].map(nameKey).some(n => n && (n.includes(normQuery) || normQuery.includes(n)))) continue;
     if (!r.name || !Number.isFinite(r.latitude) || !Number.isFinite(r.longitude)) continue;
     // AND local terms across name, aliases and address. Geocoders also handle
     // translated names and address normalization, so trust their own query parsing.
-    if (q.includes(" ") && !AstroNotesPlaceSearch.match(q, {...r, address: r.address || r.detail})
+    if (q.includes(" ") && r.source !== "saved" && !AstroNotesPlaceSearch.match(q, {...r, address: r.address || r.detail})
       && (hasLocalAnd || !["gsi", "osm"].includes(r.source))) continue;
     // 検索語をまったく含まない候補は、**1件も当たらなかったときだけ**出す（索引は語の中の地名で当てるので除く）
     if (!["index", "photo", "saved", "supplement", "landmark"].includes(r.source) && score(r) === 3 && merged.length >= 1) continue;
@@ -488,7 +535,7 @@ async function searchPlaces(q, {localOnly = false, near = place, localityOnly = 
       if (!dup.wikidata && r.wikidata) dup.wikidata = r.wikidata;
       // 同梱の索引は山頂・展望地の代表点と市町村・標高・種類を持つ。OSM・地理院の側を残したときは位置と説明を索引から採る
       // （「高尾山」が OSM の「高尾山, 東京都, 193-0841, 日本」だけになり、町田の100mの山と見分けられなかった。2026-10-05 総点検）
-      if (r.source === "index" && dup.source !== "index") {
+      if (r.source === "index" && !["index", "saved"].includes(dup.source)) {
         dup.detail = r.detail; dup.kind = r.kind || dup.kind; dup.latitude = r.latitude; dup.longitude = r.longitude;
         if (dup.elevation == null && Number.isFinite(r.elevation)) dup.elevation = r.elevation;
       }
@@ -706,18 +753,85 @@ wireSearchBox("searchBox", "searchResults", (r) => {
   // 座標を入れたら、**そのままその場所を地点にする**（2026-10-01 ユーザー「候補から選択しないと検索できないようになってるんでしょ」）。
   // 以前は地図を開いて「この場所にする」をもう一度押させていた。位置を直したいときは「地図で選ぶ」から
   $("searchResults").innerHTML = `<p class="tiny">${c.latitude.toFixed(5)}, ${c.longitude.toFixed(5)} にしています…</p>`;
-  await selectPointAt(c.latitude, c.longitude, `緯度経度 ${c.latitude.toFixed(5)}, ${c.longitude.toFixed(5)}`);
+  await selectPointAt(c.latitude, c.longitude);
   $("searchResults").innerHTML = ""; $("searchBox").value = "";
 });
 
 // 地図の中の検索は**地点を決めない。地図を動かすだけ。**
 // 「だいたいの場所まで飛んで、そこからピンを寄せる」ための入口（2026-09-24 ユーザー依頼）。
-wireSearchBox("mapSearch", "mapSearchResults", (r) => {
+function placeAddress(point) {
+  const address = (point?.subtitle || "").trim();
+  return /^(?:地図で(?:選んだ|置いた)地点|緯度経度|現在地)(?:$|\s)/.test(address) ? "" : address;
+}
+let mapRecordsMemo = null, mapRecordHits = [], mapSelection = null;
+function recordedMapPlaces() {
+  const ui = globalThis.MyPlacesUI, owner = auth?.token, revision = ui?.discoveryRevision?.();
+  if (!owner || !ui?.mapPickerPlaces || !toolAllowed("records")) return [];
+  if (mapRecordsMemo?.owner !== owner || mapRecordsMemo.revision !== revision) {
+    mapRecordsMemo = {owner, revision, places: ui.mapPickerPlaces()};
+  }
+  return mapRecordsMemo.places;
+}
+function setMapSelectedPlace(point) {
+  mapSelection = point && {owner: auth?.token, point};
+}
+function pointSelectedOnMap(center) {
+  const point = mapSelection?.owner === auth?.token ? mapSelection?.point : null;
+  return point && point.latitude === center.latitude && point.longitude === center.longitude
+    ? favorites.find(f => f.id === point.id && f.latitude === center.latitude && f.longitude === center.longitude) : null;
+}
+$("mapSheet").addEventListener("close", () => { mapSelection = null; mapRecordHits = []; });
+document.addEventListener("astronotes-records-change", () => {
+  mapRecordsMemo = null;
+  if ($("mapSheet").open) MapPick.redraw();
+});
+MapPick.setOverlay((ctx, {project, view, width, height}) => {
+  mapRecordHits = [];
+  if (!$("mapSheet").open) return;
+  const occupied = new Set();
+  ctx.save();
+  ctx.font = "600 12px system-ui";
+  ctx.textBaseline = "middle";
+  for (const point of recordedMapPlaces()) {
+    const [x, y] = project(point.latitude, point.longitude);
+    if (x < 8 || y < 8 || x > width - 8 || y > height - 8) continue;
+    const cell = `${Math.floor(x / 22)},${Math.floor(y / 22)}`;
+    if (occupied.has(cell)) continue;
+    occupied.add(cell);
+    mapRecordHits.push({x, y, point});
+    ctx.beginPath();ctx.arc(x, y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffc45c";ctx.strokeStyle = "#202020";ctx.lineWidth = 2;
+    ctx.fill();ctx.stroke();
+    if (view.zoom >= 15) {
+      const label = point.name.length > 18 ? point.name.slice(0, 17) + "…" : point.name;
+      const position = x > width / 2 ? x - 10 : x + 10;
+      ctx.textAlign = x > width / 2 ? "right" : "left";
+      ctx.lineWidth = 3;ctx.strokeText(label, position, y);
+      ctx.fillStyle = "#fff";ctx.fillText(label, position, y);
+    }
+  }
+  ctx.restore();
+});
+MapPick.onPick((_, hit) => {
+  let selected = null, distance = 18;
+  for (const marker of mapRecordHits) {
+    const d = Math.hypot(hit.x - marker.x, hit.y - marker.y);
+    if (d < distance) { selected = marker.point; distance = d; }
+  }
+  if (!selected || !recordedMapPlaces().includes(selected)) return;
+  setMapSelectedPlace(selected);
+  MapPick.setCenter(selected.latitude, selected.longitude);
+  clearMapSearch();
+  $("mapSearch").value = selected.name;
+  $("mapSearch").blur();
+});
+const clearMapSearch = wireSearchBox("mapSearch", "mapSearchResults", (r) => {
   // 代表地点（市区町村）は広いので引いて出し、施設や地物なら寄せる
+  setMapSelectedPlace(r.savedPlace || null);
   MapPick.setView(r.latitude, r.longitude, r.zoom ?? (r.scope === "area" ? 13 : 16));
   $("mapSearchResults").innerHTML = "";
   $("mapSearch").value = r.name;
-}, (c) => { MapPick.setView(c.latitude, c.longitude, 16); });
+}, (c) => { setMapSelectedPlace(null); MapPick.setView(c.latitude, c.longitude, 16); });
 
 function renderFavToggle() {
   const isFav = favorites.some((f) => f.id === place.id);

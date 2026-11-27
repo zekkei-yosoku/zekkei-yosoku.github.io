@@ -572,7 +572,7 @@ document.addEventListener('astronotes-explore-toggle-conditions',()=>{if(stageOf
 // 地図の全画面表示のキーボード処理（window の捕捉段階、地図を作る時に登録）より先に受ける。畳んだら全画面は抜けない。
 document.defaultView.addEventListener('keydown',e=>{
  if(!dropdownOpen||e.key!=='Escape'||e.isComposing||e.defaultPrevented||document.querySelector('dialog[open]'))return;
- const focus=document.activeElement;if(!(focus===document.body||focus?.closest?.('#exploreConditions,#mapWsTitle')))return;
+ const focus=document.activeElement;if(!(focus===document.body||focus?.closest?.('#exploreConditions,.map-ws-band-conditions')))return;
  // 開いているメニュー（☰・共有・地図の種類）があればそちらの Escape に任せる
  if(!$('toolsMenu')?.hidden||$('mapWsMenu')&&!$('mapWsMenu').hidden||mapView.querySelector('.map-layer-menu:not([hidden])'))return;
  e.preventDefault();e.stopImmediatePropagation();setDropdown(false);$('mapWsTitle')?.focus();},true);
