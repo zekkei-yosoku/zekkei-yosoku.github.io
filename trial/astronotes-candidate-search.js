@@ -47,12 +47,26 @@
 /* Legacy global names remain aliases for cached integrations. */
 if(typeof AstroNotesAssets!=='undefined')globalThis.SoramiAssets=AstroNotesAssets;if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNotesCityModels;if(typeof AstroNotesTowerModels!=='undefined')globalThis.SoramiTowerModels=AstroNotesTowerModels;
 
+// Pass candidate data as bytes so reloads do not leave WebKit reading a document-owned Blob.
+function decompressCandidateBytes(bytes, format = 'gzip') {
+  const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  let offset = 0;
+  const source = new ReadableStream({
+    pull(controller) {
+      const end = Math.min(offset + 65536, data.byteLength);
+      if (end > offset) controller.enqueue(data.subarray(offset, end));
+      offset = end;
+      if (offset === data.byteLength) controller.close();
+    }
+  });
+  return new Response(source.pipeThrough(new DecompressionStream(format)));
+}
 /* Lossless packed PLATEAU geometry. Unpack only the building faces a ray needs. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AstroNotesCandidateBuildings=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
 'use strict';
 async function decode(data){
  if(!data.arrays)return data;
- const unpack=async item=>{const packed=Uint8Array.from(atob(item.gzipBase64),c=>c.charCodeAt(0)),buffer=await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();if(buffer.byteLength!==item.elementCount*4)throw Error('packed-building-size');
+ const unpack=async item=>{const packed=Uint8Array.from(atob(item.gzipBase64),c=>c.charCodeAt(0)),buffer=await decompressCandidateBytes(packed).arrayBuffer();if(buffer.byteLength!==item.elementCount*4)throw Error('packed-building-size');
  return new DataView(buffer);};
  const [vertices,indices,rings,faces]=await Promise.all(['vertexCoordinates','ringVertexIndices','ringOffsets','faceRingOffsets'].map(n=>unpack(data.arrays[n]))),q=data.quantization;
  const result={...data,buildings:data.buildings.map(b=>({...b,sourceSha256:b.sourceSha256||data.sourceSha256s[b.sourceIndex]}))};
@@ -206,7 +220,7 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   if(!meshes.has(code))meshes.set(code,(async()=>{const r=await fetchImpl(base+code.slice(0,4)+'/'+code+'.bin?v='+entry[0],{signal:globalThis.AbortSignal?.timeout?.(20000)});if(!r.ok)throw Error('height-mesh');
    // The part index names each file by its SHA-256; a different file is not used.
    const packed=await r.arrayBuffer();if(!(await sha(packed)).startsWith(entry[0]))throw Error('height-mesh-version');
-   const grid=decode(new Uint8Array(await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()));ready.set(code,grid);return grid;})().catch(e=>{meshes.delete(code);throw e;}));
+   const grid=decode(new Uint8Array(await decompressCandidateBytes(packed).arrayBuffer()));ready.set(code,grid);return grid;})().catch(e=>{meshes.delete(code);throw e;}));
   if(meshes.size>160){const old=meshes.keys().next().value;meshes.delete(old);ready.delete(old);}
   return meshes.get(code);
  }
@@ -744,7 +758,7 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
  async function block(info,bx,by){
   const key=info.url+'#'+bx+','+by;if(blocks.has(key)){const b=blocks.get(key);blocks.delete(key);blocks.set(key,b);return b;}
   const p=(async()=>{const i=by*info.across+bx,raw=await range(info.url,info.offsets[i],info.offsets[i]+info.counts[i]-1);
-   const out=new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate'))).arrayBuffer());
+   const out=new Uint8Array(await decompressCandidateBytes(raw, 'deflate').arrayBuffer());
    if(out.length!==512*512)throw Error('canopy-block-size');ready.set(key,out);return out;})().catch(e=>{blocks.delete(key);throw e;});
   blocks.set(key,p);while(blocks.size>maxBlocks){const old=blocks.keys().next().value;blocks.delete(old);ready.delete(old);}return p;
  }
@@ -1003,7 +1017,7 @@ function create({load=null,fetchImpl=(typeof fetch==='function'?fetch.bind(root)
   const data=await index(),p=part(lat,lon),entry=data.parts?.[p];if(!entry)return [];
   if(!parts.has(p))parts.set(p,(async()=>{const r=await fetchImpl(base+p+'.json.gz?v='+entry[0],{signal:globalThis.AbortSignal?.timeout?.(20000)});if(!r.ok)throw Error('shape-part');
    const bytes=await r.arrayBuffer();if(!(await sha(bytes)).startsWith(entry[0]))throw Error('shape-part-version');
-   const json=JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
+   const json=JSON.parse(await decompressCandidateBytes(bytes).text());
    const list=json.buildings.map(shape);ready.set(p,list);return list;})().catch(e=>{parts.delete(p);throw e;}));
   const wanted=parts.get(p);if(parts.size>24){const old=parts.keys().next().value;parts.delete(old);ready.delete(old);}
   return wanted;
@@ -1088,7 +1102,7 @@ function create({load=null,fetchImpl=(typeof fetch==='function'?fetch.bind(globa
   const data=await index(),entry=data.parts?.[code];if(!entry)return [];
   if(!parts.has(code))parts.set(code,(async()=>{const r=await fetchImpl(base+code+'.json.gz?v='+entry[0],{signal:globalThis.AbortSignal?.timeout?.(20000)});if(!r.ok)throw Error('osm-part');
    const bytes=await r.arrayBuffer();if(!(await sha(bytes)).startsWith(entry[0]))throw Error('osm-part-version');
-   const rows=JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());for(const row of rows){decode(row);row.b=bbox(row);}return indexed(rows);})().catch(e=>{parts.delete(code);throw e;}));
+   const rows=JSON.parse(await decompressCandidateBytes(bytes).text());for(const row of rows){decode(row);row.b=bbox(row);}return indexed(rows);})().catch(e=>{parts.delete(code);throw e;}));
   if(parts.size>48)parts.delete(parts.keys().next().value);
   return parts.get(code);
  }
@@ -1121,7 +1135,7 @@ return {create,mesh,meshesIn,element,obstacle,decode};
 'use strict';
 const R=6371008.8,rad=Math.PI/180,MISSING=-2147483648,Geo=()=>globalThis.AstroNotesTerrain||(typeof require==='function'?require('../../../astronotes-terrain.js'):null);
 async function decode(data){
- const unpack=async encoded=>new Response(new Blob([Uint8Array.from(atob(encoded),c=>c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+ const unpack=async encoded=>decompressCandidateBytes(Uint8Array.from(atob(encoded),c=>c.charCodeAt(0))).arrayBuffer();
  const buffer=await unpack(data.heightsGzipBase64),view=new DataView(buffer),sources=data.sourceCodesGzipBase64?new Uint8Array(await unpack(data.sourceCodesGzipBase64)):null,tiles=new Map(data.tiles.map(t=>[t.x+','+t.y,t]));
  if(buffer.byteLength!==data.tiles.length*256*256*4||sources&&sources.length*4!==buffer.byteLength)throw Error('invalid-terrain-size');
  const world=256*2**data.zoom;

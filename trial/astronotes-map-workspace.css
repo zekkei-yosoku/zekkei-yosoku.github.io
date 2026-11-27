@@ -117,6 +117,12 @@ html:has(#skyMapView[data-explore-stage=map].map-ws:not([hidden])),body:has(#sky
 .map-ws-card-overlap{align-self:flex-start;max-width:100%;min-height:28px;margin:0;padding:0;border:0;background:none;color:var(--secondary);font:inherit;font-size:13px;font-weight:700;text-align:left;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .map-ws-card-overlap[hidden]{display:none}.map-ws-card-overlap.map-ws-card-hit{color:var(--accent);cursor:pointer}
 .map-ws-card-view{flex:none;display:inline-flex;align-items:center;gap:2px;min-width:44px;min-height:44px;padding:0 10px 0 14px;border:0;border-radius:22px;background:var(--accent);color:var(--on-accent);font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.map-ws-card-actions{flex:none;display:flex;flex-direction:column;align-items:stretch;gap:6px;max-width:46%}
+.map-ws-card-view,.map-ws-card-second{justify-content:center;white-space:nowrap}
+.map-ws-card-view>span,.map-ws-card-second>span{overflow:hidden;text-overflow:ellipsis}
+.map-ws-card-second{display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 12px;border:1px solid var(--line);border-radius:22px;background:var(--card);color:var(--text);font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.map-ws-card-second[hidden]{display:none}
+#skyMapView[data-map-center=target].map-ws .map-ws-card-view{font-size:13px;padding:0 12px}
 /* ポップアップ（撮影条件）の段: 上に「地図へ」 */
 .explore-map-return{display:none}
 #skyMapView[data-explore-stage=search] .explore-map-return:not([hidden]){position:sticky;top:max(8px,env(safe-area-inset-top));z-index:6;display:flex;align-items:center;gap:6px;margin:0 0 -44px auto;min-height:44px;padding:0 16px 0 12px;border:1px solid var(--line);border-radius:22px;background:var(--card);color:var(--text);font:inherit;font-size:14px;font-weight:700;box-shadow:0 2px 8px #0003;cursor:pointer}

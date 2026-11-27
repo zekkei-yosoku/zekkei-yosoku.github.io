@@ -1,0 +1,617 @@
+/* Building tops along a sight line: the PLATEAU top-height grid (tools/build-plateau-heights.py) and,
+   for buildings it does not hold, GSI footprints with the tallest height of their type. */
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AstroNotesCandidateHeights=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
+'use strict';
+const R=6371008.8,RAD=Math.PI/180,LAT=22200,LON=18000,ROWS=185,COLS=225,MARGIN_M=1,NEAR_M=30,NODE_M=250;
+// A GSI footprint without a PLATEAU height is clear only above the tallest of its type. In the 23 wards
+// (PLATEAU measured heights) 99% of 3101 are under 21.9 m (max 52 m) and 99% of 3102 under 47.8 m;
+// 3103 is 60 m or more, so only a ray above Japan's tallest building (330 m) passes it.
+// Grounds along the GSI part are taken to lie within GROUND_RISE_M above the observer.
+const GSI_MAX_M={3101:22,3102:60,3103:340},GROUND_RISE_M=300;
+function meshCode(my,mx){const p=Math.floor(my/80),q=Math.floor(my%80/10),r=my%10,u=Math.floor(mx/80)-100,v=Math.floor(mx%80/10),w=mx%10;return ''+p+u+q+v+r+w;}
+function decode(bytes){
+ const n=ROWS*COLS,out=new Uint16Array(n);if(bytes.length!==2*n)throw Error('height-grid-size');
+ for(let r=0;r<ROWS;r++){let v=0;for(let c=0;c<COLS;c++){const i=r*COLS+c;v=(v+(bytes[i]|bytes[n+i]<<8))&65535;out[i]=v;}}
+ return out;
+}
+function destination(lat,lon,az,m){const d=m/R,a=lat*RAD,t=az*RAD,b=Math.asin(Math.sin(a)*Math.cos(d)+Math.cos(a)*Math.sin(d)*Math.cos(t));return {latitude:b/RAD,longitude:lon+Math.atan2(Math.sin(t)*Math.sin(d)*Math.cos(a),Math.cos(d)-Math.sin(a)*Math.sin(b))/RAD};}
+function bearingM(a,b){const p=a.latitude*RAD,q=b.latitude*RAD,dl=(b.longitude-a.longitude)*RAD;
+ const az=(Math.atan2(Math.sin(dl)*Math.cos(q),Math.cos(p)*Math.sin(q)-Math.sin(p)*Math.cos(q)*Math.cos(dl))/RAD+360)%360;
+ const h=Math.sin((q-p)/2)**2+Math.cos(p)*Math.cos(q)*Math.sin(dl/2)**2;return {azimuth:az,m:2*R*Math.asin(Math.min(1,Math.sqrt(h)))};}
+// Height above the sea-level sphere along the ray, as model-evaluator.js traces it: eye + b d + d^2/(2 R k).
+function profile(observer,ray){
+ const eye=observer.elevation+(observer.eyeM??1.5),c=1/(2*R*(ray.refractionK||1)),D=ray.maxM;
+ const b=ray.endpoint?(ray.endpoint.elevation-eye)/D-D*c:Math.tan(ray.altitude*RAD);
+ const h=d=>eye+b*d+c*d*d,vertex=-b/(2*c);
+ return {eye,h,min:(a,z)=>vertex>a&&vertex<z?h(vertex):Math.min(h(a),h(z)),beyond:(top,d)=>h(d)>top&&b+2*c*d>0};
+}
+// Every grid cell the ground track crosses between two points, with the distances it enters and leaves it.
+function cells(p0,p1,d0,d1,visit){
+ return walkGrid(p0.longitude*LON,p0.latitude*LAT,p1.longitude*LON,p1.latitude*LAT,d0,d1,visit);
+}
+function walkGrid(x0,y0,x1,y1,d0,d1,visit){
+ const dx=x1-x0,dy=y1-y0;
+ let cx=Math.floor(x0),cy=Math.floor(y0);const sx=Math.sign(dx),sy=Math.sign(dy),ex=Math.floor(x1),ey=Math.floor(y1);
+ const tdx=dx?Math.abs(1/dx):Infinity,tdy=dy?Math.abs(1/dy):Infinity;
+ let tx=dx?(sx>0?cx+1-x0:x0-cx)*tdx:Infinity,ty=dy?(sy>0?cy+1-y0:y0-cy)*tdy:Infinity,t=0;const at=s=>d0+(d1-d0)*s;
+ for(let guard=0;guard<100000;guard++){
+  const next=Math.min(tx,ty,1);if(visit(cx,cy,at(t),at(next))===false)return false;
+  if(next>=1||cx===ex&&cy===ey)return true;
+  if(Math.abs(tx-ty)<1e-12){
+   // Through a corner: both side cells touch the line.
+   if(visit(cx+sx,cy,at(tx),at(tx))===false||visit(cx,cy+sy,at(tx),at(tx))===false)return false;
+   cx+=sx;cy+=sy;t=tx;tx+=tdx;ty+=tdy;
+  }else if(tx<ty){cx+=sx;t=tx;tx+=tdx;}else{cy+=sy;t=ty;ty+=tdy;}
+ }
+ return true;
+}
+const sha=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
+function endpointKey(observer,ray){
+ const endpoint=ray.endpoint;
+ if(!endpoint||typeof ray.targetKey!=='string'||!ray.targetKey)return null;
+ const values=[observer.latitude,observer.longitude,observer.elevation,observer.eyeM??1.5,endpoint.latitude,endpoint.longitude,endpoint.elevation,ray.maxM,ray.refractionK||1];
+ return values.every(Number.isFinite)?JSON.stringify([ray.targetKey,...values]):null;
+}
+// An associated structure is still checked over its full OSM width. This only
+// replaces unknown height when its complete polyline has a verified model.
+function structureModelTop(o,data){
+ const m=data.structureModels?.[o.id],g=m?.geometry,s=m?.source,polygons=m?.coverage?.polygons;
+ if(!m||!g||!s||!['road','railway','bridge'].includes(o.kind)||o.kind!==g.kind||!Object.is(o.halfWidthM??0,g.halfWidthM))return null;
+ if(!Number.isFinite(g.halfWidthM)||g.halfWidthM<0||!Number.isFinite(m.topM))return null;
+ if(typeof s.url!=='string'||!/^[a-f0-9]{64}$/.test(s.sha256)||typeof s.buildingId!=='string'||!s.buildingId)return null;
+ try{const url=new URL(s.url);if(url.protocol!=='https:'||!url.hostname||url.username||url.password)return null;}catch{return null;}
+ if(!Array.isArray(s.surfaces)||s.surfaces.length<3||s.surfaces.some(id=>typeof id!=='string'||!id)||new Set(s.surfaces).size!==s.surfaces.length)return null;
+ if(!Array.isArray(s.topRangeM)||s.topRangeM.length!==2||!s.topRangeM.every(Number.isFinite)||s.topRangeM[0]>s.topRangeM[1]||m.topM<Math.ceil(s.topRangeM[1]))return null;
+ if(typeof s.lod!=='string'||!s.lod||!Number.isInteger(s.surveyYear)||typeof m.coverage?.basis!=='string'||!m.coverage.basis)return null;
+ // This data contract describes complete line structures. Area/point models
+ // need their own coverage proof and fall back to unknown in this version.
+ if(!Array.isArray(g.rings)||!Array.isArray(g.points)||g.rings.length||g.points.length||(o.rings||[]).length||(o.points||[]).length)return null;
+ const point=p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&Math.abs(p[0])<=85&&Math.abs(p[1])<=180;
+ if(!Array.isArray(o.lines)||!Array.isArray(g.lines)||!g.lines.length||o.lines.length!==g.lines.length)return null;
+ for(let i=0;i<g.lines.length;i++){
+  const a=o.lines[i],b=g.lines[i];if(!Array.isArray(a)||!Array.isArray(b)||b.length<2||a.length!==b.length)return null;
+  for(let j=0;j<b.length;j++)if(!point(a[j])||!point(b[j])||!a[j].every((v,k)=>Object.is(v,b[j][k])))return null;
+ }
+ const cross=(a,b)=>a[0]*b[1]-a[1]*b[0],sub=(a,b)=>[a[0]-b[0],a[1]-b[1]];
+ const crossing=(a,b,c,d)=>{
+  const v=sub(b,a),w=sub(d,c),den=cross(v,w);if(!den)return null;
+  const t=cross(sub(c,a),w)/den,u=cross(sub(c,a),v)/den;return u>=0&&u<=1&&t>=0&&t<=1?t:null;
+ };
+ const ringValid=ring=>{
+  if(!Array.isArray(ring)||ring.length<4||ring.length>128||!ring.every(point)||!ring[0].every((v,k)=>v===ring.at(-1)[k]))return false;
+  let area=0;for(let i=1;i<ring.length;i++)area+=cross(sub(ring[i-1],ring[0]),sub(ring[i],ring[0]));
+  if(!Number.isFinite(area)||!area)return false;
+  for(let i=1;i<ring.length;i++)for(let j=i+2;j<ring.length;j++)if(!(i===1&&j===ring.length-1)&&crossing(ring[i-1],ring[i],ring[j-1],ring[j])!==null)return false;
+  return true;
+ };
+ if(!Array.isArray(polygons)||!polygons.length||polygons.length>16)return null;
+ for(const p of polygons)if(!p||!ringValid(p.outer)||!Array.isArray(p.holes)||p.holes.length>16||!p.holes.every(ringValid))return null;
+ const inside=(p,ring)=>{
+  let found=false;
+  for(let i=1;i<ring.length;i++){
+   const a=ring[i-1],b=ring[i],v=sub(b,a),w=sub(p,a);
+   // Refuse boundary-scale rounding instead of filling a microscopic gap.
+   const vv=v[0]*v[0]+v[1]*v[1],t=vv?Math.max(0,Math.min(1,(w[0]*v[0]+w[1]*v[1])/vv)):0;
+   if(Math.hypot(w[0]-t*v[0],w[1]-t*v[1])<=1e-10)return null;
+   if((a[0]>p[0])!==(b[0]>p[0])&&p[1]<(b[1]-a[1])*(p[0]-a[0])/(b[0]-a[0])+a[1])found=!found;
+  }
+  return found;
+ };
+ const covered=p=>polygons.some(poly=>inside(p,poly.outer)===true&&poly.holes.every(h=>inside(p,h)===false));
+ for(const line of g.lines)for(let i=1;i<line.length;i++){
+  const a=line[i-1],b=line[i];if(!covered(a)||!covered(b))return null;
+  const cuts=[0,1];for(const p of polygons)for(const ring of [p.outer,...p.holes])for(let j=1;j<ring.length;j++){
+   const t=crossing(a,b,ring[j-1],ring[j]);if(t!==null)cuts.push(t);
+  }
+  cuts.sort((a,b)=>a-b);
+  for(let j=1;j<cuts.length;j++)if(cuts[j]>cuts[j-1]){
+   const t=(cuts[j]+cuts[j-1])/2;if(!covered([a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1])]))return null;
+  }
+ }
+ return m.topM;
+}
+function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):null),base='data/building-heights/',loadIndex=null,gsiAlong=null,groundAt=null,ownFootprint=null,ownFootprintVersion=null,obstacles=null}={}){
+ let indexPromise=null;const meshes=new Map(),ready=new Map(),overlays=new Map(),partLoads=new Map(),parts=new Map(),ownCells=new Map();
+ const blockedEndpoints=new Map(),BLOCKED_ENDPOINT_LIMIT=1024;
+ const footprintVersionOf=targetKey=>targetKey&&ownFootprint?ownFootprintVersion?.(targetKey):undefined;
+ // Cells of a user's target building (lat/lon rings), widened by one cell: that building is the target, not an obstacle.
+ function ownSet(targetKey,version=footprintVersionOf(targetKey)){
+  if(!ownFootprint||!targetKey)return null;
+  const cached=ownCells.get(targetKey);
+  if(cached&&cached.version===version)return cached.set;
+  const rings=ownFootprint(targetKey);let set=null;
+  if(rings?.length){set=new Set();for(const ring of rings){const xs=ring.map(p=>p[1]*LON),ys=ring.map(p=>p[0]*LAT);
+   for(let gy=Math.floor(Math.min(...ys))-1;gy<=Math.floor(Math.max(...ys))+1;gy++)for(let gx=Math.floor(Math.min(...xs))-1;gx<=Math.floor(Math.max(...xs))+1;gx++){
+    let on=false;const x=gx+.5,y=gy+.5;for(let i=0,j=xs.length-1;i<xs.length;j=i++)if((ys[i]>y)!==(ys[j]>y)&&x<(xs[j]-xs[i])*(y-ys[i])/(ys[j]-ys[i])+xs[i])on=!on;
+    if(on)for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)set.add((gx+dx)+','+(gy+dy));}}}
+  ownCells.set(targetKey,{version,set});if(ownCells.size>32)ownCells.delete(ownCells.keys().next().value);return set;
+ }
+ // The main index lists one part per 1st-order mesh (about 80 km); a part lists its meshes. Only parts a line reaches are read.
+ let indexData=null;
+ const index=()=>indexPromise||(indexPromise=(async()=>{const data=loadIndex?structuredClone(await loadIndex()):await (async()=>{const r=await fetchImpl(base+'index.json');if(!r.ok)throw Error('height-index');return r.json();})();
+  data.highestM=Math.max(0,...Object.values(data.parts||{}).map(v=>v[2]??0),...Object.values(data.targets||{}).flatMap(t=>Object.values(t).map(v=>v.topM)));indexData=data;return data;})().catch(e=>{indexPromise=null;throw e;}));
+ function part(p4,data){
+  if(!partLoads.has(p4))partLoads.set(p4,(async()=>{const r=await fetchImpl(base+p4+'/index.json?v='+data.parts[p4][0],{signal:globalThis.AbortSignal?.timeout?.(20000)});if(!r.ok)throw Error('height-part');
+   const bytes=await r.arrayBuffer();if(!(await sha(bytes)).startsWith(data.parts[p4][0]))throw Error('height-part-version');
+   const list=JSON.parse(new TextDecoder().decode(bytes)).meshes;parts.set(p4,list);return list;})().catch(e=>{partLoads.delete(p4);throw e;}));
+  return partLoads.get(p4);
+ }
+ async function mesh(code,entry){
+  if(!meshes.has(code))meshes.set(code,(async()=>{const r=await fetchImpl(base+code.slice(0,4)+'/'+code+'.bin?v='+entry[0],{signal:globalThis.AbortSignal?.timeout?.(20000)});if(!r.ok)throw Error('height-mesh');
+   // The part index names each file by its SHA-256; a different file is not used.
+   const packed=await r.arrayBuffer();if(!(await sha(packed)).startsWith(entry[0]))throw Error('height-mesh-version');
+   const grid=decode(new Uint8Array(await decompressCandidateBytes(packed).arrayBuffer()));ready.set(code,grid);return grid;})().catch(e=>{meshes.delete(code);throw e;}));
+  if(meshes.size>160){const old=meshes.keys().next().value;meshes.delete(old);ready.delete(old);}
+  return meshes.get(code);
+ }
+ // All height readers share six IO slots. A search uses at most three (current
+ // mesh + two ahead); preview margins still leave a slot for a central reader.
+ // Already-issued raw reads remain shared: cancelling one owner never aborts
+ // a mesh another owner needs. Cancelled queued work starts no request.
+ const heightReads=[],PREVIEW_READ_LIMIT=6,PREVIEW_MESH_LIMIT=256,PREVIEW_WAIT_MS=8000,PREVIEW_RANGE_M=50000;
+ let activePreviewReads=0,activeSearchReads=0;
+ function runPreviewReads(){
+  while(activePreviewReads<PREVIEW_READ_LIMIT){
+   for(let i=heightReads.length-1;i>=0;i--)if(!heightReads[i].owner.current()){heightReads.splice(i,1)[0].reject(Error('candidate-cancelled'));}
+   let chosen=-1;
+   for(let i=0;i<heightReads.length;i++){
+    const kind=heightReads[i].owner.kind,search=kind==='demand'||kind==='ahead';
+    if(search&&activeSearchReads>=3||kind==='frontage'&&activePreviewReads>=PREVIEW_READ_LIMIT-1)continue;
+    if(chosen<0||readPriority(kind)<readPriority(heightReads[chosen].owner.kind))chosen=i;
+   }
+   if(chosen<0)return;
+   const {load,owner,resolve,reject}=heightReads.splice(chosen,1)[0],search=owner.kind==='demand'||owner.kind==='ahead';
+   activePreviewReads++;
+   if(search)activeSearchReads++;
+   Promise.resolve().then(()=>{requireCurrent(owner.current);return load();}).then(resolve,reject).finally(()=>{activePreviewReads--;if(search)activeSearchReads--;runPreviewReads();});
+  }
+ }
+ const readPriority=kind=>({demand:0,center:1,ahead:2,frontage:3})[kind];
+ function queueHeightRead(load,owner){return new Promise((resolve,reject)=>{heightReads.push({load,owner,resolve,reject});runPreviewReads();});}
+ function queuePreviewRead(load,isCurrent,center){
+  return queueHeightRead(load,{current:isCurrent,kind:center?'center':'frontage'});
+ }
+ const requireCurrent=isCurrent=>{if(!isCurrent())throw Error('candidate-cancelled');};
+ function* sightline(observer,azimuth,maxM,endpoint=null){
+  let from=observer;
+  for(let d=0;d<maxM;){
+   const end=Math.min(maxM,d+NODE_M),to=end===maxM&&endpoint?endpoint:destination(observer.latitude,observer.longitude,azimuth,end);
+   yield {from,to,d,end};from=to;d=end;
+  }
+ }
+ function meshReader(visit){
+  let lastMy,lastMx,code;
+  return (gx,gy,a,z)=>{
+   const my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS);
+   if(my!==lastMy||mx!==lastMx){lastMy=my;lastMx=mx;code=meshCode(my,mx);}
+   visit(code,(gy-my*ROWS)*COLS+(gx-mx*COLS),a,z);
+  };
+ }
+ function collectMeshes(observer,azimuth,maxM,needed,own,ownMeshes,endpoint=null){
+  const remember=(code,a)=>{if(a<(needed.get(code)??Infinity))needed.set(code,a);};
+  const fine=meshReader((code,_,a)=>remember(code,a));
+  const visit=(gx,gy,a,z)=>{if(z>=NEAR_M&&!own?.has(gx+','+gy))fine(gx,gy,a,z);};
+  const chord=[],onEdge=value=>Math.abs(value-Math.round(value))<1e-10;
+  for(const {from,to,d,end} of sightline(observer,azimuth,maxM,endpoint)){
+   const x0=from.longitude*LON/COLS,y0=from.latitude*LAT/ROWS,x1=to.longitude*LON/COLS,y1=to.latitude*LAT/ROWS;
+   chord.length=0;let useFine=d<=NEAR_M||onEdge(x0)||onEdge(y0)||onEdge(x1)||onEdge(y1);
+   if(!useFine){
+    walkGrid(x0,y0,x1,y1,d,end,(mx,my,a,z)=>{
+     const code=meshCode(my,mx);
+     // Retain the fine traversal at corner touches and wherever target exclusions can change the first cell.
+     if(a===z||ownMeshes?.has(code)){useFine=true;return false;}
+     chord.push([code,a]);
+    });
+   }
+   if(useFine)cells(from,to,d,end,visit);
+   else for(const [code,a] of chord)remember(code,a);
+  }
+ }
+ function containingMeshes(own){
+  if(!own?.size)return null;
+  const result=new Set();
+  for(const cell of own){
+   const [gx,gy]=cell.split(',').map(Number);
+   result.add(meshCode(Math.floor(gy/ROWS),Math.floor(gx/COLS)));
+  }
+  return result;
+ }
+ // Enumerate service meshes, not cells or verdicts. The original ordered cell
+ // walk below remains the only source of visibility evidence.
+ function* orderedMeshes(observer,az,maxM,endpoint,beyond){
+  const seen=new Set();
+  for(const {from,to,d,end}of sightline(observer,az,maxM,endpoint)){
+   if(beyond?.(d))return;
+   const codes=[];
+   walkGrid(from.longitude*LON/COLS,from.latitude*LAT/ROWS,to.longitude*LON/COLS,to.latitude*LAT/ROWS,d,end,(mx,my)=>{
+    const code=meshCode(my,mx);if(!seen.has(code)){seen.add(code);codes.push(code);}
+   });
+   yield* codes;
+  }
+ }
+ function orderedReader(data,observer,az,maxM,endpoint,isCurrent,beyond){
+  const sequence=orderedMeshes(observer,az,maxM,endpoint,beyond),staged=new Map(),order=new Map();let open=true,finished=false;
+  const current=()=>open&&isCurrent();
+  const nextCode=()=>{const next=sequence.next();if(next.done){finished=true;return null;}order.set(next.value,order.size);return next.value;};
+  function stage(code,kind){
+   const owner={current,kind},entry={owner,promise:null};
+   entry.promise=queueHeightRead(async()=>{
+    requireCurrent(current);
+    const p4=code.slice(0,4),list=data.parts?.[p4]?(parts.get(p4)||await part(p4,data)):null;
+    requireCurrent(current);
+    return list?.[code]?(ready.get(code)||await mesh(code,list[code])):null;
+   },owner).then(value=>(entry.result={value}),error=>(entry.result={error}));
+   staged.set(code,entry);return entry;
+  }
+  return {
+   async read(code){
+    requireCurrent(current);
+    while(!order.has(code)&&!finished)nextCode();
+    for(const key of staged.keys())if(order.get(key)<order.get(code))staged.delete(key);
+    const entry=staged.get(code)||stage(code,'demand');entry.owner.kind='demand';runPreviewReads();
+    if(entry.result?.error)throw entry.result.error;
+    while(staged.size<3&&!finished){const code=nextCode();if(code===null)break;if(staged.has(code)||ready.has(code)||!data.parts?.[code.slice(0,4)])continue;stage(code,'ahead');}
+    const result=await entry.promise;requireCurrent(current);staged.delete(code);
+    // Preserve the first failed read until its ordered consumer reaches it.
+    // Speculation must not silently retry malformed/missing data into success.
+    if(result.error)throw result.error;
+    return result.value;
+   },
+   close(){open=false;runPreviewReads();},
+   failed:code=>!!staged.get(code)?.result?.error,
+  };
+ }
+ async function readPreviewItems(keys,load,isCurrent,expires,center){
+  const results=new Map();
+  let open=true,timer;
+  const current=()=>open&&isCurrent();
+  const tasks=Promise.all([...keys].map(async key=>{
+   try{const value=await queuePreviewRead(()=>load(key),current,center);if(current())results.set(key,value);}
+   catch(e){if(e?.message==='candidate-cancelled'&&open)requireCurrent(isCurrent);}
+  }));
+  try{
+   await Promise.race([tasks,new Promise(resolve=>{timer=setTimeout(()=>{open=false;resolve();},Math.max(0,expires-Date.now()));})]);
+   requireCurrent(isCurrent);return results;
+  }finally{open=false;clearTimeout(timer);}
+ }
+ async function prefetchGrids(data,needed,isCurrent,center=false){
+  // Keep the nearest available roofs if a wide or slow request cannot load every mesh.
+  const codes=[...needed].sort((a,b)=>a[1]-b[1]).slice(0,PREVIEW_MESH_LIMIT).map(([code])=>code);
+  const expires=Date.now()+PREVIEW_WAIT_MS,partKeys=new Set();
+  for(const code of codes){const p4=code.slice(0,4);if(data.parts?.[p4]&&!parts.has(p4))partKeys.add(p4);}
+  await readPreviewItems(partKeys,p4=>part(p4,data),isCurrent,expires,center);
+  const entries=new Map(),grids=new Map();
+  for(const code of codes){
+   const grid=ready.get(code),entry=parts.get(code.slice(0,4))?.[code];
+   if(grid)grids.set(code,grid);else if(entry)entries.set(code,entry);
+  }
+  if(Date.now()>=expires)return grids;
+  // Retain these grids for both passes of this call even if a wide view evicts them from the shared cache.
+  const loaded=await readPreviewItems(entries.keys(),code=>mesh(code,entries.get(code)),isCurrent,expires,center);
+  for(const [code,grid] of loaded)if(grid)grids.set(code,grid);
+  return grids;
+ }
+ // Target buildings live beside the grid; a ray aimed at one target passes through that target only.
+ function overlay(code,data,targetKey){
+  const key=code+'|'+targetKey;if(overlays.has(key))return overlays.get(key);
+  const m=new Map(),own=new Set();for(const [id,byMesh] of Object.entries(data.targets||{})){if(!byMesh[code])continue;if(id===targetKey){for(const [i] of byMesh[code].cells)own.add(i);continue;}for(const [i,v] of byMesh[code].cells)if(v>(m.get(i)||0))m.set(i,v);}
+  m.own=own;overlays.set(key,m);if(overlays.size>64)overlays.delete(overlays.keys().next().value);return m;
+ }
+ // skipTrees: the caller read the trees' own heights on this line (tree-heights.js), so OSM woods add nothing.
+ async function trace(observer,ray,{isCurrent=()=>true,skipTrees=false}={}){
+  if(![observer.latitude,observer.longitude,observer.elevation,ray.maxM].every(Number.isFinite)||!(ray.maxM>0))return {status:'unknown',reason:'invalid-ray'};
+  const data=await index();
+  requireCurrent(isCurrent);
+  const footprintVersion=footprintVersionOf(ray.targetKey),key=!ownFootprint||footprintVersion!==undefined?endpointKey(observer,ray):null;
+  const confirmed=key&&blockedEndpoints.get(key);
+  // The index instance pins all part/mesh versions. Footprint exclusions can change independently of it.
+  if(confirmed&&confirmed.data===data&&confirmed.footprintVersion===footprintVersion){
+   blockedEndpoints.delete(key);blockedEndpoints.set(key,confirmed);
+   return {...confirmed.result,hit:{...confirmed.result.hit}};
+  }
+  const offset=data.grid.offsetM,pr=profile(observer,ray);
+  // Walk until the line is above every PLATEAU top and above any GSI footprint's bound, whichever is later.
+  const stopAt=Math.max(data.highestM+MARGIN_M,observer.elevation+GSI_MAX_M[3103]+GROUND_RISE_M);
+  const az=ray.endpoint?bearingM(observer,ray.endpoint).azimuth:ray.azimuth;
+  const known=[],uncovered=[];let status='clear',hit=null,cellsChecked=0,reach=0;
+  let pending=null,lastKey=null,code=null;const own=ownSet(ray.targetKey,footprintVersion);
+  const visit=(gx,gy,a,z)=>{
+   if(own?.has(gx+','+gy)){known.push([a,z]);return;}
+   const my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS);if(my*1e5+mx!==lastKey){lastKey=my*1e5+mx;code=meshCode(my,mx);}
+   if(reads.failed(code)){pending={code};return false;}
+   const p4=code.slice(0,4),list=data.parts?.[p4]?parts.get(p4):null;
+   if(data.parts?.[p4]&&!list){pending={part:p4,code};return false;}
+   const entry=list?.[code];
+   if(!entry){const last=uncovered[uncovered.length-1];if(last&&last[1]>=a-.01)last[1]=Math.max(last[1],z);else uncovered.push([a,z]);return;}
+   const grid=ready.get(code);if(!grid){pending={code,entry};return false;}
+   const i=(gy-my*ROWS)*COLS+(gx-mx*COLS),others=overlay(code,data,ray.targetKey),v=Math.max(grid[i],others.get(i)||0);cellsChecked++;
+   // Over the aimed target's own building: its outline is judged by the caller, and its GSI footprint is not an unknown building.
+   if(others.own.has(i))known.push([a,z]);
+   if(!v)return;
+   known.push([a,z]);const top=v-offset,low=pr.min(a,z);
+   if(low>top+MARGIN_M)return;
+   if(low<top-2&&a>=NEAR_M){status='blocked';hit={distanceM:a,topM:top,rayM:low,code};return false;}
+   if(status==='clear'){status='unknown';hit={distanceM:a,topM:top,rayM:low,code,reason:a<NEAR_M?'near-building':'within-margin'};}
+  };
+  // Resolve meshes as the walk reaches them; a missing mesh file is not evidence of open ground.
+  const reads=orderedReader(data,observer,az,ray.maxM,ray.endpoint,isCurrent,d=>pr.beyond(stopAt,d));
+  let from={latitude:observer.latitude,longitude:observer.longitude},d=0;
+  try{
+  while(d<ray.maxM&&status!=='blocked'){
+   if(!isCurrent())throw Error('candidate-cancelled');
+   if(pr.beyond(stopAt,d))break;
+   const e=Math.min(ray.maxM,d+NODE_M),to=ray.endpoint&&e>=ray.maxM?{latitude:ray.endpoint.latitude,longitude:ray.endpoint.longitude}:destination(observer.latitude,observer.longitude,az,e);
+   const mark=[known.length,uncovered.length,status,hit,cellsChecked];
+   for(;;){
+    pending=null;const done=cells(from,to,d,e,visit);
+    if(done!==false||!pending)break;
+    known.length=mark[0];uncovered.length=mark[1];status=mark[2];hit=mark[3];cellsChecked=mark[4];
+    try{await reads.read(pending.code);}catch(e){requireCurrent(isCurrent);return {status:'unknown',reason:'height-data-unavailable',source:'plateau-grid'};}
+   }
+   from=to;d=e;reach=e;
+  }
+  }finally{reads.close();}
+  if(status==='blocked'){
+   requireCurrent(isCurrent);
+   const result={status:'blocked',hit,cellsChecked,source:'plateau-grid'};
+   if(key&&footprintVersionOf(ray.targetKey)===footprintVersion){
+    blockedEndpoints.delete(key);
+    blockedEndpoints.set(key,{data,footprintVersion,result:{...result,hit:{...hit}}});
+    if(blockedEndpoints.size>BLOCKED_ENDPOINT_LIMIT)blockedEndpoints.delete(blockedEndpoints.keys().next().value);
+   }
+   return result;
+  }
+  // GSI footprints the grid does not hold (new buildings, places outside the wards).
+  const gsiEnd=reach;
+  let estimated=false,gsiCount=0;
+  if(gsiEnd>0){
+   const end=destination(observer.latitude,observer.longitude,az,gsiEnd),buildings=gsiAlong?await gsiAlong(observer,end):null;
+   if(!Array.isArray(buildings))return {status:'unknown',reason:'footprints-unavailable',cellsChecked,source:'plateau-grid'};
+   const cos=Math.cos(observer.latitude*RAD),ux=Math.sin(az*RAD),uy=Math.cos(az*RAD);
+   for(const b of buildings){
+    const cap=GSI_MAX_M[b.code];if(!cap)continue;
+    const pts=b.ring.map(([la,lo])=>[(lo-observer.longitude)*111320*cos,(la-observer.latitude)*110540]);let a=Infinity,z=-Infinity;
+    for(let i=0,j=pts.length-1;i<pts.length;j=i++){const [x1,y1]=pts[j],[x2,y2]=pts[i],ex=x2-x1,ey=y2-y1,den=ux*ey-uy*ex;if(Math.abs(den)<1e-9)continue;const t=(x1*ey-y1*ex)/den,u=(x1*uy-y1*ux)/den;if(u<0||u>1||t<0||t>gsiEnd)continue;a=Math.min(a,t);z=Math.max(z,t);}
+    if(!Number.isFinite(a))continue;
+    if(known.some(([p,q])=>q>=a-3&&p<=z+3))continue;
+    gsiCount++;const low=pr.min(a,z);
+    if(low>observer.elevation+cap+GROUND_RISE_M)continue;
+    const ground=groundAt?await groundAt(b.entry||destination(observer.latitude,observer.longitude,az,a)):null;
+    if(!Number.isFinite(ground))return {status:'unknown',reason:'footprint-ground-unknown',cellsChecked,source:'gsi-type-bound'};
+    if(low>ground+cap+MARGIN_M){estimated=true;continue;}
+    return {status:'unknown',reason:'building-height-unknown',hit:{distanceM:a,code:b.code,rayAboveGroundM:low-ground},cellsChecked,source:'gsi-type-bound'};
+   }
+  }
+  // Trees and elevated structures (bundled OSM) have no height: the line must clear the tallest of their kind.
+  if(obstacles&&reach>0){
+   const capMax=30,obsEnd=(()=>{let x=0;while(x<reach&&!pr.beyond(observer.elevation+capMax+GROUND_RISE_M,x))x+=NODE_M/5;return Math.min(reach,x);})();
+   if(obsEnd>0){
+    const end=destination(observer.latitude,observer.longitude,az,obsEnd);let list;try{list=await obstacles(observer,end);}catch{return {status:'unknown',reason:'obstacles-unavailable',cellsChecked,source:'osm'};}
+    const cos=Math.cos(observer.latitude*RAD),ux=Math.sin(az*RAD),uy=Math.cos(az*RAD),xy=([la,lo])=>[(lo-observer.longitude)*111320*cos,(la-observer.latitude)*110540];
+    for(const o of list||[]){if(skipTrees&&o.kind==='tree')continue;let a=Infinity,z=-Infinity;
+     const take=t=>{if(t>=0&&t<=obsEnd){a=Math.min(a,t);z=Math.max(z,t);}};
+     for(const ring of o.rings||[]){const p=ring.map(xy);let inside=false;
+      for(let i=0,j=p.length-1;i<p.length;j=i++){const [x1,y1]=p[j],[x2,y2]=p[i];if((y1>0)!==(y2>0)&&0<(x2-x1)*(0-y1)/(y2-y1)+x1)inside=!inside;const ex=x2-x1,ey=y2-y1,den=ux*ey-uy*ex;if(Math.abs(den)<1e-9)continue;const t=(x1*ey-y1*ex)/den,u=(x1*uy-y1*ux)/den;if(u>=0&&u<=1)take(t);}
+      if(inside)take(0);}
+     const near=(x,y,w)=>{const t=x*ux+y*uy,d=Math.abs(x*uy-y*ux);if(d<=w)take(t);};
+     for(const line of o.lines||[]){const p=line.map(xy);for(let i=1;i<p.length;i++){const [x1,y1]=p[i-1],[x2,y2]=p[i],n=Math.max(1,Math.ceil(Math.hypot(x2-x1,y2-y1)/3));for(let k=0;k<=n;k++)near(x1+(x2-x1)*k/n,y1+(y2-y1)*k/n,o.halfWidthM);}}
+     for(const pt of o.points||[]){const [x,y]=xy(pt);near(x,y,o.halfWidthM);}
+     if(!Number.isFinite(a))continue;const low=pr.min(a,z);
+     if(low>observer.elevation+o.capM+GROUND_RISE_M)continue;
+     const ground=groundAt?await groundAt(destination(observer.latitude,observer.longitude,az,a)):null;
+     if(!Number.isFinite(ground))return {status:'unknown',reason:'obstacle-ground-unknown',cellsChecked,source:'osm'};
+     if(low<=ground+o.capM+MARGIN_M)return {status:'unknown',reason:o.kind==='tree'?'trees':'elevated-structure',hit:{distanceM:a,kind:o.kind,id:o.id,rayAboveGroundM:low-ground},cellsChecked,source:'osm'};
+    }
+   }
+  }
+  // Outside the grid, a building missing from the GSI footprints would go unseen: say so where low buildings could reach the ray.
+  if(uncovered.some(([a])=>a<gsiEnd&&pr.h(a)-observer.elevation<GSI_MAX_M[3102]))estimated=true;
+  if(status==='unknown')return {status:'unknown',reason:hit?.reason||'within-margin',hit,cellsChecked,source:'plateau-grid'};
+  return {status:'clear',cellsChecked,gsiChecked:gsiCount,heights:estimated?'estimated':'plateau',source:estimated?'gsi-type-bound':'plateau-grid',reachM:reach};
+ }
+ // How high up the target's axis the building tops along the whole line hide it (2026-11-13, user: from 新宿御苑 the
+ // buildings leave only Tokyo Tower's mast, so it is no candidate). PLATEAU tops only: GSI footprints have no height.
+ async function skyline(observer,ray,{isCurrent=()=>true,preview=false}={}){
+  if(!ray.endpoint||![observer.latitude,observer.longitude,observer.elevation,ray.maxM].every(Number.isFinite)||!(ray.maxM>0))return {status:'unknown',reason:'invalid-ray'};
+  const data=await index(),offset=data.grid.offsetM,D=ray.maxM,c=1/(2*R*(ray.refractionK||1)),eye=observer.elevation+(observer.eyeM??1.5),own=ownSet(ray.targetKey);
+  const az=bearingM(observer,ray.endpoint).azimuth,hide=(top,s)=>eye+(top-eye-c*s*s)/s*D+c*D*D;
+  let previewGrids=null;
+  if(preview&&D<=PREVIEW_RANGE_M){
+   requireCurrent(isCurrent);
+   if(D<=NEAR_M)return {status:'ok',toM:-Infinity,distanceM:null,topM:null,complete:false};
+   const needed=new Map();
+   collectMeshes(observer,az,D,needed,own,containingMeshes(own),ray.endpoint);
+   previewGrids=await prefetchGrids(data,needed,isCurrent,true);
+  }
+  let best=null,uncovered=0,pending=null,lastKey=null,code=null;
+  const visit=(gx,gy,a,z)=>{
+   if(a<NEAR_M||own?.has(gx+','+gy))return;
+   const my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS);if(my*1e5+mx!==lastKey){lastKey=my*1e5+mx;code=meshCode(my,mx);}
+   if(reads.failed(code)){pending={code};return false;}
+   const p4=code.slice(0,4),list=data.parts?.[p4]?parts.get(p4):null;
+   if(data.parts?.[p4]&&!list){pending={part:p4,code};return false;}
+   const entry=list?.[code];if(!entry){uncovered++;return;}
+   const grid=previewGrids?previewGrids.get(code):ready.get(code);if(!grid){pending={code,entry};return false;}
+   const i=(gy-my*ROWS)*COLS+(gx-mx*COLS),others=overlay(code,data,ray.targetKey);if(others.own.has(i))return;
+   const v=Math.max(grid[i],others.get(i)||0);if(!v)return;
+   const top=v-offset,toM=Math.max(hide(top,a),hide(top,Math.max(z,a+.01)));
+   if(!best||toM>best.toM)best={toM,distanceM:a,topM:top};
+  };
+  const reads=orderedReader(data,observer,az,D,ray.endpoint,isCurrent);
+  let from={latitude:observer.latitude,longitude:observer.longitude},d=0;
+  try{
+  while(d<D){
+   if(!isCurrent())throw Error('candidate-cancelled');
+   const e=Math.min(D,d+NODE_M),to=e>=D?{latitude:ray.endpoint.latitude,longitude:ray.endpoint.longitude}:destination(observer.latitude,observer.longitude,az,e),mark=[best,uncovered];
+   for(;;){
+    pending=null;const done=cells(from,to,d,e,visit);
+    if(done!==false||!pending)break;
+    if(previewGrids)return {status:'unknown',reason:'height-data-unavailable'};
+    [best,uncovered]=mark;
+    try{await reads.read(pending.code);}catch(e){requireCurrent(isCurrent);return {status:'unknown',reason:'height-data-unavailable'};}
+   }
+   from=to;d=e;
+  }
+  }finally{reads.close();}
+  return {status:'ok',toM:best?.toM??-Infinity,distanceM:best?.distanceM??null,topM:best?.topM??null,complete:uncovered===0};
+ }
+ // The building top (sea-level metres) at a point without waiting: 0 for no building or the aimed target's own cells,
+ // null where no PLATEAU mesh covers it, undefined while the index, part or mesh is still to be read (loadAt reads it).
+ let lastMesh=null;
+ function topNow(lat,lon,targetKey){
+  const data=indexData;if(!data)return undefined;const gy=Math.floor(lat*LAT),gx=Math.floor(lon*LON),own=ownSet(targetKey);if(own?.has(gx+','+gy))return 0;
+  const my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS);let m=lastMesh;
+  if(!m||m.my!==my||m.mx!==mx||m.targetKey!==targetKey){
+   const code=meshCode(my,mx),p4=code.slice(0,4);if(!data.parts?.[p4])return null;const list=parts.get(p4);if(!list)return undefined;const entry=list[code];if(!entry)return null;
+   const grid=ready.get(code);if(!grid)return undefined;m=lastMesh={my,mx,targetKey,grid,others:overlay(code,data,targetKey)};
+  }
+  const i=(gy-my*ROWS)*COLS+(gx-mx*COLS);if(m.others.own.has(i))return 0;const v=Math.max(m.grid[i],m.others.get(i)||0);return v?v-data.grid.offsetM:0;
+ }
+ async function loadAt(lat,lon,{isCurrent=()=>true}={}){
+  requireCurrent(isCurrent);
+  const data=await index(),gy=Math.floor(lat*LAT),gx=Math.floor(lon*LON),my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS),code=meshCode(my,mx),p4=code.slice(0,4);
+  if(!data.parts?.[p4])return;
+  await queueHeightRead(async()=>{const list=parts.get(p4)||await part(p4,data);requireCurrent(isCurrent);if(list[code])await mesh(code,list[code]);},{current:isCurrent,kind:'demand'});
+ }
+ // New-place tower quality uses every cell of a conservative width patch.
+ // Missing PLATEAU coverage is unknown: GSI class percentiles are not height
+ // upper bounds. This path never uses the padded target footprint exclusion.
+ async function upperPatch(patch,targetKey,{isCurrent=()=>true,check=()=>requireCurrent(isCurrent)}={}){
+  check();
+  // obstaclesAlong returns all rows in its padded bbox, using the crossed
+  // 0.01-degree cells and neighbours. A patch narrower than half a cell has
+  // every bbox cell in that neighbourhood; larger/custom envelopes stay unknown.
+  if(!obstacles||patch.east-patch.west>.005||patch.north-patch.south>.005)return {status:'unknown',reason:'upper-obstacles-unavailable'};
+  const extra=await obstacles({latitude:patch.south,longitude:patch.west},{latitude:patch.north,longitude:patch.east});check();
+  if(!Array.isArray(extra))return {status:'unknown',reason:'upper-obstacles-unavailable'};
+  const data=await index();check();
+  const overlaps=(a,b,width=0,refine=true,modelTop=null)=>{
+   if(!Number.isFinite(width)||width<0)return true;
+   const py=width/110000,px=py/Math.cos(Math.max(Math.abs(a[0]),Math.abs(b[0]))*RAD);
+   let lo=0,hi=1;
+   for(const [v,d,min,max]of [[a[0],b[0]-a[0],patch.south-py,patch.north+py],[a[1],b[1]-a[1],patch.west-px,patch.east+px]]){
+    if(Math.abs(d)<1e-15){if(v<min||v>max)return false;continue;}
+    const t0=(min-v)/d,t1=(max-v)/d;lo=Math.max(lo,Math.min(t0,t1));hi=Math.min(hi,Math.max(t0,t1));if(lo>hi)return false;
+   }
+   if(!refine)return true;
+   // The clipped centre segment plus its full width encloses every contact.
+   // +Infinity alone means outside the tower fan/range; missing/NaN heights
+   // cannot prove absence. Outward padding preserves touching endpoints.
+   const ay=a[0]+lo*(b[0]-a[0]),ax=a[1]+lo*(b[1]-a[1]),by=a[0]+hi*(b[0]-a[0]),bx=a[1]+hi*(b[1]-a[1]),pad=1e-10;
+   const box={south:Math.min(ay,by)-py-pad,north:Math.max(ay,by)+py+pad,west:Math.min(ax,bx)-px-pad,east:Math.max(ax,bx)+px+pad};
+   const low=typeof patch.lowAt==='function'?patch.lowAt(box):patch.lowM;
+   if(typeof patch.lowAt==='function'&&low===Infinity)return false;
+   return !(modelTop!==null&&Number.isFinite(low)&&low>modelTop+MARGIN_M);
+  };
+  for(const o of extra){
+   if(o.kind==='tree')continue; // Native canopy cells are checked independently.
+   const geometry=[...(o.lines||[]),...(o.rings||[]),o.points||[]].flat();
+   if(!geometry.length||geometry.some(p=>!Array.isArray(p)||p.length<2||!p.slice(0,2).every(Number.isFinite)))return {status:'unknown',reason:'upper-obstacle-geometry-unavailable'};
+   const modelTop=structureModelTop(o,data);
+   let touch=(o.points||[]).some(p=>overlaps(p,p,o.halfWidthM??0,true,modelTop));
+   for(const line of [...(o.lines||[]),...(o.rings||[])]){
+    const ring=(o.rings||[]).includes(line);
+    // Filled rings keep their broad intersection: filtering only their edges
+    // would not prove the enclosed interior outside the fan.
+    for(let i=1;i<line.length&&!touch;i++)touch=overlaps(line[i-1],line[i],o.halfWidthM??0,!ring,modelTop);
+    if(!touch&&ring&&line.length>1)touch=overlaps(line.at(-1),line[0],o.halfWidthM??0,false);
+    // A large closed ring may contain the entire patch without an edge touch.
+    if(!touch&&(o.rings||[]).includes(line)){
+     const x=(patch.west+patch.east)/2,y=(patch.south+patch.north)/2;let inside=false;
+     for(let i=0,j=line.length-1;i<line.length;j=i++)if((line[i][0]>y)!==(line[j][0]>y)&&x<(line[j][1]-line[i][1])*(y-line[i][0])/(line[j][0]-line[i][0])+line[i][1])inside=!inside;
+     touch=inside;
+    }
+   }
+   if(touch)return {status:'unknown',reason:'upper-structure-height-unknown',kind:o.kind,obstacleId:o.id,fromM:patch.fromM,toM:patch.toM};
+  }
+  let count=0,lastCode=null,grid,other;
+  for(let gy=Math.floor(patch.south*LAT);gy<=Math.floor(patch.north*LAT);gy++)for(let gx=Math.floor(patch.west*LON);gx<=Math.floor(patch.east*LON);gx++){
+   check();const my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS),code=meshCode(my,mx),p4=code.slice(0,4);
+   if(code!==lastCode){
+    if(!data.parts?.[p4])return {status:'unknown',reason:'height-coverage-unavailable'};
+    await queueHeightRead(async()=>{const list=parts.get(p4)||await part(p4,data);check();if(list[code])await mesh(code,list[code]);},{current:isCurrent,kind:'demand'});check();
+    if(!parts.get(p4)?.[code]||!ready.has(code))return {status:'unknown',reason:'height-coverage-unavailable'};
+    lastCode=code;grid=ready.get(code);other=overlay(code,data,targetKey);
+   }
+   const i=(gy-my*ROWS)*COLS+(gx-mx*COLS),v=Math.max(grid[i],other.get(i)||0);count++;
+   const low=patch.lowAt?.({west:gx/LON,east:(gx+1)/LON,south:gy/LAT,north:(gy+1)/LAT})??patch.lowM;
+   if(!v||low>v-data.grid.offsetM+MARGIN_M)continue;
+   // Target-only overlay cells are absent from the base grid. A base height
+   // at the same cell cannot be separated from an associated/adjacent building.
+   if(other.own.has(i))return {status:'unknown',reason:'target-building-contact'};
+   return {status:low<v-data.grid.offsetM-2?'blocked':'unknown',reason:'upper-building',topM:v-data.grid.offsetM,rayM:low,cells:count};
+  }
+  return {status:'clear',cells:count,source:'plateau-grid',estimated:false};
+ }
+ // The highest a building top rises above the eye along each bearing (deg, with the earth's curve), up to maxM: whether
+ // other buildings stand into the sky beside the target in the photograph (generic-evaluator.js compositionOf). PLATEAU
+ // tops only; the aimed target's own cells are left out.
+ async function angles(observer,azimuths,maxM,{targetKey=null,isCurrent=()=>true,refractionK=7/6}={}){
+  const eye=observer.elevation+(observer.eyeM??1.5),c=1/(2*R*refractionK),out=[];
+  for(const az of azimuths){
+   let best=-Infinity,d=NEAR_M;
+   while(d<maxM){
+    if(!isCurrent())throw Error('candidate-cancelled');
+    const p=destination(observer.latitude,observer.longitude,az,d);let top=topNow(p.latitude,p.longitude,targetKey);
+    if(top===undefined){try{await loadAt(p.latitude,p.longitude,{isCurrent});}catch{requireCurrent(isCurrent);return null;}top=topNow(p.latitude,p.longitude,targetKey);}
+    if(Number.isFinite(top)&&top>0)best=Math.max(best,Math.atan2(top-eye-c*d*d,d)/RAD);
+    d+=d<1000?5:d<5000?10:20;
+   }
+   out.push(best);
+  }
+  return out;
+ }
+ // Preview-only skyline. A known roof establishes a lower bound even when another cell on the same bearing is missing.
+ // complete describes just the sampled interval [NEAR_M, maxM], not other obstacle types or the real world's coverage.
+ async function frontage(observer,azimuths,maxM,{targetKey=null,refractionK=7/6,isCurrent=()=>true}={}){
+  requireCurrent(isCurrent);
+  const unread=()=>({angle:-Infinity,complete:false});
+  if(!azimuths.length)return [];
+  if(![observer.latitude,observer.longitude,observer.elevation,maxM,refractionK].every(Number.isFinite)||!(maxM>NEAR_M&&refractionK>0))return azimuths.map(unread);
+  let data;
+  try{data=await index();}catch{requireCurrent(isCurrent);return azimuths.map(unread);}
+  const range=Math.min(maxM,PREVIEW_RANGE_M);
+  const eye=observer.elevation+(observer.eyeM??1.5),c=1/(2*R*refractionK),own=ownSet(targetKey),needed=new Map(),rows=[];
+  const ownMeshes=containingMeshes(own);
+  const now=()=>typeof performance==='undefined'?Date.now():performance.now();
+  const yieldWalk=()=>new Promise(resolve=>setTimeout(resolve,0));
+  let deadline=now()+6;
+  for(let i=0;i<azimuths.length;i++){
+   requireCurrent(isCurrent);
+   if(Number.isFinite(azimuths[i]))collectMeshes(observer,azimuths[i],range,needed,own,ownMeshes);
+   if(now()>=deadline){await yieldWalk();deadline=now()+6;}
+  }
+  const grids=await prefetchGrids(data,needed,isCurrent);
+  deadline=now()+6;
+  for(let i=0;i<azimuths.length;i++){
+   requireCurrent(isCurrent);
+   const azimuth=azimuths[i];
+   let angle=-Infinity,complete=Number.isFinite(azimuth);
+   if(complete){
+    let lastCode,grid,other;
+    const roof=meshReader((code,cell,a,z)=>{
+     if(code!==lastCode){lastCode=code;grid=grids.get(code);other=grid?overlay(code,data,targetKey):null;}
+     if(!grid){complete=false;return;}
+     if(other.own.has(cell))return;
+     const v=Math.max(grid[cell],other.get(cell)||0);
+     if(!v)return;
+     const h=v-data.grid.offsetM-eye,lo=Math.max(NEAR_M,a);
+     const slope=d=>h/d-c*d;
+     // Below the eye, the apparent maximum may be inside the cell rather than at either edge.
+     const peak=h<0?Math.max(lo,Math.min(z,Math.sqrt(-h/c))):lo;
+     angle=Math.max(angle,Math.atan(slope(peak))/RAD);
+    });
+    const visit=(gx,gy,a,z)=>{if(z>=NEAR_M&&!own?.has(gx+','+gy))roof(gx,gy,a,z);};
+    for(const {from,to,d,end} of sightline(observer,azimuth,range)){
+     cells(from,to,d,end,visit);
+     if(now()>=deadline){await yieldWalk();requireCurrent(isCurrent);deadline=now()+6;}
+    }
+   }
+   rows.push({angle,complete:complete&&range===maxM});
+  }
+  requireCurrent(isCurrent);return rows;
+ }
+ return {trace,skyline,index,topNow,loadAt,angles,frontage,upperPatch};
+}
+return {create,decode,meshCode,profile,cells,GSI_MAX_M,MARGIN_M};
+});

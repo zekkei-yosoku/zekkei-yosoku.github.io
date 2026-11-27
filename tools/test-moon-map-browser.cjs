@@ -36,7 +36,17 @@ for(const engine of (process.env.MOON_MAP_ENGINES||'chromium,webkit').split(',')
  assert(Math.abs(layout.mapWidth-width)<=1&&Math.abs(layout.mapBottom-layout.footTop)<=2&&Math.abs(layout.mapTop-layout.headBottom)<=2&&layout.sheet,'map fills between masthead and time bar: '+JSON.stringify(layout));
 await p.screenshot({path:`${out}/${engine}-${width}-${theme}-map.png`,fullPage:true});
  if(width===390&&theme==='light'&&engine==='chromium'){
-  await p.locator('.plane-btn[data-plane-pane=place]').click();await p.locator('.plane-height summary').click();await p.locator('#planeEye').fill('45');await p.locator('#planeEye').dispatchEvent('change');
+  await p.locator('.plane-btn[data-plane-pane=place]').click();await p.locator('.plane-height summary').click();
+  const ground=p.locator('#planeGround');
+  assert.equal(await ground.getAttribute('max'),'9000');
+  assert.equal(await ground.inputValue(),'20');
+  await ground.fill('9001');await ground.press('Enter');
+  assert.equal(await ground.inputValue(),'20','an invalid value restores the last valid height');
+  assert.match(await p.locator('#planeHeightError').innerText(),/9,000m/);
+  await ground.fill('');await ground.press('Enter');
+  await p.waitForFunction(()=>plane.groundOverride===null&&!plane.map.pending);
+  assert(await p.locator('#planeHeightError').isHidden());
+  await p.locator('#planeEye').fill('45');await p.locator('#planeEye').dispatchEvent('change');
   await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.observer.eyeHeightAGL===45);assert.equal(await p.evaluate(()=>plane.map.overlap.observer.observerElevationM??plane.map.overlap.observer.elevation),65);
   await p.locator('#planeHeightAuto').click();await p.waitForFunction(()=>plane.map&&!plane.map.pending&&plane.observer.eyeHeightAGL===1.5);
   await p.locator('#planeSheetClose').click();assert.equal(await p.locator('#planeSheet').isVisible(),false);

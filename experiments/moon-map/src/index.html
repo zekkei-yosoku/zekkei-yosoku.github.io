@@ -247,11 +247,11 @@
       <details class="plane-height" style="margin:8px 0">
         <summary id="planeHeightSummary">撮影地点の高さ</summary>
         <div class="aim-row" style="margin-top:8px;align-items:end">
-          <label style="flex:1">標高（m）<input class="fav-in" type="number" id="planeGround" min="-500" max="9000" step="0.1" placeholder="地図から取得"></label>
-          <label style="flex:1">地上からレンズ（m）<input class="fav-in" type="number" id="planeEye" min="0" max="700" step="0.1" value="1.5"></label>
+          <label style="flex:1">標高（m）<input class="fav-in" type="number" id="planeGround" step="0.1" placeholder="地図から取得"></label>
+          <label style="flex:1">地上からレンズ（m）<input class="fav-in" type="number" id="planeEye" step="0.1" value="1.5"></label>
         </div>
         <button class="chip" id="planeHeightAuto">地点の高さに戻す</button>
-        <p class="tiny" id="planeHeightError" role="status"></p>
+        <p class="tiny" id="planeHeightError" role="status" hidden></p>
       </details>
       <div class="coord-row" data-map="plane">
         <button class="chip" data-coord-copy aria-label="ピンの位置の座標をコピー"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg><span class="coord" id="planeCoord">—</span><span class="copied" hidden>コピーしました</span></button>
@@ -361,12 +361,12 @@
     <details id="aimObserverDetails" class="alignment-details" hidden><summary id="aimObserverSummary">撮影地点の高さ</summary>    <div class="aim-side-seg aim-stand" id="aimStand" role="group" aria-label="立つ所"></div>
     <div class="aim-observer-height">
       <label for="aimGroundHeight">標高</label>
-      <input id="aimGroundHeight" type="number" inputmode="decimal" min="-500" max="9000" step="any" placeholder="取得中…" aria-label="立つ場所の地面の標高（海抜メートル）" disabled><span>m</span>
+      <input id="aimGroundHeight" type="number" inputmode="decimal" step="any" placeholder="取得中…" aria-label="立つ場所の地面の標高（海抜メートル）" disabled><span>m</span>
       <button type="button" class="tap" id="aimGroundAuto" aria-label="標高を自動値に戻す" title="自動値に戻す" disabled>↺</button>
     </div>
     <div class="aim-observer-height">
       <label for="aimStandHeight">地上から</label>
-      <input id="aimStandHeight" type="number" inputmode="decimal" min="0" max="700" step="any" aria-label="地面からカメラまでの高さ（メートル）" aria-describedby="aimObserverHeightHint" disabled><span>m</span>
+      <input id="aimStandHeight" type="number" inputmode="decimal" step="any" aria-label="地面からカメラまでの高さ（メートル）" aria-describedby="aimObserverHeightHint" disabled><span>m</span>
       <button type="button" class="tap" id="aimStandAuto" aria-label="地上からを自動値に戻す" title="自動値に戻す" disabled>↺</button>
     </div>
     <p class="tiny muted" id="aimObserverHeightHint"></p>
@@ -631,8 +631,8 @@
  <div class="sky-map-content" id="skyMapContent" hidden>
   <div class="sky-map-controls"><div class="aim-say condition-field"><select class="condition-choice" id="skyMapBody" aria-labelledby="skyMapBodyLabel"><optgroup label="太陽・月"><option value="sun">太陽</option><option value="moon">月</option></optgroup><optgroup label="恒星"><option value="sirius">シリウス</option></optgroup><optgroup label="惑星"><option value="mercury">水星</option><option value="venus">金星</option><option value="mars">火星</option><option value="jupiter">木星</option><option value="saturn">土星</option></optgroup></select><span class="aim-say-v condition-label" id="skyMapBodyLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-body"/></svg><span>天体</span></span></div><div class="aim-say condition-field"><select id="skyMapTarget" aria-labelledby="skyMapTargetLabel"></select><span class="aim-say-v condition-label" id="skyMapTargetLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-target"/></svg><span>対象</span></span></div></div>
   <div class="aim-say aim-say-from condition-field"><div class="aim-observer-card"><div class="place-row aim-place-card"><button type="button" class="place-pick" id="skyMapChoose" aria-describedby="skyMapChooseLabelText"><span class="pin" aria-hidden="true"></span><span class="place-txt"><span class="name" id="skyMapObserver">撮影地点を選ぶ</span><span class="muted" id="skyMapObserverSub"></span></span><span class="chev" aria-hidden="true"></span></button><button type="button" id="skyMapObserverFav" class="tap aim-from-fav" aria-label="お気に入りに登録" hidden>☆</button></div><details id="skyMapObserverDetails" class="alignment-details" hidden><summary id="skyMapObserverSummary">撮影地点の高さ</summary>
-<div class="aim-observer-height"><label for="skyMapGroundHeight">標高</label><input id="skyMapGroundHeight" type="number" inputmode="decimal" min="-500" max="9000" step="any" aria-label="立つ場所の地面の標高（海抜メートル）"><span>m</span><button type="button" class="tap" id="skyMapGroundAuto" aria-label="標高を自動値に戻す" title="自動値に戻す">↺</button></div>
-<div class="aim-observer-height"><label for="skyMapStandHeight">地上から</label><input id="skyMapStandHeight" type="number" inputmode="decimal" min="0" max="700" step="any" aria-label="地面からカメラまでの高さ（メートル）"><span>m</span><button type="button" class="tap" id="skyMapStandAuto" aria-label="地上からを自動値に戻す" title="自動値に戻す">↺</button></div>
+<div class="aim-observer-height"><label for="skyMapGroundHeight">標高</label><input id="skyMapGroundHeight" type="number" inputmode="decimal" step="any" aria-label="立つ場所の地面の標高（海抜メートル）"><span>m</span><button type="button" class="tap" id="skyMapGroundAuto" aria-label="標高を自動値に戻す" title="自動値に戻す">↺</button></div>
+<div class="aim-observer-height"><label for="skyMapStandHeight">地上から</label><input id="skyMapStandHeight" type="number" inputmode="decimal" step="any" aria-label="地面からカメラまでの高さ（メートル）"><span>m</span><button type="button" class="tap" id="skyMapStandAuto" aria-label="地上からを自動値に戻す" title="自動値に戻す">↺</button></div>
 <p id="skyMapHeightError" class="tiny" role="alert" hidden></p></details></div><span class="aim-say-v condition-label" id="skyMapChooseLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-observer"/></svg><span id="skyMapChooseLabelText">撮影地点</span><button type="button" id="skyMapObserverClear" class="condition-clear" aria-label="撮影地点の選択を解除" title="選択を解除" hidden><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg><span>解除</span></button></span></div>
 
   <section id="skyMapAlignmentDetails" class="alignment-details" hidden><p class="alignment-heading" id="skyMapAlignmentSummary">重ね方</p><div id="skyMapAlignmentControls"></div></section>

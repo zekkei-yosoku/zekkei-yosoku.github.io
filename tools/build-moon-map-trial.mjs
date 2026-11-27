@@ -6,6 +6,7 @@ import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {renderIndex,renderGeneratedAsset,checkClassicScripts,root} from './build-index.mjs';
 import {checkArchitecture} from './check-architecture.mjs';
+import {checkUiComponents} from './check-ui-components.mjs';
 import {checkModuleGraph} from './check-module-graph.mjs';
 import {stripModuleSyntax} from './source-modules.mjs';
 import {versionAssets,hashCsp} from './release-html.mjs';
@@ -25,7 +26,17 @@ const allowed=new Map([
  // 2026-11-27 対象を追加する入口を試用版の共通対象選択に出す
  ['astronotes-target-ui.js',false],
  // 時刻バーのラベルを左端のフェードに掛けない
- ['astronotes-scroll-timeline.js',false]
+ ['astronotes-scroll-timeline.js',false],
+ // Shared height inputs and browser-independent candidate bytes in the trial.
+ ['src/ui/presentation-helpers.js',false],
+ ['src/features/framing/observer.js',false],
+ ['src/features/candidates/entry.inc',false],
+ ['src/features/candidates/building-model.js',false],
+ ['src/features/candidates/terrain-model.js',false],
+ ['src/features/candidates/height-grid.js',false],
+ ['src/features/candidates/plateau-buildings.js',false],
+ ['src/features/candidates/osm-places.js',false],
+ ['src/features/candidates/tree-heights.js',false]
 ]);
 const guarded=['index.html','app-version.txt',...allowed.keys()];
 const digest=value=>createHash('sha256').update(value).digest('hex');
@@ -65,7 +76,7 @@ export function buildMoonMapTrial({directory=root,
  const sourceManifest=JSON.parse(read('src/source-manifest.json'));
  const baselineManifest=JSON.parse(readFile('src/source-manifest.json'));
  // Generated bundles and execution order remain production-owned in this experiment.
- for(const key of Object.keys(baselineManifest).filter(name=>name!=='architecture')){
+ for(const key of Object.keys(baselineManifest).filter(name=>name!=='architecture'&&name!=='uiComponents')){
   if(JSON.stringify(sourceManifest[key])!==JSON.stringify(baselineManifest[key])){
    throw Error('Moon-map source manifest changes unsupported production contract: '+key);
   }
@@ -73,6 +84,7 @@ export function buildMoonMapTrial({directory=root,
  checkArchitecture(sourceManifest,name=>name.startsWith('src/')&&name.endsWith('.js')?
   stripModuleSyntax(read(name)):read(name));
  checkModuleGraph(sourceManifest,read);
+ checkUiComponents(sourceManifest.uiComponents,sourceManifest,read);
  const rendered=renderIndex({directory,read:path=>read(relative(directory,path).split(sep).join('/'))});
  if(JSON.stringify(rendered.sources.filter(name=>name.endsWith('.js')))!==JSON.stringify(sourceManifest.legacyRuntimeOrder)){
   throw Error('Moon-map source execution order changed');

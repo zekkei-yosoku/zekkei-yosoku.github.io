@@ -9,6 +9,7 @@ module.exports=async(page,ready,path)=>{
  const before={body:await filter('Body'),target:await filter('Target'),date:await page.locator('#recordOpportunityDate').inputValue()};
  const ids=()=>page.locator('[data-opportunity-id]').evaluateAll(ns=>ns.map(n=>n.dataset.opportunityId));
  const text=()=>page.locator('#recordOpportunityList').innerText();
+ const coverage=()=>page.locator('#recordOpportunityThrough').innerText();
  const settled=async()=>{await ready(page);await page.waitForFunction(()=>!/（確認中）/.test(document.getElementById('recordOpportunityList')?.innerText||'')&&document.getElementById('recordOpportunities').getAttribute('aria-busy')==='false',null,{timeout:120000});};
  const rerun=async()=>{await page.evaluate(()=>MyPlacesUI.imported());await settled();};
  await choose(page,'Body','moon');await ready(page);await choose(page,'Target','skytree');await ready(page);
@@ -31,6 +32,7 @@ module.exports=async(page,ready,path)=>{
    return {rows:[],failed:0};};});
  await page.evaluate(()=>MyPlacesUI.imported());
  await page.waitForFunction(()=>/（確認中）/.test(document.getElementById('recordOpportunityList')?.innerText||''),null,{timeout:60000});
+ await page.waitForFunction(()=>document.getElementById('recordOpportunityThrough')?.textContent.includes('大気差を確認中'));
  const checking=await text();assert.match(checking,/11\/25\([^)]+\)（確認中）/,'確かめる前は確認中 '+checking.slice(0,200));
  await page.evaluate(()=>window.__airOpen());await settled();
  const stub=await ids(),stubDays=stub.map(dayOf),list=await text(),calls=await page.evaluate(()=>window.__airCalls);
@@ -43,6 +45,15 @@ module.exports=async(page,ready,path)=>{
  await page.evaluate(()=>{const original=window.__airOriginal,fail=Date.parse('2026-11-25T00:00:00+09:00');MyPlacesUI.discoverySearch=async(plan,points,current)=>plan.at===fail?{rows:[],failed:1}:original(plan,points,current);MyPlacesUI.imported();});
  await page.waitForFunction(()=>/（大気差未確認）/.test(document.getElementById('recordOpportunityList')?.innerText||''),null,{timeout:120000});
  assert.match(await text(),/11\/25\([^)]+\)（大気差未確認）/,'判定に失敗した行は残して未確認');
+ await settled();
+ assert.match(await coverage(),/まで探索（未確認あり）$/);
+ const retry=page.locator('#recordOpportunityRetry');
+ await retry.waitFor();
+ await page.evaluate(()=>{MyPlacesUI.discoverySearch=window.__airOriginal;});
+ await retry.click();await settled();
+ assert(!(await text()).includes('大気差未確認'),'再試行で未確認を解消できる');
+ assert.match(await coverage(),/まで確認$/);
+ assert(await retry.isHidden());
  // 元に戻す
  await page.evaluate(()=>{MyPlacesUI.discoverySearch=window.__airOriginal;globalThis.AstroNotesOpportunityAir='off';MyPlacesUI.imported();});await ready(page);
  await choose(page,'Body',before.body);await ready(page);await choose(page,'Target',before.target);await ready(page);

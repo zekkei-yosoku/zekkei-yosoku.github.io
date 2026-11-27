@@ -74,7 +74,11 @@ async function records(type,engine,width,theme,results){
    assert.deepEqual(await view(page),{stage:'map',sheet:false,center:'target'});
    const layout=await page.evaluate(()=>{const r=n=>n.getBoundingClientRect(),mode=r(document.getElementById('mapWsMode')),north=r(document.getElementById('mapWsNorth')),rail=Math.min(...[...document.querySelectorAll('#skyMapView .sky-map-wide .mapzoom>button,#skyMapView .sky-map-wide .map-layers-btn')].filter(n=>n.offsetParent).map(n=>r(n).left)),buttons=[...document.querySelectorAll('#mapWsMode button,#mapWsCardView,#mapWsCardSecond')].filter(b=>b.offsetParent).map(b=>r(b).height);
     return {overlapNorth:mode.left<north.right-1,overlapRail:mode.right>rail+1,buttons,overflowX:document.documentElement.scrollWidth>innerWidth+1};});
-   assert(!layout.overlapNorth&&!layout.overlapRail&&!layout.overflowX&&layout.buttons.every(h=>h>=40),label+': '+JSON.stringify(layout));
+   assert(!layout.overlapNorth&&!layout.overlapRail&&!layout.overflowX&&layout.buttons.every(h=>h>=44),label+': '+JSON.stringify(layout));
+   assert(await page.locator('#mapWsCardSecond').evaluate(button=>{
+    const {left,top,width,height}=button.getBoundingClientRect();
+    return [4,height/2,height-4].every(y=>button.contains(document.elementFromPoint(left+width/2,top+y)));
+   }),label+': 重なる日のボタンは上下端まで操作できる');
    const card=await page.evaluate(()=>[document.getElementById('mapWsCardPlace').textContent,document.getElementById('mapWsCardMeta').textContent,document.getElementById('mapWsCardView').innerText.trim(),document.getElementById('mapWsCardSecond').innerText.trim()]);
    assert.equal(card[0],'東京スカイツリーを中心に（月）');assert.match(card[1],/^中心が先端に来る線: 月の出側 \d\d:\d\d〜\d\d:\d\d ・ 月の入側 \d\d:\d\d〜\d\d:\d\d$/);assert.deepEqual(card.slice(2),['新しい地点を探す','重なる日']);
    const s=await state(page);assert.equal(s.line.length,2,label+': 月の出側と入側の線');assert(s.band>0,label+': 重なる範囲がある');

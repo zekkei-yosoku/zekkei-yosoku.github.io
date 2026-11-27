@@ -1,4 +1,4 @@
-import {$,S,esc} from '../../ui/presentation-helpers.js';
+import {$,S,esc,setObserverHeightInput,wireObserverHeightInput} from '../../ui/presentation-helpers.js';
 import {place,viewState} from '../../app/browser-state.js';
 import {lightTimingText,moonGlyphAt,moonHorizon,observerHere} from '../forecast/view.js';
 import {favForPoint,inheritedPoint,renameFromAfterFav,renderPointCard} from '../places/controller.js';
@@ -212,9 +212,9 @@ async function planeApply({keepMap = false} = {}) {
   const agl = plane.eyeOverride ?? (P.inherited ? observerHere().eyeHeightAGL : local.eyeM);
   plane.observer = { latitude:P.latitude, longitude:P.longitude, groundM:ground, eyeHeightAGL:agl };
   plane.timeline?.sync(plane.at,plane.scrub);
-  $("planeGround").value = plane.groundOverride ?? saved?.groundManualM ?? "";
+  setObserverHeightInput($("planeGround"), plane.groundOverride ?? saved?.groundManualM);
   $("planeGround").placeholder = Number.isFinite(ground) ? ground.toFixed(1) : "標高を取得できません";
-  $("planeEye").value = String(agl);
+  setObserverHeightInput($("planeEye"), agl);
   $("planeHeightSummary").textContent = Number.isFinite(ground) ? `標高 ${ground.toFixed(1)}m ＋ レンズ高 ${agl.toFixed(1)}m` : "標高を取得できません — 手入力できます";
   renderPointCard("planeFrom", P, ground);$("planeFromChip").textContent = P.name;
   await planeLoadWind();
@@ -696,8 +696,10 @@ function openPlane(){
     $("planeFromButton").onclick=()=>openPlaceSheet('plane');
     $("planeFromFav").onclick=()=>favForPoint(planeFromPoint(),entry=>{renameFromAfterFav(plane,entry);planeApply();});
     $("planePickHere").onclick=async()=>{const c=PlaneMap.center(),request=plane.seq.next();$("planePickHere").disabled=true;try{const n=await nearName(c.latitude,c.longitude);if(plane.seq.current(request)&&toolAllowed('plane')&&viewState.plane)planeSetFrom({...c,name:n.name,subtitle:n.subtitle||n.area||'地図の中心'});}finally{$("planePickHere").disabled=false;}};
-    const heights=()=>{const g=$("planeGround").value.trim(),e=$("planeEye").value.trim(),ground=g===''?null:Number(g),eye=Number(e);if((ground!==null&&(!Number.isFinite(ground)||ground< -500||ground>9000))||e===''||!Number.isFinite(eye)||eye<0||eye>700){$("planeHeightError").textContent='標高は−500〜9,000m、レンズ高は0〜700mで入力してください';return;}$("planeHeightError").textContent='';plane.groundOverride=ground;plane.eyeOverride=eye;planeApply();};
-    $("planeGround").onchange=heights;$("planeEye").onchange=heights;$("planeHeightAuto").onclick=()=>{plane.groundOverride=null;plane.eyeOverride=null;$("planeHeightError").textContent='';planeApply();};
+    const heightError=$("planeHeightError");
+    wireObserverHeightInput($("planeGround"), 'ground', {error:heightError,allowEmpty:true,commit:ground=>{plane.groundOverride=ground;planeApply();}});
+    wireObserverHeightInput($("planeEye"), 'eye', {error:heightError,commit:eye=>{plane.eyeOverride=eye;planeApply();}});
+    $("planeHeightAuto").onclick=()=>{plane.groundOverride=null;plane.eyeOverride=null;heightError.hidden=true;heightError.textContent='';planeApply();};
   }
   planeSyncTime();
   requestAnimationFrame(()=>{if(!viewState.plane||!toolAllowed('plane'))return;planeLayout();PlaneMap.open(AstroNotesRoutes.AIRPORT,10);});

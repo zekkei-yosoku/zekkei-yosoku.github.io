@@ -3268,7 +3268,7 @@ function opportunityPairSet(signature,bodies){
 function opportunityRemember(job){
  if(!job?.scan||job.signature!==opportunitySignature())return;
  const {state}=job.scan;
- const air=job.verify?{key:job.verifyAir,verify:new Map(job.verify),airRows:job.airRows.slice(),probed:new Set(job.probed)}:null;
+ const air=job.verify?{key:job.verifyAir,verify:new Map(job.verify),airRows:job.airRows.slice(),probed:new Set(job.probed),probeFailures:new Set(job.probeFailures)}:null;
  opportunityCache.set(job.key,job.remote?{remote:true,through:state.through,air}:{state:{...state,rows:state.rows.slice(),pending:state.pending.slice(),failures:state.failures.slice()},air});
  while(opportunityCache.size>4)opportunityCache.delete(opportunityCache.keys().next().value);
 }
@@ -3343,7 +3343,14 @@ function opportunityBuild(){
  retry.onclick=()=>{
   const job=opportunityJob;if(!job||!opportunityCurrent(job)||job.scan.state.running)return;
   if(job.displayError){job.displayError=false;opportunityNotice='';opportunityDom.rendered=NaN;opportunityDraw(job);return;}
-  opportunityNotice='';if(job.remote&&(!job.scan.state.error||job.scan.state.error.code==='overlap_plan_failed')&&job.scan.retry?.()){opportunityDom.rendered=-1;void opportunityAdvance(job);return;}const end=job.scan.state.end;opportunityCancel();opportunityCache.delete(job.key);
+  opportunityNotice='';
+  if(globalThis.AstroNotesOpportunityAir!=='off'&&opportunityAirFailed(job)&&!job.scan.state.failures.length&&!job.scan.state.error){
+   for(const [id,result] of job.verify)if(result.state==='unknown')job.verify.delete(id);
+   for(const key of job.probeFailures)job.probed.delete(key);
+   job.probeFailures.clear();job.airTries.clear();job.verifyRev=(job.verifyRev||0)+1;
+   opportunityDraw(job);return;
+  }
+  if(job.remote&&(!job.scan.state.error||job.scan.state.error.code==='overlap_plan_failed')&&job.scan.retry?.()){opportunityDom.rendered=-1;void opportunityAdvance(job);return;}const end=job.scan.state.end;opportunityCancel();opportunityCache.delete(job.key);
   renderOpportunities(end);
  };
  more.onclick=()=>{
@@ -3399,7 +3406,7 @@ function opportunityAirPair(job,row){
  const near=job.pairs.filter(same).map(p=>[p,AstroNotesTerrain.distanceKm(p.place.latitude,p.place.longitude,row.place.latitude,row.place.longitude)+Math.abs((p.place.eyeHeightAGL??1.5)-(row.place.eyeHeightAGL??1.5))/1000]).sort((a,b)=>a[1]-b[1]);
  return near.length===1||near[0]?.[1]<=.05?near[0][0]:null;
 }
-function opportunityAirReset(job){const key=AstroNotesAtmosphere.dataKey();if(job.verifyAir===key&&job.verify)return;job.verifyAir=key;job.verify=new Map();job.airRows=[];job.probed=new Set();job.airTries=new Map();}
+function opportunityAirReset(job){const key=AstroNotesAtmosphere.dataKey();if(job.verifyAir===key&&job.verify)return;job.verifyAir=key;job.verify=new Map();job.airRows=[];job.probed=new Set();job.probeFailures=new Set();job.airTries=new Map();}
 function opportunityVisibleRows(job){
  const s=job.scan.state,v=job.verify;
  return [...s.rows.filter(r=>v?.get(r.id)?.state!=='gone').map(r=>v?.get(r.id)?.row||r),...(job.airRows||[])].sort((a,b)=>opportunityRowAt(a)-opportunityRowAt(b));
@@ -3451,7 +3458,10 @@ function opportunityAirExtend(job){
  if(job.scan.extend(opportunityPageEnd(st.through),opportunityPageRows)){job.autoMore=true;void opportunityAdvance(job);}
 }
 // 見え方から戻った時などは、確かめた結果も一緒に戻す（全行が確認中に戻ってスクロールの位置がずれないように）
-function opportunityAirRestore(job,air){if(!air||air.key!==AstroNotesAtmosphere.dataKey())return;Object.assign(job,{verifyAir:air.key,verify:new Map(air.verify),airRows:air.airRows.slice(),probed:new Set(air.probed),airTries:new Map()});}
+function opportunityAirRestore(job,air){if(!air||air.key!==AstroNotesAtmosphere.dataKey())return;Object.assign(job,{verifyAir:air.key,verify:new Map(air.verify),airRows:air.airRows.slice(),probed:new Set(air.probed),probeFailures:new Set(air.probeFailures),airTries:new Map()});}
+function opportunityAirFailed(job){
+ return !!job.probeFailures?.size||Array.from(job.verify?.values()||[]).some(result=>result.state==='unknown');
+}
 function opportunityVerify(job){
  if(job.verifying||!opportunityCurrent(job))return;
  opportunityAirReset(job);
@@ -3471,14 +3481,14 @@ function opportunityVerify(job){
    }else{
     const t=task.probe,pair=job.pairs.find(p=>p.id===t.pairId);if(!pair){job.probed.add(t.key);return;}
     const r=await opportunityAirCheck(job,pair,t.day);if(r?.cancelled||!opportunityCurrent(job)){retry=true;return;}
-    job.probed.add(t.key);if(r)opportunityAirAdd(job,pair,t.template,r.rows,t.depth,t.dir);
+    job.probed.add(t.key);if(r)opportunityAirAdd(job,pair,t.template,r.rows,t.depth,t.dir);else job.probeFailures.add(t.key);
    }
-  }catch(error){if(task.row)job.verify.set(task.row.id,{state:'unknown'});else job.probed.add(task.probe.key);globalThis.AstroNotesErrors?.note('records.opportunity-air',error);}
+  }catch(error){if(task.row)job.verify.set(task.row.id,{state:'unknown'});else{job.probed.add(task.probe.key);job.probeFailures.add(task.probe.key);}globalThis.AstroNotesErrors?.note('records.opportunity-air',error);}
   finally{
    job.verifying=false;
    // 中止された判定は数回までだけやり直す（同じ行で回り続けない）
    const key=task.row?task.row.id:task.probe.key,tries=retry?(job.airTries.get(key)||0)+1:0;if(retry)job.airTries.set(key,tries);
-   if(tries>3){if(task.row&&!job.verify.has(key))job.verify.set(key,{state:'unknown'});if(task.probe)job.probed.add(key);}
+   if(tries>3){if(task.row&&!job.verify.has(key))job.verify.set(key,{state:'unknown'});if(task.probe){job.probed.add(key);job.probeFailures.add(key);}}
    if(opportunityCurrent(job)){job.verifyRev=(job.verifyRev||0)+1;opportunityDraw(job);}
   }
  })();
@@ -3498,6 +3508,7 @@ function opportunityDraw(job){
  if(d.rendered!==drawn||job.pendingDrawn!==pending.length){d.rendered=drawn;job.pendingDrawn=pending.length;
   opportunityRenderRows(d.list,[...rows,...pending],job,new Set(air?rows.filter(r=>r.airOnly||job.verify?.get(r.id)?.state==='ok'):rows));}
  const failures=s.failures.length+job.unavailable;
+ const airFailed=air&&opportunityAirFailed(job),airPending=air&&job.verifying;
  d.notice.textContent=opportunityNotice;
  if(s.error){job.progressUi=null;d.status.textContent=s.error.message||'サーバーに接続できません。再試行してください。';}
  else if(!s.done&&(job.remote||job.pairs.length)){
@@ -3507,10 +3518,12 @@ function opportunityDraw(job){
   job.progressUi=null;d.status.textContent=!job.pairs.length?(!opportunityFilters.allTargets&&!opportunityFilters.targets.length?'対象を選び直してください。':job.unavailable?(job.policyUnavailable?'撮影地点の高さや重ね方を確認してください。':job.accessUnavailable===job.unavailable?'現在の権限では、この組み合わせを確認できません':'対象の登録を確認してください。'):
   'この組み合わせで確認できる記録がありません'):
   failures?(s.failures.length?'確認できなかった組み合わせがあります':job.accessUnavailable===job.unavailable?'現在の権限では確認できない組み合わせがあります':'対象の登録を確認してください。'):
+  airPending?'大気差を確認しています…':airFailed?'大気差を確認できなかった日があります':
   rows.length?'':'確認した期間に重なる組み合わせはありません';
  }
- d.through.textContent=job.pairs.length&&s.through>job.start?opportunityDateAt(s.through-1).replaceAll('-','/')+(failures?'まで探索（未確認あり）':'まで確認'):'';
- d.retry.hidden=!s.done||(!s.failures.length&&!s.error&&!job.displayError);
+ const coverage=failures||s.error||airFailed?'まで探索（未確認あり）':airPending?'まで探索（大気差を確認中）':'まで確認';
+ d.through.textContent=job.pairs.length&&s.through>job.start?opportunityDateAt(s.through-1).replaceAll('-','/')+coverage:'';
+ d.retry.hidden=!s.done||airPending||(!s.failures.length&&!s.error&&!job.displayError&&!airFailed);
  d.more.hidden=!job.pairs.length||s.done&&s.through>=aimCandidateSearchEnd();
  d.more.disabled=!s.done||s.running||!!s.error;d.more.textContent=s.running?'計算中…':'さらに先を探す';
  // 2026-11-13 戻した位置は少しの間覚えておく。戻した直後に一覧が作り直されると、一瞬短くなったページにブラウザが位置を詰めていた（WebKitで292→220）

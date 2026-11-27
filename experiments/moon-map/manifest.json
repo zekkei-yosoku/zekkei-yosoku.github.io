@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "20261124-moon-route-map",
-  "revision": 15,
+  "revision": 16,
   "baselineCommit": "f4f35b61359ba5ec8f9da057cf3026902a0402a4",
   "baselineSha256": {
     "index.html": "feb5e6c31bbb6014c66615a414cca2477296b89ab8e6a95ba1e98c07907a29c3",
@@ -23,7 +23,16 @@
     "src/features/candidates/generic-search.js": "194590745bc5aeaf5221bbb6480740afdc14ced1634311a2bf46456a74416664",
     "astronotes-shooting.js": "58dd86c5d5dc697ded5c5a5a4c5800818f9a16a4f21ecabe570fa175ebddd16c",
     "astronotes-target-ui.js": "42f0d586be47e3966264cbf765749360d82c10c464defc1868d836b1d06831f6",
-    "astronotes-scroll-timeline.js": "f45b6f3bb16a210f81f87b254b2a9b6fabe64bf14242bf3617319509735d92bd"
+    "astronotes-scroll-timeline.js": "f45b6f3bb16a210f81f87b254b2a9b6fabe64bf14242bf3617319509735d92bd",
+    "src/ui/presentation-helpers.js": "2bbfa9291bef3640f965345b302086e9b84985c868824720dd073e46a300207a",
+    "src/features/framing/observer.js": "fd75de2deab5686cd40d143734b9eedd816979a93eacc047f2aaeaaadb298200",
+    "src/features/candidates/entry.inc": "19e356b41d216f44338538f63bace95482b0a4e3566dd2205dc455b7fafbf30a",
+    "src/features/candidates/building-model.js": "a404d69ea34943f4b97f45413c01cb2b0c2a231b35622b89cdb7283ab1404749",
+    "src/features/candidates/terrain-model.js": "6aaee309d71429845ca008ca17e7a395aeb67ee7b1f0d5c867c762d0e74a298c",
+    "src/features/candidates/height-grid.js": "7e2bbb70bc7febde1ce075497dad79c963f350b2049c4dd6c89b9b2589876a0d",
+    "src/features/candidates/plateau-buildings.js": "fcffc03f9178f462c351a956bdf7cf6856fb93cd70e5587ab16b000a7136e417",
+    "src/features/candidates/osm-places.js": "098b5f607f9e08cee740201e0e70c318aa9fd161c8751173dedd756b8e37ba89",
+    "src/features/candidates/tree-heights.js": "7303da2b7c2a3a549a2a6c6459daa9aed55ae771a863361ec34a98a72e1e42de"
   },
   "overlays": [
     {
@@ -96,6 +105,42 @@
     },
     {
       "path": "astronotes-scroll-timeline.js",
+      "required": false
+    },
+    {
+      "path": "src/ui/presentation-helpers.js",
+      "required": false
+    },
+    {
+      "path": "src/features/framing/observer.js",
+      "required": false
+    },
+    {
+      "path": "src/features/candidates/entry.inc",
+      "required": false
+    },
+    {
+      "path": "src/features/candidates/building-model.js",
+      "required": false
+    },
+    {
+      "path": "src/features/candidates/terrain-model.js",
+      "required": false
+    },
+    {
+      "path": "src/features/candidates/height-grid.js",
+      "required": false
+    },
+    {
+      "path": "src/features/candidates/plateau-buildings.js",
+      "required": false
+    },
+    {
+      "path": "src/features/candidates/osm-places.js",
+      "required": false
+    },
+    {
+      "path": "src/features/candidates/tree-heights.js",
       "required": false
     }
   ]

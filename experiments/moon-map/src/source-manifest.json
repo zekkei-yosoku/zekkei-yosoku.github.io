@@ -2527,14 +2527,21 @@
         "surfaces": [
           "ホーム",
           "探す・見え方",
-          "旧構図"
+          "旧構図",
+          "月丼"
         ],
         "contract": "同じ日時バーの配置・DOM・所有権を維持。表示投影は共通、時刻状態は各host。",
         "checks": [
           "test-datetime-component.mjs",
-          "tools/check-datetime-direct-ui.cjs"
+          "tools/check-datetime-direct-ui.cjs",
+          "tools/test-moon-map-browser.cjs"
         ],
         "consumers": [
+          {
+            "path": "src/features/aircraft/controller.js",
+            "scope": "openPlane",
+            "count": 1
+          },
           {
             "path": "src/features/explore/map-presentation.js",
             "scope": "<top-level>",
@@ -2565,14 +2572,21 @@
         "surfaces": [
           "ホーム",
           "探す・見え方",
-          "撮影候補の日時入力"
+          "撮影候補の日時入力",
+          "月丼"
         ],
         "contract": "暦日選択・親画面の寿命・権限/取消を共通管理。呼出元の時刻を確定。",
         "checks": [
           "test-calendar.mjs",
-          "tools/check-datetime-direct-ui.cjs"
+          "tools/check-datetime-direct-ui.cjs",
+          "tools/test-moon-map-browser.cjs"
         ],
         "consumers": [
+          {
+            "path": "src/features/aircraft/controller.js",
+            "scope": "openPlane",
+            "count": 1
+          },
           {
             "path": "src/features/candidates/ui.js",
             "scope": "syncCandidateDate",
@@ -2793,14 +2807,16 @@
           "記録追加の名前候補",
           "構図/地図の撮影地点",
           "対象の住所",
-          "航空の地点"
+          "航空の地点",
+          "月丼"
         ],
         "contract": "One nearby lookup policy: keep facility names; use street/kaido aliases or numbered national/prefectural roads when supplied; otherwise use available address. Do not guess fame, borrow adjacent street names, overwrite explicit saved names, or classify a line as road. Cache successful lookups; preserve caller cancellation and draft identity.",
         "checks": [
           "test-place-context.mjs",
           "test-record-entry.mjs",
           "test-ui-intuition.mjs",
-          "tools/test-place-map-return.cjs"
+          "tools/test-place-map-return.cjs",
+          "tools/test-moon-map-browser.cjs"
         ],
         "consumers": [
           {
@@ -2811,6 +2827,11 @@
           {
             "path": "src/features/aircraft/controller.js",
             "scope": "openPlane",
+            "count": 1
+          },
+          {
+            "path": "src/features/aircraft/controller.js",
+            "scope": "planeRefreshHere",
             "count": 1
           },
           {
@@ -2870,6 +2891,60 @@
             "path": "src/features/candidates/candidate-picker.js",
             "scope": "formatRow",
             "count": 1
+          }
+        ]
+      },
+      {
+        "id": "observer-height-input",
+        "name": "撮影地点の高さ入力",
+        "owner": {
+          "path": "src/ui/presentation-helpers.js",
+          "symbol": "wireObserverHeightInput"
+        },
+        "calls": [
+          "wireObserverHeightInput",
+          "setObserverHeightInput"
+        ],
+        "surfaces": [
+          "構図",
+          "探す",
+          "月丼"
+        ],
+        "contract": "標高と地上高の範囲、入力の確定・復元、エラー表示を共通にする。自動値への復帰と旧データ、計算と保存は各画面が所有。",
+        "checks": [
+          "test-moon-map-trial-build.mjs",
+          "tools/test-moon-map-browser.cjs"
+        ],
+        "consumers": [
+          {
+            "path": "src/features/aircraft/controller.js",
+            "scope": "openPlane",
+            "count": 2
+          },
+          {
+            "path": "src/features/aircraft/controller.js",
+            "scope": "planeApply",
+            "count": 2
+          },
+          {
+            "path": "src/features/explore/map-presentation.js",
+            "scope": "<top-level>",
+            "count": 1
+          },
+          {
+            "path": "src/features/explore/map-presentation.js",
+            "scope": "renderObserverHeight",
+            "count": 1
+          },
+          {
+            "path": "src/features/framing/observer.js",
+            "scope": "<top-level>",
+            "count": 2
+          },
+          {
+            "path": "src/features/framing/observer.js",
+            "scope": "aimRenderObserverHeight",
+            "count": 4
           }
         ]
       }

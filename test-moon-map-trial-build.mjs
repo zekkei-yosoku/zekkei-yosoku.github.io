@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
+import {deflateSync,gzipSync} from 'node:zlib';
+import {runInNewContext} from 'node:vm';
 import {buildMoonMapTrial} from './tools/build-moon-map-trial.mjs';
 import {hashCsp} from './tools/release-html.mjs';
 
@@ -65,4 +67,28 @@ test('an overlaid explore source re-renders the trial explore bundle; untouched 
  assert.equal(JSON.parse(files['moon-map-experiment.json']).files['astronotes-explore-simple.js'],sha(files['astronotes-explore-simple.js']));
  const plain=buildMoonMapTrial(inputs());
  assert.equal(plain['astronotes-explore-simple.js'],undefined,'without an explore overlay the bundle is copied from production');
+});
+
+test('trial candidate sources share a byte stream for gzip and deflate, including buffers and offsets',async()=>{
+ const files=buildMoonMapTrial();
+ const bundle=files['astronotes-candidate-search.js'];
+ assert.equal([...bundle.matchAll(/\bdecompressCandidateBytes\(/g)].length,7);
+ assert.equal([...bundle.matchAll(/new DecompressionStream\(/g)].length,1);
+ const entry=baseline(prefix+'src/features/candidates/entry.inc').split('@@include:')[0];
+ const decode=runInNewContext(entry+'\ndecompressCandidateBytes',{ReadableStream,DecompressionStream,Response,Uint8Array});
+ const data=Buffer.alloc(300000);
+ let state=1;
+ for(let i=0;i<data.length;i++){state=(Math.imul(state,1664525)+1013904223)>>>0;data[i]=state>>>24;}
+ const gzip=gzipSync(data),deflate=deflateSync(data);
+ assert(gzip.length>65536);
+ const padded=Buffer.concat([Buffer.from([1,2]),gzip,Buffer.from([3])]);
+ const toBuffer=async response=>Buffer.from(await response.arrayBuffer());
+ const [gzipData,deflateData]=await Promise.all([
+  toBuffer(decode(padded.subarray(2,-1))),
+  toBuffer(decode(deflate.buffer.slice(deflate.byteOffset,deflate.byteOffset+deflate.byteLength),'deflate'))
+ ]);
+ assert.deepEqual(gzipData,data);
+ assert.deepEqual(deflateData,data);
+ await assert.rejects(toBuffer(decode(Uint8Array.of(1,2,3))));
+ assert.deepEqual(await toBuffer(decode(gzip)),data,'a failed stream does not affect another decoder');
 });

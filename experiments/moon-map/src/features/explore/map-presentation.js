@@ -1,4 +1,4 @@
-import {S} from '../../ui/presentation-helpers.js';
+import {S,setObserverHeightInput,wireObserverHeightInput} from '../../ui/presentation-helpers.js';
 import {place,setSkyMapUI,store} from '../../app/browser-state.js';
 import {blendBodyState,moonGlyphAt} from '../forecast/view.js';
 import {applyRoute,navigationHistory,routeFromHash} from '../../app/navigation.js';
@@ -200,7 +200,7 @@ ctx.lineWidth=1;
   if(!validPoint(o))return;
   const ground=o.groundManualM??session.ground,eye=aimObserverAt(o,ground).eyeM;
   {const values=document.createElement('span');values.className='height-summary-values';values.textContent='：標高 '+(Number.isFinite(ground)?ground.toFixed(1)+'m':'未取得')+'・地上から '+eye+'m';el('skyMapObserverSummary').replaceChildren('高さ',values);}
-  for(const [id,value] of [['skyMapGroundHeight',ground],['skyMapStandHeight',eye]]){const input=el(id);input.disabled=false;input.placeholder=id==='skyMapGroundHeight'?'標高を入力':'地上からを入力';if(document.activeElement!==input)input.value=Number.isFinite(value)?String(value):'';}
+  for(const [id,value] of [['skyMapGroundHeight',ground],['skyMapStandHeight',eye]]){const input=el(id);input.disabled=false;input.placeholder=id==='skyMapGroundHeight'?'標高を入力':'地上からを入力';setObserverHeightInput(input,value,{keepFocus:true});}
   el('skyMapGroundAuto').disabled=!Number.isFinite(o.groundManualM);el('skyMapStandAuto').disabled=!Number.isFinite(o.standAglM)&&!Number.isFinite(o.observationElevationM);
  }
  function normalizeWholeAlignment(){
@@ -364,10 +364,10 @@ ctx.lineWidth=1;
   if(Object.hasOwn(change,'groundManualM'))session.ground=null;
   el('skyMapHeightError').hidden=true;refresh();
  }
- for(const [id,field,min,max,reset] of [['skyMapGroundHeight','groundManualM',-500,9000,'skyMapGroundAuto'],['skyMapStandHeight','standAglM',0,700,'skyMapStandAuto']]){
-  el(id).onchange=()=>{if(!hasAccess()||!session?.observer||!active())return;const input=el(id),value=Number(input.value);if(!input.value.trim()||!Number.isFinite(value)||value<min||value>max){el('skyMapHeightError').textContent='高さの範囲を確認してください';el('skyMapHeightError').hidden=false;return;
-  }changeObserverHeight({[field]:value});};
-  el(reset).onclick=()=>{if(!hasAccess()||!session?.observer||!active())return;changeObserverHeight({[field]:null});};
+ const canEditObserverHeight=()=>hasAccess()&&!!session?.observer&&active();
+ for(const [id,field,kind,reset] of [['skyMapGroundHeight','groundManualM','ground','skyMapGroundAuto'],['skyMapStandHeight','standAglM','eye','skyMapStandAuto']]){
+  wireObserverHeightInput(el(id),kind,{enabled:canEditObserverHeight,error:el('skyMapHeightError'),commit:value=>changeObserverHeight({[field]:value})});
+  el(reset).onclick=()=>{if(canEditObserverHeight())changeObserverHeight({[field]:null});};
  }
  PLACE_PICKERS.skymap={title:'撮影地点',custom:()=>session?.observer,point:()=>session?.observer||place,set:p=>{if(!hasAccess()||!session||!active())return;session.observer=aimSavedFrom(p);session.ground=null;map.setCenter(p.latitude,p.longitude);refresh();
  },resetLabel:'撮影地点の選択を解除',reset:()=>{if(!hasAccess()||!session||!active())return;session.observer=null;session.ground=null;setPickMode(null);refresh();}};
