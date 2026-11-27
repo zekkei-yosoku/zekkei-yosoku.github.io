@@ -26,7 +26,7 @@
 :is(#skyMapView.map-ws,#planeView) .tool-datetime-footer .sky-map-scrub-modes{grid-area:1/1;z-index:3}
 :is(#skyMapView.map-ws,#planeView) .tool-datetime-footer .tool-datetime-track{grid-area:1/1/2/-1;--timeline-label-inset:54px;mask-image:linear-gradient(to right,transparent 32px,#000 var(--timeline-label-inset))}
 @media(max-width:599px){:is(#skyMapView.map-ws,#planeView) .tool-datetime-footer .sky-map-scrub{margin-inline-end:calc(env(safe-area-inset-right) - var(--datetime-footer-right))}}
-#planeView .timeline-moon-band{position:absolute;inset-inline:0;bottom:0;width:100%;height:5px;z-index:2;pointer-events:none}
+.sky-timeline-annotations{position:absolute;bottom:0;height:16px;pointer-events:none}
 @media(max-width:409px){:is(#aimView,#skyMapView,#almanacView,#planeView) .tool-datetime-row{font-size:16px}}
 @media(max-width:479px){:is(#aimView,#skyMapView,#almanacView,#planeView) .tool-datetime-row .preview-date-year{display:none}}
 @media(min-width:960px){:is(#aimView,#skyMapView,#almanacView,#planeView) .tool-datetime-footer{left:50%;right:auto;width:min(780px,calc(100vw - 40px));transform:translateX(-50%);border:1px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0}}

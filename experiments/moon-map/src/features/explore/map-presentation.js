@@ -385,7 +385,7 @@ ctx.lineWidth=1;
   if(session.timelinePending)refresh(timeOnly);else render(timeOnly);
  }
  const renderMinutes=()=>view.dataset.exploreStage==='preview'&&view.dataset.exploreMode==='scene';
- const skyTimeline=AstroNotesScrollTimeline.mount({root:el('skyMapTimeline'),renderMinutes,getAt:()=>session?.at,getMode:()=>session?.scrubMode,enabled:()=>hasAccess()&&!!session&&active(),onChange:at=>{
+ const skyTimeline=AstroNotesScrollTimeline.mount({root:el('skyMapTimeline'),renderMinutes,annotations:mode=>globalThis.AstroNotesMapWorkspace?.annotations(mode),getAt:()=>session?.at,getMode:()=>session?.scrubMode,enabled:()=>hasAccess()&&!!session&&active(),onChange:at=>{
   if(!hasAccess()||!session||!active())return;
   const day=AstroNotesSkyMap.dayStart(at),changed=day!==AstroNotesSkyMap.dayStart(session.at);
   timelineMoving=true;session.at=at;

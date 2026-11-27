@@ -1,5 +1,5 @@
 /* 探すの地図の作業画面（試用版だけ読み込む）。寸法の持ち主はここ。日時バーの共通部品の寸法は変えない。 */
-.map-ws-top,.map-ws-menu,.map-ws-info,.map-ws-dots,.map-ws-band,.map-ws-bodies,.map-ws-pick,.map-ws-home,.map-ws-north{display:none}
+.map-ws-top,.map-ws-menu,.map-ws-info,.map-ws-dots,.map-ws-bodies,.map-ws-pick,.map-ws-home,.map-ws-north{display:none}
 #skyMapView:is(.map-ws,.map-ws-scene){--ws-top:calc(56px + env(safe-area-inset-top));--ws-rail-right:calc(6px + env(safe-area-inset-right))}
 #skyMapView:is(.map-ws,.map-ws-scene) .map-ws-top{position:fixed;z-index:36;top:0;left:0;right:0;display:flex;align-items:center;gap:2px;height:var(--ws-top);padding:env(safe-area-inset-top) max(6px,env(safe-area-inset-right)) 0 max(6px,env(safe-area-inset-left));background:var(--card);border-bottom:1px solid var(--line);box-sizing:border-box}
 .map-ws-top button{min-width:44px;min-height:44px;border:0;background:none;color:var(--text);display:grid;place-items:center;padding:0;border-radius:10px;cursor:pointer}
@@ -73,8 +73,6 @@ html:has(#skyMapView.map-ws-scene){scrollbar-gutter:auto}
 .map-ws-cell[aria-pressed=false]{border-top-color:var(--line)}.map-ws-cell[aria-pressed=false] :is(b,i){opacity:.45}.map-ws-cell[aria-pressed=false] small::after{content:" 非表示"}
 #skyMapView.map-ws .map-ws-dots{display:flex;justify-content:center;gap:6px;padding:4px 0 2px}
 .map-ws-dots span{width:6px;height:6px;border-radius:50%;background:var(--line)}.map-ws-dots span.on{background:var(--accent)}
-#skyMapView.map-ws .map-ws-band{display:block;position:absolute;left:0;right:0;bottom:0;width:100%;height:16px;pointer-events:none;z-index:2}
-#skyMapView.map-ws .map-ws-band[hidden]{display:none}
 /* 小さい画面: 拡大と縮小は2本指に任せる */
 @media(max-height:640px){#skyMapView.map-ws .sky-map-wide .mapzoom :is(#skyMapIn,#skyMapOut){display:none}
  #skyMapView.map-ws .sky-map-wide .map-layers-btn{top:54px}#skyMapView.map-ws .sky-map-wide .map-layer-menu{top:54px}#skyMapView.map-ws .map-ws-bodies{top:100px}#skyMapView.map-ws .sky-map-wide .sky-map-point-tools{top:100px}}

@@ -146,6 +146,18 @@ async function reopenKeepsSearch(type,engine){
      assert.deepEqual(layout.chips,['確認地点','月','東京スカイツリー','全体'],label);
      assert(layout.band.h>=44&&layout.view.h>=44&&layout.view.w>=44&&layout.date&&layout.time&&layout.conditionsHidden,label+' '+JSON.stringify(layout));
      assert.match(layout.card,/確認地点 → 東京スカイツリー \/ 対象まで [\d.]+km ・ 方位 [\d.]+°/);
+     await page.waitForFunction(()=>!!document.querySelector('#skyMapTimeline .sky-timeline-annotations:not([hidden])'));
+     const motion=await page.evaluate(()=>{
+      const ruler=document.getElementById('skyMapTimeline'),tape=ruler.querySelector('.sky-timeline-tape');
+      const label=tape.querySelector('.sky-timeline-label'),band=tape.querySelector('.sky-timeline-annotations');
+      const x=node=>node.getBoundingClientRect().left,offset=ruler.scrollLeft,left=[x(label),x(band)];
+      ruler.scrollLeft=offset+37;
+      const moved=ruler.scrollLeft-offset;
+      const difference=Math.abs(x(label)-left[0]+moved)+Math.abs(x(band)-left[1]+moved);
+      ruler.scrollLeft=offset;
+      return {moved,difference};
+     });
+     assert(motion.moved>=36&&motion.difference<.5,label+': 目盛りと帯は同じスクロール面で動く '+JSON.stringify(motion));
      // 選んだ天体だけ、軌道は1つの円弧。
      assert.equal(await page.evaluate(()=>AstroNotesMapWorkspace.onlyBody()),'moon');
      const moonArc=await arcResidual(page);assert(moonArc.count>=8&&moonArc.residual<1.5,label+': 月の時刻点は円弧の上 '+JSON.stringify(moonArc));

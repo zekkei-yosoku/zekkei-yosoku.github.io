@@ -217,7 +217,7 @@ function mountMinuteRuler({root,tape,enabled,onChange,onSettle,format,describe,g
   follow(value){stop();phase=value;show(value);},
  };
 }
-function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=>{},onBlend=()=>{},format,describe=format,getObserver=()=>null,sun=()=>null,numeric=null,renderMinutes=()=>false}){
+function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=>{},onBlend=()=>{},format,describe=format,getObserver=()=>null,sun=()=>null,numeric=null,renderMinutes=()=>false,annotations=null}){
  let minutes=null,labelObserver=null,observedInset=0;
  const enabled=()=>canUse()&&!minutes?.active();
  const clamp=v=>numeric?Math.max(numeric.min,Math.min(numeric.max,v)):v;
@@ -226,6 +226,9 @@ function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=
  const rulerScale=mode=>numeric?{step:numeric.step,pixels:numeric.pixels,labelEvery:numeric.labelEvery}:scale(mode);
  const rulerAdvance=(at,pixels,mode)=>numeric?numeric.snap?clamp(numeric.snap(at+pixels/numeric.pixels*numeric.step)):rounded(Math.round((at+pixels/numeric.pixels*numeric.step)/numeric.step)*numeric.step):advance(at,pixels,mode);
  const tape=document.createElement('div');tape.className='sky-timeline-tape';root.replaceChildren(tape);
+ const layer=annotations?document.createElement('canvas'):null;
+ if(layer){layer.className='sky-timeline-annotations';layer.setAttribute('aria-hidden','true');layer.hidden=true;}
+ let painted=null;
  let blend=null,snapFrame=0,snapTarget=null,anchor=null,mode=null,lastAt=null,width=0,moving=false,pressed=false,touching=false,frame=0,timer=0,generation=AstroNotesLibrary.gate(),blocked=true,mouse=null,context='',colorCache=new Map(),lastTouchMove=0,lastScroll=null,
  inputKind='';
  const label=at=>format(at,mode);
@@ -237,10 +240,36 @@ function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=
  const sameBlend=(a,b)=>a===b||!!a&&!!b&&a.from===b.from&&a.to===b.to&&a.f===b.f;
  const setBlend=next=>{if(sameBlend(next,blend))return;blend=next;onBlend(next);};
  const offsetFromCenter=()=>Math.max(-EXTENT,Math.min(EXTENT,root.scrollLeft-EXTENT));
+ // The marks belong to the moving tape. The extra width covers ordinary drags before repainting.
+ function paintAnnotations(at){
+  if(!layer||!width||!Number.isFinite(anchor)||!Number.isFinite(at))return;
+  const source=annotations(mode);
+  if(!source){layer.hidden=true;painted=null;return;}
+  const {step,pixels}=rulerScale(mode),rate=pixels/step,ratio=Math.min(2,g.devicePixelRatio||1);
+  const buffer=width/rate,zero=anchor-(EXTENT+width/2)/rate,tapeEnd=zero+(2*EXTENT+width)/rate;
+  const neededStart=Math.max(zero,at-.75*buffer),neededEnd=Math.min(tapeEnd,at+.75*buffer);
+  if(!painted||painted.key!==source.key||painted.rate!==rate||painted.ratio!==ratio||
+    painted.start>neededStart||painted.end<neededEnd||painted.start<zero||painted.end>tapeEnd){
+   const start=Math.max(zero,at-1.5*buffer),end=Math.min(tapeEnd,at+1.5*buffer);
+   const drawWidth=(end-start)*rate,height=16,ctx=layer.getContext('2d');
+   if(!ctx)return;
+   layer.style.width=drawWidth+'px';
+   const w=Math.max(1,Math.round(drawWidth*ratio)),h=Math.round(height*ratio);
+   if(layer.width!==w)layer.width=w;
+   if(layer.height!==h)layer.height=h;
+   ctx.setTransform(ratio,0,0,ratio,0,0);ctx.clearRect(0,0,drawWidth,height);
+   try{source.paint(ctx,{start,end,width:drawWidth,height,pixelsPerMs:rate});}
+   catch(error){layer.hidden=true;painted=null;g.AstroNotesErrors?.note('timeline.annotations',error);return;}
+   painted={key:source.key,start,end,rate,ratio};
+  }
+  const left=(painted.start-zero)*rate+'px';
+  if(layer.style.left!==left)layer.style.left=left;
+  layer.hidden=false;
+ }
  const emit=(offset=offsetFromCenter())=>{const s=rulerScale(mode),units=offset/s.pixels,at=numeric?rounded(anchor+units*s.step):mode!=='date'?Math.round(anchor+units*s.step):rulerAdvance(anchor,offset,mode),changed=at!==lastAt;
   if(changed){lastAt=at;root.setAttribute('aria-valuetext',describe(at,mode));root.setAttribute('aria-valuenow',String(ariaValue(at)));onChange(at);}
   if(mode==='date'){const k=Math.floor(units),f=Math.round((units-k)*1000)/1000;setBlend(f>0&&f<1?{from:anchor+k*s.step,to:anchor+(k+1)*s.step,f}:null);}
-  return changed;};
+  paintAnnotations(at);return changed;};
  const flush=()=>{frame=0;if(!enabled()||!Number.isFinite(anchor))return;if(numeric){const s=rulerScale(mode),raw=anchor+(root.scrollLeft-EXTENT)/s.pixels*s.step,bounded=clamp(raw);if(raw!==bounded)root.scrollLeft=EXTENT+(bounded-anchor)/s.step*s.pixels;
  }const offset=offsetFromCenter();if(emit(offset)&&(inputKind!=='touch'||touching)&&Math.abs(offset)>=EXTENT/2)rebase(offset);};
  // The sky fades under the scale control. Keep each time label whole as it crosses that edge.
@@ -281,9 +310,9 @@ function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=
    tape.style.backgroundSize='var(--timeline-unit) 8px,100% 100%';tape.style.backgroundPosition=tickOrigin+'px 5px,0 0';
    for(const tick of nodes){const atTick=at+(parseFloat(tick.style.left)-origin)/s.pixels*s.step,rgb=color(atTick);if(rgb)tick.style.color=skyInk(rgb);}
   }else{tape.style.backgroundImage='';tape.style.backgroundSize='';tape.style.backgroundPosition=origin+'px 5px';}
-  tape.replaceChildren(...nodes);root.dataset.mode=mode;root.setAttribute('aria-label',numeric?numeric.label:mode==='date'?'日付を横スクロールして調整':'時刻を横スクロールして調整');root.setAttribute('aria-valuetext',describe(at,mode));root.setAttribute('aria-valuenow',String(ariaValue(at)));
+  tape.replaceChildren(...nodes);if(layer)tape.append(layer);root.dataset.mode=mode;root.setAttribute('aria-label',numeric?numeric.label:mode==='date'?'日付を横スクロールして調整':'時刻を横スクロールして調整');root.setAttribute('aria-valuetext',describe(at,mode));root.setAttribute('aria-valuenow',String(ariaValue(at)));
   root.setAttribute('aria-valuemin',String(numeric?ariaValue(numeric.min):Date.UTC(100,0,1)-OFFSET));root.setAttribute('aria-valuemax',String(numeric?ariaValue(numeric.max):Date.UTC(10000,0,1)-OFFSET-1));root.scrollLeft=EXTENT;
-  observeLabels(nodes);
+  observeLabels(nodes);paintAnnotations(at);
  }
  const now=()=>typeof performance==='undefined'?Date.now():performance.now();
  function rebase(offset){
@@ -358,8 +387,8 @@ function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=
   return minutes;
  };
  const api={
-  sync(at,nextMode){if(Number.isFinite(at)){const ruler=minuteRuler(nextMode);if(ruler)ruler.sync(at);else controller.sync(at,nextMode);}else this.stop();},
-  follow(at,nextMode){if(Number.isFinite(at)){const ruler=minuteRuler(nextMode);if(ruler)ruler.follow(at);else controller.follow(at,nextMode);}},
+  sync(at,nextMode){if(Number.isFinite(at)){const ruler=minuteRuler(nextMode);if(ruler)ruler.sync(at);else{controller.sync(at,nextMode);paintAnnotations(at);}}else this.stop();},
+  follow(at,nextMode){if(Number.isFinite(at)){const ruler=minuteRuler(nextMode);if(ruler)ruler.follow(at);else{controller.follow(at,nextMode);paintAnnotations(at);}}},
   stop(){minutes?.stop();stop();},
  };
  const observer=typeof ResizeObserver==='function'?new ResizeObserver(()=>api.sync(getAt(),getMode())):null;
