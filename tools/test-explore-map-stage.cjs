@@ -179,15 +179,24 @@ async function reopenKeepsSearch(type,engine){
      await page.waitForFunction(()=>document.getElementById('mapWsCardOverlap').textContent==='この日は月が対象に重ならない');
      // 上部の天体を太陽にすると太陽だけ。冬の太陽も南へ膨らむ弧。
      const bodyButton=page.locator('#mapWsBodyPicker');
+     const bodyAppearance=()=>bodyButton.evaluate(button=>{
+      const {x,y,width,height}=button.getBoundingClientRect(),style=getComputedStyle(button);
+      return {bounds:[x,y,width,height],background:style.backgroundColor,shadow:style.boxShadow,outline:style.outlineStyle};
+     });
+     const bodyBefore=await bodyAppearance();
      const chooseBody=async body=>{await bodyButton.click();await page.locator(`#skyMapBodyDialog [data-body-value=${body}]`).click();};
      await chooseBody('sun');
      assert.equal(await page.locator('#mapWsTitle').getAttribute('aria-expanded'),'false');
      await page.evaluate(()=>SkyMapUI.setTime(Date.parse('2026-12-24T12:00:00+09:00')));
      await page.waitForFunction(()=>AstroNotesMapWorkspace.onlyBody()==='sun'&&document.querySelector('#mapWsTitle [data-chip=body]').textContent==='太陽'&&/太陽/.test(document.getElementById('mapWsCardOverlap').textContent));
+     assert.deepEqual(await bodyAppearance(),bodyBefore,label+': 天体を変えてもボタンの外寸と面を維持');
      await page.waitForTimeout(200);const sunArc=await arcResidual(page);assert(sunArc.count>=6&&sunArc.residual<1.5&&!sunArc.straight,label+': 太陽も円弧 '+JSON.stringify(sunArc));
      await bodyButton.press('Enter');
-     await page.locator('#skyMapBodyDialog [data-body-value=moon]').click();
-     await page.waitForFunction(()=>document.activeElement?.id==='mapWsBodyPicker');
+     const moonChoice=page.locator('#skyMapBodyDialog [data-body-value=moon]');
+     await moonChoice.press('Enter');
+     await page.waitForFunction(()=>document.activeElement?.matches('#mapWsBodyPicker:focus-visible'));
+     assert.deepEqual(await bodyAppearance(),bodyBefore,label+': フォーカスが戻ってもボタンの青い面を覆わない');
+     assert.equal(await bodyButton.locator('span').evaluate(label=>getComputedStyle(label).textDecorationLine),'underline');
      await page.evaluate(()=>SkyMapUI.setTime(Date.parse('2026-12-24T16:41:00+09:00')));
      await page.waitForFunction(()=>document.querySelector('#mapWsTitle [data-chip=body]').textContent==='月'&&/^重なる /.test(document.getElementById('mapWsCardOverlap').textContent));
      await page.screenshot({path:`${out}/${label}-map.png`});

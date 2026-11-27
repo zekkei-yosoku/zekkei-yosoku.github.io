@@ -486,6 +486,7 @@ document.addEventListener('visibilitychange',()=>{
 // 撮影地点を探す（記録/新規）と候補はポップアップの中だけで動く。地図の段では重なる日時の欄が動く。
 const searchFlowReady=()=>active()&&!resultRequested&&!selectionPending&&flowOwner===auth?.loginId&&flowGeneration===accessState.generation;
 const mainSearchActive=()=>searchFlowReady()&&conditionsOpen;
+const searchScroller=()=>sheetOn()?layout.conditions:document.scrollingElement;
 function ensureSearchRoot(){
  if(!layout.mounted)return;
  if(!searchRoot){
@@ -498,7 +499,7 @@ function ensureSearchRoot(){
 }
 function restoreSearchScroll(count){
  if(!pendingScroll||!mainSearchActive()||count<pendingScroll.count)return;
- const saved=pendingScroll;pendingScroll=null;requestAnimationFrame(()=>{if(mainSearchActive())document.scrollingElement.scrollTop=saved.top;});
+ const saved=pendingScroll;pendingScroll=null;requestAnimationFrame(()=>{if(mainSearchActive())searchScroller().scrollTop=saved.top;});
 }
 function foldConditions(){if(layout.conditions)layout.conditions.removeAttribute('open');}
 function placeBack(){
@@ -623,7 +624,7 @@ function captureSearch(){
  const s=SkyMapUI.selectionState();if(!s)return;
  const candidatePlan=searchStarted?globalThis.AstroNotesCandidatePicker?.captureSearchPlan?.():null;
  returnIntent={owner:auth.loginId,generation:accessState.generation,selection:structuredClone(s),custom:structuredClone(SkyMapUI.workspaceHost()?.session.custom??null),customTarget:structuredClone(SkyMapUI.workspaceHost()?.session.customTarget??null),searched:searchStarted,
- candidatePlan:structuredClone(candidatePlan??null),scrollTop:document.scrollingElement.scrollTop,count:globalThis.AstroNotesCandidatePicker?.visibleRows().length||0};
+ candidatePlan:structuredClone(candidatePlan??null),scrollTop:searchScroller().scrollTop,count:globalThis.AstroNotesCandidatePicker?.visibleRows().length||0};
 }
 function enterResult(){
  cancelCompositionSearch();if(!resultRequested)previewFrom=conditionsOpen?'search':'map';
@@ -899,7 +900,7 @@ const mainCandidateWorkspace={separateRecords:true,newPlacesHost:()=>newPlacePan
  },
  reveal(){if(!mainSearchActive())return;const first=!searchStarted;searchStarted=true;$('recentCandidates').hidden=false;$('candidateSearchEmpty').hidden=true;if(first)globalThis.MyPlacesUI?.renderPickerPanel($('recentCandidates'));},
  reset(){if(searchStarted)$('candidateSearchEmpty').textContent='条件を変更しました。もう一度候補を探してください。';searchStarted=false;$('recentCandidates').hidden=true;$('candidateSearchEmpty').hidden=false;},
- restoreScroll:restoreSearchScroll,scroller:()=>document.scrollingElement};
+ restoreScroll:restoreSearchScroll,scroller:searchScroller};
 candidateBack.onclick=goBack;
 // Conditions changed in the view: showing the result again folds them back above the view.
 document.addEventListener('click',e=>{if(e.target.closest?.('#exploreShowResult')&&resultRequested&&layout.conditions)requestAnimationFrame(()=>{if(resultRequested)foldConditions();});},true);

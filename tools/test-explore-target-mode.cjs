@@ -48,8 +48,8 @@ async function toTarget(page){
 }
 // 地図上の緯度経度を画面の点へ。
 const screenPoint=(page,p)=>page.evaluate(p=>{const m=SkyMapUI.workspaceHost().map,[x,y]=m.project(p.latitude,p.longitude),r=document.getElementById('skyMapCanvas').getBoundingClientRect();return {x:r.left+x,y:r.top+y,inside:x>8&&y>8&&x<r.width-8&&y<r.height-8};},p);
-async function positionOnCanvas(page,p){
- await page.waitForFunction(()=>{const h=SkyMapUI.workspaceHost(),s=h?.session;return !!s?.eye&&!s.timelinePending&&Math.abs(s.eye.latitude-s.observer.latitude)<1e-7&&Math.abs(s.eye.longitude-s.observer.longitude)<1e-7;});
+async function positionOnCanvas(page,p,{requireObserver=true}={}){
+ if(requireObserver)await page.waitForFunction(()=>{const h=SkyMapUI.workspaceHost(),s=h?.session;return !!s?.eye&&!s.timelinePending&&Math.abs(s.eye.latitude-s.observer.latitude)<1e-7&&Math.abs(s.eye.longitude-s.observer.longitude)<1e-7;});
  await page.evaluate(async p=>{await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const h=SkyMapUI.workspaceHost(),c=document.getElementById('skyMapCanvas'),box=c.getBoundingClientRect(),w=c.clientWidth,ht=c.clientHeight,candidates=[];
   for(let y=24;y<ht-24;y+=16)for(let x=24;x<w-64;x+=16)if([[-14,-14],[54,-14],[-14,14],[54,14],[0,0]].every(([dx,dy])=>document.elementFromPoint(box.left+x+dx,box.top+y+dy)===c))candidates.push({x,y,d:Math.hypot(x-w*.23,y-ht*.45)});
   candidates.sort((a,b)=>a.d-b.d);if(!candidates.length)throw new Error('記録ピンを操作できる地図の空きがない');const pos=candidates[0];
@@ -273,28 +273,69 @@ async function recordTimeFollow(page,near,label){
  return report;
 }
 
-// 新しい地点を探す: 下部シートで新規探索を始め、結果を地図のピンと一覧に出す。候補→見え方→戻るとシート。
-async function newPlaces(type,engine){
+// 一覧が長くなっても地図と日時バーはシートの外。両方の中心で、候補ピンと一覧を往復する。
+async function newPlaces(type,engine,center){
  const {fixture}=require('./candidate-date-fixture.cjs');
  const browser=await type.launch(engine==='chrome'?{channel:'chrome',headless:true}:{headless:true});
+ const label=engine+'-new-places-'+center;
  try{
   const {context,page,errors}=await open(browser,390,'dark',{fixture});
   try{
-   await toTarget(page);await page.locator('#mapWsCardView').click();
+   if(center==='target')await toTarget(page);
+   const entry=center==='target'?'#mapWsCardView':'#mapWsNewPlaces';
+   await page.locator(entry).click();
    await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet')&&document.getElementById('exploreDiscovery-new')?.getAttribute('aria-selected')==='true');
    await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2&&document.getElementById('candidateSearchAction')?.dataset.state==='idle');
-   await page.waitForFunction(()=>AstroNotesMapWorkspace.targetState().newPins===2);
+   await page.waitForFunction(()=>AstroNotesMapWorkspace.targetState().newPins>0);
+   const readLayout=()=>page.evaluate(()=>{
+    const sheet=document.getElementById('exploreConditions'),canvas=document.getElementById('skyMapCanvas'),footer=document.querySelector('#skyMapView .sky-map-footer');
+    const r=canvas.getBoundingClientRect(),b=footer.getBoundingClientRect(),p=sheet.getBoundingClientRect();
+    const clipAncestors=element=>{
+     for(let n=element.parentElement;n&&n!==document.body;n=n.parentElement){
+      const style=getComputedStyle(n);
+      if(style.position==='fixed'&&['auto','scroll'].includes(style.overflowY))return true;
+     }
+     return false;
+    };
+    const date=document.getElementById('skyMapCalendarOpen').getBoundingClientRect();
+    return {visible:r.height>120&&b.height>=44&&document.elementFromPoint(r.left+r.width*.35,r.top+r.height/2)===canvas,
+     sheetStart:p.top,canvasEnd:r.bottom,footerStart:b.top,sheetEnd:p.bottom,canvasTop:r.top,
+     scroll:sheet.scrollTop,docScroll:document.scrollingElement.scrollTop,
+     dateVisible:!!document.elementFromPoint(date.left+date.width/2,date.top+date.height/2)?.closest('#skyMapCalendarOpen'),
+     sharedScroller:clipAncestors(canvas)||clipAncestors(footer)};
+   });
+   const before=await readLayout();
+   assert(before.visible&&before.dateVisible&&!before.sharedScroller,label+': '+JSON.stringify(before));
+   assert(Math.abs(before.sheetStart-before.canvasEnd)<=1&&Math.abs(before.sheetEnd-before.footerStart)<=1,label+': '+JSON.stringify(before));
+   await page.locator('#exploreConditions').evaluate(n=>n.scrollTop=n.scrollHeight);
+   const after=await readLayout();
+   assert(after.scroll>before.scroll&&after.docScroll===before.docScroll&&after.visible&&after.dateVisible,label+': '+JSON.stringify(after));
+   assert.equal(after.canvasTop,before.canvasTop);assert.equal(after.canvasEnd,before.canvasEnd);assert.equal(after.footerStart,before.footerStart);
+
+   await page.locator('#candidateRefinement > summary').click();
+   const kind=page.locator('#candidateKindFilter');
+   await kind.selectOption('garden');
+   await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===0&&AstroNotesMapWorkspace.targetState().newPins===0);
+   await kind.selectOption('all');
+   await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2&&AstroNotesMapWorkspace.targetState().newPins>0);
+   const row=await page.evaluate(()=>{const r=AstroNotesCandidatePicker.visibleRows()[0];return {latitude:r.place.latitude,longitude:r.place.longitude,id:AstroNotesCandidatePicker.candidateKey(r)};});
+   await positionOnCanvas(page,row,{requireObserver:false});
+   const point=await screenPoint(page,row);
+   assert(point.inside,label+': 候補ピンを地図で押せる');
+   await page.mouse.click(point.x,point.y);
+   await page.waitForFunction(id=>document.activeElement?.dataset.candidateId===id,row.id);
+   assert((await readLayout()).visible,label+': ピンを押しても地図を維持');
+   await page.screenshot({path:`${out}/${label}-sheet.png`});
+
    await page.locator('#candidateUnifiedResults>.list-item').first().click();
    await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='preview');
    assert.notEqual(await page.locator('#exploreBackToCandidates').getAttribute('aria-label'),'地図へ戻る');
    await page.locator('#exploreBackToCandidates').click();
-   await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet')&&AstroNotesCandidatePicker.visibleRows().length===2);
-   assert.equal((await view(page)).center,'target');
-   await page.locator('#exploreBackToMap').click();assert.deepEqual(await view(page),{stage:'map',sheet:false,center:'target'});
-   // 新しい地点のピンをタップ→カード→「見え方」でその候補の見え方。
-   const row=await page.evaluate(()=>{const r=AstroNotesCandidatePicker.visibleRows()[0];return r&&{latitude:r.place.latitude,longitude:r.place.longitude};});
-   if(row){const p=await screenPoint(page,row);if(p.inside){await page.mouse.click(p.x,p.y);const kind=await page.evaluate(()=>AstroNotesMapWorkspace.targetState().selection?.kind);
-    if(kind==='new'){assert.equal((await page.locator('#mapWsCardView').innerText()).trim(),'見え方');await page.locator('#mapWsCardView').click();await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='preview');}}}
+   await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet')&&AstroNotesCandidatePicker.visibleRows().length===2&&AstroNotesMapWorkspace.targetState().newPins>0);
+   assert.equal((await view(page)).center,center);
+   assert((await readLayout()).visible,label+': 見え方から地図と候補へ戻る');
+   await page.locator('#exploreBackToMap').click();
+   assert.deepEqual(await view(page),{stage:'map',sheet:false,center});
    assert.deepEqual(errors,[]);
   }finally{await context.close();}
  }finally{await browser.close();}
@@ -304,7 +345,7 @@ async function newPlaces(type,engine){
  fs.mkdirSync(out,{recursive:true});const results=[];
  for(const [engine,type] of [['chrome',chromium],['webkit',webkit]].filter(([name])=>engines.includes(name))){
   for(const width of widths)for(const theme of themes)await records(type,engine,width,theme,results);
-  await newPlaces(type,engine);results.push({label:engine+'-new-places'});
+  for(const center of ['target','obs']){await newPlaces(type,engine,center);results.push({label:engine+'-new-places-'+center});}
  }
  assert(offChecked>0,'重ならない記録の地点を少なくとも1回は押して確かめた');
  console.log(JSON.stringify(results));

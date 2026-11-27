@@ -141,7 +141,8 @@ html:has(#skyMapView[data-explore-stage=map].map-ws:not([hidden])),body:has(#sky
 #skyMapView.map-ws:not([data-explore-sheet]) #mapWsMode,
 #skyMapView.map-ws:not([data-explore-sheet],[data-explore-dropdown]) #mapWsBodyPicker{display:flex}
 .map-ws-top #mapWsBodyPicker{display:none;flex:none;align-self:stretch;justify-content:center;align-items:center;gap:4px;min-width:88px;padding:0 8px;border-radius:0;border-inline-start:1px solid var(--line);background:var(--accent);color:var(--on-accent);font-size:12.5px;font-weight:700;white-space:nowrap}
-#mapWsBodyPicker:focus-visible{box-shadow:inset 0 0 0 2px currentColor}
+#mapWsBodyPicker:focus-visible{outline:none}
+#mapWsBodyPicker:focus-visible>span{text-decoration:underline 2px;text-underline-offset:3px}
 #mapWsMode{position:absolute;z-index:4;top:8px;left:50%;transform:translateX(-50%);box-shadow:0 2px 8px #0003}
 .map-ws-choice label{position:relative;display:grid;place-items:center;box-sizing:border-box;min-width:44px;min-height:44px;padding:0 8px;color:var(--secondary);font-size:12.5px;font-weight:700;white-space:nowrap;cursor:pointer}
 .map-ws-choice label+label:not(:has(input:checked)){box-shadow:inset 1px 0 var(--line)}
@@ -158,9 +159,8 @@ html:has(#skyMapView[data-explore-stage=map].map-ws:not([hidden])),body:has(#sky
 html:has(#skyMapView[data-explore-sheet].map-ws:not([hidden])),body:has(#skyMapView[data-explore-sheet].map-ws:not([hidden])){overflow:hidden}
 #skyMapView[data-explore-sheet].map-ws #exploreMapPanel{display:block!important}
 #skyMapView[data-explore-sheet].map-ws .sky-map-wrap.sky-map-wide{bottom:calc(100dvh - var(--sheet-top))!important}
-#skyMapView[data-explore-sheet].map-ws #skyMapContent{position:fixed;top:var(--sheet-top);bottom:var(--ws-footer-h,120px);left:0;right:0;z-index:30;overflow:auto;overscroll-behavior:contain;box-sizing:border-box;padding:0 max(12px,env(safe-area-inset-right)) 16px max(12px,env(safe-area-inset-left));background:var(--card);border-top:1px solid var(--line);border-radius:16px 16px 0 0;box-shadow:0 -6px 20px #0004}
+#skyMapView[data-explore-stage=search][data-explore-sheet].map-ws #exploreConditions{position:fixed;top:var(--sheet-top);bottom:var(--ws-footer-h,120px);left:0;right:0;z-index:30;overflow:auto;overscroll-behavior:contain;box-sizing:border-box;padding:0 max(12px,env(safe-area-inset-right)) 16px max(12px,env(safe-area-inset-left));background:var(--card);margin:0;border:0;border-top:1px solid var(--line);border-radius:16px 16px 0 0;box-shadow:0 -6px 20px #0004}
 #skyMapView[data-explore-sheet].map-ws :is(.sky-map-head,#exploreConditions>summary,#exploreSkyInfo,#exploreTabs,#exploreScenePanel,#skyMapShareRow,#skyMapCustom,#skyMapTargetInfo,.sky-map-definition,#exploreMapPanel>details,.explore-condition-fields>:not(#candidateWorkspaceAction)){display:none!important}
-#skyMapView[data-explore-sheet].map-ws #exploreConditions{border:0;background:none;margin:0}
 #skyMapView[data-explore-stage=search][data-explore-sheet].map-ws #candidateWorkspaceAction{display:grid;margin:0;padding:8px 0 0;border:0}
 #skyMapView[data-explore-sheet].map-ws :is(#exploreOpportunityLink,.explore-discovery-tabs){display:none}
 #skyMapView[data-explore-sheet].map-ws .explore-sheet-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}

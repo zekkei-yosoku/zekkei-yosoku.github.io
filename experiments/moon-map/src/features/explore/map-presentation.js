@@ -87,7 +87,8 @@ import {UI_ICONS} from '../../ui/visual-primitives.js';
   // 2026-11-26 trial（段階②）: 目標物が中心の表示は、目標物の方位リング・重なる範囲・中心が先端に来る線・記録と新規の地点を全画面地図が描く
   if(workspace&&globalThis.AstroNotesMapWorkspace.targetMode?.()){globalThis.AstroNotesMapWorkspace.drawTarget(ctx,{project,width,height});return;}
   if(!validPoint(session.observer)&&!pickMode){if(targetOn&&validPoint(session.target)){const mark=AstroNotesAlign.partTarget(session.target,session.partId),q=project(mark.latitude,mark.longitude);drawPin(ctx,...q,'#c876ff');
-  mapLabel(ctx,q[0],q[1]-25,session.target.name,'#fff',width,height,'center');}workspace?.overlay(ctx,0,0,0);return;}
+  mapLabel(ctx,q[0],q[1]-25,session.target.name,'#fff',width,height,'center');}workspace?.overlay(ctx,0,0,0);
+  if(workspace)globalThis.AstroNotesMapWorkspace.drawCandidatePins?.(ctx,{project,width,height});return;}
   const [x,y]=pickMode?[width/2,height/2]:project(session.observer.latitude,session.observer.longitude),r=workspace?workspace.radius(width,height):Math.min(width,height)*.36;
   ctx.save();ctx.font='12px system-ui';ctx.textAlign='left';ctx.lineWidth=1;ctx.strokeStyle='rgba(0,0,0,.45)';ctx.fillStyle='#fff';
   ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.strokeStyle='rgba(0,0,0,.85)';ctx.lineWidth=4;ctx.stroke();ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=1.8;ctx.stroke();
@@ -105,7 +106,7 @@ ctx.lineWidth=1;
    mapLabel(ctx,q[0],q[1]-25,t.name,'#fff',width,height,'center');
   }
   workspace?.overlay(ctx,x,y,r);
-  if(workspace)globalThis.AstroNotesMapWorkspace.drawObsRecords?.(ctx,{project,width,height});
+  if(workspace){globalThis.AstroNotesMapWorkspace.drawObsRecords?.(ctx,{project,width,height});globalThis.AstroNotesMapWorkspace.drawCandidatePins?.(ctx,{project,width,height});}
   if(workspace)workspace.center(ctx,x,y);else{
   ctx.lineWidth=3;ctx.strokeStyle='#111';ctx.beginPath();ctx.moveTo(x-8,y);ctx.lineTo(x-2,y);ctx.moveTo(x+2,y);ctx.lineTo(x+8,y);ctx.moveTo(x,y-8);ctx.lineTo(x,y-2);ctx.moveTo(x,y+2);ctx.lineTo(x,y+8);ctx.stroke();ctx.lineWidth=1;ctx.strokeStyle='#fff';ctx.stroke();ctx.beginPath();
   ctx.arc(x,y,1,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();mapLabel(ctx,x,y+20,pickMode==='target'?'対象':'撮影地点','#fff',width,height,'center');

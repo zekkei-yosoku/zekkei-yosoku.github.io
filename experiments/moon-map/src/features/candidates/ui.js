@@ -79,7 +79,7 @@ AstroNotesCandidatePicker.configure({loadLabels,labelsSnapshot:()=>availableLabe
  geometryFrom:(...args)=>AstroNotesAlign.geometryFrom(...args),isMountain:t=>aimIsMountain(t),geometryKey:()=>AstroNotesAtmosphere.targetK(),
  placeContext:recordedPlaceContext,
  getScroller:()=>mainWorkspace()?.scroller(),getReturnScroll:()=>mainWorkspace()?.returnScroll?.(),
- onRendered:count=>mainWorkspace()?.restoreScroll(count),requestKey:p=>AstroNotesCandidateDiscovery.requestKey(p)});
+ onRendered(count){mainWorkspace()?.restoreScroll(count);globalThis.AstroNotesMapWorkspace?.refreshCandidatePins();},requestKey:p=>AstroNotesCandidateDiscovery.requestKey(p)});
 const live=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxDurationMs:120000,lookAhead:true});
  // Ground under GSI footprints the height grid lacks: the 10 m DEM (a building's base, not a sight line) on its own
  // tile budget, so it never starves the sight-line terrain. A search step longer than 35 s no longer runs out of time.
@@ -381,7 +381,8 @@ function keepCandidateFeedbackInView(status){
   const bar=document.querySelector('#skyMapView .sky-map-footer')?.getBoundingClientRect();
   const available=bar?.height?Math.min(innerHeight,bar.top):innerHeight;
   const overlap=feedback.getBoundingClientRect().bottom-available;
-  if(overlap>=0&&document.scrollingElement)document.scrollingElement.scrollTop+=overlap+12;
+  const scroller=mainWorkspace()?.scroller()||document.scrollingElement;
+  if(overlap>=0&&scroller)scroller.scrollTop+=overlap+12;
  });
 }
 function mount(){
