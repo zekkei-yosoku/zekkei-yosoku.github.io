@@ -1,9 +1,10 @@
 {
   "schemaVersion": 1,
   "id": "20261124-moon-route-map",
-  "revision": 43,
+  "revision": 44,
   "baselineCommit": "f4f35b61359ba5ec8f9da057cf3026902a0402a4",
   "baselineSha256": {
+    "astronotes-align.js": "518fdb389df7632cd2922249b696e73b0e35b4c83b1b6364c9a59ead3fc02a15",
     "index.html": "feb5e6c31bbb6014c66615a414cca2477296b89ab8e6a95ba1e98c07907a29c3",
     "app-version.txt": "7847e675fdf76402c885929defc8f0319c2ec1d5b52260767fde3c7576a74b99",
     "src/index.html": "099922d7b1582086712c46d455479c575fa30683c7888d2bc855c6b9effaa02d",
@@ -20,6 +21,8 @@
     "astronotes-map-workspace.css": "d4eeb9d339c58862bfbbff1d858f688a1fe2a5b1651723b94e71b26d94515bdc",
     "src/features/explore/map-presentation.js": "17dda27eb8d647e1243b1c799eb8de82fefa1da22c9d9ed08fa1f2855130c80c",
     "src/features/candidates/ui.js": "d6d2474ee263a8b590be401779557615cddf9d5c202a3860b715be2b79be1b4b",
+    "astronotes-assets.js": "8e1ee43d34a2e2cd181fa2a2fb5f5ca4be078a56f171d725b77d973a62ffeefc",
+    "src/features/candidates/composition.js": "c7f055aff1d50555510483d86dbcc2d46aef2a7544e7fabcd20cd1d8c46f7d14",
     "src/features/candidates/generic-search.js": "194590745bc5aeaf5221bbb6480740afdc14ced1634311a2bf46456a74416664",
     "astronotes-shooting.js": "58dd86c5d5dc697ded5c5a5a4c5800818f9a16a4f21ecabe570fa175ebddd16c",
     "astronotes-target-ui.js": "42f0d586be47e3966264cbf765749360d82c10c464defc1868d836b1d06831f6",
@@ -43,6 +46,10 @@
     "src/features/plans/controller.js": "c19310c109a4b8b0612a8fc6b93693c45176f6b641a411b20d56ac50a43c70be"
   },
   "overlays": [
+    {
+      "path": "astronotes-align.js",
+      "required": false
+    },
     {
       "path": "src/index.html",
       "required": true
@@ -97,6 +104,14 @@
     },
     {
       "path": "src/features/candidates/ui.js",
+      "required": false
+    },
+    {
+      "path": "astronotes-assets.js",
+      "required": false
+    },
+    {
+      "path": "src/features/candidates/composition.js",
       "required": false
     },
     {

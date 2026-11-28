@@ -192,6 +192,7 @@
   const targetAngle=(...args)=>A.targetElevationAngle(...args,{k:ATM?ATM.targetK():7/6});
   const limbAltitude=(s,sign)=>ATM?ATM.limbAltitude(s,sign):s.apparentAltitude-sign*s.angularRadius;
   const bodyAt = (body, ms, obs) => B ? B.state(body, ms, obs) : (body === "moon" ? A.moon(ms, obs) : body === "sun" ? A.sun(ms, obs) : (() => { throw new Error("天体計算が未読込です"); })());
+  const directionAt = (body, ms, obs) => B?.direction ? B.direction(body, ms, obs) : bodyAt(body, ms, obs);
   const extended = body => body !== "sun" && body !== "moon";
   const DEG = Math.PI / 180;
 
@@ -200,9 +201,12 @@
    * @param {string} side "set"=下降中 / "rise"=上昇中
    */
   function altitudeCrossing(body, dayMs, obs, alt, side, stepMs = 120000, sign = 0) {
+    return crossingTime(dayMs, alt, side, stepMs, t => limbAltitude(bodyAt(body, t, obs), sign));
+  }
+  function crossingTime(dayMs, alt, side, stepMs, altitude, samples = null) {
     let prev = null;
-    for (let t = dayMs; t <= dayMs + 86400000; t += stepMs) {
-      const cur = limbAltitude(bodyAt(body, t, obs),sign);
+    for (let i = 0, t = dayMs; t <= dayMs + 86400000; i++, t += stepMs) {
+      const cur = samples ? (samples[i] ??= altitude(t)) : altitude(t);
       if (prev !== null) {
         const falling = cur < prev.alt;
         const crossed = (prev.alt - alt) * (cur - alt) <= 0;
@@ -210,7 +214,7 @@
           let lo = prev.t, hi = t, loDiff = prev.alt - alt;
           for (let i = 0; i < 30; i++) {
             const mid = (lo + hi) / 2;
-            const d = limbAltitude(bodyAt(body, mid, obs),sign) - alt;
+            const d = altitude(mid) - alt;
             if (d * loDiff > 0) { lo = mid; loDiff = d; } else hi = mid;
           }
           return (lo + hi) / 2;
@@ -225,7 +229,7 @@
    * 距離 d の観測点を1つ解く。
    * @param {function} elevationAt  (lat, lon) => 標高[m]（省略可。既定は 0m）
    */
-  async function solvePoint(target, body, dayMs, distanceKm, side, opts = {}) {
+  async function solvePoint(target, body, dayMs, distanceKm, side, opts = {}, batch = null) {
     target=partTarget(target,opts.partId);
     const { eyeM = 1.5, elevationAt = null, rounds = 3, heightM = null, limb = "center" } = opts;
     const topM = heightM !== null ? heightM : (partOf(target, opts.partId) || {}).m;
@@ -241,16 +245,29 @@
         if (opts.isCurrent && !opts.isCurrent()) return null;
         if (Number.isFinite(e)) obsM = e;
       }
+      const pause = batch?.cooperate?.();
+      if (pause) {
+        await pause;
+        if (opts.isCurrent && !opts.isCurrent()) return null;
+      }
       const obs0 = { latitude: guess.latitude, longitude: guess.longitude, elevation: obsM + eyeM };
       // その高さを見上げる角度。乗せる／隠れるは、天体の半径ぶんずらした高度を狙う
       const base = targetAngle(distanceKm, obsM + eyeM, topM);
       // 少しずらす（2026-10-20）: opts.shift = [右, 上]（天体の直径を1とする）。直径はその日の値で直す
       const shift = Array.isArray(opts.shift) ? opts.shift : null;
-      const diameter = shift ? 2 * bodyAt(body, at ?? dayMs + 43200000, obs0).angularRadius : 0;
+      const direction = batch ? directionAt : bodyAt;
+      const diameter = shift ? 2 * direction(body, at ?? dayMs + 43200000, obs0).angularRadius : 0;
       alpha = base + (shift ? shift[1] * diameter : 0);
-      at = altitudeCrossing(body, dayMs, obs0, alpha, side,120000,sign);
+      // Every distance starts at the same coordinates. Reuse exact samples when height also matches.
+      let samples = null;
+      if (batch && i === 0) {
+        const key = obs0.elevation;
+        samples = batch.initial.get(key);
+        if (!samples && batch.initial.size < 16) batch.initial.set(key, samples = []);
+      }
+      at = crossingTime(dayMs, alpha, side, 120000, t => limbAltitude(direction(body, t, obs0), sign), samples);
       if (at === null) return null;
-      const st = bodyAt(body, at, obs0);
+      const st = direction(body, at, obs0);
       // 天体を目標の右へ x 度ずらすには、目標の方位を x / cos(高度) だけ左に置く
       azimuth = shift ? st.azimuth - shift[0] * diameter / Math.cos(alpha * DEG) : st.azimuth;
       // 観測者から見て天体（＝目標）が方位 azimuth にある。
@@ -335,11 +352,11 @@
     const dists = stepKm
       ? Array.from({ length: Math.floor((maxKm - minKm) / stepKm) + 1 }, (_, i) => minKm + i * stepKm)
       : lineDistances(minKm, maxKm);
-    const out = [];
+    const out = [], batch = { initial: new Map(), cooperate: opts.cooperate };
     for (const side of sides) {
       if (opts.isCurrent && !opts.isCurrent()) return [];
       const solved = await mapLimit(dists, 6,
-        (d) => solvePoint(target, body, dayMs, d, side, opts));
+        (d) => solvePoint(target, body, dayMs, d, side, opts, batch));
       if (opts.isCurrent && !opts.isCurrent()) return [];
       // 地平線より下、または天体が出ていない側は線にならない
       let points = solved.filter((p) => p && p.altitude > -1).map((p) => ({ ...p, side }));
@@ -348,7 +365,7 @@
       // 生の標高で1点ずつ解くと隣の点どうしで方位が行き来する（実測: ±1°＝50kmで約900m）。
       // 標高をならしてから解き直す。**その方向のおおよその地面の高さ**で引いた線になる。
       if (points.length >= 3 && opts.elevationAt && opts.smooth !== false) {
-        points = await smoothLine(target, body, dayMs, side, points, opts);
+        points = await smoothLine(target, body, dayMs, side, points, opts, batch);
       }
       if (points.length >= 2) out.push({ side, points });
     }
@@ -356,7 +373,7 @@
   }
 
   /// 標高をならして解き直す。窓は前後 `smoothWindow` 点（両端は在るぶんだけ）
-  async function smoothLine(target, body, dayMs, side, points, opts) {
+  async function smoothLine(target, body, dayMs, side, points, opts, batch) {
     const w = Number.isFinite(opts.smoothWindow) ? opts.smoothWindow : 5;
     const raw = points.map((p) => p.elevationM);
     const solved = await mapLimit(points, 6, async (pt, i) => {
@@ -364,7 +381,7 @@
       const win = raw.slice(lo, hi + 1);
       const m = win.reduce((a, b) => a + b, 0) / win.length;
       const p = await solvePoint(target, body, dayMs, pt.distanceKm, side,
-        { ...opts, elevationAt: () => m });
+        { ...opts, elevationAt: () => m }, batch);
       return p && p.altitude > -1 ? { ...p, side, groundM: raw[i] } : null;
     });
     const out = solved.filter(Boolean);

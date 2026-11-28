@@ -41,6 +41,22 @@ test('実計算の昼夜両方の幾何重なりから、点天体の夜だけ�
  }
 });
 
+test('試用版の金線は従来と同じ位置・時刻・高さを返し、操作を譲った間に失効した線を捨てる',async()=>{
+ const c=vm.createContext({AstroNotesAstro:Astro,AstroNotesTerrain:Geo,AstroNotesBodies:B,AstroNotesAtmosphere:Atmosphere});
+ vm.runInContext(readFileSync(new URL('./experiments/moon-map/astronotes-align.js',import.meta.url),'utf8'),c);
+ const next=c.AstroNotesAlign;
+ for(const body of ['moon','sun','sirius']){
+  const options={partId:'tip',minKm:3,maxKm:34,stepKm:5,elevationAt:async(lat,lon)=>Math.round(lat*lon*5)%120};
+  const expected=await A.line(target,body,day,options);
+  const actual=structuredClone(await next.line(target,body,day,{...options,cooperate:()=>Promise.resolve()}));
+  assert(expected.some(line=>line.points.length>1),body);
+  assert.deepEqual(actual,expected,body);
+ }
+ let current=true;
+ const cancelled=await next.line(target,'moon',day,{partId:'tip',isCurrent:()=>current,cooperate:()=>{current=false;return Promise.resolve();}});
+ assert.equal(cancelled.length,0);
+});
+
 // private関数の露出はこのVMだけ。配信資産やアプリのglobalには検査用口を追加しない。
 function workspace({body='sirius',bodies=B,align=A}={}){
  const h={session:{body,at:day,eyeM:1.5,partId:'__whole',target,eye:observer,observer},targetOn:true,redraw(){},skyState:(body,at,o)=>B.state(body,at,o,{refraction:false})};
@@ -68,9 +84,9 @@ test('実際のシリウス/金星の線は各撮影地点の夜間だけ、記�
  }
 });
 
-test('点天体の探索seed帯は対象の横幅だけ、薄明差の保守的余裕を持つ',()=>{
+test('点天体の探索seed帯は対象の横幅だけ、薄明差の保守的余裕を持つ',async()=>{
  for(const body of ['sirius','venus','sun']){
-  const f=workspace({body}),runs=f.probe.computeBand(f.h,f.probe.key()),samples=runs.flatMap(r=>r.raw);assert(samples.length>0,body);
+  const f=workspace({body}),runs=await f.probe.computeBand(f.h),samples=runs.flatMap(r=>r.raw);assert(samples.length>0,body);
   assert(samples.every(p=>p.hw>0));
   if(body==='sun')assert(samples.every(p=>p.w>0));else{
    assert(samples.every(p=>p.w===0),body+': 月の円盤幅/大気差余裕の角幅を付けない');
@@ -80,8 +96,8 @@ test('点天体の探索seed帯は対象の横幅だけ、薄明差の保守的�
  }
 });
 
-test('表示帯は実撮影地点の夜だけ。短い到達距離を最大距離の薄明余裕で昼表示しない',()=>{
- const f=workspace({body:'sirius'}),runs=f.probe.computeBand(f.h,f.probe.key()),at=1795640520000;
+test('表示帯は実撮影地点の夜だけ。短い到達距離を最大距離の薄明余裕で昼表示しない',async()=>{
+ const f=workspace({body:'sirius'}),runs=await f.probe.computeBand(f.h),at=1795640520000;
  const seed=runs.flatMap(r=>r.raw).find(p=>p.at===at);assert(seed,'探索seedの保守的余裕は保持');
  assert(seed.d<2.7&&B.state('sun',at,target,{refraction:false}).altitude>-5.5,'11/26 06:02の既知の昼負例');
  const vertices=runs.flatMap(r=>{assert(Array.isArray(r.polygons),'点天体に表示用polygonsがある');return r.polygons.flat();});

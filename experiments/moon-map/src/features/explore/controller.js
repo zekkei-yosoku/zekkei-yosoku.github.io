@@ -495,13 +495,7 @@ function openSheet({tab='new',search=false,candidateId=null}={}){
  const step=()=>{if(task!==sheetTask||!sheetOn())return;
   if(candidateId){const row=[...document.querySelectorAll('#candidateUnifiedResults .list-item[data-candidate-id]')].find(n=>n.dataset.candidateId===String(candidateId)||n.dataset.sourceId===String(candidateId));if(row){row.scrollIntoView({block:'center'});row.click();return;}}
   // 開き直しは結果が0件でも、同じ条件なら前回の状態を見せる。
-  else if(search){
-   const button=$('candidateSearchAction');
-   if(button?.isConnected&&!button.disabled){
-    if(!button.hasAttribute('data-candidate-started'))button.click();
-    return;
-   }
-  }
+  else if(search){if(globalThis.AstroNotesCandidatePicker?.startMapSearch?.())return;}
   else return;
   if(tries++<60)setTimeout(step,100);};
  setTimeout(step,0);
@@ -1171,8 +1165,6 @@ document.head.append(style);
 document.addEventListener('astronotes-composition-change',()=>{clearPositionNavigation();updateConditions();});
 for(const type of ['astronotes-search-state','astronotes-composition-change','visibilitychange'])document.addEventListener(type,tryCompositionSearch);
 window.addEventListener('pagehide',cancelCompositionSearch);
-// 探すを開いた時点で塔の模型を読み始め、地点を選んだ後の待ちから外す。
-const warmModels=()=>{if(/^#\/explore/.test(location.hash)&&eligible())AstroNotesAssets.ensureModels().catch(()=>{});};addEventListener('hashchange',warmModels);setTimeout(warmModels,0);
 globalThis.TrialExplore={candidateWorkspace:()=>layout.mounted?mainCandidateWorkspace:null,active,ownsScene,render,routeChanged,
  preferMap:()=>{transferMode='map';if(active())choose('map');},sync,paintScrubTime,invalidate:invalidateScene,sceneDraw,assertScene,searchCompositionPlaces,
  camera:()=>{let timelapse=null;try{if(plan.frameKey===stamp(snapshot())&&AstroNotesTimelapse.settings(look._timelapseConfig))timelapse={...look._timelapseConfig};}catch(e){globalThis.AstroNotesErrors?.note('explore.timelapse',e);

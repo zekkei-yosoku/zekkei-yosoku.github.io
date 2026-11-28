@@ -1,4 +1,23 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {createRequire} from 'node:module';const require=createRequire(import.meta.url),C=require('./src/features/candidates/composition.js'),A=require('./astronotes-align.js'),B=require('./astronotes-bodies.js'),fs=require('node:fs');
+import {runInNewContext} from 'node:vm';
+test('trial civil-day caching preserves boundaries, DST and invalid input handling',()=>{
+ const source=fs.readFileSync(new URL('./experiments/moon-map/src/features/candidates/composition.js',import.meta.url),'utf8');
+ const trial=runInNewContext(source+'\nAstroNotesCandidateComposition;');
+ const dates=[
+  ['2026-11-28','Asia/Tokyo'],['1948-05-02','Asia/Tokyo'],['2026-03-08','America/Los_Angeles'],
+  ['2026-11-01','America/Los_Angeles'],['2011-12-30','Pacific/Apia'],['2025-02-30','UTC'],['2026-11-01','invalid-zone']
+ ];
+ const plans=dates.map(([date,timezone])=>({timeSpec:{kind:'day',date,timezone}}));
+ plans.push({timeSpec:{kind:'day',at:Date.parse('2026-11-28T12:00:00+09:00')}},
+  {timeSpec:{kind:'window',start:313,end:717}},{timeSpec:{kind:'instant',at:927}});
+ for(const plan of plans){
+  const expected=JSON.stringify(C.timeRange(plan)),first=trial.timeRange(plan);
+  assert.equal(JSON.stringify(first),expected);
+  // Mutating an old answer may not mutate the cache.
+  if(first)first.start=0;
+  assert.equal(JSON.stringify(trial.timeRange(plan)),expected);
+ }
+});
 const target=A.targetById('skytree');
 test('auto refraction prefilter retains a body that can overlap after weather data changes its altitude',async()=>{
  const at=0,observer={...require('./astronotes-terrain.js').destination(target.latitude,target.longitude,45,8),groundM:5,elevation:5,eyeM:1.5};

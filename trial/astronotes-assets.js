@@ -28,7 +28,10 @@
   return {load};
  }
  const assets=[['city','astronotes-city-models.js'],['tower','astronotes-tower-models.js'],['surface','astronotes-scene-hulls.js']];
- const ready=name=>name==='astronotes-city-models.js'?!!global.AstroNotesCityModels:name==='astronotes-tower-models.js'?!!global.AstroNotesTowerModels:name==='astronotes-scene-hulls.js'?!!global.AstroNotesTrialSurfaceHulls:false;
+ const cityName=assets[0][1];
+ // The saved-target registry can exist long before the bundled city catalogue.
+ const ready=name=>name===cityName?Object.keys(global.AstroNotesCityModels||{}).some(id=>!id.startsWith('fav:')):
+  name==='astronotes-tower-models.js'?!!global.AstroNotesTowerModels:name==='astronotes-scene-hulls.js'?!!global.AstroNotesTrialSurfaceHulls:false;
  const meta=kind=>global.document?.querySelector('meta[name="shape-'+kind+'"]')?.content;
  // Cached HTML predates the surface meta. Its existing content version is a
  // safe cache key for the newly split asset until the HTML update arrives.
@@ -40,7 +43,20 @@
  // An older loader can already be fetching city/tower data. Delegate those two
  // to it, retaining its shared flights and retry behavior, and add only surface.
  const legacyModels=typeof previous?.ensureModels==='function'?previous.ensureModels.bind(previous):null;
- const api={createLoader,supportsSurfaceHulls:true,modelsReady:()=>names.every(ready),ensureModels:()=>legacyModels?Promise.all([legacyModels(),loader.load('astronotes-scene-hulls.js')]):Promise.all(names.map(loader.load))};
+ function ensureModels(){
+  const previous=global.AstroNotesCityModels;
+  const jobs=legacyModels?[legacyModels().then(()=>loader.load(cityName)),loader.load('astronotes-scene-hulls.js')]:names.map(loader.load);
+  jobs[0]=jobs[0].then(value=>{
+   const city=global.AstroNotesCityModels;
+   // A late script replaces the object. Merge only saved target shapes into it.
+   if(previous&&city&&city!==previous)for(const id of Object.keys(previous)){
+    if(id.startsWith('fav:')&&!Object.hasOwn(city,id))city[id]=previous[id];
+   }
+   return value;
+  });
+  return Promise.all(jobs);
+ }
+ const api={createLoader,supportsSurfaceHulls:true,modelsReady:()=>names.every(ready),ensureModels};
  global.AstroNotesAssets=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:window);
 

@@ -286,6 +286,15 @@ async function newPlaces(type,engine,center){
   const {context,page,errors}=await open(browser,390,'dark',{fixture});
   try{
    if(center==='target'){
+    const dedupeScope=await page.evaluate(()=>{
+     const previous=favorites;
+     const p={name:'合成地点',longitude:139.7,elevation:20,eyeHeightAGL:1.5};
+     favorites=[{...p,id:'test-target-only',latitude:35.1,targetHeightM:80},
+      {...p,id:'test-target-recorded',latitude:35.2,targetHeightM:80,recordRegistered:true},
+      {...p,id:'test-shooting-place',latitude:35.3}];
+     try{return MyPlacesUI.savedPlaces().map(f=>f.latitude);}finally{favorites=previous;}
+    });
+    assert.deepEqual(dedupeScope,[35.2,35.3],label+': 対象としてしか保存していない座標で候補地点を除外しない');
     await page.waitForFunction(()=>document.getElementById('mapWsCenterToggle').dataset.center==='target');
     assert.deepEqual(await view(page),{stage:'map',sheet:false,center:'target'},label+': 対象だけを選んで開くと自動で対象中心');
     await toTarget(page);
@@ -329,6 +338,16 @@ async function newPlaces(type,engine,center){
    await page.waitForFunction(()=>AstroNotesMapWorkspace.targetState().newPins===0);
    await fit.click();
    await page.waitForFunction(()=>AstroNotesMapWorkspace.targetState().newPins===2);
+   const duringPartial=await page.evaluate(async()=>{
+    const picker=AstroNotesCandidatePicker,visible=picker.visibleRows;
+    picker.visibleRows=()=>[];
+    try{
+     AstroNotesMapWorkspace.refreshCandidatePins();
+     await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+     return AstroNotesMapWorkspace.targetState().newPins;
+    }finally{picker.visibleRows=visible;}
+   });
+   assert.equal(duringPartial,2,label+': 一覧の途中更新で確定済みピンを消さない');
    assert.equal(await page.locator('#candidateMapCanvas').count(),0,label+': 候補の位置に上の地図を合わせる');
    const list=page.locator('#candidateUnifiedResults>.list-item');
    assert.equal(await list.first().getAttribute('data-candidate-number'),'1');
@@ -422,6 +441,18 @@ async function newPlaces(type,engine,center){
      assert(await action.isDisabled());
      await page.locator('#candidateOnlyMapBand').uncheck();
      await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2&&!document.getElementById('candidateSearchAction').disabled);
+     await page.locator('#candidateOnlyMapBand').check();
+     assert(await action.isDisabled());
+     await page.evaluate(()=>SkyMapUI.setTarget('skytree'));
+     await page.waitForFunction(()=>SkyMapUI.selectionState().target?.id==='skytree'&&!document.getElementById('candidateSearchAction')?.disabled);
+     assert.equal(await page.locator('#candidateOnlyMapBand').isChecked(),false,label+': 対象を変更したら以前の帯に絞らない');
+     // 地図の入口が次のフレームの描き直しより早く呼ばれても、変えたばかりの条件で始める。
+     const started=await page.evaluate(()=>{
+      SkyMapUI.setTarget('fuji');
+      return AstroNotesCandidatePicker.startMapSearch();
+     });
+     assert(started,label+': 変更後の条件で直ちに候補を探す');
+     await page.waitForFunction(()=>dateFixture.lastPlan?.target?.id==='fuji'&&AstroNotesCandidatePicker.visibleRows().length===2);
     }finally{await page.evaluate(()=>{AstroNotesMapWorkspace.searchBand=window.originalSearchBand;delete window.originalSearchBand;delete window.testBandStatus;});}
    }
    assert.deepEqual(errors,[]);

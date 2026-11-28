@@ -78,11 +78,12 @@ function create({load=null,loadNames=null,fetchImpl=(typeof fetch==='function'?f
  }
  // Register shapes for saved targets on this page. Returns the ids that changed.
  async function prepare(targets){
-  const changed=[],models=root.AstroNotesCityModels||(root.AstroNotesCityModels={});
+  const changed=[];
   for(const t of targets||[]){if(!String(t?.id||'').startsWith('fav:'))continue;try{await partAt(t.latitude,t.longitude);}catch{continue;}
    const b=match(t),prev=attached.get(t.id);
-   if(b&&prev?.id!==b.id){models[t.id]=cityModel(b);attached.set(t.id,b);changed.push(t.id);}
-   else if(!b&&prev){delete models[t.id];attached.delete(t.id);changed.push(t.id);}}
+   if(b&&prev?.id!==b.id){const models=root.AstroNotesCityModels||(root.AstroNotesCityModels={});
+    models[t.id]=cityModel(b);attached.set(t.id,b);changed.push(t.id);}
+   else if(!b&&prev){if(root.AstroNotesCityModels)delete root.AstroNotesCityModels[t.id];attached.delete(t.id);changed.push(t.id);}}
   return changed;
  }
  // Footprint of the building a target stands on (lat/lon rings), for leaving it out of its own sight lines.

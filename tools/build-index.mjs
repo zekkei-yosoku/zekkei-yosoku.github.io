@@ -50,7 +50,7 @@ export function renderGeneratedAsset(asset,{directory=root,read=path=>readFileSy
   // Cached HTML can pair its old loader with a freshly fetched candidate bundle.
   // Include the one canonical loader: it preserves current flights or delegates
   // old city/tower flights while adding the newly split surface asset.
-  result.html=readFileSync(resolve(directory,asset.legacyShapeLoader),'utf8')+'\n'+result.html;
+  result.html=read(resolve(directory,asset.legacyShapeLoader))+'\n'+result.html;
  }
  if(asset.dataFiles){
   // The bundle checks each data file it reads against the hash recorded here, and its own content version changes with the data.

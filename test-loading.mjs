@@ -10,12 +10,12 @@ function fixture(){const nodes=[],timers=new Map(),loaded=new Set();let n=0;cons
 test('shape requests share in-flight work and reuse successful data',async()=>{const f=fixture(),a=f.loader.load('astronotes-city-models.js'),b=f.loader.load('astronotes-city-models.js');assert.equal(a,b);assert.equal(f.nodes.length,1);f.loaded.add('astronotes-city-models.js');f.nodes[0].onload();await a;await f.loader.load('astronotes-city-models.js');assert.equal(f.nodes.length,1);assert.equal(f.timers.size,0);});
 test('network failure, missing globals and timeout can all be retried',async()=>{for(const kind of ['network','missing','timeout']){const f=fixture(),a=f.loader.load('astronotes-city-models.js'),rejected=assert.rejects(a);if(kind==='network')f.nodes[0].onerror();else if(kind==='missing')f.nodes[0].onload();else [...f.timers.values()][0]();await rejected;assert.ok(f.nodes[0].removed);const retry=f.loader.load('astronotes-city-models.js');assert.equal(f.nodes.length,2);f.loaded.add('astronotes-city-models.js');f.nodes[1].onload();await retry;}await assert.rejects(fixture().loader.load('https://attacker.test/a.js'));});
 
-function assetWorld({legacy=false,beforeLoad}={}){
+function assetWorld({legacy=false,beforeLoad,source='./astronotes-assets.js'}={}){
  const nodes=[],timers=new Map();let id=0;
  const meta={'shape-city':'astronotes-city-models.js?v=11','shape-tower':'astronotes-tower-models.js?v=22',...(!legacy?{'shape-surface':'astronotes-scene-hulls.js?v=33','shape-surface-integrity':'sha256-fixture'}:{})};
  const c=vm.createContext({document:{querySelector:selector=>{const value=meta[selector.match(/name="([^"]+)"/)[1]];return value?{content:value}:null;},createElement:()=>({remove(){this.removed=true;}}),head:{append:node=>nodes.push(node)}},setTimeout:fn=>{timers.set(++id,fn);return id;},clearTimeout:key=>timers.delete(key)});
  beforeLoad?.(c);
- const loadSource=()=>vm.runInContext(readFileSync(new URL('./astronotes-assets.js',import.meta.url),'utf8'),c);loadSource();
+ const loadSource=()=>vm.runInContext(readFileSync(new URL(source,import.meta.url),'utf8'),c);loadSource();
  return {c,nodes,timers,api:c.AstroNotesAssets,loadSource};
 }
 test('surface data is lazy, shares one flight, and modelsReady waits for all three assets',async()=>{
@@ -25,6 +25,48 @@ test('surface data is lazy, shares one flight, and modelsReady waits for all thr
  f.c.AstroNotesCityModels={};f.c.AstroNotesTowerModels={};for(const n of f.nodes.filter(n=>n!==surface))n.onload();
  assert.equal(f.api.modelsReady(),false);f.c.AstroNotesTrialSurfaceHulls={};surface.onload();await Promise.all([one,two]);
  assert.equal(f.api.modelsReady(),true);await f.api.ensureModels();assert.equal(f.nodes.length,3);assert.equal(f.timers.size,0);
+});
+test('trial delayed city catalogue loads alongside and preserves saved target shapes',async()=>{
+ const saved={'fav:custom':{id:'saved-catalogue'}},f=assetWorld({
+  source:'./experiments/moon-map/astronotes-assets.js',
+  beforeLoad:c=>{c.AstroNotesCityModels=saved;c.AstroNotesTowerModels={};c.AstroNotesTrialSurfaceHulls={};}
+ });
+ assert.equal(f.api.modelsReady(),false);
+ const first=f.api.ensureModels(),second=f.api.ensureModels();
+ assert.equal(f.nodes.length,1);
+ assert.match(f.nodes[0].src,/astronotes-city-models\.js/);
+ const available={shibuya:{id:'bundled-catalogue'}};
+ saved['fav:added-while-loading']={id:'late-shape'};
+ f.c.AstroNotesCityModels=available;
+ f.nodes[0].onload();await Promise.all([first,second]);
+ assert.equal(f.api.modelsReady(),true);
+ assert.equal(available['fav:custom'],saved['fav:custom']);
+ assert.equal(available['fav:added-while-loading'],saved['fav:added-while-loading']);
+ await f.api.ensureModels();assert.equal(f.nodes.length,1);
+});
+test('trial reuses identical GSI vector bytes for water and buildings and retries failed tiles',async()=>{
+ const source=readFileSync(new URL('./experiments/moon-map/src/features/candidates/ui.js',import.meta.url),'utf8');
+ const start=source.indexOf('function candidateVectorReader('),end=source.indexOf('const candidateFetch=',start);
+ const create=vm.runInNewContext(source.slice(start,end)+'\ncandidateVectorReader',{Response});
+ const base='https://cyberjapandata.gsi.go.jp/xyz/optimal_bvmap-v1/16/';
+ const tile=base+'1/2.pbf',ocean=base+'1/3.pbf',temporary=base+'1/4.pbf',noStore=base+'1/5.pbf';
+ const requests=[];
+ const reader=create(async url=>{
+  requests.push(url);
+  if(url===temporary&&requests.filter(u=>u===url).length===1)return new Response(null,{status:503});
+  if(url===ocean)return new Response(null,{status:404});
+  return new Response(Uint8Array.of(5,7,9),{headers:url===noStore?{'Cache-Control':'no-store'}:{}});
+ },{maxTiles:2,maxBytes:4});
+ const first=new Uint8Array(await (await reader(tile)).arrayBuffer());first[0]=99;
+ assert.deepEqual([...new Uint8Array(await (await reader(tile)).arrayBuffer())],[5,7,9]);
+ assert.deepEqual(requests,[tile]);
+ const controller=new AbortController();controller.abort();
+ await assert.rejects(()=>reader(tile,{signal:controller.signal}),{name:'AbortError'});
+ assert.deepEqual(requests,[tile]);
+ assert.equal((await reader(ocean)).status,404);assert.equal((await reader(ocean)).status,404);
+ assert.equal((await reader(temporary)).status,503);assert.equal((await reader(temporary)).status,200);
+ await reader(tile);assert.deepEqual(requests,[tile,ocean,temporary,temporary,tile]);
+ await reader(noStore);await reader(noStore);assert.equal(requests.filter(u=>u===noStore).length,2);
 });
 test('new loader works with cached HTML without surface meta and retries a missing surface',async()=>{
  const f=assetWorld({legacy:true});f.c.AstroNotesCityModels={};f.c.AstroNotesTowerModels={};

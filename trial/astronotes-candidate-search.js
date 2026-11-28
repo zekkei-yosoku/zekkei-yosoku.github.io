@@ -28,7 +28,10 @@
   return {load};
  }
  const assets=[['city','astronotes-city-models.js'],['tower','astronotes-tower-models.js'],['surface','astronotes-scene-hulls.js']];
- const ready=name=>name==='astronotes-city-models.js'?!!global.AstroNotesCityModels:name==='astronotes-tower-models.js'?!!global.AstroNotesTowerModels:name==='astronotes-scene-hulls.js'?!!global.AstroNotesTrialSurfaceHulls:false;
+ const cityName=assets[0][1];
+ // The saved-target registry can exist long before the bundled city catalogue.
+ const ready=name=>name===cityName?Object.keys(global.AstroNotesCityModels||{}).some(id=>!id.startsWith('fav:')):
+  name==='astronotes-tower-models.js'?!!global.AstroNotesTowerModels:name==='astronotes-scene-hulls.js'?!!global.AstroNotesTrialSurfaceHulls:false;
  const meta=kind=>global.document?.querySelector('meta[name="shape-'+kind+'"]')?.content;
  // Cached HTML predates the surface meta. Its existing content version is a
  // safe cache key for the newly split asset until the HTML update arrives.
@@ -40,7 +43,20 @@
  // An older loader can already be fetching city/tower data. Delegate those two
  // to it, retaining its shared flights and retry behavior, and add only surface.
  const legacyModels=typeof previous?.ensureModels==='function'?previous.ensureModels.bind(previous):null;
- const api={createLoader,supportsSurfaceHulls:true,modelsReady:()=>names.every(ready),ensureModels:()=>legacyModels?Promise.all([legacyModels(),loader.load('astronotes-scene-hulls.js')]):Promise.all(names.map(loader.load))};
+ function ensureModels(){
+  const previous=global.AstroNotesCityModels;
+  const jobs=legacyModels?[legacyModels().then(()=>loader.load(cityName)),loader.load('astronotes-scene-hulls.js')]:names.map(loader.load);
+  jobs[0]=jobs[0].then(value=>{
+   const city=global.AstroNotesCityModels;
+   // A late script replaces the object. Merge only saved target shapes into it.
+   if(previous&&city&&city!==previous)for(const id of Object.keys(previous)){
+    if(id.startsWith('fav:')&&!Object.hasOwn(city,id))city[id]=previous[id];
+   }
+   return value;
+  });
+  return Promise.all(jobs);
+ }
+ const api={createLoader,supportsSurfaceHulls:true,modelsReady:()=>names.every(ready),ensureModels};
  global.AstroNotesAssets=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:window);
 
@@ -1054,11 +1070,12 @@ function create({load=null,loadNames=null,fetchImpl=(typeof fetch==='function'?f
  }
  // Register shapes for saved targets on this page. Returns the ids that changed.
  async function prepare(targets){
-  const changed=[],models=root.AstroNotesCityModels||(root.AstroNotesCityModels={});
+  const changed=[];
   for(const t of targets||[]){if(!String(t?.id||'').startsWith('fav:'))continue;try{await partAt(t.latitude,t.longitude);}catch{continue;}
    const b=match(t),prev=attached.get(t.id);
-   if(b&&prev?.id!==b.id){models[t.id]=cityModel(b);attached.set(t.id,b);changed.push(t.id);}
-   else if(!b&&prev){delete models[t.id];attached.delete(t.id);changed.push(t.id);}}
+   if(b&&prev?.id!==b.id){const models=root.AstroNotesCityModels||(root.AstroNotesCityModels={});
+    models[t.id]=cityModel(b);attached.set(t.id,b);changed.push(t.id);}
+   else if(!b&&prev){if(root.AstroNotesCityModels)delete root.AstroNotesCityModels[t.id];attached.delete(t.id);changed.push(t.id);}}
   return changed;
  }
  // Footprint of the building a target stands on (lat/lon rings), for leaving it out of its own sight lines.
@@ -1576,6 +1593,9 @@ function make({align,bodies,terrain,sidewalks,yieldTask=typeof AstroNotesLibrary
 }
 // Generic opportunity search. The old inverse solver above is kept for its
 // surveyed drawing-surface workflow. These functions never certify visibility.
+// A search evaluates the same civil day at hundreds of points. Preserve the
+// Intl boundary search for DST and historical offsets while sharing its result.
+const dayFormats=new Map(),dayRanges=new Map();
 function timeRange(plan){
  const s=plan.timeSpec||{kind:'day'},kind=s.kind||'day';
  if(kind==='instant'){const at=s.at;return Number.isFinite(at)?{kind,start:at,end:at}:null;}
@@ -1583,11 +1603,22 @@ function timeRange(plan){
  if(kind!=='day')return null;
  const zone=s.timezone||'Asia/Tokyo',at=Number.isFinite(s.at)?s.at:plan.at;
  try{
-  const format=new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}),ymd=t=>{const p=Object.fromEntries(format.formatToParts(t).map(x=>[x.type,x.value]));return p.year+'-'+p.month+'-'+p.day;};
+  let format=dayFormats.get(zone);
+  if(!format){
+   format=new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'});
+   dayFormats.set(zone,format);if(dayFormats.size>8)dayFormats.delete(dayFormats.keys().next().value);
+  }
+  const ymd=t=>{const p=Object.fromEntries(format.formatToParts(t).map(x=>[x.type,x.value]));return p.year+'-'+p.month+'-'+p.day;};
   const date=s.date||(Number.isFinite(at)?ymd(at):null);if(!/^\d{4}-\d{2}-\d{2}$/.test(date||''))return null;
+  const cacheKey=JSON.stringify([zone,date]),cached=dayRanges.get(cacheKey);
+  if(cached)return {...cached};
   const nominal=Date.parse(date+'T00:00:00Z');if(!Number.isFinite(nominal)||new Date(nominal).toISOString().slice(0,10)!==date)return null;
   const next=new Date(nominal+DAY).toISOString().slice(0,10),boundary=label=>{let lo=nominal-2*DAY,hi=nominal+3*DAY;while(hi-lo>1){const mid=Math.floor((lo+hi)/2);if(ymd(mid)<label)lo=mid;else hi=mid;}return hi;};
-  const start=boundary(date),exclusive=boundary(next);return ymd(start)===date&&exclusive>start?{kind,start,end:exclusive-1,timezone:zone}:null;
+  const start=boundary(date),exclusive=boundary(next);
+  if(ymd(start)!==date||exclusive<=start)return null;
+  const range={kind,start,end:exclusive-1,timezone:zone};
+  dayRanges.set(cacheKey,range);if(dayRanges.size>64)dayRanges.delete(dayRanges.keys().next().value);
+  return {...range};
  }catch{return null;}
 }
 function targetInput(t){
@@ -4960,7 +4991,7 @@ AstroNotesCandidatePicker.configure({loadLabels,labelsSnapshot:()=>availableLabe
  geometryFrom:(...args)=>AstroNotesAlign.geometryFrom(...args),isMountain:t=>aimIsMountain(t),geometryKey:()=>AstroNotesAtmosphere.targetK(),
  placeContext:recordedPlaceContext,
  getScroller:()=>mainWorkspace()?.scroller(),getReturnScroll:()=>mainWorkspace()?.returnScroll?.(),
- onRendered(count){mainWorkspace()?.restoreScroll(count);globalThis.AstroNotesMapWorkspace?.refreshCandidatePins();
+ onRendered(count){mainWorkspace()?.restoreScroll(count);globalThis.AstroNotesMapWorkspace?.refreshCandidatePins(true);
   const toggle=document.getElementById('candidateMapToggle'),label=toggle?.querySelector('[data-candidate-map-label]');
   if(!label)return;
   const onMap=document.getElementById('skyMapView').hasAttribute('data-explore-sheet');
@@ -4969,6 +5000,37 @@ AstroNotesCandidatePicker.configure({loadLabels,labelsSnapshot:()=>availableLabe
   if(onMap){toggle.removeAttribute('aria-expanded');toggle.setAttribute('aria-controls','skyMapCanvas');}
   else if(toggle.getAttribute('aria-controls')==='skyMapCanvas'){toggle.removeAttribute('aria-controls');toggle.setAttribute('aria-expanded','false');}
  },requestKey:p=>AstroNotesCandidateDiscovery.requestKey(p)});
+// Water and building decoders read different layers of the same GSI vector tile.
+// Reuse the successful bytes across those reads, without merging their evidence
+// or retaining failed requests. Bound this small buffer separately from decoded tile caches.
+function candidateVectorReader(fetchData,{maxBytes=8*1024*1024,maxTiles=64}={}){
+ const tiles=new Map();let bytes=0;
+ const forget=url=>{const item=tiles.get(url);if(item){bytes-=item.body?.byteLength||0;tiles.delete(url);}};
+ return async (url,options)=>{
+  if(typeof url!=='string'||!url.startsWith('https://cyberjapandata.gsi.go.jp/xyz/optimal_bvmap-v1/16/'))return fetchData(url,options);
+  const signal=options?.signal;
+  if(signal?.aborted)throw signal.reason??Error('candidate-cancelled');
+  const item=tiles.get(url);
+  if(item){
+   if(Date.now()<item.until){tiles.delete(url);tiles.set(url,item);return new Response(item.body,{status:item.status});}
+   forget(url);
+  }
+  const res=await fetchData(url,options);
+  if(res.status!==200&&res.status!==404||/no-store/i.test(res.headers.get('cache-control')||''))return res;
+  const body=res.status===200?await res.arrayBuffer():null;
+  if(signal?.aborted)throw signal.reason??Error('candidate-cancelled');
+  if((body?.byteLength||0)<=maxBytes){
+   forget(url);tiles.set(url,{body,status:res.status,until:Date.now()+300000});bytes+=body?.byteLength||0;
+   while(bytes>maxBytes||tiles.size>maxTiles)forget(tiles.keys().next().value);
+  }
+  return new Response(body,{status:res.status});
+ };
+}
+const candidateFetch=candidateVectorReader(fetch.bind(globalThis));
+function fetchBuildingTile(url){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
+ return candidateFetch(url,{mode:'cors',signal:controller.signal}).finally(()=>clearTimeout(timer));
+}
 const live=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxDurationMs:120000,lookAhead:true});
  // Ground under GSI footprints the height grid lacks: the 10 m DEM (a building's base, not a sight line) on its own
  // tile budget, so it never starves the sight-line terrain. A search step longer than 35 s no longer runs out of time.
@@ -4976,7 +5038,7 @@ const live=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxDurat
 const groundPort={...AstroNotesTerrain,resetBudget:()=>live.resetBudget(),groundElevation:async(lat,lon,options={})=>{const r=await live.sample({latitude:lat,longitude:lon},options);return options.withSource?(Number.isFinite(r.height)?{elevation:r.height,source:r.layer}:null):r.height;}};
 // Places, woods and bridges from the bundled OSM extract (Overpass only if it cannot be read).
  const osmPlaces=globalThis.AstroNotesOsmPlaces?.create({load:loaded,base:dataBase+'osm-places/'})||null;
- const provider=AstroNotesCandidateDiscovery.createPlaceProvider({terrain:groundPort,fetchImpl:fetch.bind(globalThis),loadViewpoints:()=>loaded('candidate-viewpoints.json'),loadSurveyed:()=>loaded('candidate-surveyed-viewpoints.json'),places:osmPlaces});
+ const provider=AstroNotesCandidateDiscovery.createPlaceProvider({terrain:groundPort,fetchImpl:candidateFetch,loadViewpoints:()=>loaded('candidate-viewpoints.json'),loadSurveyed:()=>loaded('candidate-surveyed-viewpoints.json'),places:osmPlaces});
 let modelPromise=null,staticPromise=null,viewModelPromise=null;
 const staticTerrain=()=>staticPromise||=loaded('candidate-terrain.json').then(d=>d?AstroNotesCandidateTerrain.decode(d):null).catch(()=>null);
 // The composition's ground line comes from the search's own sight line to the target (2026-11-13): one calculation
@@ -4989,7 +5051,7 @@ let heightsModel=null;
 const treeGround=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxTiles:200,maxDurationMs:120000,layers:[['dem',14]]});
 const treeHeights=globalThis.AstroNotesTreeHeights?.create({groundAt:p=>treeGround.sample(p).then(r=>r.height)})||null;
 const sharedHeights=()=>heightsModel||=AstroNotesCandidateHeights.create({base:dataBase+'building-heights/',loadIndex:()=>loaded('building-heights/index.json'),ownFootprint:key=>plateauShapes?.footprint(key)||null,ownFootprintVersion:key=>plateauShapes?.attachedTo(key)||null,
- obstacles:osmPlaces?(a,b)=>osmPlaces.obstaclesAlong(a,b):null,gsiAlong:(a,b)=>AstroNotesTerrain.gsiBuildingsAlong(a,b),groundAt:p=>footprintGround.sample(p).then(r=>r.height)});
+ obstacles:osmPlaces?(a,b)=>osmPlaces.obstaclesAlong(a,b):null,gsiAlong:(a,b)=>AstroNotesTerrain.gsiBuildingsAlong(a,b,{fetchImpl:fetchBuildingTile}),groundAt:p=>footprintGround.sample(p).then(r=>r.height)});
 // 見える場所の地図 (visibility-map.js). Built-in targets carry a map made beforehand (tools/build-visibility-maps.mjs);
 // a saved target's map is made on this device while searching (at most MAP_BUDGET_MS a search, to 20 km) and kept here.
 const MAP_BUDGET_MS=20000;
@@ -5005,9 +5067,17 @@ const visibilityMap=globalThis.AstroNotesVisibilityMap?.create({ground:mapGround
 const mapEligible=plan=>!!plan?.target&&!(plan.composition||plan.strict||plan.profile==='summit-contact'||plan.target.rim)&&(plan.target.parts||[]).some(p=>Number.isFinite(p.m));
 const prefilter=visibilityMap&&{
  async regions(plan,regions,{isCurrent,deadline=Infinity}){
-  if(!mapEligible(plan))return null;const t=plan.target,inv=(lat,lon)=>AstroNotesTerrain.inverse(t.latitude,t.longitude,lat,lon).azimuth;
-  const bearings=regions.flatMap(r=>{const [w,s,e,n]=r.bbox;return [inv((s+n)/2,(w+e)/2),inv(s,w),inv(s,e),inv(n,w),inv(n,e)];});
-  const m=await visibilityMap.ensure(t,bearings,{isCurrent,deadline:Math.min(deadline,Date.now()+MAP_BUDGET_MS)});if(!m?.levels?.length||!m.sectors.size)return null;
+  if(!mapEligible(plan))return null;
+  const t=plan.target,options={isCurrent,deadline:Math.min(deadline,Date.now()+MAP_BUDGET_MS)};
+  // A complete bundled or saved map needs no bearings derived from this day's regions.
+  let m=await visibilityMap.ensure(t,[],options);
+  if(!isCurrent()||!m?.levels?.length)return null;
+  if(m.sectors.size<360){
+   const inv=(lat,lon)=>AstroNotesTerrain.inverse(t.latitude,t.longitude,lat,lon).azimuth;
+   const bearings=regions.flatMap(({bbox:[w,s,e,n]})=>[inv((s+n)/2,(w+e)/2),inv(s,w),inv(s,e),inv(n,w),inv(n,e)]);
+   m=await visibilityMap.ensure(t,bearings,options);
+  }
+  if(!isCurrent()||!m?.sectors.size)return null;
   const need=AstroNotesVisibilityMap.needFor(m);
   return {regions:regions.filter(r=>!AstroNotesVisibilityMap.regionHidden(m,t,r.bbox,need)),context:{map:m,need}};
  },
@@ -5069,11 +5139,16 @@ AstroNotesCandidatePicker.skylineView=(observer,target,azimuths,current=stillHer
  return cachedPreview(JSON.stringify(['roof',...previewKey(observer,target,refractionK),azimuths]),current,isCurrent=>
   roofViewModel.skylineView(observer,target,azimuths,{isCurrent,refractionK}),rows=>rows?.every(row=>row.complete));
 };
-async function loadModel(){
- // The 3D band model is no longer loaded.
- if(!modelPromise)modelPromise=(async()=>{await AstroNotesAssets.ensureModels();const dem=await staticTerrain();
-  return AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:live,heights:sharedHeights(),trees:treeHeights,staticTerrain:dem,sidewalks:await loaded('candidate-sidewalks.json').catch(()=>null),angularPrefilter:true});
-  })().catch(e=>{modelPromise=null;throw e;});
+function loadModel(){
+ // These independent assets are shared with later points and search actions.
+ if(!modelPromise)modelPromise=Promise.all([
+  AstroNotesAssets.ensureModels(),
+  staticTerrain(),
+  loaded('candidate-sidewalks.json').catch(()=>null)
+ ]).then(([,dem,sidewalks])=>AstroNotesCandidateModel.createGeneric({
+  align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:live,
+  heights:sharedHeights(),trees:treeHeights,staticTerrain:dem,sidewalks,angularPrefilter:true
+ })).catch(error=>{modelPromise=null;throw error;});
  return modelPromise;
 }
 let evaluationBudgetStarted=false;
@@ -5106,10 +5181,15 @@ function timeSpec(at){
  if(timeChoice==='window'){const start=AstroNotesCandidateDiscovery.day(at),ms=x=>{const [h,m]=x.split(':').map(Number);return (h*60+m)*60000;},a=ms(windowStart),b=ms(windowEnd);return {kind:'window',start:start+a,end:start+b+(b<a?86400000:0)};}
  return {kind:'day',at:AstroNotesCandidateDiscovery.day(at),timezone:'Asia/Tokyo'};
 }
-let onlyMapBand=false;
+// The map band is an explicit restriction for this target and celestial body.
+const mapBandScope=s=>s?.target&&globalThis.AstroNotesMapWorkspace?.centerMode()==='target'
+ ?JSON.stringify([auth?.loginId,s.body,s.target.id,s.target.latitude,s.target.longitude,s.partId]):null;
+let onlyMapBand=null;
 function snapshot(){
  if(typeof SkyMapUI==='undefined'||typeof auth==='undefined'||!auth||typeof screenAllowed!=='function'||!screenAllowed('skymap')||!screenAllowed('framing'))return null;
- const s=SkyMapUI.selectionState();if(!s?.target||!Number.isFinite(s.at))return null;
+ const s=SkyMapUI.selectionState(),bandScope=mapBandScope(s);
+ if(onlyMapBand!==bandScope)onlyMapBand=null;
+ if(!s?.target||!Number.isFinite(s.at))return null;
  const host=document.querySelector('#exploreScenePanel #aimLook'),view=host?._trialCompositionView;
  // The preview fills the same map-owned content width (max 780px); derive its dimensions without revealing or painting it.
  const W=mainWorkspace()?.previewWidth(),H=W?(host?._full&&host._fullH?Math.round(host._fullH):Math.round(Math.min(W>=640?620:440,W*(aimIsMountain(s.target)?.66:.9)))):null;
@@ -5281,6 +5361,7 @@ function mount(){
  const p=snapshot(),id=uiKey(p),main=mainWorkspace();if(main&&homeCondition&&homeCondition!==id)main.reset();homeCondition=id;
  if(p)syncCandidateDate(AstroNotesCandidatePicker.mount(panel,p,{compact:!!main}),p);
  if(section?.isConnected&&condition===id){syncWorkspaceSection(panel);return;}
+ if(section&&condition!==id)globalThis.AstroNotesMapWorkspace?.invalidateCandidatePins?.();
  const detailsOpen=!!section?.querySelector('details')?.open,editing=section?.contains(document.activeElement)?document.activeElement.id:null;
  stop();run++;section?.remove();condition=id;section=document.createElement('section');section.id='additionalCandidateSearch';section.setAttribute('aria-label','撮影候補地点の探索');
  const status=document.createElement('div');status.className='tiny';status.setAttribute('role','status');status.setAttribute('aria-live','polite');
@@ -5310,9 +5391,9 @@ function mount(){
  timeChoice=mode.value;mount();};
  if(main&&globalThis.AstroNotesMapWorkspace?.centerMode()==='target'){
   const bandLabel=document.createElement('label');bandLabel.className='remember';
-  const bandCheck=document.createElement('input');bandCheck.type='checkbox';bandCheck.id='candidateOnlyMapBand';bandCheck.checked=onlyMapBand;
+  const bandCheck=document.createElement('input');bandCheck.type='checkbox';bandCheck.id='candidateOnlyMapBand';bandCheck.checked=!!onlyMapBand;
   bandLabel.append(bandCheck,'地図の帯の中だけ');evidence.append(bandLabel);
-  bandCheck.onchange=()=>{onlyMapBand=bandCheck.checked;returnSearch=null;mount();};
+  bandCheck.onchange=()=>{onlyMapBand=bandCheck.checked?mapBandScope(p):null;returnSearch=null;mount();};
  }
  const roads=document.createElement('label');roads.className='remember';const roadCheck=document.createElement('input');roadCheck.type='checkbox';roadCheck.id='candidateIncludeRoads';roadCheck.checked=includeRoads;
  const roadLabel=document.createElement('span');roadLabel.textContent='道路などの地点も含める';roads.append(roadCheck,roadLabel);evidence.append(roads);
@@ -5466,24 +5547,36 @@ function mount(){
   searching=true;failed=false;renderAction();
   visibleCredits.hidden=!hasResults;
   const label='撮影できる地域を計算しています…',updateProgress=showCandidateProgress(status,label,!!main);
-  let progressLabel=label,foundPlaces=0;
+  let progressLabel=label,foundPlaces=0,placesRevision=null,searchPlaces=[];
   const renderProgress=()=>updateProgress(foundPlaces?`新規${foundPlaces}か所 ・ ${progressLabel}`:progressLabel);
+  // A search may examine thousands of points. The record snapshot changes
+  // only when the shooting-place library is edited or synced.
+  const recordPlaces=()=>{
+   const api=globalThis.MyPlacesUI,revision=api?.discoveryRevision?.();
+   if(revision==null||revision!==placesRevision){searchPlaces=api?.savedPlaces?.()||[];placesRevision=revision;}
+   return searchPlaces;
+  };
   try{
    // The search asks this between every few calculations; rebuilding the page snapshot each time took about a quarter of
    // a phone's search time (2026-11-11). The run and the section are checked every time, the page conditions at most
    // every 250 ms (a change of conditions also restarts the search through mount()).
    let checkedAt=-Infinity,stillCurrent=true,offeredRows=publishedRows;
    const searchCurrent=()=>{if(token!==run||!node.isConnected)return false;const now=performance.now();if(now-checkedAt>=250){checkedAt=now;stillCurrent=current(token,selected,node);}return stillCurrent;};
+   // Download the evaluator's data while the search derives its regions and
+   // reads candidate places. Evaluation still awaits the complete model.
+   loadModel().catch(()=>{});
    const result=await engine.searchRecommended(selected,{more:resuming,signal,isCurrent:searchCurrent,
-   deprioritizePoints:()=>{const recorded=globalThis.MyPlacesUI?.savedPlaces?.()||[];return point=>AstroNotesCandidatePicker.fixedSurveyedInRecords?.(point,selected.target?.id,recorded)??false;},
-   countPlaces:rows=>AstroNotesCandidatePicker.countNewPlaces(rows,globalThis.MyPlacesUI?.savedPlaces?.()||[],availableLabels?.facilities),onPage:(page,places)=>{
+   deprioritizePoints:()=>{const recorded=recordPlaces();return point=>AstroNotesCandidatePicker.fixedSurveyedInRecords?.(point,selected.target?.id,recorded)??false;},
+   countPlaces:rows=>AstroNotesCandidatePicker.countNewPlaces(rows,recordPlaces(),availableLabels?.facilities),onPage:(page,places)=>{
     if(searchCurrent()&&Number.isFinite(places)&&places!==foundPlaces){foundPlaces=places;renderProgress();}
     if(page.rows?.length>offeredRows&&searchCurrent()){offeredRows=page.rows.length;present(page,selected,node,token,{partial:true}).catch(()=>{});}
    },onBatchStart:()=>{live.resetBudget();
    footprintGround.resetBudget();treeGround.resetBudget();evaluationBudgetStarted=false;},
-   onProgress:counts=>{if(!searchCurrent())return;
-    progressLabel=counts.stage==='inverse'?label:counts.stage==='evaluate'?'構図と見通しを確認中':'撮影場所の情報を取得中';
-    renderProgress();
+   onProgress:counts=>{
+    // Provider pages and their geometry checks alternate throughout one search.
+    // Keep the live announcement stable until a new candidate count arrives.
+    if(progressLabel!==label||counts.stage==='inverse'||!searchCurrent())return;
+    progressLabel='撮影候補を確認しています…';renderProgress();
    }});
    if(!current(token,selected,node))return;if(result.cancelled){failed=true;continuation=true;setStatus('候補の情報を取得できませんでした。');return;}
    await present(result,selected,node,token);
@@ -5496,6 +5589,15 @@ function mount(){
  const cached=p&&engine.cached(p);if(cached){main?.reveal();hasRun=true;hasSearched=true;renderAction();const token=++run,node=section;let frames=0;
   const show=()=>{if(token!==run||node!==section)return;if(node.isConnected)present(cached,p,node,token).catch(()=>{});else if(++frames<300)requestAnimationFrame(show);};show();}
 }
+AstroNotesCandidatePicker.startMapSearch=()=>{
+ // The sheet can open before its deferred mount. Start the current plan, not a previous button.
+ mount();
+ const button=document.getElementById('candidateSearchAction');
+ if(!button?.isConnected)return false;
+ if(button.disabled)return snapshot()?.seedBand?.status!=='pending';
+ if(!button.hasAttribute('data-candidate-started'))button.click();
+ return button.isConnected&&button.hasAttribute('data-candidate-started');
+};
 let mountFrame=null;const scheduleMount=()=>{if(mountFrame===null)mountFrame=requestAnimationFrame(()=>{mountFrame=null;mount();});};
 const picker=document.getElementById('placeSheet');if(picker){new MutationObserver(scheduleMount).observe(picker,{childList:true,subtree:true,attributes:true,attributeFilter:['open','hidden','aria-selected']});picker.addEventListener('close',()=>{if(picker.open)return;
 if(mainWorkspace()){scheduleMount();return;}stop();run++;hasSearched=false;if(dateCalendar?.open)dateCalendar.close();AstroNotesCandidatePicker.suspend?.();section?.remove();section=null;condition='';});}

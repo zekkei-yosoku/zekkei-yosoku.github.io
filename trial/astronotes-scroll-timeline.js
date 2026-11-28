@@ -397,8 +397,8 @@ function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=
   const offset=(at-anchor)/rulerScale(mode).step*rulerScale(mode).pixels;
   tape.style.transform='translateX('+(-offset)+'px)';lastAt=at;
   const text=describe(at,mode);if(root.getAttribute('aria-valuetext')!==text)root.setAttribute('aria-valuetext',text);root.setAttribute('aria-valuenow',String(ariaValue(at)));
- },sync(at,nextMode){if(!enabled()){stop();return;}if(!Number.isFinite(at))return;if((moving||pressed||touching)&&mode===nextMode&&(at===lastAt||numeric&&Math.abs(at-lastAt)<(numeric.syncTolerance||0))&&width===root.clientWidth&&context===JSON.stringify(getObserver()))return;
- if(!tape.style.transform&&at===anchor&&nextMode===mode&&width===root.clientWidth&&Math.abs(root.scrollLeft-EXTENT)<.1&&context===JSON.stringify(getObserver()))return;halt();stop();reset(at,nextMode);},stop};
+ },sync(at,nextMode,force=false){if(!enabled()){stop();return;}if(!Number.isFinite(at))return;if(!force&&(moving||pressed||touching)&&mode===nextMode&&(at===lastAt||numeric&&Math.abs(at-lastAt)<(numeric.syncTolerance||0))&&width===root.clientWidth&&context===JSON.stringify(getObserver()))return;
+ if(!force&&!tape.style.transform&&at===anchor&&nextMode===mode&&width===root.clientWidth&&Math.abs(root.scrollLeft-EXTENT)<.1&&context===JSON.stringify(getObserver()))return;halt();stop();reset(at,nextMode);},stop};
  const useMinutes=mode=>!numeric&&mode==='time'&&renderMinutes();
  const minuteRuler=nextMode=>{
   if(!canUse()||!useMinutes(nextMode)){minutes?.leave();return null;}
@@ -407,7 +407,7 @@ function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=
   return minutes;
  };
  const api={
-  sync(at,nextMode){if(Number.isFinite(at)){const ruler=minuteRuler(nextMode);if(ruler)ruler.sync(at);else{controller.sync(at,nextMode);paintAnnotations(at);}}else this.stop();},
+  sync(at,nextMode,force=false){if(Number.isFinite(at)){const ruler=minuteRuler(nextMode);if(ruler)ruler.sync(at);else{controller.sync(at,nextMode,force);paintAnnotations(at);}}else this.stop();},
   follow(at,nextMode){if(Number.isFinite(at)){const ruler=minuteRuler(nextMode);if(ruler)ruler.follow(at);else{controller.follow(at,nextMode);paintAnnotations(at);}}},
   stop(){minutes?.stop();stop();},
  };

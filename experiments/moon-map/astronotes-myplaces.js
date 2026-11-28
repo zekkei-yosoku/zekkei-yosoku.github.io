@@ -3836,7 +3836,13 @@ function discoveryRevision(){return version;}
 // already here (candidate-picker.js inRecords, 2026-11-14).
 function savedPlaces(){
  if(!auth?.token||!toolAllowed('records'))return [];
- return favorites.filter(f=>Number.isFinite(f.latitude)&&Number.isFinite(f.longitude)).map(f=>({latitude:f.latitude,longitude:f.longitude,elevation:f.elevation,groundManualM:f.groundManualM,eyeHeightAGL:f.eyeHeightAGL}));
+ const {groups,shapes}=recordSearchIndex();
+ return favorites.filter(f=>{
+  if(!Number.isFinite(f.latitude)||!Number.isFinite(f.longitude))return false;
+  // A target registered as a building may also be an observation point. Only
+  // skip new places near this address when it is actually saved for shooting.
+  return !Number.isFinite(f.targetHeightM)||f.recordRegistered||groups.has(f.id)||!!recordSearchShape(f,shapes);
+ }).map(f=>({latitude:f.latitude,longitude:f.longitude,elevation:f.elevation,groundManualM:f.groundManualM,eyeHeightAGL:f.eyeHeightAGL}));
 }
 async function discoverySearch(plan,points,isCurrent,terrainCache,onProgress){
  if(!terrainCache){const value=await recordEngineDiscover(plan,points,isCurrent,onProgress);if(value)return value;}

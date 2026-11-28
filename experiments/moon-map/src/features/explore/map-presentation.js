@@ -242,10 +242,13 @@ ctx.lineWidth=1;
   session.matchMode='overlap';session.partId=aimIsMountain(session.target)?null:'__whole';session.limb='center';
  }
  function renderTimeControls(){
-  el('skyMapDate').value=dateAt(session.at);el('skyMapTime').value=textAt(session.at);syncScrubRange();
+  el('skyMapDate').value=dateAt(session.at);el('skyMapTime').value=textAt(session.at);if(!workspaceOpening())syncScrubRange();
   const button=el('skyMapCalendarOpen');ToolDateTimeBar.dateText(button,session.at);button.setAttribute('aria-label',ToolDateTimeBar.label(session.at));
  }
  const minuteScrubbing=()=>timelineMoving&&session?.scrubMode==='time';
+ // The full-screen map mounts its hour ruler once the map workspace is active.
+ const workspaceOpening=()=>view.dataset.exploreStage==='map'&&view.dataset.exploreMode==='map'&&
+  !!globalThis.AstroNotesMapWorkspace&&!view.classList.contains('map-ws');
  function render(timeOnly=false){
   normalizeWholeAlignment();
   const canRender=hasAccess()&&session&&active();
@@ -263,7 +266,7 @@ ctx.lineWidth=1;
   }
   renderObserverHeight();
   if(!canRender)return;
-  renderCandidateDates();
+  if(!workspaceOpening())renderCandidateDates();
   const observer=session.observer;el('skyMapObserverClear').hidden=!validPoint(observer);
   renderPointCard('skyMapObserver',validPoint(observer)?observer:null,session.ground,{ids:{name:'skyMapObserver',sub:'skyMapObserverSub',fav:'skyMapObserverFav'}});
   el('skyMapObserverFav').hidden=!validPoint(observer);
@@ -277,6 +280,7 @@ ctx.lineWidth=1;
    if(skyTimeDialog.open)renderMapTime();
    save();return;
   }
+  if(workspaceOpening()){map.redraw();save();return;}
   const fullMap=view.classList.contains('map-ws');
   if(!fullMap)renderPassages();
   try{globalThis.MyPlacesUI?.skyRender(session);}catch(e){const box=el('mySkyPlaces');
@@ -633,7 +637,7 @@ ctx.lineWidth=1;
   save();return true;
  }
  setSkyMapUI({minuteScrubbing,resuming:()=>!!suspended,
- workspaceHost:()=>hasAccess()&&session&&active()?{session,map,pickMode,targetOn,extraCount:()=>session.target?aimSceneExtraTargets(session.target.id).length:0,setTime,setScrubMode,shownBodies,skyState,placePoint,syncTimeline:()=>skyTimeline.sync(session.at,session.scrubMode),
+ workspaceHost:()=>hasAccess()&&session&&active()?{session,map,pickMode,targetOn,extraCount:()=>session.target?aimSceneExtraTargets(session.target.id).length:0,setTime,setScrubMode,shownBodies,skyState,placePoint,syncTimeline:force=>skyTimeline.sync(session.at,session.scrubMode,force),
  restoreObserver:(o,ground=null,...opportunity)=>{session.observer=o;if(opportunity.length)session.candidateOpportunity=opportunity[0];session.ground=Number.isFinite(ground)?ground:null;
  if(validPoint(o)){map.setCenter(o.latitude,o.longitude);const eye=aimObserverAt(o,session.ground);session.eye={latitude:o.latitude,longitude:o.longitude,elevation:eye.elevation+eye.eyeM};}refresh();},
  restoreTarget:b=>{Object.assign(session,b);targetOn=validPoint(b.target);const sel=el('skyMapTarget'),custom=[...sel.options].find(o=>o.value==='custom');if(custom){if(b.custom)custom.textContent=b.custom.name;

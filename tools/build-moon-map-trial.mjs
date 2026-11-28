@@ -20,9 +20,10 @@ const allowed=new Map([
  // 2026-11-26 探すを全画面地図にする段階①（trialで試す）
  ['src/features/explore/controller.js',false],['src/features/explore/map-presentation.js',false],['astronotes-map-workspace.js',false],['astronotes-map-workspace.css',false],
  // 2026-11-26 段階②: 目標物が中心から探す新しい地点は、探索の種を重なる範囲（帯）に絞る
- ['src/features/candidates/ui.js',false],['src/features/candidates/generic-search.js',false],
+ ['src/features/candidates/ui.js',false],['src/features/candidates/generic-search.js',false],['src/features/candidates/composition.js',false],['astronotes-assets.js',false],
  // 2026-11-26 段階④: 点天体の夜間条件を地図と候補の最終判定で共有する
  ['astronotes-shooting.js',false],
+ ['astronotes-align.js',false],
  // 2026-11-27 対象を追加する入口を試用版の共通対象選択に出す
  ['astronotes-target-ui.js',false],['src/features/plans/controller.js',false],
  // 時刻バーのラベルを左端のフェードに掛けない
@@ -96,9 +97,9 @@ export function buildMoonMapTrial({directory=root,
  // A generated bundle whose source is overlaid is re-rendered from the overlay through the production
  // renderer (same compatibility prefixes and data hashes); untouched bundles stay production copies.
  for(const asset of sourceManifest.generatedAssets){
-  if(!asset.sourceOrder.some(name=>overlays.has(name)))continue;
-  // The renderer reads these companions from production; an overlaid companion would be silently ignored.
-  const companions=[asset.legacyAccessPolicy&&'astronotes-access.js',asset.legacyShapeLoader,...Object.values(asset.dataFiles||{})].filter(Boolean);
+  if(!asset.sourceOrder.some(name=>overlays.has(name))&&!overlays.has(asset.legacyShapeLoader))continue;
+  // The renderer reads these companions directly from production.
+  const companions=[asset.legacyAccessPolicy&&'astronotes-access.js',...Object.values(asset.dataFiles||{})].filter(Boolean);
   if(companions.some(name=>overlays.has(name)))throw Error('Moon-map trial cannot overlay a generated asset companion: '+asset.output);
   const bundle=renderGeneratedAsset(asset,{directory,read:path=>read(relative(directory,path).split(sep).join('/'))});
   if(JSON.stringify(bundle.sources.filter(name=>name.endsWith('.js')))!==JSON.stringify(asset.sourceOrder))throw Error('Moon-map generated source order changed: '+asset.output);

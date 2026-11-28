@@ -192,6 +192,7 @@ function createMapView(ids) {
     if (!cv || !ctx) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const w = cv.clientWidth, h = cv.clientHeight;
+    if (!w || !h) return;
     if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
       cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
     }
@@ -369,7 +370,7 @@ function createMapView(ids) {
     view.zoom = Math.min(view.zoom, maxViewZoom());
     const wrap = cv && cv.closest(".mapwrap");
     if (wrap) for (const b of wrap.querySelectorAll("[data-layer]")) b.setAttribute("aria-checked", String(b.dataset.layer === next));
-    if (cv?.clientWidth && cv.clientHeight) schedule();
+    if (cv) schedule();
   }
 
   function open(from, zoom = 15) {
@@ -381,7 +382,8 @@ function createMapView(ids) {
     if (ids.sheet) showSheet($(ids.sheet));
     if(['mapCanvas','shapeCanvas','aimLineCanvas'].includes(ids.canvas))cv.closest('.mapwrap')._mapShell?.setWide(true);
     // dialog が開いてから測る（閉じている間は幅が 0）
-    requestAnimationFrame(() => { draw(); requestAnimationFrame(draw); });
+    schedule();
+    if (ids.sheet) requestAnimationFrame(schedule);
   }
   return { open, attach, setLayer, layer: () => layer, redraw: schedule, project, coordinateAt, rotation: () => bearing, setRotation: (deg) => { bearing = ((deg % 360) + 360) % 360; schedule(); }, allowRotate: (on) => { canRotate = !!on; if (!on) bearing = 0; schedule(); }, onPick:fn=>{onPick=fn;
   },onDoubleTap:fn=>{onDoubleTap=fn;},
