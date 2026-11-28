@@ -29,7 +29,8 @@ html:has(#skyMapView.map-ws-scene){scrollbar-gutter:auto}
 /* 右端の縦ボタン列 */
 #skyMapView.map-ws .sky-map-expand{display:none!important}
 :is(#skyMapView.map-ws .sky-map-wide,.tool-map-surface) .mapzoom{display:flex;flex-direction:column;gap:2px;top:8px;bottom:auto;right:var(--ws-rail-right);left:auto}
-:is(#skyMapView.map-ws .sky-map-wide,.tool-map-surface) .mapzoom button{width:44px;height:44px}
+:is(#skyMapView.map-ws .sky-map-wide,.tool-map-surface) .mapzoom button{width:44px;height:44px;padding:0}
+:is(#skyMapView.map-ws .sky-map-wide,.tool-map-surface) :is(.mapzoom button,.map-layers-btn)>svg{display:block;width:26px;height:26px;margin:auto}
 :is(#skyMapView.map-ws .sky-map-wide,.tool-map-surface) .map-layers-btn{top:148px;right:var(--ws-rail-right);bottom:auto}
 :is(#skyMapView.map-ws .sky-map-wide,.tool-map-surface) .map-layer-menu{top:148px;right:calc(var(--ws-rail-right) + 50px);bottom:auto}
 .tool-map-surface.astro-map-wrap .mapzoom{display:flex!important}
@@ -146,6 +147,7 @@ html:has(#skyMapView[data-explore-stage=map].map-ws:not([hidden])),body:has(#sky
 #mapWsBodyPicker:focus-visible:not([data-pointer-focus])>span{text-decoration:underline 2px;text-underline-offset:3px}
 #mapWsMode .map-ctl:focus-visible{outline:2px solid currentColor;outline-offset:-4px}
 #mapWsMode .map-ctl:disabled{opacity:.45;cursor:default}
+#mapWsCenterToggle [data-center-icon="target"],#mapWsOrbitToggle>svg{width:28px;height:28px}
 #mapWsCenterToggle[data-center="obs"] [data-center-icon="target"],
 #mapWsCenterToggle[data-center="target"] [data-center-icon="obs"]{display:none}
 #skyMapView.map-ws:not([data-explore-sheet]) .map-ws-band-conditions [data-chip=body]{display:none}

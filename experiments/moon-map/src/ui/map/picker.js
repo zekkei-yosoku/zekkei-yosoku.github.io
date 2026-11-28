@@ -18,6 +18,9 @@ const MAP_LAYERS = {
 };
 const MAP_ICON_LAYERS = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2.5 8 12 13l9.5-5L12 3Z"/><path d="m2.5 12.5 9.5 5 9.5-5"/><path d="m2.5 16.5 9.5 5 9.5-5" opacity=".55"/></svg>`;
 const MAP_ICON_LOCATE = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="m21 3-7 18-3-8-8-3Z"/></svg>`;
+const mapIconZoom = zoomIn => '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" aria-hidden="true">'
+  + '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.2 15.2 5.3 5.3M7.3 10.5h6.4"/>'
+  + (zoomIn ? '<path d="M10.5 7.3v6.4"/>' : '') + '</svg>';
 /// 現在地（どの地図でも共通）。{ latitude, longitude, accuracyM }
 let myPos = null;
 const MAP_LAYER_KEY = "sorami.mapLayer";
@@ -313,11 +316,16 @@ function createMapView(ids) {
     cv.onlostpointercapture = release;
     cv.onwheel = (e) => { if(scrollMap()&&!e.ctrlKey&&!e.metaKey)return;e.preventDefault(); zoomBy(e.deltaY > 0 ? -0.5 : 0.5); };
     cv.ondblclick = (e) => { e.preventDefault(); if(onDoubleTap)onDoubleTap();zoomBy(1); };
-    if (ids.zoomIn) $(ids.zoomIn).onclick = () => zoomBy(1);
-    if (ids.zoomOut) $(ids.zoomOut).onclick = () => zoomBy(-1);
+    const wrap = cv.closest(".mapwrap");
+    const showZoomIcons = wrap.matches(".tool-map-surface, .sky-map-wrap");
+    for (const [id, direction] of [[ids.zoomIn, 1], [ids.zoomOut, -1]]) {
+      if (!id) continue;
+      const button = $(id);
+      button.onclick = () => zoomBy(direction);
+      if (showZoomIcons) button.innerHTML = mapIconZoom(direction > 0);
+    }
     // 地図の上に、種類の切り替え（右上）と現在地（右下、＋の上）を置く。どの地図も同じ部品（2026-10-02 ユーザー「地図、写真ってどっちも地図じゃん。
     // こういうボタンを用意して地図モードを変えられるように」「現在地マークをおいといた方が良い」）
-    const wrap = cv.closest(".mapwrap");
     wrap.insertAdjacentHTML("beforeend", `<button class="map-ctl map-layers-btn" aria-label="地図の種類" aria-haspopup="true" aria-expanded="false">${MAP_ICON_LAYERS}</button>
       <div class="map-layer-menu" role="menu" aria-label="地図の種類" hidden>${Object.entries(MAP_LAYERS).map(([k, l]) =>
         `<button role="menuitemradio" data-layer="${k}" aria-checked="false">${esc(l.label)}</button>`).join("")}</div>

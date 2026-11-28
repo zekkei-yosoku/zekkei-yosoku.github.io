@@ -78,10 +78,30 @@ async function run(browserName, browser, width, height) {
       }
     };
 
+    const checkZoom = async (root, readZoom) => {
+      const surface = page.locator(root);
+      const zoomIn = surface.getByRole('button', {name:/拡大$/,includeHidden:true});
+      const zoomOut = surface.getByRole('button', {name:/縮小$/,includeHidden:true});
+      const dimensions = await surface.locator('.mapzoom button>svg,.map-layers-btn>svg').evaluateAll(icons =>
+        icons.map(icon => [getComputedStyle(icon).width, getComputedStyle(icon).height]));
+      assert.deepEqual(dimensions, Array.from({length:4},()=>['26px','26px']));
+      assert.equal(await zoomIn.locator('svg circle').count(),1);
+      assert.equal(await zoomOut.locator('svg circle').count(),1);
+      assert.equal(await zoomIn.locator('svg path').count(),2);
+      assert.equal(await zoomOut.locator('svg path').count(),1);
+      if (!await zoomIn.isVisible()) return; // 低い横画面はピンチで操作する
+      const before = await page.evaluate(readZoom);
+      await zoomIn.click();
+      assert.equal(await page.evaluate(readZoom),before+1);
+      await zoomOut.click();
+      assert.equal(await page.evaluate(readZoom),before);
+    };
+
     assert.equal(await page.locator('#issPassTab,#issFromButton').count(),0);
     assert(await page.locator('#issMoon').isVisible());
     assert(await page.locator('#issSun').isVisible());
     await checkRail('#issMapBox', ',.iss-map-head button');
+    await checkZoom('#issMapBox', ()=>IssMap.zoom());
     await choose('#issMapBox', '標準', '航空写真');
     assert(await page.evaluate(()=>issSelected().mapTrack.length>20));
     const menu=page.locator('#issSuggestions');
@@ -163,6 +183,7 @@ async function run(browserName, browser, width, height) {
     assert.deepEqual(await page.evaluate(()=>window.toolMapVibrations),[16,16]);
     await page.evaluate(()=>window.restoreDaily());
     await checkRail('#planeView .plane-map', ',.tool-map-actions button');
+    await checkZoom('#planeView .plane-map', ()=>PlaneMap.zoom());
     await Promise.all([
       page.waitForRequest(request=>request.url().includes('/xyz/hillshademap/')),
       choose('#planeView .plane-map', '地形', '標準')
@@ -174,7 +195,11 @@ async function run(browserName, browser, width, height) {
       groundAt=async()=>30;
       SkyMapUI.workspaceHost().restoreObserver({latitude:35.58,longitude:139.56,name:'確認地点',groundManualM:30,eyeHeightAGL:1.5});
     });
-    await page.waitForFunction(()=>SkyMapUI.workspaceHost()?.session.eye);
+    await page.waitForFunction(()=>SkyMapUI.workspaceHost()?.session.eye&&document.getElementById('skyMapView').classList.contains('map-ws'));
+    await checkZoom('#skyMapView .sky-map-wrap', ()=>SkyMapUI.workspaceHost().map.zoom());
+    await checkRail('#skyMapView .sky-map-wrap', ',#mapWsMode button');
+    const exploreSizes = await page.locator('#mapWsMode svg').evaluateAll(icons => icons.map(icon => getComputedStyle(icon).width));
+    assert.deepEqual(exploreSizes,['24px','28px','28px']);
     await page.evaluate(()=>{
       const s=SkyMapUI.workspaceHost().session;
       AstroNotesMapWorkspace.feedbackEvents=()=>[s.at+1000];
