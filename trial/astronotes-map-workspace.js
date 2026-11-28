@@ -716,7 +716,7 @@ function createMapTools(){
  const orbitButton=document.createElement('button');
  orbitButton.type='button';orbitButton.id='mapWsOrbitToggle';orbitButton.className='map-ctl';
  orbitButton.setAttribute('aria-label','天体の軌道');orbitButton.title='天体の軌道';
- orbitButton.innerHTML='<svg viewBox="0 0 24 24" width="24" height="24" fill="none" aria-hidden="true"><path d="M3 17c3.6-9.6 11.8-12.1 18-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="13.1" cy="7.9" r="2.4" fill="currentColor"/></svg>';
+ orbitButton.innerHTML='<svg viewBox="0 0 24 24" width="24" height="24" fill="none" aria-hidden="true"><g stroke="currentColor" stroke-width="1.65"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.6"/></g><g fill="currentColor"><circle cx="12" cy="12" r="1.45"/><circle cx="18" cy="6" r="2.35"/></g></svg>';
  orbitButton.onclick=()=>{
   orbitVisible[viewMode]=!orbitVisible[viewMode];
   syncMapTools();host()?.redraw();
