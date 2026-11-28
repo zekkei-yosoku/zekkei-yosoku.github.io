@@ -51,10 +51,15 @@ async function selectMap(page,body){
 async function ready(page,body){
  await page.waitForFunction(body=>{const h=SkyMapUI.workspaceHost(),p=document.getElementById('mapWsSelectedBodyPage');return h?.session.body===body&&h.session.dailies?.[body]&&!h.session.timelinePending&&p?.dataset.body===body&&document.getElementById('mapWsBodyPicker').getAttribute('aria-busy')==='false'&&document.querySelector('#wsBody b').textContent!=='—';},body);
 }
+async function centerMap(page,mode){
+ const button=page.locator('#mapWsCenterToggle');
+ if(await button.getAttribute('data-center')!==mode)await button.click();
+ assert.equal(await button.getAttribute('data-center'),mode);
+}
 async function pickerLayout(page){
  return page.evaluate(()=>{const nodes=[...document.querySelectorAll('#mapWsBodyPicker')].filter(n=>n.getClientRects().length),view=document.getElementById('skyMapView');
   const box=n=>{const r=n.getBoundingClientRect(),points=[[.5,.5],[.5,.1],[.5,.9],[.1,.5],[.9,.5]],hit=points.every(([x,y])=>{const found=document.elementFromPoint(r.left+r.width*x,r.top+r.height*y);return found===n||n.contains(found);});return {id:n.id||n.value,width:r.width,height:r.height,top:r.top,bottom:r.bottom,visible:!!n.offsetParent&&r.top>=0&&r.bottom<=innerHeight&&r.left>=0&&r.right<=innerWidth,hit};};
-  const center=view.dataset.mapCenter||'obs',map=document.getElementById('skyMapCanvas').getBoundingClientRect(),home=document.getElementById('mapWsHome');return {controls:nodes.map(box),placement:[...document.querySelectorAll('#mapWsMode input'),document.getElementById(center==='target'?'mapWsCardView':'mapWsNewPlaces')].map(box),home:home?.offsetParent&&!home.hidden?box(home):null,mapHeight:map.height,mapTop:map.top,mapBottom:map.bottom,overflow:document.documentElement.scrollWidth>innerWidth+1,center};});
+  const center=view.dataset.mapCenter||'obs',map=document.getElementById('skyMapCanvas').getBoundingClientRect(),home=document.getElementById('mapWsHome');return {controls:nodes.map(box),placement:[...document.querySelectorAll('#mapWsMode button'),document.getElementById(center==='target'?'mapWsCardView':'mapWsNewPlaces')].map(box),home:home?.offsetParent&&!home.hidden?box(home):null,mapHeight:map.height,mapTop:map.top,mapBottom:map.bottom,overflow:document.documentElement.scrollWidth>innerWidth+1,center};});
 }
 async function captureMatrix(page,path,mode){
  if(realTiles){
@@ -100,7 +105,7 @@ async function screenMatrix(browser,engine,width,theme){
  try{
   const ids=await f.page.locator('#skyMapBody option').evaluateAll(ns=>ns.filter(n=>!n.disabled&&!n.hidden).map(n=>n.value));assert.deepEqual(new Set(ids),new Set(bodies),label+': 全8天体が利用可能');
   for(const mode of ['obs','target']){
-   await f.page.locator(`#mapWsMode input[value="${mode}"]`).click();
+   await centerMap(f.page,mode);
    for(const body of bodies){await selectMap(f.page,body);checks.push(await verifySelection(f.page,body,mode,label));
     if(width===390&&theme==='dark'&&['sirius','venus'].includes(body))await captureMatrix(f.page,`${out}/${label}-${mode}-${body}.png`,mode);
    }
@@ -149,12 +154,12 @@ async function realNightCases(browser,engine){
   await selectMap(f.page,fixture.body);await ready(f.page,fixture.body);
   const oracle=await f.page.evaluate(({body,places})=>{const target=SkyMapUI.selectionState().target;return places.map(p=>{const eye={...p,elevation:31.5},raw=AstroNotesAlign.prepareDailyView(eye,target,body,{partId:'__whole',eyeM:0})(p.at,p.at)[0];return {id:p.id,intersects:raw?.intersects,sun:AstroNotesBodies.state('sun',p.at,eye,{refraction:false}).altitude};});},{body:fixture.body,places});
   assert(oracle.every(x=>x.intersects),fixture.body+': 生の幾何は昼夜とも重なる '+JSON.stringify(oracle));assert(oracle[0].sun<-6&&oracle[1].sun>-6);
-  await f.page.locator('#mapWsMode input[value="target"]').click();
+  await centerMap(f.page,'target');
   await f.page.waitForFunction(()=>{const s=AstroNotesMapWorkspace.targetState();return s.records?.length===2&&!s.recordsPending&&!s.lineBusy;});
   const records=await f.page.evaluate(()=>AstroNotesMapWorkspace.targetState().records);
   assert(records.find(r=>r.name==='夜に重なる地点').windows.length>0,fixture.body+': 夜の実記録を残す');assert.equal(records.find(r=>r.name==='昼に重なる地点').windows.length,0,fixture.body+': 幾何は重なっても昼の記録を除く');
   const bounds=await f.page.evaluate(({body,places})=>AstroNotesMapWorkspace.targetState().records.flatMap(r=>r.windows.flatMap(w=>[w.from,w.to].map(at=>({at,sun:AstroNotesBodies.state('sun',at,{...places.find(p=>p.name===r.name),elevation:31.5},{refraction:false}).altitude})))),{body:fixture.body,places});assert(bounds.every(x=>x.sun<=-6));
-  await f.page.locator('#mapWsMode input[value="obs"]').click();
+  await centerMap(f.page,'obs');
   for(const p of places){
    await f.page.evaluate(p=>{SkyMapUI.workspaceHost().restoreObserver(p);SkyMapUI.setTime(p.at);},p);
    await f.page.waitForFunction(name=>document.getElementById('mapWsCardPlace').textContent.startsWith(name+' → ')&&!/調べ|計算|準備/.test(document.getElementById('mapWsCardOverlap').textContent),p.name);
@@ -177,7 +182,7 @@ async function lineSelection(browser,engine){
   await f.page.evaluate(()=>{AstroNotesTerrain.groundElevation=async()=>30;});
   for(const fixture of lineFixtures){
    await f.page.evaluate(at=>{SkyMapUI.setTime(at);SkyMapUI.setAlignment('__whole','center','overlap');},fixture.at);
-   await selectMap(f.page,fixture.body);await ready(f.page,fixture.body);await f.page.locator('#mapWsMode input[value="target"]').click();
+   await selectMap(f.page,fixture.body);await ready(f.page,fixture.body);await centerMap(f.page,'target');
    await f.page.waitForFunction(body=>{const s=AstroNotesMapWorkspace.targetState();return s.lineBody===body&&!s.lineBusy&&s.line?.length;},fixture.body);
    // 同梱モデル読込後のsolverでfixture付近の点を取得し、Node/browserの微小な数値差を固定座標へ押し付けない。
    const point=await f.page.evaluate(async fixture=>{const h=SkyMapUI.workspaceHost(),s=h.session,lines=await AstroNotesAlign.line(s.target,s.body,AstroNotesSkyMap.dayStart(s.at),{partId:'__whole',limb:'center',eyeM:s.eyeM??1.5,elevationAt:async()=>30});
@@ -275,7 +280,28 @@ async function horizonRays(browser,engine){
   const date=Date.parse('2026-11-28T02:00:00+09:00');
   await p.evaluate(at=>SkyMapUI.setTime(at),date);
   const conditions=await p.evaluate(()=>{const s=SkyMapUI.selectionState();return {observer:s.observer,target:s.target.id,body:s.body,at:s.at};});
-  await p.getByRole('radio',{name:'対象を中心に表示'}).click();
+  const orbit=p.getByRole('button',{name:'天体の軌道'});
+  const orbitStrokes=()=>p.evaluate(async()=>{
+   const h=SkyMapUI.workspaceHost(),ctx=document.getElementById('skyMapCanvas').getContext('2d'),original=ctx.stroke;
+   let path=false;
+   ctx.stroke=function(...args){
+    if(this.strokeStyle==='#a9dcff'&&Math.abs(this.lineWidth-3.4)<.001)path=true;
+    return original.apply(this,args);
+   };
+   try{h.redraw();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return path;}
+   finally{ctx.stroke=original;}
+  });
+  await ready(p,'moon');
+  assert.equal(await orbit.getAttribute('aria-pressed'),'true');
+  assert(await orbitStrokes());
+  assert(await p.evaluate(()=>AstroNotesMapWorkspace.hits().length>0));
+  await orbit.click();
+  assert.equal(await orbit.getAttribute('aria-pressed'),'false');
+  assert(!await orbitStrokes());
+  assert.equal(await p.evaluate(()=>AstroNotesMapWorkspace.hits().length),0);
+  await centerMap(p,'target');
+  assert.equal(await orbit.getAttribute('aria-pressed'),'false');
+  assert(!await orbitStrokes());
   assert.deepEqual(await p.evaluate(()=>{const s=SkyMapUI.selectionState();return {observer:s.observer,target:s.target.id,body:s.body,at:s.at};}),conditions);
   assert.equal(await p.locator('#skyMapTargetTool').isVisible(),false);
   assert.equal(await p.locator('#skyMapObserverTool').isVisible(),false);
@@ -313,6 +339,21 @@ async function horizonRays(browser,engine){
   await ready(p,'moon');
   assert.equal(await p.locator('#wsBodyRise i').nth(1).innerText(),'11/27');
   const moon=await check('moon',['#6fb8ff','#2f6fe0']);
+  await orbit.press('Space');
+  assert.equal(await orbit.getAttribute('aria-pressed'),'true');
+  assert(await orbitStrokes());
+  assert.deepEqual(await check('moon',['#6fb8ff','#2f6fe0']),moon);
+  await centerMap(p,'obs');
+  assert.equal(await orbit.getAttribute('aria-pressed'),'false');
+  assert(!await orbitStrokes());
+  await orbit.click();
+  assert(await orbitStrokes());
+  await centerMap(p,'target');
+  assert.equal(await orbit.getAttribute('aria-pressed'),'true');
+  assert(await orbitStrokes());
+  await orbit.click();
+  assert(!await orbitStrokes());
+  assert.deepEqual(await p.evaluate(()=>{const s=SkyMapUI.selectionState();return {observer:s.observer,target:s.target.id,body:s.body,at:s.at};}),conditions);
   await p.evaluate(()=>SkyMapUI.workspaceHost().map.setRotation(32));
   const rotated=await check('moon',['#6fb8ff','#2f6fe0']);
   assert(rotated.strokes.every((x,i)=>Math.abs(x.angle-moon.strokes[i].angle)<.001));
@@ -322,8 +363,8 @@ async function horizonRays(browser,engine){
   await p.waitForFunction(()=>document.querySelector('#wsBody small').textContent.includes('対象付近'));
   const vicinity=await check('sun',['#ff9b3d','#e5484d']);
   assert(moon.observer&&sun.observer&&!vicinity.observer);
-  assert(await p.getByRole('radio',{name:'撮影地点を中心に表示'}).isDisabled());
-  assert(await p.getByRole('radio',{name:'対象を中心に表示'}).isChecked());
+  assert(await p.locator('#mapWsCenterToggle').isDisabled());
+  assert.equal(await p.locator('#mapWsCenterToggle').getAttribute('data-center'),'target');
   assert.deepEqual(f.errors,[]);
   return {label:engine+'-horizon-rays',moon,sun,vicinity};
  }finally{await f.context.close();}
@@ -345,7 +386,7 @@ async function dateLineReuse(browser,engine){
    };
    SkyMapUI.setTime(day+offset);
   },{day,offset,oneDay});
-  await p.locator('#mapWsMode input[value=target]').click();
+  await centerMap(p,'target');
   const ready=expected=>p.waitForFunction(day=>{
    const s=AstroNotesMapWorkspace.targetState();
    return s.line?.length>0&&!s.lineBusy&&s.line.every(x=>x.from>=day&&x.from<day+86400000);
@@ -395,7 +436,7 @@ async function mapProjection(browser,engine){
   await p.evaluate(()=>SkyMapUI.setTime(SkyMapUI.selectionState().at+15*60000));
   await p.waitForFunction(old=>document.querySelector('#skyMapAngles').innerText!==old,before);
   await p.locator('dialog[open]').getByRole('button',{name:'閉じる',exact:true}).click();
-  await p.locator('#mapWsMode input[value=target]').click();
+  await centerMap(p,'target');
   await p.waitForFunction(()=>AstroNotesMapWorkspace.targetState().band>0);
   const points=await p.evaluate(async()=>{
    const h=SkyMapUI.workspaceHost(),original=AstroNotesMapWorkspace.drawTarget,results=[];
@@ -426,12 +467,12 @@ async function terrainErrorLayout(browser,engine,theme){
   await f.page.waitForFunction(()=>document.getElementById('skyMapStatus').textContent.includes('標高を取得できません')&&!document.getElementById('skyMapRetry').hidden);
   assert(await f.page.locator('#skyMapRetry').isVisible(),'標高失敗の再試行行が実表示される');
   for(const mode of ['obs','target']){
-   await f.page.locator(`#mapWsMode input[value="${mode}"]`).click();await ready(f.page,'moon');
+   await centerMap(f.page,mode);await ready(f.page,'moon');
    if(mode==='target')await f.page.waitForFunction(()=>!AstroNotesMapWorkspace.targetState().lineBusy&&AstroNotesMapWorkspace.searchBand(SkyMapUI.workspaceHost().session)?.status==='ready');
    await f.page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
-   const layout=await pickerLayout(f.page),placement=layout.placement.filter(b=>['obs','target'].includes(b.id));
+   const layout=await pickerLayout(f.page),placement=layout.placement.filter(b=>['mapWsCenterToggle','mapWsOrbitToggle'].includes(b.id));
    assert(layout.mapHeight>=150&&!layout.overflow,engine+' '+theme+' '+mode+': エラー行があっても地図150px以上');
-   assert(placement.length===2&&placement.every(b=>b.visible&&b.hit&&b.width>=44&&b.height>=44&&b.top>=layout.mapTop&&b.bottom<=layout.mapBottom),engine+' '+theme+' '+mode+': 中心切り替えは44px/5点hit '+JSON.stringify(layout));
+   assert(placement.length===2&&placement.every(b=>b.visible&&b.hit&&b.width>=44&&b.height>=44&&b.top>=layout.mapTop&&b.bottom<=layout.mapBottom),engine+' '+theme+' '+mode+': 地図の表示ボタンは44px/5点hit '+JSON.stringify(layout));
    assert(layout.placement.every(b=>b.visible&&b.hit)&&(!layout.home||layout.home.visible&&layout.home.hit),engine+' '+theme+' '+mode+': 新規探索/戻るボタンを遮らない');
    assert(layout.controls.every(b=>b.visible&&b.hit),engine+' '+theme+' '+mode+': 天体列も操作可能');
    await f.page.screenshot({path:`${out}/${engine}-320-${theme}-terrain-error-${mode}.png`});results.push(layout);

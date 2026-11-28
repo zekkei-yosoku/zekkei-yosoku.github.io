@@ -130,7 +130,8 @@ async function reopenKeepsSearch(type,engine){
    await page.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>25;aimBuildingDays=async()=>[];navigationHistory.pushRoute('#/explore');SkyMapUI.setTarget('skytree');const b=document.getElementById('skyMapBody');b.value='moon';b.onchange();SkyMapUI.setTime(Date.parse('2026-11-05T03:58:31+09:00'));});
    await page.waitForFunction(()=>document.getElementById('skyMapView').classList.contains('map-ws'));
    await page.evaluate(observer=>SkyMapUI.workspaceHost().restoreObserver(observer),OBSERVER);
-   await page.locator('#mapWsMode input[value=obs]').click();
+   const centerButton=page.locator('#mapWsCenterToggle');
+   if(await centerButton.getAttribute('data-center')!=='obs')await centerButton.click();
    // 新しい地点は地図のボタンから（下部シートで探し始める）
    if(interrupted)await page.evaluate(()=>dateFixture.holdNext=true);
    await page.locator('#mapWsNewPlaces').click();
