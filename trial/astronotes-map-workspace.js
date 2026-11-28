@@ -715,8 +715,9 @@ const api={
  targetSkyPoint:()=>targetSkyPoint(),
  previewSkyPoint:()=>previewSkyPoint(),
  annotations(mode){
-  const h=host(),s=h?.session,eye=previewSkyPoint(h)||s?.eye;
-  if(!active||mode!=='hour'||!eye||pointBody(s.body)&&!AstroNotesBodies.ready())return null;
+  const h=host(),s=h?.session,view=$('skyMapView'),eye=previewSkyPoint(h)||s?.eye;
+  const scene=view?.dataset.exploreStage==='preview'&&view.dataset.exploreMode==='scene';
+  if((!active&&!scene)||(mode!=='hour'&&mode!=='time')||!eye||pointBody(s.body)&&!AstroNotesBodies.ready())return null;
   const geo=targetGeometry(h);
   return {key:JSON.stringify([s.body,eye,geo?.azimuth]),paint:(ctx,range)=>drawBand(h,ctx,range,eye,geo)};
  },

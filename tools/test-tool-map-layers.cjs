@@ -2,6 +2,7 @@
 const { chromium, webkit } = require('playwright');
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
+const timebarPixels = require('./read-timebar-annotation.cjs');
 const base = new URL(process.env.TOOL_MAP_BASE || 'http://127.0.0.1:8996/trial/');
 const tle = readFileSync(process.env.TOOL_MAP_TLE || new URL('../fixtures/iss-20260929.tle', 'file://' + __filename), 'utf8');
 const names = ['標準', '航空写真', '地形'];
@@ -118,6 +119,13 @@ async function run(browserName, browser, width, height) {
     assert(await page.locator('.coord-row[data-map="iss"]').isVisible());
     const footerFits=await page.locator('#issTimeRow').evaluate(row=>[...row.children].every(b=>b.getBoundingClientRect().right<=innerWidth+1&&b.getBoundingClientRect().left>=-1));
     assert(footerFits);
+    const transit = await page.evaluate(()=>issEventAt(issSelected()));
+    const checkTransitMark = async () => {
+      const ruler = await timebarPixels(page,'#issTimeline',{transit:[169,220,255]});
+      const expected = ruler.axis + (transit - ruler.at) * ruler.rate;
+      assert(ruler.pixels.transit.some(x => Math.abs(x - expected) <= 3), 'the ISS transit appears at its actual time');
+    };
+    await checkTransitMark();
 
     await page.evaluate(()=>{
       const daily=AstroNotesSkyMap.daily, next=issUi.at+1000;
@@ -128,6 +136,7 @@ async function run(browserName, browser, width, height) {
     await page.locator('#issTimeline').press('ArrowRight');
     assert.deepEqual(await page.evaluate(()=>window.toolMapVibrations),[16]);
     await page.evaluate(()=>window.restoreDaily());
+    await checkTransitMark();
 
     // With both bodies off the marker must follow the exact ruler instant.
     await page.evaluate(()=>{
@@ -173,6 +182,12 @@ async function run(browserName, browser, width, height) {
     assert(await page.locator('#planeFromButton').isVisible());
     await page.locator('#planeSheetClose').click();
     await page.waitForFunction(()=>plane.observer);
+    await page.evaluate(()=>planeSetAt(Date.parse('2026-12-24T19:30:00+09:00')));
+    const checkMoonBand = async () => {
+      const ruler = await timebarPixels(page,'#planeTimeline',{moon:[169,220,255]});
+      assert(ruler.pixels.moon.some(x => Math.abs(x - ruler.axis) <= 2), 'Moon Dish ruler shows the Moon above the horizon');
+    };
+    await checkMoonBand();
     await page.evaluate(()=>{
       const daily=AstroNotesSkyMap.daily, next=plane.at+1000;
       AstroNotesSkyMap.daily=(...args)=>({...daily(...args),events:[{at:next,side:'rise'}]});
@@ -182,6 +197,7 @@ async function run(browserName, browser, width, height) {
     await page.locator('#planeTimeline').press('ArrowRight');
     assert.deepEqual(await page.evaluate(()=>window.toolMapVibrations),[16,16]);
     await page.evaluate(()=>window.restoreDaily());
+    await checkMoonBand();
     await checkRail('#planeView .plane-map', ',.tool-map-actions button');
     await checkZoom('#planeView .plane-map', ()=>PlaneMap.zoom());
     await Promise.all([

@@ -1,18 +1,18 @@
 import {createRequire as __req} from 'node:module';const __L=__req(process.cwd()+'/x')('./astronotes-library.js'),__gate=(n=0)=>{const g=__L.gate();while(n-->0)g.cancel();return g;};
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';
 const src=readFileSync(new URL('./astronotes-scroll-timeline.js',import.meta.url),'utf8'),DAY=86400000;
-function setup(width=240,options={}){let next=0,simTime=0;const frames=new Map(),timers=new Map(),changes=[],state={at:Date.parse('2028-11-05T16:04:37.250+09:00'),mode:'date',enabled:true};
- const paints=[];
+function setup(width=240,{source=src,...options}={}){let next=0,simTime=0;const frames=new Map(),timers=new Map(),changes=[],state={at:Date.parse('2028-11-05T16:04:37.250+09:00'),mode:'date',enabled:true};
+ const paints=[],images=[];
  const make=()=>({style:{setProperty(){}},dataset:{},children:[],listeners:{},scrollLeft:0,clientWidth:width,clientHeight:52,attrs:{},
   setAttribute(k,v){this.attrs[k]=v},getAttribute(k){return this.attrs[k]},replaceChildren(...c){this.children=c},append(c){this.children.push(c)},
   addEventListener(k,f){const old=this.listeners[k];this.listeners[k]=e=>{old?.(e);f(e);};},
   setPointerCapture(id){this.captured=id},hasPointerCapture(id){return this.captured===id},releasePointerCapture(){this.captured=null},
-  getContext(){return {setTransform(){},fillRect(){},createLinearGradient(){return {addColorStop(){}}},fillText(t,x){paints.push([t,x])}}}
+  getContext(){return {setTransform(){},clearRect(){},drawImage(...args){images.push(args)},fillRect(){},createLinearGradient(){return {addColorStop(){}}},fillText(t,x){paints.push([t,x])}}}
  }),root=make();
- const c={performance:{now:()=>simTime},document:{createElement:make,addEventListener(){}},getComputedStyle:()=>({fontFamily:'system-ui',getPropertyValue:()=>''}),matchMedia:()=>({get matches(){return !!state.reduced}}),requestAnimationFrame:f=>{frames.set(++next,f);return next},cancelAnimationFrame:i=>frames.delete(i),setTimeout:f=>{timers.set(++next,f);return next},clearTimeout:i=>timers.delete(i)};vm.createContext(c);c.AstroNotesLibrary=__L;vm.runInContext(src,c);
+ const c={performance:{now:()=>simTime},document:{createElement:make,addEventListener(){}},getComputedStyle:()=>({fontFamily:'system-ui',getPropertyValue:()=>''}),matchMedia:()=>({get matches(){return !!state.reduced}}),requestAnimationFrame:f=>{frames.set(++next,f);return next},cancelAnimationFrame:i=>frames.delete(i),setTimeout:f=>{timers.set(++next,f);return next},clearTimeout:i=>timers.delete(i)};vm.createContext(c);c.AstroNotesLibrary=__L;vm.runInContext(source,c);
  const controller=c.AstroNotesScrollTimeline.mount({root,getAt:()=>state.at,getMode:()=>state.mode,enabled:()=>state.enabled,onChange:at=>{state.at=at;changes.push(at);controller.sync(at,state.mode)},format:at=>new Date(at).toISOString(),...options});controller.sync(state.at,state.mode);
  const flush=(dt=16)=>{simTime+=dt;for(const [id,f] of [...frames]){frames.delete(id);f(simTime);}};const settle=()=>{flush();for(const [id,f] of [...timers]){timers.delete(id);f();}};
- return {c,root,state,controller,changes,flush,settle,paints,scroll(dx){root.listeners.wheel({deltaX:dx,deltaY:0});root.scrollLeft+=dx;root.listeners.scroll();flush();}};
+ return {c,root,state,controller,changes,flush,settle,paints,images,scroll(dx){root.listeners.wheel({deltaX:dx,deltaY:0});root.scrollLeft+=dx;root.listeners.scroll();flush();}};
 }
 test('固定目盛りは画面幅によらず24px=1日、4px=1分で左右対称、日付は秒まで保持する',()=>{
  for(const width of [160,240,340,780]){const f=setup(width),before=f.state.at;f.scroll(24);assert.equal(f.state.at,before+DAY);f.scroll(-48);assert.equal(f.state.at,before-DAY);assert.equal((f.state.at+32400000)%DAY,(before+32400000)%DAY);f.settle();assert.equal(f.root.scrollLeft,4096);
@@ -263,4 +263,24 @@ test('分目盛りの慣性は割り込み可能で、縦スワイプや外部�
  let canceled=false;
  f.root.listeners.wheel({deltaX:0,deltaY:4,deltaMode:0,preventDefault(){canceled=true}});f.settle();f.flush();
  assert(canceled);assert.equal(f.state.at,start+DAY-14*60000);
+});
+
+
+test('試用版の見え方は分送りで同じ帯を移動し、観測条件の更新でだけ描き直す',()=>{
+ const source=readFileSync(new URL('./experiments/moon-map/astronotes-scroll-timeline.js',import.meta.url),'utf8');
+ let marker='moon',rasterizations=0;
+ const f=setup(240,{source,renderMinutes:()=>true,annotations:mode=>mode==='time'&&marker?{key:marker,paint(){rasterizations++}}:null});
+ f.state.mode='time';f.controller.sync(f.state.at,'time');
+ assert.equal(rasterizations,1);
+ const [bitmap,initialLeft]=f.images.at(-1);
+ f.root.listeners.keydown({key:'ArrowRight',preventDefault(){}});
+ assert.equal(rasterizations,1);
+ assert.equal(f.images.at(-1)[0],bitmap);
+ assert.equal(f.images.at(-1)[1],initialLeft-4);
+ marker='sun';f.controller.sync(f.state.at,'time');
+ assert.equal(rasterizations,2);
+ marker=null;const previousDraws=f.images.length;
+ f.controller.sync(f.state.at,'time');
+ assert.equal(f.images.length,previousDraws);
+ assert.equal(rasterizations,2);
 });

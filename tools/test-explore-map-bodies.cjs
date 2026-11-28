@@ -3,13 +3,14 @@
 require('./no-open-meteo.cjs');
 const {chromium,webkit}=require('playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs');
+const timebarPixels=require('./read-timebar-annotation.cjs');
 const base=process.env.MAP_BODIES_BASE||'http://127.0.0.1:8992/trial/';
 const out=process.env.MAP_BODIES_OUT||'/tmp/astronotes-map-bodies';
 const realTiles=process.env.MAP_BODIES_REAL_TILES==='1';
 const engines=(process.env.MAP_BODIES_ENGINES||'chrome,webkit').split(',');
 const widths=(process.env.MAP_BODIES_WIDTHS||'320,390').split(',').map(Number);
 const themes=(process.env.MAP_BODIES_THEMES||'light,dark').split(',');
-const checks=(process.env.MAP_BODIES_CHECKS||'matrix,engine,night,line,card,terrain,vicinity,date-lines,projection,horizon-rays,map-center').split(',');
+const checks=(process.env.MAP_BODIES_CHECKS||'matrix,engine,night,line,card,terrain,vicinity,date-lines,projection,horizon-rays,map-center,timebar').split(',');
 const tools=['records','tower','diamond','pearl','skymap','multiscene'];
 const bodies=['moon','sun','sirius','venus','mercury','mars','jupiter','saturn'];
 const names={moon:'月',sun:'太陽',sirius:'シリウス',venus:'金星',mercury:'水星',mars:'火星',jupiter:'木星',saturn:'土星'};
@@ -224,6 +225,80 @@ async function cardEdges(browser,engine){
   finally{await f.page.evaluate(()=>{globalThis.AstroNotesBodies=window.__cardEdgeBodies;delete window.__cardEdgeBodies;});}
   assert.deepEqual(f.errors,[]);return {label:engine+'-card-edges',polar,missingBrightness:true};
  }catch(e){await f.page.screenshot({path:`${out}/${engine}-card-failure.png`});throw e;}finally{await f.context.close();}
+}
+
+async function exploreTimebar(browser,engine,width){
+ const f=await open(browser,width,'dark'),p=f.page,result=[];
+ const at=Date.parse('2026-12-24T16:41:00+09:00'),minute=60000,ruler=p.locator('#skyMapTimeline');
+ const site={latitude:35.58386,longitude:139.56853,elevation:87.2,groundManualM:87.2,eyeHeightAGL:1.5,name:'鷺沼北公園'};
+ const read=()=>timebarPixels(p,'#skyMapTimeline',{moon:[169,220,255],pass:[200,118,255]});
+ const frames=()=>p.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ const scope=()=>p.evaluate(()=>({rise:Number(document.getElementById('wsBodyRise').dataset.at),
+  pass:Number(document.getElementById('wsPass').dataset.at),card:document.getElementById('mapWsCardOverlap').textContent}));
+ const position=(snapshot,event)=>snapshot.axis+(event-snapshot.at)*snapshot.rate;
+ function check(snapshot,events,mode,label){
+  assert.equal(snapshot.mode,mode,label);
+  assert(snapshot.pixels.moon.length>10,label+': visible Moon band');
+  const band=position(snapshot,events.rise+30*minute),night=position(snapshot,events.rise-30*minute);
+  assert(snapshot.pixels.moon.some(x=>Math.abs(x-band)<=4),label+': band after moonrise');
+  assert(!snapshot.pixels.moon.some(x=>Math.abs(x-night)<=2),label+': clear before moonrise');
+  const marks=snapshot.pixels.pass,desired=position(snapshot,events.pass);
+  assert(marks.some(x=>Math.abs(x-desired)<=2),label+': purple bearing mark at '+desired+' (pixels '+marks+')');
+  result.push({label,mode,at:snapshot.at,mark:desired,layer:snapshot.layer});
+ }
+ try{
+  await p.evaluate(({site,at})=>{SkyMapUI.workspaceHost().restoreObserver(site);SkyMapUI.setTime(at);},{site,at});
+  await ready(p,'moon');
+  await p.waitForFunction(()=>document.getElementById('mapWsCardOverlap').textContent.startsWith('重なる ')&&Number(document.getElementById('wsPass').dataset.at)>0);
+  const events=await scope();
+  assert(Math.abs(events.pass-at)<2*minute,JSON.stringify(events));
+  assert(Math.abs(events.rise-at)<12*minute,JSON.stringify(events));
+  check(await read(),events,'hour','map: hour');
+  await ruler.press('ArrowRight');
+  await p.waitForFunction(when=>SkyMapUI.selectionState().at===when,at+60*minute);
+  await frames();
+  check(await read(),events,'hour','map: hour step');
+  await ruler.press('ArrowLeft');
+  await p.waitForFunction(when=>SkyMapUI.selectionState().at===when,at);
+
+  const mode=p.locator('#skyMapScrubMode');
+  for(let i=0;i<3&&await mode.getAttribute('data-mode')!=='time';i++)await mode.click();
+  await p.waitForFunction(()=>document.getElementById('skyMapTimeline').dataset.mode==='time');
+  await frames();
+  check(await read(),events,'time','map: minute');
+  await ruler.press('ArrowRight');
+  await p.waitForFunction(when=>SkyMapUI.selectionState().at===when,at+minute);
+  await frames();
+  check(await read(),events,'time','map: minute step');
+
+  const bounds=await ruler.boundingBox(),x=bounds.x+bounds.width*.72,y=bounds.y+20;
+  await p.mouse.move(x,y);await p.mouse.down();
+  try{
+   await p.mouse.move(x-16,y,{steps:5});
+   await p.waitForFunction(when=>SkyMapUI.selectionState().at>=when,at+4*minute);
+   await frames();
+   // The marks must keep their time position during the gesture as well as on release.
+   check(await read(),events,'time','map: minute drag');
+  }finally{await p.mouse.up();}
+  await p.waitForFunction(when=>SkyMapUI.selectionState().at===when,at+5*minute);
+  await frames();
+  check(await read(),events,'time','map: minute settled');
+
+  await p.evaluate(at=>SkyMapUI.setTime(at),at);
+  await p.locator('#mapWsCardView').click();
+  await ruler.locator('.sky-minute-ruler').waitFor({state:'visible'});
+  await frames();
+  check(await read(),events,'time','preview: minute');
+  await ruler.press('ArrowRight');
+  await p.waitForFunction(when=>SkyMapUI.selectionState().at===when,at+minute);
+  await frames();
+  check(await read(),events,'time','preview: minute step');
+  assert.deepEqual(f.errors,[]);
+  return {label:engine+'-'+width+'-timebar',checks:result};
+ }catch(error){
+  await p.screenshot({path:`${out}/${engine}-${width}-timebar-failure.png`});
+  throw error;
+ }finally{await f.context.close();}
 }
 
 async function targetVicinity(browser,engine){
@@ -581,6 +656,7 @@ async function terrainErrorLayout(browser,engine,theme){
    if(checks.includes('night')&&engine===engines[0])results.push(await realNightCases(browser,engine));
    if(checks.includes('line'))results.push(await lineSelection(browser,engine));
    if(checks.includes('card'))results.push(await cardEdges(browser,engine));
+   if(checks.includes('timebar'))for(const width of widths){const result=await exploreTimebar(browser,engine,width);results.push(result);console.log('PASS '+result.label);}
    if(checks.includes('vicinity'))results.push(await targetVicinity(browser,engine));
    if(checks.includes('map-center')){const result=await mapCenterOrbit(browser,engine);results.push(result);console.log('PASS '+result.label);}
    if(checks.includes('horizon-rays')){const result=await horizonRays(browser,engine);results.push(result);console.log('PASS '+result.label);}

@@ -21,8 +21,26 @@ function solarPhase(at,observer,sun){
  if(h < -6)return 'night';if(h >= 6)return 'day';
  return sun(at+60000,observer).geometricAltitude>=sun(at-60000,observer).geometricAltitude?'morning':'evening';
 }
+// Prepare the same buffered marks for both the scrolling tape and the viewport canvas.
+function annotationBitmap(layer,previous,source,at,width,rate,ratio,zero=-Infinity,tapeEnd=Infinity){
+ if(!layer||!source||!width||!Number.isFinite(at))return null;
+ const buffer=width/rate,neededStart=Math.max(zero,at-.75*buffer),neededEnd=Math.min(tapeEnd,at+.75*buffer);
+ if(previous&&previous.key===source.key&&previous.rate===rate&&previous.ratio===ratio&&
+   previous.start<=neededStart&&previous.end>=neededEnd&&previous.start>=zero&&previous.end<=tapeEnd)return previous;
+ const start=Math.max(zero,at-1.5*buffer),end=Math.min(tapeEnd,at+1.5*buffer);
+ const drawWidth=(end-start)*rate,height=16,ctx=layer.getContext('2d');
+ if(!ctx)return null;
+ const w=Math.max(1,Math.round(drawWidth*ratio)),h=Math.round(height*ratio);
+ if(layer.width!==w)layer.width=w;
+ if(layer.height!==h)layer.height=h;
+ ctx.setTransform(ratio,0,0,ratio,0,0);ctx.clearRect(0,0,drawWidth,height);
+ try{source.paint(ctx,{start,end,width:drawWidth,height,pixelsPerMs:rate});}
+ catch(error){g.AstroNotesErrors?.note('timeline.annotations',error);return null;}
+ return {key:source.key,start,end,rate,ratio,width:drawWidth,height};
+}
+
 // The preview ruler paints a viewport, so its time axis has no native scroll extent.
-function mountMinuteRuler({root,tape,enabled,onChange,onSettle,format,describe,getObserver,sun}){
+function mountMinuteRuler({root,tape,enabled,onChange,onSettle,format,describe,getObserver,sun,annotations}){
  const perPixel=MINUTE/scale('time').pixels,labelEvery=scale('time').labelEvery,solarStep=5*MINUTE;
  const min=Date.UTC(100,0,1)-OFFSET,max=Date.UTC(10000,0,1)-OFFSET-1;
  const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
@@ -30,8 +48,8 @@ function mountMinuteRuler({root,tape,enabled,onChange,onSettle,format,describe,g
  canvas.className='sky-minute-ruler';canvas.hidden=true;canvas.setAttribute('aria-hidden','true');root.append(canvas);
  const reduced=g.matchMedia?.('(prefers-reduced-motion: reduce)');
  const clamp=at=>Math.max(min,Math.min(max,Math.round(at)));
- const palette=new Map();
- let active=false,width=0,height=0,dpr=0,font='',line='',text='',background='',observer,observerKey='';
+ const palette=new Map(),marks=annotations?document.createElement('canvas'):null;
+ let paintedMarks=null,active=false,width=0,height=0,dpr=0,font='',line='',text='',background='',observer,observerKey='';
  let at=null,phase=null,held=null,coast=null,pending=null,frame=0,wheelTimer=0,dirty=false,settleNext=false;
  function samples(t){
   if(!palette.has(t)){
@@ -58,7 +76,7 @@ function mountMinuteRuler({root,tape,enabled,onChange,onSettle,format,describe,g
   if(observerKey!==key){observer=nextObserver;observerKey=key;palette.clear();}
   return true;
  }
- function paint(value){
+ function paint(value,source=annotations?.('time')){
   if(!width||!height)return;
   const start=value-width/2*perPixel,end=start+width*perPixel;
   const position=time=>(time-start)/perPixel;
@@ -85,10 +103,12 @@ function mountMinuteRuler({root,tape,enabled,onChange,onSettle,format,describe,g
    const rgb=colorAt(t);ctx.fillStyle=rgb?skyInk(rgb):text||'#ddd';
    ctx.fillText(format(t,'time'),x,21);
   }
+  paintedMarks=annotationBitmap(marks,paintedMarks,source,value,width,1/perPixel,Math.min(2,dpr));
+  if(paintedMarks)ctx.drawImage(marks,position(paintedMarks.start),height-paintedMarks.height,paintedMarks.width,paintedMarks.height);
  }
- function show(value,force=false){
+ function show(value,force=false,source){
   if(!force&&at===value)return;
-  at=value;paint(at);
+  at=value;paint(at,source);
   root.setAttribute('aria-valuenow',String(at));root.setAttribute('aria-valuetext',describe(at,'time'));
  }
  function publish(value){
@@ -206,13 +226,13 @@ function mountMinuteRuler({root,tape,enabled,onChange,onSettle,format,describe,g
    root.setAttribute('aria-label','時刻を横スクロールして調整');root.setAttribute('aria-valuemin',String(min));root.setAttribute('aria-valuemax',String(max));
    measure();
   },
-  leave(){if(!active)return;stop();active=false;at=phase=null;canvas.hidden=true;tape.hidden=false;delete root.dataset.minutePointer;},
+  leave(){if(!active)return;stop();active=false;at=phase=paintedMarks=null;canvas.hidden=true;tape.hidden=false;delete root.dataset.minutePointer;},
   stop,
   destroy(){this.leave();document.removeEventListener('visibilitychange',visibility);},
   sync(value){
-   const changed=measure();
-   if(at!==value){stop();phase=value;show(value);}
-   else if(changed)paint(at);
+   const changed=measure(),source=annotations?.('time');
+   if(at!==value){stop();phase=value;show(value,false,source);}
+   else if(changed||source?.key!==paintedMarks?.key)paint(at,source);
   },
   follow(value){stop();phase=value;show(value);},
  };
@@ -263,25 +283,12 @@ function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=
  // The marks belong to the moving tape. The extra width covers ordinary drags before repainting.
  function paintAnnotations(at){
   if(!layer||!width||!Number.isFinite(anchor)||!Number.isFinite(at))return;
-  const source=annotations(mode);
-  if(!source){layer.hidden=true;painted=null;return;}
-  const {step,pixels}=rulerScale(mode),rate=pixels/step,ratio=Math.min(2,g.devicePixelRatio||1);
-  const buffer=width/rate,zero=anchor-(EXTENT+width/2)/rate,tapeEnd=zero+(2*EXTENT+width)/rate;
-  const neededStart=Math.max(zero,at-.75*buffer),neededEnd=Math.min(tapeEnd,at+.75*buffer);
-  if(!painted||painted.key!==source.key||painted.rate!==rate||painted.ratio!==ratio||
-    painted.start>neededStart||painted.end<neededEnd||painted.start<zero||painted.end>tapeEnd){
-   const start=Math.max(zero,at-1.5*buffer),end=Math.min(tapeEnd,at+1.5*buffer);
-   const drawWidth=(end-start)*rate,height=16,ctx=layer.getContext('2d');
-   if(!ctx)return;
-   layer.style.width=drawWidth+'px';
-   const w=Math.max(1,Math.round(drawWidth*ratio)),h=Math.round(height*ratio);
-   if(layer.width!==w)layer.width=w;
-   if(layer.height!==h)layer.height=h;
-   ctx.setTransform(ratio,0,0,ratio,0,0);ctx.clearRect(0,0,drawWidth,height);
-   try{source.paint(ctx,{start,end,width:drawWidth,height,pixelsPerMs:rate});}
-   catch(error){layer.hidden=true;painted=null;g.AstroNotesErrors?.note('timeline.annotations',error);return;}
-   painted={key:source.key,start,end,rate,ratio};
-  }
+  const source=annotations(mode),{step,pixels}=rulerScale(mode),rate=pixels/step;
+  const zero=anchor-(EXTENT+width/2)/rate,tapeEnd=zero+(2*EXTENT+width)/rate;
+  const next=annotationBitmap(layer,painted,source,at,width,rate,Math.min(2,g.devicePixelRatio||1),zero,tapeEnd);
+  if(next&&next!==painted)layer.style.width=next.width+'px';
+  painted=next;
+  if(!painted){layer.hidden=true;return;}
   const left=(painted.start-zero)*rate+'px';
   if(layer.style.left!==left)layer.style.left=left;
   layer.hidden=false;
@@ -402,7 +409,7 @@ function mount({root,getAt,getMode,enabled:canUse=()=>true,onChange,onSettle=()=
  const useMinutes=mode=>!numeric&&mode==='time'&&renderMinutes();
  const minuteRuler=nextMode=>{
   if(!canUse()||!useMinutes(nextMode)){minutes?.leave();return null;}
-  if(!minutes)minutes=mountMinuteRuler({root,tape,enabled:()=>canUse()&&useMinutes(getMode()),onChange:publish,onSettle,format,describe,getObserver,sun});
+  if(!minutes)minutes=mountMinuteRuler({root,tape,enabled:()=>canUse()&&useMinutes(getMode()),onChange:publish,onSettle,format,describe,getObserver,sun,annotations});
   if(minutes&&!minutes.active()){halt();stop();minutes.enter();}
   return minutes;
  };
