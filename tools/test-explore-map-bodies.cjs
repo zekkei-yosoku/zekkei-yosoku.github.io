@@ -230,12 +230,54 @@ async function cardEdges(browser,engine){
 async function exploreTimebar(browser,engine,width){
  const f=await open(browser,width,'dark'),p=f.page,result=[];
  const at=Date.parse('2026-12-24T16:41:00+09:00'),minute=60000,ruler=p.locator('#skyMapTimeline');
+ const mode=p.locator('#skyMapScrubMode');
  const site={latitude:35.58386,longitude:139.56853,elevation:87.2,groundManualM:87.2,eyeHeightAGL:1.5,name:'鷺沼北公園'};
  const read=()=>timebarPixels(p,'#skyMapTimeline',{moon:[169,220,255],pass:[200,118,255]});
  const frames=()=>p.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
  const scope=()=>p.evaluate(()=>({rise:Number(document.getElementById('wsBodyRise').dataset.at),
   pass:Number(document.getElementById('wsPass').dataset.at),card:document.getElementById('mapWsCardOverlap').textContent}));
  const position=(snapshot,event)=>snapshot.axis+(event-snapshot.at)*snapshot.rate;
+ const layout=()=>ruler.evaluate(timeline=>{
+  const track=timeline.parentElement;
+  const toggle=document.getElementById('skyMapScrubMode');
+  const center=track.querySelector('.sky-map-timeline-center');
+  const bounds=node=>{
+   const {left,right,top,bottom,height}=node.getBoundingClientRect();
+   return {left,right,top,bottom,height};
+  };
+  const {maskImage}=getComputedStyle(track);
+  const button=bounds(toggle);
+  const hit=document.elementFromPoint((button.left+button.right)/2,(button.top+button.bottom)/2);
+  return {timeline:bounds(timeline),track:bounds(track),toggle:button,center:bounds(center),
+   maskImage,buttonClickable:toggle===hit||toggle.contains(hit),mode:timeline.dataset.mode,
+   modeLabel:toggle.textContent,at:Number(timeline.getAttribute('aria-valuenow'))};
+ });
+ function checkLayout(previous,current,label){
+  for(const component of ['timeline','track','toggle','center']){
+   for(const edge of ['left','right','top','bottom','height']){
+    assert(Math.abs(current[component][edge]-previous[component][edge])<=1,
+     `${label}: ${component} ${edge} changed from ${previous[component][edge]} to ${current[component][edge]}`);
+   }
+  }
+  assert.match(current.maskImage,/linear-gradient/,label+': fade under the mode switch');
+  assert.equal(current.maskImage,previous.maskImage,label+': same edge fade');
+  assert(current.track.left<=current.toggle.left+1,label+': timeline extends under the mode switch');
+  assert(current.buttonClickable,label+': the mode switch stays usable over the timeline');
+  assert.equal(current.mode,previous.mode,label+': preserve the ruler unit');
+  assert.equal(current.modeLabel,previous.modeLabel,label+': preserve the ruler unit label');
+  assert.equal(current.at,previous.at,label+': preserve the selected time');
+ }
+ async function selectMode(expected){
+  for(let i=0;i<3&&await mode.getAttribute('data-mode')!==expected;i++)await mode.click();
+  await p.waitForFunction(expected=>document.getElementById('skyMapTimeline').dataset.mode===expected,expected);
+  await frames();
+ }
+ async function changeStage(stage){
+  const button=stage==='preview'?p.locator('#mapWsCardView'):p.getByRole('button',{name:'地図へ戻る',exact:true});
+  await button.click();
+  await p.waitForFunction(stage=>document.getElementById('skyMapView').dataset.exploreStage===stage,stage);
+  await frames();
+ }
  function check(snapshot,events,mode,label){
   assert.equal(snapshot.mode,mode,label);
   assert(snapshot.pixels.moon.length>10,label+': visible Moon band');
@@ -261,10 +303,7 @@ async function exploreTimebar(browser,engine,width){
   await ruler.press('ArrowLeft');
   await p.waitForFunction(when=>SkyMapUI.selectionState().at===when,at);
 
-  const mode=p.locator('#skyMapScrubMode');
-  for(let i=0;i<3&&await mode.getAttribute('data-mode')!=='time';i++)await mode.click();
-  await p.waitForFunction(()=>document.getElementById('skyMapTimeline').dataset.mode==='time');
-  await frames();
+  await selectMode('time');
   check(await read(),events,'time','map: minute');
   await ruler.press('ArrowRight');
   await p.waitForFunction(when=>SkyMapUI.selectionState().at===when,at+minute);
@@ -285,16 +324,30 @@ async function exploreTimebar(browser,engine,width){
   check(await read(),events,'time','map: minute settled');
 
   await p.evaluate(at=>SkyMapUI.setTime(at),at);
-  await p.locator('#mapWsCardView').click();
-  await ruler.locator('.sky-minute-ruler').waitFor({state:'visible'});
   await frames();
-  check(await read(),events,'time','preview: minute');
-  await ruler.press('ArrowRight');
-  await p.waitForFunction(when=>SkyMapUI.selectionState().at===when,at+minute);
-  await frames();
-  check(await read(),events,'time','preview: minute step');
+  const layouts=[];
+  for(const unit of ['time','hour','date']){
+   await selectMode(unit);
+   const map=await layout();
+   await changeStage('preview');
+   if(unit==='time')await ruler.locator('.sky-minute-ruler').waitFor({state:'visible'});
+   const preview=await layout();
+   checkLayout(map,preview,unit+' map → preview');
+   if(unit==='time'){
+    check(await read(),events,'time','preview: minute');
+    await ruler.press('ArrowRight');
+    await p.waitForFunction(when=>SkyMapUI.selectionState().at===when,at+minute);
+    await frames();
+    check(await read(),events,'time','preview: minute step');
+    await ruler.press('ArrowLeft');
+    await p.waitForFunction(when=>SkyMapUI.selectionState().at===when,at);
+   }
+   await changeStage('map');
+   checkLayout(map,await layout(),unit+' preview → map');
+   layouts.push({mode:unit,timeline:preview.timeline,center:preview.center});
+  }
   assert.deepEqual(f.errors,[]);
-  return {label:engine+'-'+width+'-timebar',checks:result};
+  return {label:engine+'-'+width+'-timebar',checks:result,layouts};
  }catch(error){
   await p.screenshot({path:`${out}/${engine}-${width}-timebar-failure.png`});
   throw error;

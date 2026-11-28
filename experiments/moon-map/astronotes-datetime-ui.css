@@ -21,11 +21,11 @@
 :is(#aimView,#skyMapView,#almanacView,#planeView,#issView) .tool-datetime-track{position:relative;flex:1;min-width:0;height:52px;margin:0;padding:0;touch-action:none;cursor:pointer}
 :is(#aimView,#skyMapView,#almanacView,#planeView,#issView) .tool-datetime-track>.sky-map-timeline{height:52px}
 :is(#aimView,#skyMapView,#almanacView,#planeView,#issView) .tool-datetime-track>input{display:none}
-/* 地図と月丼では切替を固定し、左へ流れる目盛りをボタンの下で薄くする。 */
-:is(#skyMapView.map-ws,#planeView,#issView) .tool-datetime-footer .sky-map-scrub{display:grid;grid-template-columns:44px minmax(0,1fr);gap:0}
-:is(#skyMapView.map-ws,#planeView,#issView) .tool-datetime-footer .sky-map-scrub-modes{grid-area:1/1;z-index:3}
-:is(#skyMapView.map-ws,#planeView,#issView) .tool-datetime-footer .tool-datetime-track{grid-area:1/1/2/-1;--timeline-label-inset:54px;mask-image:linear-gradient(to right,transparent 32px,#000 var(--timeline-label-inset))}
-@media(max-width:599px){:is(#skyMapView.map-ws,#planeView,#issView) .tool-datetime-footer .sky-map-scrub{margin-inline-end:calc(env(safe-area-inset-right) - var(--datetime-footer-right))}}
+/* 探す・月丼・人工衛星は切替を固定し、左へ流れる目盛りをボタンの下で薄くする。 */
+:is(#skyMapView:is(.map-ws,[data-explore-stage="preview"][data-explore-mode="scene"]),#planeView,#issView) .tool-datetime-footer .sky-map-scrub{display:grid;grid-template-columns:44px minmax(0,1fr);gap:0}
+:is(#skyMapView:is(.map-ws,[data-explore-stage="preview"][data-explore-mode="scene"]),#planeView,#issView) .tool-datetime-footer .sky-map-scrub-modes{grid-area:1/1;z-index:3}
+:is(#skyMapView:is(.map-ws,[data-explore-stage="preview"][data-explore-mode="scene"]),#planeView,#issView) .tool-datetime-footer .tool-datetime-track{grid-area:1/1/2/-1;--timeline-label-inset:54px;mask-image:linear-gradient(to right,transparent 32px,#000 var(--timeline-label-inset))}
+@media(max-width:599px){:is(#skyMapView:is(.map-ws,[data-explore-stage="preview"][data-explore-mode="scene"]),#planeView,#issView) .tool-datetime-footer .sky-map-scrub{margin-inline-end:calc(env(safe-area-inset-right) - var(--datetime-footer-right))}}
 .sky-timeline-annotations{position:absolute;bottom:0;height:16px;pointer-events:none}
 @media(max-width:409px){:is(#aimView,#skyMapView,#almanacView,#planeView,#issView) .tool-datetime-row{font-size:16px}}
 @media(max-width:479px){:is(#aimView,#skyMapView,#almanacView,#planeView,#issView) .tool-datetime-row .preview-date-year{display:none}}

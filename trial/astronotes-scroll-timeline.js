@@ -49,7 +49,7 @@ function mountMinuteRuler({root,tape,enabled,onChange,onSettle,format,describe,g
  const reduced=g.matchMedia?.('(prefers-reduced-motion: reduce)');
  const clamp=at=>Math.max(min,Math.min(max,Math.round(at)));
  const palette=new Map(),marks=annotations?document.createElement('canvas'):null;
- let paintedMarks=null,active=false,width=0,height=0,dpr=0,font='',line='',text='',background='',observer,observerKey='';
+ let paintedMarks=null,active=false,width=0,height=0,dpr=0,inset=0,font='',line='',text='',background='',observer,observerKey='';
  let at=null,phase=null,held=null,coast=null,pending=null,frame=0,wheelTimer=0,dirty=false,settleNext=false;
  function samples(t){
   if(!palette.has(t)){
@@ -67,11 +67,12 @@ function mountMinuteRuler({root,tape,enabled,onChange,onSettle,format,describe,g
   const w=root.clientWidth,h=root.clientHeight,ratio=g.devicePixelRatio||1;
   const style=g.getComputedStyle(root);
   const nextObserver=getObserver(),key=JSON.stringify(nextObserver);
+  const nextInset=Number.parseFloat(style.getPropertyValue('--timeline-label-inset'))||0;
   const nextFont=style.fontFamily,nextLine=style.getPropertyValue('--line').trim(),nextText=style.getPropertyValue('--secondary').trim(),nextBackground=style.getPropertyValue('--sunk').trim();
   const resized=w!==width||h!==height||ratio!==dpr;
-  const changed=resized||key!==observerKey||nextFont!==font||nextLine!==line||nextText!==text||nextBackground!==background;
+  const changed=resized||nextInset!==inset||key!==observerKey||nextFont!==font||nextLine!==line||nextText!==text||nextBackground!==background;
   if(!changed)return false;
-  width=w;height=h;dpr=ratio;font=nextFont;line=nextLine;text=nextText;background=nextBackground;
+  width=w;height=h;dpr=ratio;inset=nextInset;font=nextFont;line=nextLine;text=nextText;background=nextBackground;
   if(resized){canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);}
   if(observerKey!==key){observer=nextObserver;observerKey=key;palette.clear();}
   return true;
@@ -100,8 +101,10 @@ function mountMinuteRuler({root,tape,enabled,onChange,onSettle,format,describe,g
   const spacing=labelEvery*MINUTE;
   for(let t=Math.floor(start/spacing)*spacing;t<=end+spacing;t+=spacing){
    const x=position(t);if(x<-24||x>width+24)continue;
+   const label=format(t,'time');
+   if(inset){const half=ctx.measureText(label).width/2;if(x-half<inset||x+half>width)continue;}
    const rgb=colorAt(t);ctx.fillStyle=rgb?skyInk(rgb):text||'#ddd';
-   ctx.fillText(format(t,'time'),x,21);
+   ctx.fillText(label,x,21);
   }
   paintedMarks=annotationBitmap(marks,paintedMarks,source,value,width,1/perPixel,Math.min(2,dpr));
   if(paintedMarks)ctx.drawImage(marks,position(paintedMarks.start),height-paintedMarks.height,paintedMarks.width,paintedMarks.height);
