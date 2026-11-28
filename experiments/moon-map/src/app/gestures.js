@@ -30,9 +30,11 @@ document.addEventListener("touchstart", (e) => {
   const open = !$("toolsMenu").hidden && $("toolsMenu").classList.contains("on");
   const previewBack = !open && globalThis.TrialExplore?.candidateWorkspace?.()?.beginBack?.();
   const detailBack = previewBack || (!open && globalThis.MyPlacesUI?.opportunities?.beginBack?.());
+  // 左へ伸ばした時間バーと、その上にある表示単位のボタンを同じ操作領域として扱う。
+  const onTimeline = e.target.closest("#skyMapView .sky-map-scrub");
   if (open) {
     if (!e.target.closest("#toolsMenu, #toolsScrim")) return;
-  } else if (t.clientX > SWIPE_EDGE_PX || (!detailBack && isMenuPage() && $("toolsButton").hidden) || document.querySelector("dialog[open]")
+  } else if (onTimeline || t.clientX > SWIPE_EDGE_PX || (!detailBack && isMenuPage() && $("toolsButton").hidden) || document.querySelector("dialog[open]")
              || (e.target.closest(".mapwrap, canvas, input, select:not(#sortSelect), textarea, .preview-footer-track") && !(previewBack && previewEdgeCanvas(e.target, t.clientX)))) {
     // ☰ が出ていない（使える道具が無い）ときは、なぞっても開かない
     return;

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "20261124-moon-route-map",
-  "revision": 49,
+  "revision": 50,
   "baselineCommit": "f4f35b61359ba5ec8f9da057cf3026902a0402a4",
   "baselineSha256": {
     "src/features/candidates/composition-ui.js": "9e128ff7999d706cbcb4100139938372e255edfc05f4e0bf34864725444fd83c",

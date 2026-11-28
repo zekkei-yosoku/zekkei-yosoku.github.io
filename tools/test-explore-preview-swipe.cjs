@@ -59,8 +59,28 @@ async function negativeGestures(page,driver,result){
  }
  const canvas=page.locator('#aimLook [data-look-canvas]'),rect=await canvas.boundingBox();
  await swipe(page,driver,await edgePoints(page,{x:rect.x+4,dx:120,y:rect.y+rect.height*.4}));await expectPreview(page,before,'inside-canvas');result.negative.push({name:'inside-canvas',trace:await page.evaluate(()=>previewSwipeTrace)});
- const timeline=page.locator('#skyMapTimeline'),track=page.locator('.sky-map-footer .preview-footer-track'),tr=await track.boundingBox();assert(tr,'shared timeline track exists');
- await swipe(page,driver,[{x:tr.x+8,y:tr.y+tr.height/2},{x:tr.x+70,y:tr.y+tr.height/2},{x:tr.x+140,y:tr.y+tr.height/2}]);await expectPreview(page,before,'datetime-track');result.negative.push({name:'datetime-track',trace:await page.evaluate(()=>previewSwipeTrace)});
+ const timeline=page.locator('#skyMapTimeline'),mode=page.locator('#skyMapScrubMode');
+ const [track,button]=await Promise.all([timeline.boundingBox(),mode.boundingBox()]);
+ assert(track&&button,'shared timeline and mode switch are visible');
+ const modeBefore=await mode.getAttribute('data-mode');
+ // The mode switch overlaps the timeline at the left edge. Check the actual hit element for each swipe.
+ for(const [name,id,point]of [
+  ['datetime-mode-switch','skyMapScrubMode',{x:button.x+8,y:button.y+button.height/2}],
+  ['datetime-track','skyMapTimeline',{x:button.x+button.width+8,y:track.y+track.height/2}],
+ ]){
+  const hits=await page.evaluate(({point,id})=>{
+   const control=document.getElementById(id);
+   return control.contains(document.elementFromPoint(point.x,point.y));
+  },{point,id});
+  assert(hits,name+' swipe starts on the intended control');
+  await swipe(page,driver,await edgePoints(page,{...point,dx:132}));
+  result.negative.push({name,point,trace:await page.evaluate(()=>previewSwipeTrace)});
+  const after=await expectPreview(page,before,name);
+  if(id==='skyMapScrubMode'){
+   assert.equal(await mode.getAttribute('data-mode'),modeBefore,'a swipe on the mode switch does not change units');
+   assert.equal(after.selection.at,before.selection.at,'a swipe on the mode switch does not change time');
+  }
+ }
  // A real mouse pointer drag exercises the scrolling timeline in both engines;
  // DOM touch events alone do not generate WebKit native scrolling.
  const at=await page.evaluate(()=>SkyMapUI.selectionState().at),box=await timeline.boundingBox();await page.mouse.move(box.x+box.width*.7,box.y+box.height*.5);await page.mouse.down();await page.mouse.move(box.x+box.width*.35,box.y+box.height*.5,{steps:8});await page.mouse.up();await page.waitForFunction(at=>SkyMapUI.selectionState().at!==at,at);await expectPreview(page,before,'datetime-drag');result.datetimeDragWorks=true;
