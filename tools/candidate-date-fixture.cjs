@@ -17,7 +17,9 @@ function fixture(tools){
     if(dateFixture.holdNext||dateFixture.holdCursor!==null&&dateFixture.holdCursor===options.cursor){dateFixture.holdNext=false;dateFixture.holdCursor=null;await new Promise(release=>dateFixture.holds.push({day,release}));}
     const rows=dateFixture.positionDemo?['tip','gallery','deck'].map((id,i)=>({...points[0],id,surfaceId:id,latitude:35.6903+i*.0001})):dateFixture.extraOnCursor===options.cursor?
      [...points,{...points[0],id:'extra',surfaceId:'extra',latitude:35.7062,longitude:139.7463}]:points;
-    return {points:rows,coverage:{nextCursor}};
+    const coverage={nextCursor};
+    if(dateFixture.largeCoverage)coverage.requestedRegions=Array(140000).fill({id:'fixture',bbox:[139,35,139.1,35.1],source:'inverse-geometry',priority:0});
+    return {points:rows,coverage};
    }},evaluate:async(plan,point)=>{
     const range=AstroNotesCandidateComposition.timeRange(plan),at=range.start===range.end?range.start:Math.min(range.end,range.start+(plan.timeSpec?.kind==='window'?dateFixture.windowOffsetHours:12)*3600000),day=new Date(at+32400000).toISOString().slice(0,10);
     const targetAngleDeg=dateFixture.demoAngles?({park:5.8,river:-2.1,extra:-.2})[point.id]:undefined;

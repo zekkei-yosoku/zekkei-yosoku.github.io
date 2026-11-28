@@ -48,6 +48,33 @@ const day=Date.parse('2026-11-25T16:52:00+09:00');
    await p.reload();await boot();
    await p.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='search'&&AstroNotesCandidatePicker.visibleRows().length===2);
    assert.equal(await p.evaluate(()=>dateFixture.loads.length),0);
+   // 3) The confirmed rows of a large unfinished search survive reload and
+   // continue through the real button, keeping the old entries exactly once.
+   await p.evaluate(at=>{dateFixture.autoPages=true;dateFixture.nextCursor=7;dateFixture.holdCursor=7;dateFixture.largeCoverage=true;SkyMapUI.setTime(at);},second+86400000);
+   const action=p.locator('#candidateSearchAction');
+   await p.waitForFunction(()=>document.getElementById('candidateSearchAction')?.textContent==='候補を探す');
+   await action.click();
+   await p.waitForFunction(()=>dateFixture.holds.length===1&&AstroNotesCandidatePicker.visibleRows().length===2);
+   await action.click();
+   await p.waitForFunction(()=>document.getElementById('candidateSearchAction')?.textContent==='続きを探す');
+   await p.evaluate(()=>dateFixture.holds.shift().release());
+   const cached=()=>p.evaluate(()=>AstroNotesCandidatePicker.exportSearch()?.result.rows.map(r=>({id:r.id,rank:r.rank})));
+   const before=await cached();
+   await p.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});
+   const stored=await p.evaluate(()=>localStorage.getItem('astronotes.exploreResume'));
+   assert(stored&&stored.length<20000,'only the rows and coverage summary belong in the reload snapshot');
+   assert.equal(JSON.parse(stored).search.result.coverage.loaded,undefined);
+   await p.reload();await boot();
+   await p.waitForFunction(()=>document.getElementById('candidateSearchAction')?.textContent==='続きを探す'&&AstroNotesCandidatePicker.visibleRows().length===2);
+   assert.deepEqual(await cached(),before);
+   assert.equal(await p.evaluate(()=>dateFixture.loads.length),0);
+   await p.evaluate(()=>{dateFixture.extraOnCursor=0;});
+   await action.click();
+   await p.waitForFunction(()=>document.getElementById('candidateSearchAction')?.textContent==='候補を探し直す'&&AstroNotesCandidatePicker.visibleRows().length===3);
+   const after=await cached();
+   assert.deepEqual(after.slice(0,before.length),before);
+   assert.equal(new Set(after.map(row=>row.id)).size,3);
+   assert.deepEqual(await p.evaluate(()=>dateFixture.loads.map(load=>load.cursor)),[0]);
    assert.deepEqual(errors,[]);console.log('PASS',engine,width);
    await context.close();
   }finally{await browser.close();}

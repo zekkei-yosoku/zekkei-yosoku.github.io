@@ -435,7 +435,7 @@ function recordsFor(h){
 }
 // 絞り込み済みの候補一覧を、結果が更新されるたびに地図へ渡す。
 const candidateSheet=()=>$('skyMapView').hasAttribute('data-explore-sheet');
-let candidatePins=[],candidateHits=[],candidateKey='',candidateFrame=0,selectedCandidate=null,selectedCandidateRow=null,displayedCandidates=null;
+let candidateHits=[],fittedCandidateScope=null,candidateFrame=0,selectedCandidate=null,selectedCandidateRow=null,displayedCandidates=null;
 function newCandidates(){
  const picker=globalThis.AstroNotesCandidatePicker;
  return (picker?.visibleRows?.()||[]).flatMap((row,index)=>!row||row.recorded||row.inRecords||!validPoint(row.place)?[]:[{
@@ -445,7 +445,7 @@ function newCandidates(){
 }
 function clearCandidatePins(){
  if(candidateFrame)cancelAnimationFrame(candidateFrame);
- candidateFrame=0;candidatePins=[];candidateHits=[];candidateKey='';selectedCandidate=null;
+ candidateFrame=0;candidateHits=[];fittedCandidateScope=null;selectedCandidate=null;
  markCandidateRow(null);
 }
 function candidateRow(id){
@@ -474,8 +474,13 @@ function fitCandidates(h,pins,{manual=false}={}){
  const zoom=h.map.zoom(),scale=Math.min((width-108)/Math.max(1,right-left),(height-48)/Math.max(1,bottom-top));
  h.map.setView(center.latitude,center.longitude,Math.min(manual?17:crowded?Math.max(zoom,15):zoom,zoom+Math.log2(scale)));
 }
+const candidateTimingKey=h=>globalThis.AstroNotesCandidatePicker?.mapPinTimeKey?.(h.session)??'day';
 function candidateSnapshot(h){
- return displayedCandidates?.session===h.session&&displayedCandidates.key===targetKey(h)?displayedCandidates.pins:[];
+ const saved=displayedCandidates;
+ return saved?.session===h.session&&saved.key===targetKey(h)&&saved.timing===candidateTimingKey(h)?saved:null;
+}
+function targetSelectionCurrent(h){
+ return !!targetSel&&targetSel.key===targetKey(h)&&(targetSel.kind!=='new'||targetSel.timing===candidateTimingKey(h));
 }
 function invalidateCandidatePins(){
  displayedCandidates=null;clearCandidatePins();host()?.redraw();
@@ -483,26 +488,28 @@ function invalidateCandidatePins(){
 function refreshCandidatePins(committed=false){
  if(committed){
   const h=host();
-  displayedCandidates=h&&targetReady(h)?{session:h.session,key:targetKey(h),pins:newCandidates()}:null;
+  displayedCandidates=h&&targetReady(h)?{session:h.session,key:targetKey(h),timing:candidateTimingKey(h),pins:newCandidates()}:null;
   if(!candidateSheet()){h?.redraw();return;}
  }
  if(!candidateSheet()||candidateFrame)return;
  candidateFrame=requestAnimationFrame(()=>{
   candidateFrame=0;
   const h=host();if(!active||!candidateSheet()||!h||!targetReady(h))return;
-  const key=targetKey(h),first=key!==candidateKey||!candidatePins.length;
-  candidateKey=key;candidatePins=candidateSnapshot(h);
-  if(!candidatePins.some(p=>p.id===selectedCandidate))selectedCandidate=null;
+  const shown=candidateSnapshot(h),pins=shown?.pins||[];
+  if(!pins.some(p=>p.id===selectedCandidate))selectedCandidate=null;
   markCandidateRow(candidateRow(selectedCandidate));
-  if(first)fitCandidates(h,candidatePins);
+  if(pins.length&&(shown.key!==fittedCandidateScope?.key||shown.timing!==fittedCandidateScope?.timing)){
+   fitCandidates(h,pins);
+   fittedCandidateScope={key:shown.key,timing:shown.timing};
+  }else if(!pins.length)fittedCandidateScope=null;
   h.redraw();
  });
 }
 function drawCandidatePins(ctx,{project,width,height},inTarget=false){
  candidateHits=[];
  const h=host();if(!active||!h||h.pickMode||!targetReady(h))return;
- const pins=candidateSheet()?(candidateKey===targetKey(h)?candidatePins:[]):inTarget?candidateSnapshot(h):[];
- const inSheet=candidateSheet(),ordered=inSheet&&selectedCandidate?[
+ const inSheet=candidateSheet(),shown=inSheet||inTarget?candidateSnapshot(h):null,pins=shown?.pins||[];
+ const ordered=inSheet&&selectedCandidate?[
   ...pins.filter(p=>p.id!==selectedCandidate),...pins.filter(p=>p.id===selectedCandidate),
  ]:pins;
  for(const candidate of ordered){
@@ -511,12 +518,12 @@ function drawCandidatePins(ctx,{project,width,height},inTarget=false){
   const selected=inSheet&&selectedCandidate===candidate.id;
   pinAt(ctx,x,y,selected?'#235c89':NEW_PIN,inSheet?11:6);
   if(inSheet)labelAt(ctx,String(candidate.number),x,y,'#fff','center',11);
-  candidateHits.push({kind:'new',x,y,candidate});
+  candidateHits.push({kind:'new',x,y,candidate,scope:shown});
  }
 }
 function focusCandidateInSheet(pixel){
- const distance=hit=>Math.hypot(hit.x-pixel.x,hit.y-pixel.y);
- const hits=candidateHits.filter(hit=>distance(hit)<22).sort((a,b)=>distance(a)-distance(b));
+ const h=host(),scope=h&&candidateSnapshot(h),distance=hit=>Math.hypot(hit.x-pixel.x,hit.y-pixel.y);
+ const hits=candidateHits.filter(hit=>hit.scope===scope&&distance(hit)<22).sort((a,b)=>distance(a)-distance(b));
  if(!hits.length)return true;
  const nearest=hits[0],cluster=hits.filter(hit=>Math.hypot(hit.x-nearest.x,hit.y-nearest.y)<12)
   .sort((a,b)=>a.candidate.number-b.candidate.number);
@@ -584,7 +591,7 @@ function drawTarget(ctx,{project,width,height}){
  if(candidateSheet())drawCandidatePins(ctx,{project,width,height},true);
  // 撮影地点（あれば小さく）と選んだ点
  const o=s.observer;if(validPoint(o)){const [ox,oy]=project(o.latitude,o.longitude);ctx.save();ctx.lineWidth=3;ctx.strokeStyle='#111';ctx.beginPath();ctx.moveTo(ox-7,oy);ctx.lineTo(ox+7,oy);ctx.moveTo(ox,oy-7);ctx.lineTo(ox,oy+7);ctx.stroke();ctx.lineWidth=1.3;ctx.strokeStyle='#fff';ctx.stroke();ctx.restore();}
- if(targetSel&&targetSel.key!==targetKey(h))targetSel=null;
+ if(targetSel&&!targetSelectionCurrent(h))targetSel=null;
  if(targetSel&&validPoint(targetSel)){const [x,y]=project(targetSel.latitude,targetSel.longitude);ctx.beginPath();ctx.arc(x,y,13,0,Math.PI*2);ctx.lineWidth=3;ctx.strokeStyle='#fff';ctx.stroke();ctx.lineWidth=1.5;ctx.strokeStyle='#000';ctx.stroke();}
 }
 // 2026-11-26 採用: 撮影地点中心では、時刻バーの前後1時間に重なる記録を随時表示。
@@ -642,10 +649,12 @@ function tapObsRecord(pixel){
 }
 // 目標物が中心の時のタップ: 地点のピン→その地点、線の近く（26px）→線上の点に吸着、それ以外→選択を外す。
 function tapTarget(pixel){
- let best=null,dist=22;for(const hit of tapHits)if(hit.kind!=='segment'){const d=Math.hypot(hit.x-pixel.x,hit.y-pixel.y);if(d<dist){dist=d;best=hit;}}
- const selKey=host()?targetKey(host()):'';
+ const h=host();if(!h)return false;
+ const scope=candidateSnapshot(h);
+ let best=null,dist=22;for(const hit of tapHits)if(hit.kind!=='segment'&&(hit.kind!=='new'||hit.scope===scope)){const d=Math.hypot(hit.x-pixel.x,hit.y-pixel.y);if(d<dist){dist=d;best=hit;}}
+ const selKey=targetKey(h);
  if(best?.kind==='record'){const p=best.place;targetSel={kind:'record',key:selKey,latitude:p.latitude,longitude:p.longitude,name:p.name,place:p};}
- else if(best?.kind==='new'){const c=best.candidate;targetSel={kind:'new',key:selKey,latitude:c.latitude,longitude:c.longitude,name:c.name,at:c.at,row:c.row};}
+ else if(best?.kind==='new'){const c=best.candidate;targetSel={kind:'new',key:selKey,timing:best.scope.timing,latitude:c.latitude,longitude:c.longitude,name:c.name,at:c.at,row:c.row};}
  else{let snap=null,sd=26;for(const hit of tapHits){if(hit.kind!=='segment')continue;const [ax,ay]=hit.a,[bx,by]=hit.b,dx=bx-ax,dy=by-ay,l2=dx*dx+dy*dy,f=l2?Math.max(0,Math.min(1,((pixel.x-ax)*dx+(pixel.y-ay)*dy)/l2)):0,d=Math.hypot(ax+dx*f-pixel.x,ay+dy*f-pixel.y);
   if(d<sd){sd=d;snap={kind:'line',key:selKey,latitude:hit.pa.latitude+(hit.pb.latitude-hit.pa.latitude)*f,longitude:hit.pa.longitude+(hit.pb.longitude-hit.pa.longitude)*f,at:hit.pa.at+(hit.pb.at-hit.pa.at)*f,side:hit.side,name:'線上の地点'};}}
   targetSel=snap;}
@@ -653,7 +662,7 @@ function tapTarget(pixel){
 }
 // 選んだ点を撮影地点にして、撮影地点が中心へ切り替える。
 function useSelectionAsObserver(){
- const h=host();if(!h)return;clearStaleObsSelection(h);const sel=targetSel;if(!sel||sel.key!==targetKey(h))return;
+ const h=host();if(!h)return;clearStaleObsSelection(h);if(!targetSelectionCurrent(h))return;const sel=targetSel;
  if(sel.kind==='record'&&sel.place?.source&&globalThis.AstroNotesShooting?.savedObserver){const o=AstroNotesShooting.savedObserver(sel.place.source);h.restoreObserver(o,Number.isFinite(sel.place.groundManualM)?sel.place.groundManualM:null);}
  else{placingName=sel.kind==='line'?'線上の地点':sel.name||PLACED;h.placePoint('observer',{latitude:sel.latitude,longitude:sel.longitude});placingName=null;}
  // 点天体は数十秒の丸めでも対象から外れるため、解いた時刻をそのまま渡す。
@@ -674,7 +683,7 @@ function updateTargetCard(h){
  const s=h.session,place=$('mapWsCardPlace'),meta=$('mapWsCardMeta'),overlap=$('mapWsCardOverlap'),view=$('mapWsCardView'),second=$('mapWsCardSecond');
  const set=(n,v)=>{if(n.textContent!==v)n.textContent=v;},bodyName=AstroNotesBodies.definitions.find(d=>d.id===s.body)?.name||'天体';
  if(!targetReady(h)){stopTargetLine();set(place,'対象を選んでください');set(meta,'上の条件から対象を選ぶと、重なる範囲と線が出ます');overlap.hidden=true;view.firstElementChild.textContent='条件';view.dataset.action='conditions';view.disabled=false;view.setAttribute('aria-label','撮影条件を開く');second.hidden=true;return;}
- if(targetSel&&targetSel.key!==targetKey(h))targetSel=null;// 日・対象・天体が変わったら選んだ点は捨てる
+ if(targetSel&&!targetSelectionCurrent(h))targetSel=null;
  const sel=targetSel;second.hidden=false;
  if(sel){
   set(place,sel.kind==='line'?'線上の地点':sel.name);
@@ -875,7 +884,7 @@ function build(){
   if(action==='conditions'||h&&action==='view'&&(!validPoint(h.session.observer)||!h.session.target)){document.dispatchEvent(new CustomEvent('astronotes-explore-toggle-conditions',{detail:{open:true}}));return;}
   if(action==='use'){useSelectionAsObserver();return;}
   if(action==='search'){document.dispatchEvent(new CustomEvent('astronotes-explore-open-sheet',{detail:{tab:'new',search:true}}));return;}
-  if(action==='candidate'){const id=targetSel?.row?.id;targetSel=null;document.dispatchEvent(new CustomEvent('astronotes-explore-open-sheet',{detail:{tab:'new',search:false,candidateId:id}}));return;}
+  if(action==='candidate'){if(!h||!targetSelectionCurrent(h))return;const id=targetSel.row.id;targetSel=null;document.dispatchEvent(new CustomEvent('astronotes-explore-open-sheet',{detail:{tab:'new',search:false,candidateId:id}}));return;}
   document.dispatchEvent(new Event('astronotes-explore-open-view'));};
  $('mapWsCardSecond').onclick=()=>{const action=$('mapWsCardSecond').dataset.action;if(action==='clear'){targetSel=null;host()?.redraw();schedule();return;}
   // 段階③: 記録の地点の一覧は「重なる日」（今の条件で絞る）
@@ -1114,7 +1123,7 @@ function init(){
  $('skyMapView').addEventListener('click',e=>{
   if(!candidateSheet()||!e.target.closest('#candidateMapToggle'))return;
   e.preventDefault();e.stopImmediatePropagation();
-  const h=host();if(h)fitCandidates(h,candidateSnapshot(h),{manual:true});
+  const h=host();if(h)fitCandidates(h,candidateSnapshot(h)?.pins||[],{manual:true});
  },true);
  new MutationObserver(evaluate).observe(view,{attributes:true,attributeFilter:['hidden','class','data-explore-mode','data-explore-stage','data-explore-sheet']});
  if($('skyMapContent'))new MutationObserver(evaluate).observe($('skyMapContent'),{attributes:true,attributeFilter:['hidden']});

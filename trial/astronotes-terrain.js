@@ -1707,6 +1707,23 @@ function createExactTerrainBatch({inJapan,tileXf,tileYf,loadTile,pixelToElevatio
     }
     return { x, y, extent: tile.extent, count, start, xy, box, codes };
   }
+  function buildingClusters(tile) {
+    const bins = new Map();
+    for (let i = 0; i < tile.count; i++) {
+      const [s, w, n, e] = tile.box.subarray(i * 4, i * 4 + 4);
+      const x = Math.floor((tileXf((w + e) / 2, WATER_Z) - tile.x) * 8);
+      const y = Math.floor((tileYf((s + n) / 2, WATER_Z) - tile.y) * 8);
+      // A buffered tile can contain features with centres just beyond its edge.
+      const id = Math.max(0, Math.min(7, x)) + 8 * Math.max(0, Math.min(7, y));
+      const group = bins.get(id) || { s: Infinity, w: Infinity, n: -Infinity, e: -Infinity, indexes: [] };
+      group.s = Math.min(group.s, s); group.w = Math.min(group.w, w);
+      group.n = Math.max(group.n, n); group.e = Math.max(group.e, e);
+      group.indexes.push(i);
+      bins.set(id, group);
+    }
+    const Indices = tile.count <= 65536 ? Uint16Array : Uint32Array;
+    return [...bins.values()].map(group => ({ ...group, indexes: Indices.from(group.indexes) }));
+  }
   function buildingRing(t, k) {
     const n = 2 ** WATER_Z, ring = [];
     for (let j = t.start[k]; j < t.start[k + 1]; j++) {
@@ -1753,8 +1770,33 @@ function createExactTerrainBatch({inJapan,tileXf,tileYf,loadTile,pixelToElevatio
     if (tiles.some(([, , t]) => t === null)) return null;
     const out = [];
     const south = Math.min(from.latitude, to.latitude), north = Math.max(from.latitude, to.latitude), west = Math.min(from.longitude, to.longitude), east = Math.max(from.longitude, to.longitude);
+    const inSearchBounds = (s, w, n, e) => n >= south && s <= north && e >= west && w <= east;
+    const clustersOverlap = ({s, w, n, e}) => {
+      if (!inSearchBounds(s, w, n, e)) return false;
+      const c = [xy(s, w), xy(s, e), xy(n, w), xy(n, e)];
+      let left = false, right = false;
+      for (const [x, y] of c) {
+        const side = x * uy - y * ux;
+        if (side >= -1e-5) left = true;
+        if (side <= 1e-5) right = true;
+      }
+      return left && right;
+    };
     for (const [, , tile] of tiles) {
-      for (let i = 0; i < tile.count; i++) {
+      let indices;
+      if (tile.count >= 96 && tile.consulted) {
+        // The cluster boxes only avoid examining off-line buildings. Keep the
+        // original tile/feature order for equal entry distances.
+        tile.clusters ||= buildingClusters(tile);
+        indices = [];
+        for (const group of tile.clusters) {
+          if (clustersOverlap(group)) for (const i of group.indexes) indices.push(i);
+        }
+        indices.sort((a, b) => a - b);
+      } else tile.consulted = true;
+      const count = indices?.length ?? tile.count;
+      for (let j = 0; j < count; j++) {
+        const i = indices ? indices[j] : j;
         const minHeightM = GSI_BUILDING_MIN_M[tile.codes[i]];
         const gs = tile.box[i * 4], gw = tile.box[i * 4 + 1], gn = tile.box[i * 4 + 2], ge = tile.box[i * 4 + 3];
         if (gn < south || gs > north || ge < west || gw > east) continue;

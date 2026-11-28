@@ -569,6 +569,18 @@ async function localGuides(plan,domain,{groundM,eyeM=1.5,align,bodies,isCurrent=
  }
  return {guides:out,partial};
 }
+// The same ground position can be supplied by more than one mapped surface.
+// Only reuse a completed sampled miss for the exact geometry and fixed air.
+let sampledMissScope=null;
+function sampledMisses(plan,target,align,bodies){
+ const atm=globalThis.AstroNotesAtmosphere,appAlign=globalThis.AstroNotesAlign;
+ if(!plan.requestKey||plan.composition||plan.strict||plan.profile==='summit-contact'||target.rim||
+  !(align===appAlign||align.__memoOutlines&&Object.getPrototypeOf(align)===appAlign)||bodies!==globalThis.AstroNotesBodies||!atm?.dataKey||atm.mode?.()==='auto')return null;
+ const inputs=[plan.requestKey,plan.body,plan.partId,plan.matchMode,plan.limb,align,bodies,
+  align.geometryFrom,align.towerOutline,align.CITY_MODELS?.[target.id],align.TOWER_MODELS?.[target.id],atm.dataKey()];
+ if(!sampledMissScope||inputs.some((value,index)=>value!==sampledMissScope.inputs[index]))sampledMissScope={inputs,misses:new Map()};
+ return sampledMissScope;
+}
 async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks,standingAt,isCurrent=()=>true,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0))),budget=12000,_surfaceSolved=false,ridgeContext=null}={}){
  const empty=(reason,partial=false)=>({solutions:[],partial,reason}),range=timeRange(plan),target=targetInput(plan.target);
  if(!range)return empty('invalid-time-spec');
@@ -581,20 +593,25 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
  const elevation=Number.isFinite(point.standingElevationM)?point.standingElevationM:Number.isFinite(point.surfaceElevationM)?point.surfaceElevationM:Number.isFinite(point.elevation)?point.elevation:Number.isFinite(ground)?ground+(point.surfaceAglM??point.surfaceHeightM??0):null,
  eyeM=point.eyeM??point.eyeHeightAGL??1.5;
  if(!Number.isFinite(elevation)||!Number.isFinite(eyeM)||eyeM<0)return empty('standing-height-unknown',true);
+ const limit=Math.max(1,Math.floor(Number.isFinite(budget)?budget:12000));
+ const cache=range.kind==='instant'?null:sampledMisses(plan,target,align,bodies);
+ const exactPoint=cache&&JSON.stringify([target.id,target.latitude,target.longitude,target.groundM,target.parts,range.start,range.end,plan.timeWindow,
+  point.latitude,point.longitude,elevation,eyeM,limit].map(value=>Object.is(value,-0)?'-0':value));
+ const cached=cache?.misses.get(exactPoint);
+ if(cached){if(!isCurrent())return empty('cancelled',true);cache.misses.delete(exactPoint);cache.misses.set(exactPoint,cached);return {...cached,solutions:[]};}
  const observer={...point,elevation,eyeM},eye={...observer,elevation:elevation+eyeM},c=plan.composition;
  const g=c?geometry(observer,target,c,align):align.geometryFrom(observer,target,{partId:plan.partId==='__whole'?null:plan.partId,eyeM});
  if(!g||![g.azimuth,g.angle,g.topM,g.distanceKm].every(Number.isFinite))return empty('target-geometry-unknown',true);
  const partTarget=align.partTarget?.(target,plan.partId==='__whole'?null:plan.partId)||target;
  const strict=!!(c||plan.strict||plan.profile==='summit-contact'||target.rim&&plan.matchMode!=='overlap'),project=align.viewProjector(g.azimuth,g.angle),anchor=g.anchor||{latitude:partTarget.latitude,longitude:partTarget.longitude,heightM:g.topM};
  const pointBody=!(bodies.definition?.(plan.body)?.limbs??['sun','moon'].includes(plan.body)),whole=!plan.partId||plan.partId==='__whole';
- const outline=pointBody||!strict&&whole?align.towerOutline?.(observer,target,{eyeM}):null;
+ const outline=pointBody||!strict&&whole?align.towerOutline?.(observer,target,{eyeM,ringsOnly:true}):null;
  const selfPolygons=outline?.known&&!outline.schematic?(outline.hitPolygons||outline.polygons||[outline.hitPoints||outline.points]).filter(Boolean).map(r=>r.map(p=>project(p[0],p[1])).filter(Boolean)).filter(r=>r.length>=3):[];
  const polygons=!strict&&whole?selfPolygons:[];
  const ridgePrepared=!c&&target.rim?(ridgeContext?ridgeContext.prepare(target,align,observer):prepareRidge(target,align,observer)):null,ridge=!c&&target.rim?ridgeGeometry(observer,target,align,ridgePrepared):null;if(!c&&target.rim&&!ridge)return empty('ridge-data-unavailable',true);
  const targetBounds=polygons.length?outlineClusters(polygons,flat(polygons)):null;
  const passage=!strict&&!pointBody&&plan.matchMode==='overlap'&&(!whole||!!ridge);
  const geometryKind=ridge?'ridge':polygons.length?'silhouette':'anchor',samples=new Map();let calls=0,exhausted=false,unknown=false,cancelled=false;
- const limit=Math.max(1,Math.floor(Number.isFinite(budget)?budget:12000));
  async function evaluate(at){
   at=Math.max(range.start,Math.min(range.end,at));if(samples.has(at))return samples.get(at);
   if(!isCurrent()){cancelled=true;return null;}if(calls>=limit){exhausted=true;return null;}
@@ -704,7 +721,12 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
   }
  }
  const partial=range.kind!=='instant'||exhausted||riseLimited||unknown||surfaceAttempted;
- return {solutions,partial,reason:exhausted||riseLimited?'budget-exhausted':unknown?'some-calculations-unknown':solutions.length?'geometric-opportunities':partial?'no-opportunity-found-in-sampled-range':'no-opportunity-at-fixed-time',evaluated:calls};
+ const result={solutions,partial,reason:exhausted||riseLimited?'budget-exhausted':unknown?'some-calculations-unknown':solutions.length?'geometric-opportunities':partial?'no-opportunity-found-in-sampled-range':'no-opportunity-at-fixed-time',evaluated:calls};
+ if(cache&&result.reason==='no-opportunity-found-in-sampled-range'&&isCurrent()&&cache===sampledMissScope&&cache===sampledMisses(plan,target,align,bodies)){
+  const {partial,reason,evaluated}=result;cache.misses.set(exactPoint,{partial,reason,evaluated});
+  while(cache.misses.size>2048)cache.misses.delete(cache.misses.keys().next().value);
+ }
+ return result;
 }
 async function inverseSeeds(plan,{bodies,isCurrent=()=>true,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0))),groundHypothesesM,budget=2500}={}){
  const target=targetInput(plan.target),range=timeRange(plan),none=reason=>({seeds:[],partial:true,reason});

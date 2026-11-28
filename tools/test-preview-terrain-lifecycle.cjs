@@ -27,7 +27,7 @@ const release=page=>page.evaluate(()=>{for(const j of terrainFixture.jobs)j.rele
   const rows=[];
   try{
    await page.goto(base+'index.html#/explore');
-   await page.waitForFunction(()=>typeof SkyMapUI==='object'&&typeof aimTargetList==='function'&&AstroNotesAssets.modelsReady());
+   await page.waitForFunction(()=>typeof SkyMapUI==='object'&&typeof aimTargetList==='function'&&typeof AstroNotesAssets==='object');
    await page.evaluate(async({observer,at})=>{
     await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>observer.elevation;aimBuildingDays=async()=>[];
     aimAirSettings.mode='standard';AstroNotesAtmosphere.configure('standard',aimAirSettings);

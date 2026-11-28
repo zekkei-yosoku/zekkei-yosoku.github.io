@@ -10,6 +10,7 @@ const require=createRequire(import.meta.url);
 const load=source=>{const module={exports:{}},context={module,exports:module.exports,require,console,Math,Date,JSON,Promise,Map,Set,WeakMap,TextDecoder,TextEncoder,Uint8Array,DataView,ArrayBuffer,Float64Array,Number,Object,Array,String,Error,RangeError,isFinite,parseFloat,globalThis:{}};vm.createContext(context);vm.runInContext(source,context);return context.module.exports;};
 const source=readFileSync(new URL('./astronotes-terrain.js',import.meta.url),'utf8');
 const P=load(beforePromotion('astronotes-terrain.js')),T=load(source);
+const trialSource=readFileSync(new URL('./experiments/moon-map/astronotes-terrain.js',import.meta.url),'utf8');
 
 const varint=n=>{const b=[];do{let x=n&0x7f;n=Math.floor(n/128);if(n)x|=0x80;b.push(x);}while(n);return b;};
 const zz=n=>(n<<1)^(n>>31);
@@ -48,4 +49,25 @@ test('a tile every line passes through stays cached while many other tiles come 
   await C.gsiBuildingsAlong(at(4096*i+1000,2000),at(4096*i+3000,2000),{fetchImpl:anyTile});
  }
  assert.equal(hotFetches(),1);assert.equal(counts.size,601);
+});
+
+
+test('trial’s bounded building tiles preserve exact crossings, order, and incomplete coverage',async()=>{
+ const ranked=load(trialSource);
+ const reference=load(source);
+ const lines=[
+  [at(30,220),at(4070,220)],[at(4070,220),at(30,220)],
+  [at(32,4090),at(4070,18)],[at(4090,18),at(16,4090)],
+  ...Array.from({length:150},()=>[at(200+rnd()*3700,200+rnd()*3700),at(200+rnd()*3700,200+rnd()*3700)]),
+ ];
+ let reads=0;
+ const fetch=async url=>{reads++;return fetchImpl(url);};
+ const expected=await Promise.all(lines.map(([from,to])=>reference.gsiBuildingsAlong(from,to,{fetchImpl})));
+ for(const [i,[from,to]] of lines.entries()){
+  const actual=await ranked.gsiBuildingsAlong(from,to,{fetchImpl:fetch});
+  assert.equal(JSON.stringify(actual),JSON.stringify(expected[i]),'line '+i);
+ }
+ assert.equal(reads,1,'the tile and its index stay shared across ray queries');
+ assert(expected.some(hits=>hits.length>0));
+ assert.equal(await ranked.gsiBuildingsAlong(at(200,200),at(4396,200),{fetchImpl:fetch}),null);
 });

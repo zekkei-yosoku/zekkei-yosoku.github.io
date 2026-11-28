@@ -19,6 +19,40 @@ test('trial civil-day caching preserves boundaries, DST and invalid input handli
  }
 });
 const target=A.targetById('skytree');
+test('trial only reuses completed geometric misses for the same position and conditions',async()=>{
+ let calls=0,air='standard',outline={},active=true;
+ const at=Date.parse('2026-12-24T16:41:00+09:00'),target=A.targetById('skytree');
+ const point={latitude:35.7,longitude:139.8,groundM:11,elevation:11,eyeM:1.5};
+ const appAlign={...A,get TOWER_MODELS(){return {skytree:outline};}};
+ const align=Object.assign(Object.create(appAlign),{towerOutline:()=>null,__memoOutlines:true});
+ const bodies={definition:()=>({limbs:true}),state:()=>{calls++;return {azimuth:184,apparentAltitude:-30,angularRadius:.25};}};
+ const atmosphere={mode:()=>air,dataKey:()=>air};
+ const source=fs.readFileSync(new URL('./experiments/moon-map/src/features/candidates/composition.js',import.meta.url),'utf8');
+ const trial=runInNewContext(source+'\nAstroNotesCandidateComposition;',{
+  AstroNotesBodies:bodies,AstroNotesAlign:appAlign,AstroNotesAtmosphere:atmosphere
+ });
+ const plan={requestKey:'same search',target,body:'moon',at,timeSpec:{kind:'day',at},partId:'__whole'};
+ const check=(p=plan,o=point)=>trial.opportunities(p,o,{align,bodies,yieldTask:async()=>{},isCurrent:()=>active});
+ const initial=await check(),initialCalls=calls;
+ assert.equal(initial.reason,'no-opportunity-found-in-sampled-range');
+ assert.deepEqual(await check(plan,{...point,name:'duplicate point from a different surface'}),initial);
+ assert.equal(calls,initialCalls);
+ await check(plan,{...point,eyeM:1.51});assert(calls>initialCalls);
+ const afterHeight=calls;
+ outline={};await check();assert(calls>afterHeight);
+ const afterOutline=calls;
+ air='manual';await check();assert(calls>afterOutline);
+ const afterAir=calls;
+ const otherDay={...plan,timeSpec:{kind:'day',at:at+86400000}};
+ await check(otherDay);assert(calls>afterAir);
+ const afterDay=calls;
+ active=false;
+ assert.equal((await check(otherDay)).reason,'cancelled');assert.equal(calls,afterDay);
+ active=true;air='auto';
+ await check();const afterAuto=calls;await check();assert(calls>afterAuto);
+ const fixed={...plan,timeSpec:{kind:'instant',at}};
+ assert.equal((await check(fixed)).reason,'no-opportunity-at-fixed-time');
+});
 test('auto refraction prefilter retains a body that can overlap after weather data changes its altitude',async()=>{
  const at=0,observer={...require('./astronotes-terrain.js').destination(target.latitude,target.longitude,45,8),groundM:5,elevation:5,eyeM:1.5};
  const g=A.geometryFrom(observer,target,{partId:'tip'}),base={body:'moon',target,partId:'tip',timeSpec:{kind:'instant',at}};

@@ -1,0 +1,467 @@
+/* Generic candidate evaluation. Domain geometry and IO ports remain separate. */
+(function(root){
+'use strict';
+const Model=root.AstroNotesCandidateModel||(typeof require==='function'?require('./model-evaluator.js'):null);
+const Composition=root.AstroNotesCandidateComposition||(typeof require==='function'?require('./composition.js'):null);
+const TowerQuality=Model.towerQuality||(typeof require==='function'?require('./tower-quality.js'):null);
+const R=6371008.8,D=Math.PI/180;
+function inside(r,p){let on=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>p[1])!==(r[j][1]>p[1])&&p[0]<(r[j][0]-r[i][0])*(p[1]-r[i][1])/(r[j][1]-r[i][1])+r[i][0])on=!on;return on;}
+function angularDistance(a,b){const alt1=a[1]*D,alt2=b[1]*D,daz=(a[0]-b[0])*D;return Math.atan2(Math.hypot(Math.cos(alt2)*Math.sin(daz),Math.cos(alt1)*Math.sin(alt2)-Math.sin(alt1)*Math.cos(alt2)*Math.cos(daz)),Math.sin(alt1)*Math.sin(alt2)+Math.cos(alt1)*Math.cos(alt2)*Math.cos(daz))/D;}
+function cameraAxis(plan,observer,state,geometry,align,halfX,halfY){
+ const lens=plan.lens;if(lens.axis)return lens.axis;
+ if(lens.viewModel!=='scene')return {azimuth:geometry.azimuth,altitude:geometry.angle};
+ if(typeof align.viewWindow!=='function'||typeof align.viewUnprojector!=='function'||!(lens.aspect>0))return null;
+ // Match framing/scene/render.js: its initial window centres the visible
+ // target extent, and pan translates the sky under the fixed camera frame.
+ const full=align.geometryFrom(observer,plan.target,{eyeM:observer.eyeM}),outline=plan.target.rim?null:align.towerOutline?.(observer,plan.target,{eyeM:observer.eyeM});
+ if(!full)return null;
+ const radius=state.angularRadius||0,topAngle=outline?.topAngle??full.angle,baseAngle=outline?.baseAngle??topAngle-5*Math.max(radius,.27),viewBase=outline?.viewBaseAngle??baseAngle;
+ if(![topAngle,viewBase,full.azimuth].every(Number.isFinite))return null;
+ const win=align.viewWindow({azimuth:full.azimuth,baseAngle:viewBase,topAngle,radiusDeg:radius,aspect:lens.aspect,include:state.apparentAltitude>=0&&Math.abs(state.apparentAltitude-topAngle)<=Math.max(topAngle-viewBase,5*radius)?[state.apparentAltitude]:[]});
+ const halfH=Math.max(halfY,halfX/lens.aspect)*1.12,halfW=halfH*lens.aspect,pan=lens.pan||[0,0];
+ if(![win?.az0,win?.alt0,pan[0],pan[1]].every(Number.isFinite))return null;
+ const axis=align.viewUnprojector(win.az0,win.alt0)(-2*halfW*pan[0],2*halfH*pan[1]);
+ return axis?.every(Number.isFinite)?{azimuth:axis[0],altitude:axis[1]}:null;
+}
+function lensCheck(plan,observer,state,geometry,align){
+ const lens=plan.lens;if(!lens||lens.mode==='unspecified'||!Number.isFinite(lens.focal))return {status:'unspecified',fits:true};
+ let w=lens.sensorWidth,h=lens.sensorHeight;if(!(w>0&&h>0&&lens.focal>0))return {status:'unknown',fits:lens.mode!=='required'};
+ const crop=Number.isFinite(lens.crop)&&lens.crop>0?lens.crop:1;w/=crop;h/=crop;if(lens.portrait)[w,h]=[h,w];
+ const halfX=w/(2*lens.focal)/D,halfY=h/(2*lens.focal)/D;
+ // 'overlap' (the whole target, 2026-11-11): whether the whole target fits depends on the lens and on how one shoots — a
+ // telephoto of the sun sitting on the Skytree's gain tower is the shot itself (ユーザー). So only the body and what it
+ // overlaps have to fit. Where the whole target fits, the frame is the usual one (as before); where it does not, the
+ // camera is on the body and overflow tells the first view to put its frame there.
+ if(lens.targetExtent==='overlap'){
+  const whole=lensCheck({...plan,lens:{...lens,targetExtent:'whole'}},observer,state,geometry,align);if(whole.fits)return {...whole,overflow:false};
+  const r=Math.tan((state.angularRadius||0)*D)/D,fits=r<=Math.min(halfX,halfY);
+  return {status:fits?'fits':'outside',fits,horizontalFov:2*Math.atan(w/(2*lens.focal))/D,verticalFov:2*Math.atan(h/(2*lens.focal))/D,targetKnown:true,axis:{azimuth:state.azimuth,altitude:state.apparentAltitude},overflow:true};
+ }
+ const axis=cameraAxis(plan,observer,state,geometry,align,halfX,halfY);
+ if(!axis||![axis.azimuth,axis.altitude].every(Number.isFinite))return {status:'unknown',fits:lens.mode!=='required',reason:'camera-axis-unavailable'};
+ const project=align.viewProjector(axis.azimuth,axis.altitude);
+ const target=project(geometry.azimuth,geometry.angle),centre=project(state.azimuth,state.apparentAltitude);
+ const outline=lens.targetExtent==='whole'?align.towerOutline?.(observer,plan.target,{eyeM:observer.eyeM}):null;
+ const targetKnown=lens.targetExtent!=='whole'||!!(outline?.known&&!outline.schematic);
+ const points=[target,centre];if(outline?.known&&!outline.schematic)for(const ring of outline.polygons||[outline.hitPoints||outline.points||[]])for(const p of ring)points.push(project(p[0],p[1]));
+ const r=Math.tan((state.angularRadius||0)*D)/D;
+ const fits=points.every(p=>p&&Math.abs(p[0])<=halfX&&Math.abs(p[1])<=halfY)&&centre&&Math.abs(centre[0])+r<=halfX&&Math.abs(centre[1])+r<=halfY;
+ return {status:!targetKnown?'unknown':fits?'fits':'outside',fits:!!fits&&(targetKnown||lens.mode!=='required'),horizontalFov:2*Math.atan(w/(2*lens.focal))/D,verticalFov:2*Math.atan(h/(2*lens.focal))/D,targetKnown,axis};
+}
+function photographability(body,state,sunAltitude){
+ if(!Number.isFinite(state.apparentAltitude)||state.apparentAltitude+(state.angularRadius||0)<=0)return 'unfavorable';
+ if(body==='sun')return 'normal';
+ if(body==='moon')return sunAltitude>=0?'conditional':'normal';
+ // Daylight is retained as a conditional opportunity, never a blanket rejection (e.g. Venus).
+ return sunAltitude>=-6?'conditional':sunAltitude<-12?'normal':'conditional';
+}
+// No ground in Japan stands above Mt Fuji (3776 m); a ray above this has no terrain left to meet.
+const TERRAIN_CEILING_M=3800;
+function skyRange(eye,altitude,k){
+ // A computational horizon for the DEM model, not a proof of absent buildings.
+ const effectiveR=R*k,alpha=altitude*D,height=d=>{const t=d/effectiveR,den=Math.cos(t)-Math.tan(alpha)*Math.sin(t);return den>0?(effectiveR+eye)/den-effectiveR:Infinity;};
+ let lo=Math.max(0,-alpha*effectiveR),hi=Math.max(1000,lo+1000);while(height(hi)<TERRAIN_CEILING_M&&hi<Math.PI*effectiveR/2)hi*=2;
+ for(let i=0;i<40;i++){const mid=(lo+hi)/2;if(height(mid)<TERRAIN_CEILING_M)lo=mid;else hi=mid;}
+ return Math.max(1000,hi);
+}
+function standingMetadata(position,data,seed){
+ const features=data?.features;if(!Array.isArray(features))return false;
+ const contains=f=>(f.polygons||[]).some(poly=>poly[0]?.length>=4&&inside(poly[0],[position.longitude,position.latitude])&&!poly.slice(1).some(r=>inside(r,[position.longitude,position.latitude])));
+ const inBounds=b=>position.longitude>=b[0]&&position.longitude<=b[2]&&position.latitude>=b[1]&&position.latitude<=b[3];
+ // A way can extend far beyond the requested tile. Its geometry alone does
+ // not carry the area's restrictions/structures outside the fetched region.
+ if(data.coverage?.fetchedRegions&&!data.coverage.fetchedRegions.some(r=>inBounds(r.bbox)))return false;
+ const source=features.find(f=>f.sourceId===seed.sourceId||f.id===seed.polygonId),areas=features.filter(contains),forbidden=t=>['no','private'].includes(t?.access)||['no','private'].includes(t?.foot);
+ const raised=(t,ignoreLayer=false)=>t&&(t.location==='roof'||t.location==='rooftop'||t.location==='underground'||t.indoor==='yes'||t.bridge&&t.bridge!=='no'||t.tunnel&&t.tunnel!=='no'||t.covered==='yes'
+  ||t.level!=null&&Number(t.level)!==0||!ignoreLayer&&t.layer!=null&&Number(t.layer)!==0);
+ // Match place-provider's parent-only rule; the walking source keeps its own layer.
+ const raisedArea=f=>raised(f.tags,f.kind==='park'&&!f.walking&&!f.building&&!f.tags?.highway&&!f.tags?.['area:highway']&&f.polygons?.length>0);
+ if(!source&&seed.sourceEvidence?.kind!=='PLATEAU-pedestrian-surface')return false;
+ if(forbidden(source?.tags)||areas.some(f=>forbidden(f.tags)))return false;
+ const knownRaised=seed.nonTerrainStructure&&seed.standingSurfaceKnown&&[seed.surfaceAglM,seed.surfaceHeightM,seed.surfaceElevationM].some(Number.isFinite);
+ if(areas.some(f=>f.water)&&!knownRaised)return false;
+ if((raised(source?.tags)||areas.some(raisedArea))&&!knownRaised)return false;
+ const containingBuilding=areas.find(f=>f.building);
+ if(containingBuilding&&(!knownRaised||seed.sourceEvidence?.buildingContaining!==containingBuilding.id))return false;
+ const viewpoint=areas.find(f=>f.kind==='viewpoint'),square=areas.find(f=>f.kind==='plaza'),river=areas.find(f=>/河川敷|川.*テラス|川緑道|riverbank|riverside/i.test(f.name)),park=areas.find(f=>f.kind==='park');
+ if(viewpoint&&!knownRaised)return false;
+ const walkSquare=source?.walking&&(source.tags?.area==='yes'||source.tags?.['area:highway']);
+ const area=viewpoint||square||park||river,placeKind=viewpoint?'viewpoint':square||walkSquare?'plaza':park?'park':river?'riverbank':'road';
+ const name=area?.name||source?.name||({viewpoint:'展望地点',plaza:'歩行広場',riverbank:'河川沿いの歩道',park:'公園の園路',road:'歩道の撮影候補'}[placeKind]);
+ return {placeKind,name,placeId:area?.sourceId||source?.sourceId||seed.placeId,accessKnown:!![source,...areas].find(f=>['yes','public','permissive','designated'].includes(f?.tags?.foot)||['yes','public','permissive'].includes(f?.tags?.access)),
+  sourceEvidence:{...seed.sourceEvidence,placeOsmId:area?.id||source?.id||null,areaTags:area?.tags||null,classification:area?'mapped-area-at-resolved-position':'walkway-at-resolved-position',resolvedPositionAreaChecked:true,actualVisibilityGuaranteed:false}};
+}
+// One point evaluation builds the same target outline (every model vertex projected from the observer) in the solver,
+// the line-of-sight check and the frame check; on a phone that was about a quarter of the search (2026-11-11). Keep the
+// last outlines for a few seconds, keyed by everything the outline depends on (a later model registration changes the
+// model key). Callers only read the outline.
+function memoOutlines(align){
+ if(!align?.towerOutline||align.__memoOutlines)return align;
+ const memo=new Map(),ids=new WeakMap();let nextId=0;
+ const modelKey=model=>{if(!model)return 0;if(!ids.has(model))ids.set(model,++nextId);return ids.get(model);};
+ const towerOutline=(observer,target,options={})=>{
+  const city=globalThis.AstroNotesCityModels?.[target?.id],tower=globalThis.AstroNotesTowerModels?.[target?.id];
+  const key=JSON.stringify([observer?.latitude,observer?.longitude,observer?.elevation,observer?.eyeM,target?.id,target?.latitude,target?.longitude,target?.groundM,target?.parts,target?.heightM,options,
+   modelKey(city),modelKey(tower),root.AstroNotesAtmosphere?.targetK?.()]),
+  now=Date.now(),hit=memo.get(key);
+  if(hit&&now-hit.at<3000){memo.delete(key);memo.set(key,hit);return hit.value;}
+  const value=align.towerOutline(observer,target,options);memo.set(key,{at:now,value});while(memo.size>32)memo.delete(memo.keys().next().value);return value;
+ };
+ return Object.assign(Object.create(align),{towerOutline,__memoOutlines:true});
+}
+function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,trees=null,staticTerrain=null,sidewalks=null,angularPrefilter=false,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
+ const align=memoOutlines(rawAlign);
+ const visibilityCache=new Map(),targetLines=new Map();
+ let buildingScope=null;
+ const buildingMemoFor=key=>{
+  if(typeof key!=='string'||!key)return null;
+  if(buildingScope?.key!==key)buildingScope={key,reads:new Map()};
+  return buildingScope.reads;
+ };
+ const upperQuality=async(observer,target,options)=>{
+  const k=root.AstroNotesAtmosphere?.targetK?.()??7/6,weather=weatherKey();
+  const result=await (TowerQuality?.check(observer,target,{...options,align,terrain,heights,trees,yieldTask,refractionK:k})
+   ||Promise.resolve({status:['skytree','tokyotower'].includes(target?.id)?'unknown':'not-applicable',reason:'upper-model-unavailable'}));
+  return result.status==='model-clear'&&(k!==(root.AstroNotesAtmosphere?.targetK?.()??7/6)||weather!==weatherKey())?{status:'unknown',reason:'upper-atmosphere-changed'}:result;
+ };
+ let ridgeScope=null;
+ const ridgeContextFor=(key,current)=>{
+  if(typeof Composition.createRidgeContext!=='function'||typeof key!=='string'||!key)return null;
+  if(!ridgeScope||ridgeScope.key!==key){ridgeScope?.context.retire();ridgeScope={key,context:Composition.createRidgeContext()};}
+  return ridgeScope.context.forOwner(current);
+ };
+ // The precheck and event check share exact confirmed endpoint reads.
+ // Building rays that cross the same endpoint can also share complete
+ // classification within the search, even between duplicate standing points.
+ // Endpoint readers derive altitude from endpoint height; the supplied altitude
+ // is immaterial there. Bearing, foot height, model and weather still must match.
+ async function targetRead(kind,observer,ray,options,read,usable){
+  const shared=kind==='buildings'?options.buildingReads:null;
+  const memo=shared||options.targetReads,end=ray.endpoint;
+  if(!memo||!end||![end.latitude,end.longitude,end.elevation,ray.maxM].every(Number.isFinite))return read();
+  const key=JSON.stringify([kind,observer.latitude,observer.longitude,observer.elevation,observer.eyeM??1.5,end.latitude,end.longitude,end.elevation,
+   ray.azimuth,ray.maxM,ray.refractionK,ray.targetKey,kind==='trees'?ray.footM:null,!!options.skipTrees,!!options.preview,weatherKey()]);
+  const city=root.AstroNotesCityModels?.[ray.targetKey],towers=root.AstroNotesTowerModels,hit=memo.get(key);
+  if(hit&&hit.city===city&&hit.towers===towers){if(shared){memo.delete(key);memo.set(key,hit);}return hit.value;}
+  const value=await read();
+  if(options.isCurrent?.()!==false&&!options.signal?.aborted&&usable(value)&&city===root.AstroNotesCityModels?.[ray.targetKey]&&towers===root.AstroNotesTowerModels){
+   memo.set(key,{city,towers,value});
+   if(shared&&memo.size>1024)memo.delete(memo.keys().next().value);
+  }
+  return value;
+ }
+ // A model's boundary classification can be reused; it stays unconfirmed.
+ // A missing tile, network failure, or unread height may recover on retry.
+ const heightTrace=(observer,ray,options)=>targetRead('buildings',observer,ray,options,
+  ()=>heights.trace(observer,ray,{isCurrent:options.isCurrent,skipTrees:!!options.skipTrees}),r=>r?.status==='clear'&&!r.partial||
+   r?.status==='unknown'&&r.source==='plateau-grid'&&(r.reason==='near-building'||r.reason==='within-margin')&&Number.isFinite(r.hit?.distanceM));
+ // Whether the place was surveyed as seeing this target (and not merely some other one).
+ const surveyedFor=(place,target)=>!!target?.id&&Array.isArray(place?.surveyedTargets)&&place.surveyedTargets.includes(target.id);
+ // What hides the lower part of the target on its line (2026-11-12, user: name it, not a distance).
+ const hiddenNotes=new WeakMap(),TOWN_M=500;
+ function hiddenNote(target,observer,azimuth,sky,built,tree){
+  // Buildings or trees higher on the target than the ground in front (2026-11-13): named as such, from the same line.
+  // Buildings far in front are a townscape, not a building (2026-11-15, user: 22 km from 東京スカイツリー the words
+  // 「手前の建物」 did not fit the skyline that hides its foot); TOWN_M and nearer it is still the building in front.
+  const front=[[Number.isFinite(built?.distanceM)&&built.distanceM>=TOWN_M?'街並み':'建物',built],['木',tree]].filter(([,s])=>Number.isFinite(s?.toM)).sort((a,b)=>b[1].toM-a[1].toM)[0];
+  if(front&&!(front[1].toM<=(sky?.toM??-Infinity))&&typeof align.hiddenBelowText==='function'){
+   const [kind,{toM}]=front,text=align.hiddenBelowText(target,toM,kind);return Promise.resolve(text?{m:toM,kind,text,label:'手前の'+kind}:null);
+  }
+  if(!sky||typeof align.hiddenBelowText!=='function'||typeof geo?.obstacleKind!=='function')return null;
+  if(!hiddenNotes.has(sky))hiddenNotes.set(sky,(async()=>{
+   if(!align.hiddenBelowText(target,sky.toM,'高台'))return null;
+   const kind=await geo.obstacleKind(observer,azimuth,sky,observer.elevation+observer.eyeM),text=kind?align.hiddenBelowText(target,sky.toM,kind):'';
+   return text?{m:sky.toM,kind,text,label:kind==='地球の丸み'?kind:'手前の'+kind}:null;
+  })().catch(()=>null));
+  return hiddenNotes.get(sky);
+ }
+ // How high up the target the ground or the buildings in front hide it, whichever is higher.
+ const hiddenTop=(...lines)=>Math.max(...lines.map(s=>s?.toM??-Infinity));
+ // A place that sees none of the target's named parts over what is in front is no candidate (2026-11-13, user's
+ // choice: 東京タワー needs the top of its トップデッキ in sight). A target named by its tip alone keeps the tip rule.
+ function partsHidden(target,m){
+  const tops=(target?.parts||[]).map(p=>p.m).filter(Number.isFinite).sort((a,b)=>b-a);return tops.length>1&&Number.isFinite(m)&&m>=tops[1];
+ }
+ const skylineOf=async(observer,ray,options)=>{
+  if(!heights?.skyline||!ray.endpoint)return null;
+  const s=await targetRead('skyline',observer,ray,options,()=>heights.skyline(observer,ray,{isCurrent:options.isCurrent,preview:options.preview}).catch(e=>{if(e?.message==='candidate-cancelled')throw e;return null;}),r=>r?.status==='ok'&&r.complete);
+  return s?.status==='ok'?s:null;
+ };
+ // Tree tops on the line (tree-heights.js). Unread (offline, the map's server) leaves trees as before: OSM woods only.
+ const treesOf=async(observer,ray,options)=>trees?targetRead('trees',observer,ray,options,()=>trees.sight(observer,ray,{isCurrent:options.isCurrent}),r=>r?.status==='clear'):null;
+ // How the place frames the target (2026-11-13, user's choice for the order: 対象がよく見える・高い所・見晴らし・
+ // 背景がすっきり; the size beside the body was dropped on 2026-11-14, "月との比率はいらないよ"): how much of the target shows
+ // over what is in front, how far the place stands above the ground around it, and how many bearings beside the target
+ // have other buildings rising into the sky above the target's hidden line (a window of three body diameters).
+ async function compositionOf(plan,position,solution,state,los,options){
+  const t=plan.target,groundT=Number.isFinite(t.groundM)?t.groundM:0,tops=(t.parts||[]).map(p=>p.m).filter(Number.isFinite);if(!tops.length)return null;
+  const top=Math.max(...tops),eye=position.elevation+position.eyeM,Dm=solution.geometry.distanceKm*1000,c=1/(2*R*(root.AstroNotesAtmosphere?.targetK?.()??7/6));
+  const angleTo=h=>Math.atan2(h-eye-c*Dm*Dm,Dm)/D,hidden=Math.min(top,Math.max(groundT,hiddenTop(los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline)));
+  const body=2*(state.angularRadius||0);
+  let gain=null;
+  if(terrain?.at){const hs=[];for(let k=0;k<8;k++){const q=geo.destination(position.latitude,position.longitude,k*45,.2),h=await terrain.at(q,options).catch(e=>{if(e?.message==='candidate-cancelled')throw e;return null;});if(Number.isFinite(h))hs.push(h);}
+   if(hs.length>=4){hs.sort((a,b)=>a-b);gain=position.elevation-hs[Math.floor(hs.length/2)];}}
+  let clean=null;
+  if(heights?.angles){const halfW=Math.max(3*body,2*Math.atan2((t.widthM||40)/2,Dm)/D,.5),az=solution.geometry.azimuth,floor=angleTo(hidden)+.05;
+   const seen=await heights.angles(position,[-1,-.75,-.5,-.3,.3,.5,.75,1].map(f=>(az+f*halfW+360)%360),Dm+3000,{targetKey:t.id,isCurrent:options.isCurrent});
+   if(seen)clean=seen.filter(a=>!(a>floor)).length/seen.length;}
+  return {visibleFraction:Math.max(0,Math.min(1,(top-hidden)/Math.max(1,top-groundT))),heightGainM:gain,cleanSky:clean};
+ }
+ async function terrainRay(observer,ray,options){
+  // The archived raster still traces the supplied altitude, even with an
+  // endpoint. Recheck it for every ray before sharing only the native fallback.
+  if(staticTerrain){const tested=staticTerrain.trace(observer,ray);if(tested.hit||tested.checked>0&&tested.missing===0)return {...tested,status:tested.hit?'blocked':'model-clear',nativeRaster:true};}
+  return targetRead('terrain',observer,ray,options,
+   ()=>terrain?terrain.trace(observer,{...ray,...options}):{status:'unknown',reason:'terrain-unavailable',missing:1},r=>r?.status==='model-clear'&&!r.missing&&!r.partial);
+ }
+ async function buildingRay(observer,ray,options={}){
+  if(!trees)return buildingsOnly(observer,ray,options,false);
+  // Buildings first (local data): a line they stop needs no trees. Unread trees: OSM woods judge as before.
+  const first=await buildingsOnly(observer,ray,options,true);if(first.status==='blocked')return first;
+  const t=await treesOf(observer,ray,options);
+  if(t.status==='unread')return {...await buildingsOnly(observer,ray,options,false),trees:t};
+  const b=first;
+  const status=b.status==='blocked'||t.status==='blocked'?'blocked':b.status==='model-clear'&&t.status==='unknown'?'unknown':b.status;
+  const byTrees=t.status==='blocked'&&b.status!=='blocked'||t.status==='unknown'&&b.status==='model-clear';
+  return {...b,status,trees:t,treeSkyline:t.skyline||null,...(byTrees?{reason:'trees',hit:t.hit}:{})};
+ }
+ async function buildingsOnly(observer,ray,options,skipTrees){
+  // Building tops along the whole line (PLATEAU heights, GSI footprints elsewhere). Unknown is never clear.
+  if(heights){const r=await heightTrace(observer,ray,{...options,skipTrees}),skyline=r.status==='blocked'?null:await skylineOf(observer,ray,options);
+   return {...r,skyline,status:r.status==='clear'?'model-clear':r.status,complete:r.status!=='unknown',evaluated:r.status!=='unknown',unresolvedTargetContacts:false};}
+  if(!index)return {status:'unknown',complete:false};
+  const end=ray.endpoint||geo.destination(observer.latitude,observer.longitude,ray.azimuth,ray.maxM/1000);
+  const coverage=Model.covers(index,observer,end),result=Model.trace(index,observer,ray);
+  const evaluated=Number.isFinite(result.faces)&&Number.isFinite(result.buildingsChecked),contacts=result.targetContacts||[];
+  const permitted=new Set(index.targetAssociations?.[ray.targetKey]?.targetSurfacePolygonIds||[]);
+  // A catalogue association identifies a target complex, not the particular
+  // visible surface. Only a documented terminal surface may be a target hit;
+  // an unresolved earlier contact stays unknown. Sky rays hit opaque targets.
+  const unresolvedTargetContacts=!!ray.endpoint&&contacts.some(c=>!permitted.has(c.polygonId)||!Number.isFinite(c.distanceM)||Math.abs(c.distanceM-ray.maxM)>.1);
+  const selfBlocked=!ray.endpoint&&contacts.length>0;
+  return {...result,complete:coverage.complete,evaluated,unresolvedTargetContacts,status:result.hit||selfBlocked?'blocked':coverage.complete&&evaluated&&!unresolvedTargetContacts?'model-clear':'unknown'};
+ }
+ // The composition draws its ground line from the same line and the same ground as the search (2026-11-13,
+ // user: one ground line where the building stands), so the list and the figure give one number.
+ async function hiddenView(observer,target,{partId=null,isCurrent,refractionK=root.AstroNotesAtmosphere?.targetK?.()??7/6}={}){
+  const obs={...observer,eyeM:observer.eyeM??1.5},g=align.geometryFrom(obs,target,{eyeM:obs.eyeM,partId:partId==='__whole'?null:partId});
+  if(!g||![g.azimuth,g.angle,g.topM,g.distanceKm].every(Number.isFinite))return null;
+  const ray={azimuth:g.azimuth,altitude:g.angle,maxM:g.distanceKm*1000,endpoint:{...target,elevation:g.topM},footM:target.groundM,targetKey:target.id,refractionK};
+  // These three readers use separate terrain, building and canopy budgets.
+  const [tg,built,tr]=await Promise.all([
+   terrainRay(obs,ray,{isCurrent}),
+   skylineOf(obs,ray,{isCurrent,preview:true}),
+   treesOf(obs,ray,{isCurrent}),
+  ]);
+  const tree=tr?.skyline||null;
+  const complete=!!tg?.skyline&&!tg.missing&&!!built?.complete&&tr?.status!=='unread';
+  if(!tg?.skyline)return {status:tg?.status||'unknown',read:false,complete,note:built||tree?await hiddenNote(target,obs,g.azimuth,null,built,tree):null};
+  return {status:tg.status,read:true,complete,note:await hiddenNote(target,obs,g.azimuth,tg.skyline,built,tree)};
+ }
+ // Standalone preview reader, so the outline can appear before the terrain archive is ready.
+ async function skylineView(observer,target,azimuths,{isCurrent,refractionK=root.AstroNotesAtmosphere?.targetK?.()??7/6}={}){
+  const obs={...observer,eyeM:observer.eyeM??1.5},g=align.geometryFrom(obs,target,{eyeM:obs.eyeM});
+  if(!heights?.frontage||!g||!(g.distanceKm>0)||!Array.isArray(azimuths)||!azimuths.length)return null;
+  return heights.frontage(obs,azimuths,g.distanceKm*1000,{targetKey:target.id,isCurrent,refractionK}).catch(e=>{
+   if(e?.message==='candidate-cancelled')throw e;
+   return null;
+  });
+ }
+ const weatherKey=()=>root.AstroNotesAtmosphere?.dataKey?.()??null;
+ async function visibility(plan,solution,options={},eventSky){
+  if(options.isCurrent?.()===false||options.signal?.aborted)throw Error('candidate-cancelled');
+  const obs=solution.observer,g=solution.geometry,at=solution.event.at,eye={...obs,elevation:obs.elevation+obs.eyeM};
+  const weather=weatherKey(),city=root.AstroNotesCityModels?.[plan.target.id],towers=root.AstroNotesTowerModels;
+  // Terrain tracing can yield while new atmosphere data are installed.
+  const state=eventSky?.weather===weather?eventSky.state:bodies.state(plan.body,at,eye);
+  if(eventSky&&eventSky.weather!==weather){eventSky.weather=weather;eventSky.state=state;}
+  const target=solution.anchor||plan.target,distance=g.distanceKm*1000,k=root.AstroNotesAtmosphere?.targetK?.()??7/6;
+  const stateKey=[state.azimuth,state.apparentAltitude,state.angularRadius,state.upperAltitude,state.lowerAltitude];
+  const cacheKey=JSON.stringify([obs,at,plan.body,plan.target,plan.partId,target,g,plan.atmosphere,weather,stateKey,k]);
+  const matching=entry=>entry&&entry.city===city&&entry.towers===towers;
+  const current=()=>options.isCurrent?.()!==false&&!options.signal?.aborted&&weather===weatherKey()&&
+   city===root.AstroNotesCityModels?.[plan.target.id]&&towers===root.AstroNotesTowerModels;
+  const visible=visibilityCache.get(cacheKey);
+  if(matching(visible))return visible.value;
+  const targetRay={azimuth:g.azimuth,altitude:g.angle,maxM:distance,endpoint:{...target,elevation:g.topM},footM:target.groundM,targetKey:plan.target.id,refractionK:k};
+  // Events of one point share their line to the target's anchor; it decides before any sky line can.
+  // A surveyed place (place-provider.js): the survey stands for its sight line to the target, so buildings and trees are
+  // not asked (an observation room's own walls would stop it); the ground still is, for the body beside the target.
+  const surveyed=surveyedFor(obs,plan.target);
+  const lineKey=JSON.stringify([obs.latitude,obs.longitude,obs.elevation,obs.eyeM,targetRay.endpoint.latitude,targetRay.endpoint.longitude,targetRay.endpoint.elevation,
+   targetRay.azimuth,targetRay.altitude,targetRay.footM,distance,k,plan.target.id,surveyed,weather]);
+  const saved=targetLines.get(lineKey);
+  let line=matching(saved)?saved.value:null;
+  if(!line){
+   const tb=surveyed?{status:'surveyed'}:await buildingRay(obs,targetRay,options);
+   const tg=tb.status==='blocked'?{status:'not-needed'}:await terrainRay(obs,targetRay,options);
+   line={tg,tb};
+   // A missing tile or a read interrupted by a budget can recover on the next evaluation.
+   if(current()&&(tb.status==='blocked'||(tb.status==='model-clear'||surveyed)&&tg.status==='model-clear'&&!tg.missing&&!tg.partial)){
+    targetLines.set(lineKey,{city,towers,value:line});
+    while(targetLines.size>400)targetLines.delete(targetLines.keys().next().value);
+   }
+  }
+  const {tg,tb}=line;
+  if(!surveyed&&(tg.hit||tb.status==='blocked'))return {status:'blocked',target:{terrain:tg,buildings:tb},reason:'target-obstructed'};
+  // An unconfirmed line to the target cannot make the event confirmed, whatever the sky lines show.
+  if(!surveyed&&(tg.status!=='model-clear'||tb.status!=='model-clear'))return {status:'unknown',target:{terrain:tg,buildings:tb},rays:[],reason:'target-line-unconfirmed',treesModeled:false,actualVisibilityGuaranteed:false};
+  const outline=align.towerOutline?.(obs,plan.target,{eyeM:obs.eyeM,ringsOnly:true}),outlineAvailable=!!(outline?.known&&!outline.schematic),polygons=outline?.polygons||[outline?.hitPoints||outline?.points||[]];
+  const projection=align.viewProjector(state.azimuth,state.apparentAltitude),unproject=align.viewUnprojector(state.azimuth,state.apparentAltitude);
+  const projected=outlineAvailable?polygons.filter(r=>r.length>=3).map(r=>r.map(p=>projection(p[0],p[1]))).filter(r=>r.every(p=>p?.every(Number.isFinite))):[],knownOutline=outlineAvailable&&projected.length>0||!!plan.target.rim;
+  // A mountain's shape is the terrain model itself: a ray it blocks is blocked, one it clears is clear.
+  // The upper sample needs a shorter terrain line near the horizon. Read it before the centre, which can spend the
+  // whole tile budget without finishing (渋谷スカイ, 2026-11-24). Keep all nine samples and their individual outcomes;
+  // an unfinished line stays unknown, even when a different sample is confirmed clear.
+  const radius=state.angularRadius||0,disc=radius>0,offsets=disc?[[0,.9],[0,0],[0,-.9],[.9,0],[-.9,0],[.6364,.6364],[-.6364,.6364],[.6364,-.6364],[-.6364,-.6364]]:[[0,0]],rays=[];
+  for(const [x,y]of offsets){
+   if(options.isCurrent?.()===false)throw Error('candidate-cancelled');
+   const rx=Math.tan(radius*D)/D,ry=Math.tan((y>=0?(state.upperAltitude??state.apparentAltitude+radius)-state.apparentAltitude:state.apparentAltitude-(state.lowerAltitude??state.apparentAltitude-radius))*D)/D;
+   const angular=unproject(x*rx,y*ry),inTarget=projected.some(r=>inside(r,[x*rx,y*ry]));
+   if(inTarget){rays.push({status:'blocked',intentionalTarget:true});continue;}
+   const ray={azimuth:angular[0],altitude:angular[1],maxM:Math.max(distance,skyRange(eye.elevation,angular[1],k)),refractionK:k,targetKey:plan.target.id};
+   const ground=await terrainRay(obs,ray,options),building=ground.hit?{status:'not-needed'}:surveyed?{status:'model-clear',surveyed:true}:await buildingRay(obs,ray,options);
+   rays.push({status:ground.hit||building.status==='blocked'?'blocked':ground.status==='model-clear'&&building.status==='model-clear'&&knownOutline?'model-clear':'unknown',terrain:ground,buildings:building,rangeM:ray.maxM});
+   await yieldTask();
+  }
+  const clear=rays.filter(r=>r.status==='model-clear').length,unknown=rays.filter(r=>r.status==='unknown').length;
+  const result={status:!clear&&!unknown?'blocked':(surveyed||tg.status==='model-clear'&&tb.status==='model-clear')&&clear?'model-clear':'unknown',surveyed,
+   target:{terrain:tg,buildings:tb},rays,visibleSamples:clear,unknownSamples:unknown,totalSamples:rays.length,shapeKnown:knownOutline,treesModeled:false,actualVisibilityGuaranteed:false,datumUncertainty:true};
+  if(result.status!=='unknown'&&current())visibilityCache.set(cacheKey,{city,towers,value:result});
+  while(visibilityCache.size>150)visibilityCache.delete(visibilityCache.keys().next().value);
+  return result;
+ }
+ async function evaluate(plan,point,data,options={}){
+  options={...options,targetReads:new Map(),upperReads:new Map(),buildingReads:buildingMemoFor(plan.requestKey)};
+  const ridgeContext=options.isCurrent?.()===false?null:ridgeContextFor(plan.requestKey,options.isCurrent);
+  if(point.access==='no'||point.access==='private')return {status:'excluded',recommend:false,reason:'access-restricted'};
+  if(point.standingSurfaceKnown!==true||point.nonTerrainStructure&&![point.surfaceElevationM,point.surfaceAglM,point.surfaceHeightM].some(Number.isFinite))return {status:'unknown',recommend:false,reason:'standing-height-unknown'};
+  const ground=Number.isFinite(point.groundM)?point.groundM:await terrain?.at(point,options);
+  if(!Number.isFinite(ground))return {status:'unknown',recommend:false,reason:'standing-height-unknown'};
+  const floor=Number.isFinite(point.surfaceElevationM)?point.surfaceElevationM:ground+(point.surfaceAglM??point.surfaceHeightM??0),eyeM=Number.isFinite(point.eyeM)?point.eyeM:1.5;
+  let obs={...point,elevation:floor,eyeM};
+  const fixedStanding=!!point.nonTerrainStructure||Number.isFinite(point.surfaceElevationM)||Number.isFinite(point.standingElevationM);
+  // A movable point may match after the existing move up a bank, even when its seed misses.
+  if(angularPrefilter&&fixedStanding){
+   if(options.isCurrent?.()===false||options.signal?.aborted)throw Error('candidate-cancelled');
+   if(Composition.definiteAngularMiss(plan,obs,{align,bodies}))return {status:'no-overlap',recommend:false,reason:'angular-prefilter'};
+  }
+  // Resolve a matching time and frame before the upper-width data reads. Every
+  // surviving solution, including a surveyed observer, is checked below.
+  const missingHeights=b=>['building-height-unknown','height-data-unavailable','footprints-unavailable','footprint-ground-unknown'].includes(b?.reason);
+  // Where the observer cannot move (no composition, not a mountain), every event's line ends on the
+  // target's axis at or below its top, so a line to the top that buildings stop rules out every time
+  // of day. Checking it first spares the event search for most points in a dense city.
+  // A ground point a few metres down a slope or levee is often hidden by the rise in front of it, while
+  // the top of the rise, in the same park or riverbank, sees the target. Such a point is moved up onto
+  // the rise (at most three steps) and judged there, at the position it is then shown at.
+  if(heights&&!surveyedFor(point,plan.target)&&!(plan.composition||plan.strict||plan.profile==='summit-contact'||plan.target.rim)){
+   const top=Math.max(...(plan.target.parts||[]).map(p=>p.m).filter(Number.isFinite)),k=root.AstroNotesAtmosphere?.targetK?.()??7/6;
+   for(let step=0;Number.isFinite(top);step++){
+    if(options.isCurrent?.()===false)throw Error('candidate-cancelled');
+    const inv=geo.inverse(obs.latitude,obs.longitude,plan.target.latitude,plan.target.longitude);if(!(inv.km>0))break;
+    const maxM=inv.km*1000,eye=obs.elevation+obs.eyeM;
+    // Archived terrain follows the supplied altitude. Use the same parabolic
+    // ray to the target's tip as the buildings reader, including curvature.
+    const altitude=Math.atan2(top-eye-maxM*maxM/(2*R*k),maxM)/D;
+    const line={azimuth:inv.azimuth,altitude,maxM,endpoint:{latitude:plan.target.latitude,longitude:plan.target.longitude,elevation:top},footM:plan.target.groundM,targetKey:plan.target.id,refractionK:k};
+    // Buildings and terrain first (local data); the trees' walk only for a line they leave open.
+    const lineUnverified=pre=>({status:'unverified',recommend:false,heightUnknown:missingHeights(pre),nearBuilding:pre.reason==='near-building',obstacle:['trees','elevated-structure'].includes(pre.reason),reason:'target-line-unverified',partial:true});
+    const pre=await heightTrace(obs,line,{...options,skipTrees:!!trees});
+    if(pre.status==='blocked')return {status:'model-blocked',recommend:false,reason:'target-line-blocked',partial:true};
+    if(pre.status!=='clear')return lineUnverified(pre);
+    const land=await terrainRay(obs,line,options);
+    if(!land.hit){
+     const built=await skylineOf(obs,line,options),partsGone={status:'model-blocked',recommend:false,reason:'target-parts-hidden',partial:true};
+     if(partsHidden(plan.target,hiddenTop(land.skyline,built)))return partsGone;
+     const tr=await treesOf(obs,line,options);
+     if(tr?.status==='blocked')return {status:'model-blocked',recommend:false,reason:'target-line-trees',partial:true};
+     if(tr?.status==='unknown')return {status:'unverified',recommend:false,obstacle:true,reason:'target-line-unverified',partial:true};
+     if(tr?.status==='unread'){const osm=await heightTrace(obs,line,options);if(osm.status==='blocked')return {status:'model-blocked',recommend:false,reason:'target-line-blocked',partial:true};if(osm.status!=='clear')return lineUnverified(osm);}
+     if(partsHidden(plan.target,hiddenTop(land.skyline,built,tr?.skyline)))return partsGone;
+     break;
+    }
+    const d=land.hit.distanceM,movable=Number.isFinite(d)&&d<=60&&step<3&&!obs.nonTerrainStructure&&!fixedStanding;
+    // The highest ground on the first 60 m towards the target: the top of the bank in front.
+    let up=null,ground=-Infinity;if(movable&&terrain?.at)for(let m=3;m<=60;m+=3){const q=geo.destination(obs.latitude,obs.longitude,inv.azimuth,m/1000),h=await terrain.at(q,options);if(Number.isFinite(h)&&h>ground+.05){ground=h;up=q;}}
+    const meta=up&&ground>obs.elevation+.3?standingMetadata({...up,elevation:ground},data,point):false;
+    if(!meta)return {status:'model-blocked',recommend:false,reason:'target-line-terrain',partial:true};
+    // The step stays in the same park or riverbank, which keeps the point's kind and name.
+    obs={...obs,...meta,placeKind:point.placeKind,name:point.name||meta.name,latitude:up.latitude,longitude:up.longitude,groundM:ground,elevation:ground,surfaceAglM:0,surfaceHeightM:0,surfaceId:(point.surfaceId||'ground')+':up'+(step+1),movedUpFrom:{latitude:point.latitude,longitude:point.longitude,
+    elevation:floor}};
+   }
+  }
+  const solved=await Composition.opportunities(plan,obs,{align,bodies,terrain,sidewalks,groundAt:p=>terrain?.at(p,options),standingAt:p=>standingMetadata(p,data,point),isCurrent:options.isCurrent,yieldTask,ridgeContext});
+  const accepted=[];let blocked=0,outside=0,unverified=0,heightUnknown=0,lastUnverified=null;
+  for(const solution of solved.solutions||[]){
+   if(options.isCurrent?.()===false)throw Error('candidate-cancelled');
+   const weather=weatherKey(),state=bodies.state(plan.body,solution.event.at,{...solution.observer,elevation:solution.observer.elevation+solution.observer.eyeM}),eventSky={weather,state};
+   const frame=plan.overlapAnchor?lensCheck({...plan,target:plan.overlapAnchor.target,partId:plan.overlapAnchor.partId},solution.observer,state,align.geometryFrom(solution.observer,plan.overlapAnchor.target,{eyeM:solution.observer.eyeM})||solution.geometry,align):lensCheck(plan,solution.observer,
+   state,solution.geometry,align);if(!frame.fits){outside++;continue;}
+   const upper=await upperQuality(solution.observer,plan.target,options);
+   if(!['model-clear','not-applicable'].includes(upper.status)){
+    if(upper.status==='blocked')blocked++;else{unverified++;lastUnverified={upperQuality:upper};}
+    continue;
+   }
+   const los=await visibility(plan,solution,options,eventSky);if(los.status==='blocked'){blocked++;continue;}
+   if(!los.surveyed&&partsHidden(plan.target,hiddenTop(los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline))){blocked++;continue;}
+   const at=solution.event.at,position=solution.observer,finalGround=Number.isFinite(position.groundM)?position.groundM:ground;
+   const sun=bodies.state('sun',at,{...position,elevation:position.elevation+position.eyeM});
+   const photo=photographability(plan.body,state,sun.apparentAltitude);
+   const id=[point.surfaceId||point.sourceId||'surface',position.latitude.toFixed(7),position.longitude.toFixed(7),position.elevation.toFixed(2),Math.round(at/1000)].join(':');
+   const extras=[];for(const other of plan.extraTargets||[]){
+    if(options.isCurrent?.()===false)throw Error('candidate-cancelled');
+    const geometry=align.geometryFrom(position,other,{eyeM:position.eyeM});
+    if(!geometry||![geometry.azimuth,geometry.angle,geometry.topM,geometry.distanceKm].every(Number.isFinite)){extras.push({id:other.id,frame:{status:'unknown',fits:false},visibility:'unknown',reason:'target-geometry-unavailable'});continue;}
+    const extraPlan={...plan,target:other,partId:null,composition:null,lens:plan.lens?{...plan.lens,...(frame.axis?{axis:frame.axis}:{})}:null};
+    const otherFrame=lensCheck(extraPlan,position,state,geometry,align);
+    const upperOther=plan.requireAllTargets?await upperQuality(position,other,options):null;
+    if(upperOther&&!['model-clear','not-applicable'].includes(upperOther.status)){
+     extras.push({id:other.id,frame:otherFrame,visibility:'unknown',reason:'upper-tower-unverified',upperQuality:upperOther,at,observer:{...position}});continue;
+    }
+    // Retain the main event's (p,t); do not search a different time for an extra.
+    const extraSolution={observer:position,event:{at},geometry,anchor:other},extraLos=await visibility(extraPlan,extraSolution,options,eventSky);
+    extras.push({id:other.id,frame:otherFrame,visibility:extraLos.status,evidence:extraLos,at,observer:{latitude:position.latitude,longitude:position.longitude,elevation:position.elevation,eyeM:position.eyeM}});
+   }
+   if(plan.requireAllTargets&&extras.some(x=>!x.frame.fits||x.frame.status==='unknown')){outside++;continue;}
+   // Even an optional extra is a real occulting object. Its own obstruction
+   // may be optional; a known obstruction of the photographed body is not.
+   if(extras.some(x=>x.visibility==='blocked'&&x.evidence?.reason!=='target-obstructed')){blocked++;continue;}
+   if(plan.requireAllTargets&&extras.some(x=>x.visibility==='blocked')){blocked++;continue;}
+   const combinedClear=los.status==='model-clear'&&extras.every(x=>x.visibility==='model-clear'),visibilityQuality=combinedClear?'model-clear':'unknown';
+   // Only a sight line shown clear of terrain and buildings is a candidate (design note 21): unknown is not shown.
+   if(los.status!=='model-clear'||plan.requireAllTargets&&!combinedClear){
+    unverified++;lastUnverified=los;
+    // An extra's upper failure describes this rejection only after the main
+    // target is clear; it must not mask an unread main sight line.
+    const extraUpper=los.status==='model-clear'&&plan.requireAllTargets?extras.find(x=>x.upperQuality):null;
+    if(extraUpper)lastUnverified={...los,upperQuality:extraUpper.upperQuality};
+    if(missingHeights(los.target?.buildings)||los.rays?.some(r=>missingHeights(r.buildings)))heightUnknown++;continue;
+   }
+   const usedBuildings=[los.target?.buildings,...(los.rays||[]).filter(r=>r.status==='model-clear').map(r=>r.buildings)],buildingHeights=usedBuildings.some(b=>b?.heights==='estimated')?'estimated':usedBuildings.every(b=>b?.heights==='plateau')?'plateau':'model';
+   const hiddenBelow=los.surveyed?null:await hiddenNote(plan.target,position,solution.geometry.azimuth,los.target?.terrain?.skyline,los.target?.buildings?.skyline,los.target?.buildings?.treeSkyline);
+   const treesRead=!!los.target?.buildings?.trees&&los.target.buildings.trees.status!=='unread';
+   // A surveyed row says what the survey found and no more: how much of the target shows and what stands beside it
+   // were not read from the data (its buildings and trees were not asked), so no composition and no tree note.
+   const composition=los.surveyed?null:await compositionOf(plan,position,solution,state,los,options).catch(e=>{if(e?.message==='candidate-cancelled')throw e;globalThis.AstroNotesErrors?.note('candidates.composition',e);return null;});
+   const kind=position.placeKind||point.placeKind;
+   accepted.push({id,requestKey:plan.requestKey,status:combinedClear&&frame.status!=='unknown'?'model-visible':'visible-partial',recommend:true,aligned:true,placeKind:kind==='sidewalk'?'road':kind||'unknown',surfaceId:point.surfaceId,
+    place:{id,name:position.name||point.name||'撮影候補地点',latitude:position.latitude,longitude:position.longitude,elevation:finalGround,groundManualM:finalGround,stand:'ground',standAglM:position.elevation-finalGround+position.eyeM,eyeHeightAGL:position.elevation-finalGround+position.eyeM,decks:[],
+    surfaceId:point.surfaceId},
+    assumedObserver:{...position},event:{...solution.event,sunAltitude:sun.apparentAltitude},quality:{visibility:los.status,extraTargets:visibilityQuality,buildingHeights,targetAngleDeg:solution.geometry.angle,frame:frame.status,photographyClass:photo,
+    geometry:solution.event.targetGeometryKind||'anchor',datum:'source-epoch-unverified',...(los.surveyed?{surveyed:true}:{}),hiddenBelow,
+    trees:los.surveyed?'surveyed':trees?(treesRead?'checked':'unread'):'not-modeled',composition,...(upper.status==='model-clear'?{upperTower:upper}:{})},rank:[Math.round(solution.geometry.angle*10)/10,solution.event.gapAngleDeg??0],
+    frame,extraTargets:extras,visibility:los,sourceEvidence:position.sourceEvidence||point.sourceEvidence,modelEvidence:{kind:combinedClear?'terrain-and-building-model-los':'geometry-with-partial-los',scope:'target-and-celestial-rays',actualVisibilityGuaranteed:false,treesModeled:false,
+    terrainNumericComplete:!!los.rays?.every(r=>r.intentionalTarget||r.terrain?.status==='model-clear'),buildingRangeComplete:!!los.rays?.every(r=>r.intentionalTarget||r.buildings?.complete&&r.buildings?.evaluated),
+    targetSelfGeometryComplete:los.shapeKnown&&los.target?.buildings?.evaluated&&!los.target?.buildings?.unresolvedTargetContacts,extraTargetsAssessed:extras.length,datumUncertainty:true}});
+  }
+  return accepted.length?{...accepted[0],additionalCandidates:accepted.slice(1),partial:solved.partial}: {status:unverified?'unverified':blocked?'model-blocked':outside?'outside-frame':'no-overlap',recommend:false,heightUnknown:heightUnknown>0,
+  obstacle:!!lastUnverified&&[lastUnverified.target?.buildings,...(lastUnverified.rays||[]).map(r=>r.buildings)].some(b=>['trees','elevated-structure'].includes(b?.reason)),unverifiedBy:lastUnverified?{target:[lastUnverified.target?.terrain?.status,lastUnverified.target?.terrain?.reason,
+  lastUnverified.target?.buildings?.status,lastUnverified.target?.buildings?.reason],rays:(lastUnverified.rays||[]).map(r=>r.intentionalTarget?'target':[r.status,r.terrain?.reason||r.terrain?.status,r.buildings?.reason||r.buildings?.status].join('/'))}:null,partial:solved.partial,
+  reason:solved.reason,...(lastUnverified?.upperQuality?{upperQuality:lastUnverified.upperQuality}:{})};
+ }
+ return {evaluate,visibility:(plan,solution,options={})=>visibility(plan,solution,options),hiddenView,skylineView,clear:()=>{visibilityCache.clear();targetLines.clear();buildingScope=null;ridgeScope?.context.retire();ridgeScope=null;}};
+}
+Model.createGeneric=createGeneric;Model.standingMetadata=standingMetadata;Model.lensCheck=lensCheck;Model.photographability=photographability;Model.skyRange=skyRange;
+if(typeof module==='object'&&module.exports)module.exports={createGeneric,lensCheck,photographability,skyRange,angularDistance,standingMetadata};
+})(globalThis);

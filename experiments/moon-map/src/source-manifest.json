@@ -1789,10 +1789,23 @@
           "astronotes-align.js"
         ],
         "readers": [
-          "src/features/candidates/scene-surface.js"
+          "src/features/candidates/scene-surface.js",
+          "src/features/candidates/composition.js"
         ],
         "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
         "retireWhen": "この名前の利用先をimport/exportまたは注入で結べた時（AstroNotesAlign）"
+      },
+      {
+        "name": "AstroNotesBodies",
+        "category": "existing-public-bridge",
+        "owner": [
+          "astronotes-bodies.js"
+        ],
+        "readers": [
+          "src/features/candidates/composition.js"
+        ],
+        "purpose": "提供された天体計算がアプリと同一の場合に限り重なり判定を再利用する",
+        "retireWhen": "天体計算と判定の再利用条件を同じ依存注入で管理できた時"
       },
       {
         "name": "AstroNotesAtmosphere",

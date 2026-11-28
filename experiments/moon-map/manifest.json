@@ -1,9 +1,12 @@
 {
   "schemaVersion": 1,
   "id": "20261124-moon-route-map",
-  "revision": 44,
+  "revision": 45,
   "baselineCommit": "f4f35b61359ba5ec8f9da057cf3026902a0402a4",
   "baselineSha256": {
+    "astronotes-terrain.js": "b6cbf16a08dc33f8c01d83e49797d2459655c65f5f73efa5c426406e76a3665d",
+    "src/features/candidates/generic-evaluator.js": "abcd9f08c2bc3c2a02a44ed2219aa299bd68007c757ee628d0c5813ea0437aac",
+    "src/features/candidates/place-provider.js": "3bf4cfcfafd5eab6087ff4bf53c7252206b2c5bddca95e2f8c2b43b180ea175f",
     "astronotes-align.js": "518fdb389df7632cd2922249b696e73b0e35b4c83b1b6364c9a59ead3fc02a15",
     "index.html": "feb5e6c31bbb6014c66615a414cca2477296b89ab8e6a95ba1e98c07907a29c3",
     "app-version.txt": "7847e675fdf76402c885929defc8f0319c2ec1d5b52260767fde3c7576a74b99",
@@ -46,6 +49,18 @@
     "src/features/plans/controller.js": "c19310c109a4b8b0612a8fc6b93693c45176f6b641a411b20d56ac50a43c70be"
   },
   "overlays": [
+    {
+      "path": "astronotes-terrain.js",
+      "required": false
+    },
+    {
+      "path": "src/features/candidates/generic-evaluator.js",
+      "required": false
+    },
+    {
+      "path": "src/features/candidates/place-provider.js",
+      "required": false
+    },
     {
       "path": "astronotes-align.js",
       "required": false

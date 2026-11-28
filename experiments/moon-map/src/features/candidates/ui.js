@@ -273,6 +273,15 @@ function timeSpec(at){
  if(timeChoice==='window'){const start=AstroNotesCandidateDiscovery.day(at),ms=x=>{const [h,m]=x.split(':').map(Number);return (h*60+m)*60000;},a=ms(windowStart),b=ms(windowEnd);return {kind:'window',start:start+a,end:start+b+(b<a?86400000:0)};}
  return {kind:'day',at:AstroNotesCandidateDiscovery.day(at),timezone:'Asia/Tokyo'};
 }
+// Returning from an overnight candidate keeps the search on the original day.
+function overnightSearchFor(s){
+ return returnSearch&&s.candidateOpportunity?.id===returnSearch.rowId&&s.at===returnSearch.viewAt?returnSearch:null;
+}
+AstroNotesCandidatePicker.mapPinTimeKey=s=>{
+ if(timeChoice==='day')return 'day';
+ const timing=overnightSearchFor(s)?.plan.timeSpec??timeSpec(s.at);
+ return timing.kind==='instant'?'instant:'+timing.at:'window:'+timing.start+':'+timing.end;
+};
 // The map band is an explicit restriction for this target and celestial body.
 const mapBandScope=s=>s?.target&&globalThis.AstroNotesMapWorkspace?.centerMode()==='target'
  ?JSON.stringify([auth?.loginId,s.body,s.target.id,s.target.latitude,s.target.longitude,s.partId]):null;
@@ -298,8 +307,8 @@ function snapshot(){
   // 地図の帯を指定した場合は、その範囲に探索の種を絞る。
   ...(seedBand?{seedBand}:{})};
  // A next-day event in an overnight window does not change the search day.
- const overnight=returnSearch&&s.candidateOpportunity?.id===returnSearch.rowId&&s.at===returnSearch.viewAt?
-  {...selected,at:returnSearch.plan.at,timeSpec:returnSearch.plan.timeSpec}:null;
+ const previous=overnightSearchFor(s);
+ const overnight=previous?{...selected,at:previous.plan.at,timeSpec:previous.plan.timeSpec}:null;
  // The preview can change the focal length and pan to frame a candidate.
  // On return, keep those preview values out of the original search's identity.
  if(returnedSearchFrame&&mainWorkspace()?.active()){
@@ -309,7 +318,7 @@ function snapshot(){
   }
   returnedSearchFrame=null;
  }
- if(overnight&&key(overnight)===returnSearch.key)return overnight;
+ if(overnight&&key(overnight)===previous.key)return overnight;
  return selected;
 }
 const key=p=>p?AstroNotesCandidateDiscovery.requestKey(p):'';
@@ -317,7 +326,15 @@ const uiKey=p=>key(p)+'|'+(p?.authGeneration??'');
 AstroNotesCandidatePicker.captureSearchPlan=()=>{const plan=snapshot();return plan&&engine.cached(plan)?plan:null;};
 // 2026-11-25 ユーザー「別のAppに飛んで戻ると一覧に移動してる」「条件変わってないのに毎回検索始める」: iPhoneは裏へ回したページを
 // 捨てて読み直す。見つけた候補を持ち越し、読み直した後も同じ条件なら探し直さずに出す。
-AstroNotesCandidatePicker.exportSearch=plan=>{plan=plan||snapshot();const result=plan&&engine.cached(plan);return result?{key:key(plan),result}:null;};
+const pendingSourceCount=coverage=>coverage.retryPending??Number(!!coverage.loaded?.some(c=>c.failedRegions?.length||c.missing?.includes('time-budget')));
+AstroNotesCandidatePicker.exportSearch=plan=>{
+ plan=plan||snapshot();const result=plan&&engine.cached(plan);if(!result)return null;
+ // A page repeats the entire region list. Hundreds of such lists exceed
+ // the storage quota, while the provider cursor cannot be restored anyway.
+ const coverage={...result.coverage,retryPending:pendingSourceCount(result.coverage)};
+ delete coverage.loaded;
+ return {key:key(plan),result:{...result,coverage}};
+};
 AstroNotesCandidatePicker.importSearch=saved=>{const plan=snapshot();if(!plan||!saved||key(plan)!==saved.key||!engine.prime?.(plan,saved.result))return false;
  // The section for these conditions may already be on the page without results: build it again from the kept result.
  condition='';scheduleMount();return true;};
@@ -588,7 +605,7 @@ function mount(){
     .catch(error=>globalThis.AstroNotesErrors?.note('candidates.town-address',error));
    hasResults=!!rows.length;publishedRows=result.rows.length;
    if(partial){visibleCredits.hidden=!hasResults;main?.reveal();return;}
-   const sourcePending=result.coverage.retryPending??Number(result.coverage.loaded?.some(c=>c.failedRegions?.length||c.missing?.includes('time-budget')));
+   const sourcePending=pendingSourceCount(result.coverage);
    const incomplete=!!result.stalled||interrupted||sourcePending>0;
    continuation=cancelled||interrupted||!!result.canContinue;failed=!cancelled&&incomplete;
    renderAction();visibleCredits.hidden=!rows.length&&!result.paused;

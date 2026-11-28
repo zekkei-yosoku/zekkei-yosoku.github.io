@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
 const require=createRequire(import.meta.url),G=require('./astronotes-terrain.js');
 const {createLive}=require('./src/features/candidates/live-terrain.js');
 const {createGeneric,lensCheck,standingMetadata}=require('./src/features/candidates/generic-evaluator.js');
@@ -710,6 +712,91 @@ test('recommended duplicate owner cannot reset an active batch or replace its ca
  const duplicate=await engine.searchRecommended(plan,{onBatchStart:()=>resets++});assert.deepEqual(duplicate,{cancelled:true,reason:'busy'});assert.equal(resets,0);assert.deepEqual(engine.cached(plan),cached);
  release();assert.equal((await running).rows.length,2);
 }));
+
+function trialPreparation(createOptions){
+ const module={exports:{}};
+ const discovery=require('./src/features/candidates/search.js');
+ const script=readFileSync(new URL('./experiments/moon-map/src/features/candidates/generic-search.js',import.meta.url),'utf8');
+ runInNewContext(script,{module,AbortController,setTimeout,clearTimeout,AstroNotesCandidateDiscovery:{...discovery},
+  AstroNotesCandidateComposition:{...C,inverseSeeds:async()=>({seeds:[]})}});
+ return module.exports.createGenericSearch({yieldTask:async()=>{},provider:{load:async()=>({points:recommendedPoints(1),coverage:{nextCursor:null}})},
+  evaluate:async(p,q)=>recommendedRow(q),...createOptions});
+}
+
+test('trial persists rows and compact coverage without retrying confirmed sources',()=>{
+ const source=readFileSync(new URL('./experiments/moon-map/src/features/candidates/ui.js',import.meta.url),'utf8');
+ const start=source.indexOf('const pendingSourceCount='),end=source.indexOf('AstroNotesCandidatePicker.importSearch=',start);
+ assert(start>=0&&end>start);
+ const picker={};
+ const rows=[{id:'candidate',rank:[5,2]}];
+ const requestedRegions=Array.from({length:480},(_,id)=>({id,bbox:[139,35,139.005,35.005]}));
+ const loaded=Array.from({length:530},()=>({requestedRegions,failedRegions:[{id:1}]}));
+ const result={rows,canContinue:true,coverage:{regions:480,timeDeferredPoints:3,retryPending:0,loaded}};
+ runInNewContext(source.slice(start,end),{AstroNotesCandidatePicker:picker,engine:{cached:()=>result},snapshot:()=>plan,key:requestKey});
+ const saved=picker.exportSearch();
+ assert(JSON.stringify(saved).length<1000);
+ assert.equal(saved.result.rows,rows);
+ assert.equal(saved.result.coverage.regions,480);
+ assert.equal(saved.result.coverage.timeDeferredPoints,3);
+ assert.equal(saved.result.coverage.retryPending,0);
+ assert.equal(result.coverage.loaded.length,530);
+ delete result.coverage.retryPending;
+ assert.equal(picker.exportSearch().result.coverage.retryPending,1);
+ result.coverage.loaded=[{failedRegions:[],missing:['time-budget']}];
+ assert.equal(picker.exportSearch().result.coverage.retryPending,1);
+ result.coverage.loaded=[];
+ assert.equal(picker.exportSearch().result.coverage.retryPending,0);
+});
+
+test('trial restores cached rows after reload and appends only new candidates during continuation',async()=>{
+ const points=recommendedPoints(2),coverage={nextCursor:null,fetchedRegions:[{id:'checked-now'}]};
+ const api=trialPreparation({bodies,provider:{load:async()=>({points,coverage})},
+  evaluate:async(p,q)=>({...recommendedRow(q),rank:[1,0]})});
+ const saved={requestKey:requestKey(plan),rows:[{...recommendedRow(points[0]),rank:[5,2]},{id:'restored'}],
+  canContinue:true,coverage:{loaded:[{fetchedRegions:[{id:'checked-before'}]}]}};
+ assert.equal(api.prime(plan,saved),true);
+ assert.equal(api.cached(plan).rows[1].id,'restored');
+ const result=await api.searchRecommended(plan,{more:true});
+ assert.equal(result.cancelled,undefined);
+ assert.equal(result.rows.map(r=>r.id).join(','),'r0,restored,r1');
+ assert.deepEqual(result.rows[0].rank,[5,2]);
+ assert.deepEqual(result.rows[2].rank,[1,0]);
+ assert.equal(result.coverage.loaded.length,1);
+ assert.equal(result.coverage.loaded[0].fetchedRegions[0].id,'checked-now');
+ assert.equal(result.counts.checked,2);
+ assert.equal(result.canContinue,false);
+});
+
+test('trial keeps the restored result while preparing and rejects a duplicate caller before the solve',async()=>{
+ let release,bodyLoads=0;const gate=new Promise(resolve=>release=resolve);
+ const api=trialPreparation({bodies:{...bodies,ensure:()=>{bodyLoads++;return gate;}}}),saved={requestKey:requestKey(plan),rows:[{id:'restored'}]};
+ assert.equal(api.prime(plan,saved),true);
+ const search=api.searchRecommended(plan,{more:true});
+ const duplicate=api.searchRecommended(plan,{more:true});
+ assert.equal(api.cached(plan).rows[0].id,'restored');
+ release();
+ const [result,rejected]=await Promise.all([search,duplicate]);
+ assert.equal(rejected.reason,'busy');
+ assert.equal(bodyLoads,1);
+ assert.equal(result.rows.map(r=>r.id).join(','),'restored,r0');
+});
+
+test('late inverse preparation cannot overwrite the result of the newer trial search',async()=>{
+ let releaseOld,bodyLoads=0,current=true;
+ const held=new Promise(resolve=>releaseOld=resolve);
+ const api=trialPreparation({bodies:{...bodies,ensure:()=>++bodyLoads===1?held:Promise.resolve()}});
+ const saved={requestKey:requestKey(plan),rows:[{id:'restored'}],canContinue:true};
+ assert.equal(api.prime(plan,saved),true);
+ const first=api.searchRecommended(plan,{more:true,isCurrent:()=>current});
+ current=false;
+ const second=await api.searchRecommended(plan,{more:true});
+ assert.equal(second.rows.map(r=>r.id).join(','),'restored,r0');
+ current=true;
+ releaseOld();
+ assert.equal((await first).reason,'stale-owner');
+ assert.equal(api.cached(plan).rows.map(r=>r.id).join(','),'restored,r0');
+ assert.equal(api.cached(plan).canContinue,false);
+});
 
 test('recommended continuation moves past a repeatedly slow point without discarding it or its page data',()=>recommendedFixture(async()=>{
  let now=0,slow=true;const seen=[],loads=[],points=recommendedPoints(3);

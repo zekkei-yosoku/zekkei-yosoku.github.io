@@ -278,6 +278,52 @@ async function recordTimeFollow(page,near,label){
 }
 
 // 一覧が長くなっても地図と日時バーはシートの外。両方の中心で、候補ピンと一覧を往復する。
+async function candidatePinsFollowTiming(page,row,label){
+ const entry=page.locator('#mapWsCardView'),action=page.locator('#candidateSearchAction'),back=page.locator('#exploreBackToMap');
+ const at=await page.evaluate(()=>SkyMapUI.selectionState().at),hour=3600000;
+ const move=at=>page.evaluate(at=>SkyMapUI.setTime(at),at);
+ const havePins=()=>page.waitForFunction(()=>AstroNotesMapWorkspace.targetState().newPins>0);
+ const showPin=async()=>{await positionOnCanvas(page,row,{requireObserver:false});await havePins();};
+ const searchMode=async mode=>{
+  await entry.click();
+  const details=page.locator('#additionalCandidateSearch details');
+  await page.waitForFunction(()=>document.getElementById('candidateSearchAction')?.dataset.state==='idle');
+  if(!await details.evaluate(n=>n.open))await details.locator('summary').click();
+  await page.locator('#candidateSearchMode').selectOption(mode);
+ };
+ const complete=()=>page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2&&document.getElementById('candidateSearchAction')?.dataset.state==='idle');
+ await showPin();
+ await move(at+hour);
+ await showPin();
+ await searchMode('instant');
+ await action.click();
+ await complete();
+ assert(await page.evaluate(at=>AstroNotesCandidatePicker.visibleRows().every(r=>r.event.at===at),at+hour),label+': 選択した時刻の候補を表示');
+ await back.click();
+ await showPin();
+ const point=await screenPoint(page,row);
+ await page.mouse.click(point.x,point.y);
+ await page.waitForFunction(()=>AstroNotesMapWorkspace.targetState().selection?.kind==='new');
+ await move(at+2*hour);
+ await page.waitForFunction(()=>{const state=AstroNotesMapWorkspace.targetState();return !state.newPins&&!state.selection;},null,{timeout:4000});
+ await searchMode('window');
+ await page.locator('#candidateSearchStart').fill('22:00');
+ await page.locator('#candidateSearchEnd').fill('02:00');
+ await action.click();
+ await complete();
+ assert.deepEqual(await page.evaluate(()=>dateFixture.lastPlan.timeSpec),{
+  kind:'window',start:at-(at+32400000)%86400000+22*hour,end:at-(at+32400000)%86400000+26*hour,
+ },label+': 入力した日またぎの範囲で検索');
+ await back.click();
+ await showPin();
+ await move(at+3*hour);
+ await showPin();
+ await move(at+24*hour);
+ await page.waitForFunction(()=>!AstroNotesMapWorkspace.targetState().newPins);
+ await move(at);
+ await searchMode('day');
+ await back.click();
+}
 async function newPlaces(type,engine,center){
  const {fixture}=require('./candidate-date-fixture.cjs');
  const browser=await type.launch(engine==='chrome'?{channel:'chrome',headless:true}:{headless:true});
@@ -388,6 +434,7 @@ async function newPlaces(type,engine,center){
    await page.locator('#exploreBackToMap').click();
    assert.deepEqual(await view(page),{stage:'map',sheet:false,center});
    if(center==='target'){
+    await candidatePinsFollowTiming(page,row,label);
     const centerButton=page.locator('#mapWsCenterToggle');
     await page.evaluate(observer=>SkyMapUI.workspaceHost().restoreObserver(observer),OBSERVER);
     await page.waitForFunction(()=>!document.getElementById('mapWsCenterToggle').disabled);

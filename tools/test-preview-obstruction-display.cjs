@@ -131,7 +131,7 @@ function checkCommon(r,s){
     const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(30000);
     const row={engine,id:s.id,mode,base,fixtureNotice:'Public observer/time geometry; synthetic obstruction and terrain, not measured visibility.'};
     try{
-     await page.goto(base+'#/explore');await page.waitForFunction(()=>typeof SkyMapUI==='object'&&typeof aimTargetList==='function'&&typeof AstroNotesAssets==='object'&&AstroNotesAssets.modelsReady());
+     await page.goto(base+'#/explore');await page.waitForFunction(()=>typeof SkyMapUI==='object'&&typeof aimTargetList==='function'&&typeof AstroNotesAssets==='object');
      await prepare(page,s,mode);Object.assign(row,await measure(page),{writesBlocked,externalBlocked,errors});
      await page.locator('#aimLook').screenshot({path:out+'/'+engine+'-'+s.id+'.png'});
      if(mode==='ground-note'){

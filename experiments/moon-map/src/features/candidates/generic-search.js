@@ -86,12 +86,27 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,acceptCand
   }
   if(session?.busy)return {cancelled:true,reason:'busy'};
   if(!session?.inverse){
-   await wait(bodies.ensure(plan.body));if(!wanted())return {cancelled:true};
-   onProgress({stage:'inverse',checked:0});
-   const inverse=bandSeeds(await wait(root.AstroNotesTrialOverlap?.inverse?.(plan,p=>Composition.inverseSeeds(p,{bodies,isCurrent:wanted,yieldTask,...inverseOptions}))??Composition.inverseSeeds(plan,{bodies,isCurrent:wanted,yieldTask,...inverseOptions})),plan.seedBand);
-   if(!wanted())return {cancelled:true};
-   session=fresh(key,inverse);
-   sessions.set(key,session);while(sessions.size>4)sessions.delete(sessions.keys().next().value);
+   // Claim ownership before the first await so another caller with these
+   // conditions cannot start a second inverse solve.
+   const preparing=session??fresh(key,null);
+   preparing.busy=true;
+   preparing.current=wanted;
+   sessions.set(key,preparing);while(sessions.size>4)sessions.delete(sessions.keys().next().value);
+   const isOwner=()=>sessions.get(key)===preparing, ownsPreparation=()=>wanted()&&isOwner();
+   const stopped=()=>isOwner()?{cancelled:true}:{cancelled:true,reason:'stale-owner'};
+   try{
+    await wait(bodies.ensure(plan.body));if(!ownsPreparation())return stopped();
+    onProgress({stage:'inverse',checked:0});
+    const solve=p=>Composition.inverseSeeds(p,{bodies,isCurrent:ownsPreparation,yieldTask,...inverseOptions});
+    const inverse=bandSeeds(await wait(root.AstroNotesTrialOverlap?.inverse?.(plan,solve)??solve(plan)),plan.seedBand);
+    if(!ownsPreparation())return stopped();
+    session=fresh(key,inverse,preparing.lastResult);
+    // The page reload saved rows, but not the provider and evaluator queues.
+    // Keep the confirmed rows as the new pass regenerates work at its start.
+    if(more){session.rows=preparing.rows.slice();session.seenRows=new Set(preparing.seenRows);}
+    sessions.set(key,session);
+   }catch(error){if(!isOwner())return stopped();throw error;}
+   finally{preparing.busy=false;}
   }
   if(!more&&session.started)return {...result(session),cached:true};
   session.busy=true;session.current=wanted;let pendingPoint=null;
@@ -138,7 +153,8 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,acceptCand
       session.mapChecked=true;}}
     onProgress({stage:'places',...session.counts});
     const cursor=retrySource?.cursor??session.cursor??0;
-    const data=await wait(provider.load(plan,{...providerOptions,regions:session.regions,cursor,isCurrent:wanted,onProgress,signal,deadline,retryFailed,pointKinds:placeKinds}));
+    session.regionSchedule??=provider.prepareRegions?.(session.regions);
+    const data=await wait(provider.load(plan,{...providerOptions,regions:session.regions,regionSchedule:session.regionSchedule,cursor,isCurrent:wanted,onProgress,signal,deadline,retryFailed,pointKinds:placeKinds}));
     if(!wanted()||data.cancelled)return {cancelled:true};
     const points=[...(data.points||[])];
     // Surveyed places of this target go in once, wherever the regions lie (place-provider.js surveyedViewpoints).
@@ -264,7 +280,7 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,acceptCand
      pointLimit:Math.min(maxPointsPerBatch,maxEvaluations-checked),shouldPause:()=>places>=goal||(sessions.get(key)?.counts.checked||0)-initialChecked>=maxEvaluations,
      providerOptions:{maxTiles:2,maxPoints:48}});
     if(!external())return {cancelled:true};
-    if(next.cancelled){if(next.reason==='busy')return next;break;}
+    if(next.cancelled){if(next.reason==='busy'||next.reason==='stale-owner')return next;break;}
     if(retryWork){const retained=sessions.get(key)?.retryWork.get(retryWork.id);if(!retained||retained.attempts!==retryWork.attempts)retries.delete(retryWork.id);}
     page=next;places=countPlaces(page.rows);
     if(!page.canContinue)return page;
@@ -322,8 +338,12 @@ function createGenericSearch({provider,evaluate,bodies,prefilter=null,acceptCand
  }
  return {search,searchAll,searchRecommended,restart,cached:plan=>{const s=sessions.get(requestKey(plan));return s?.lastResult?{...s.lastResult,rows:s.lastResult.rows.slice(),cached:true}:null;},clear:()=>sessions.clear(),
   // A result kept across a page reload (iOS drops a backgrounded page). It only answers cached(); continuing searches afresh.
-  prime:(plan,saved)=>{const key=requestKey(plan);if(!saved||!Array.isArray(saved.rows)||saved.requestKey!==key||sessions.get(key)?.lastResult)return false;
-   sessions.set(key,{key,lastResult:{...saved,rows:saved.rows.slice(),cached:false}});while(sessions.size>4)sessions.delete(sessions.keys().next().value);return true;}};
+  prime:(plan,saved)=>{const key=requestKey(plan),existing=sessions.get(key);
+   if(!saved||!Array.isArray(saved.rows)||saved.requestKey!==key||existing?.lastResult||existing?.busy&&existing.current?.()!==false)return false;
+   const rows=saved.rows.slice(),session=fresh(key,null,{...saved,rows,cached:false});
+   session.rows=rows.slice();
+   session.seenRows=new Set(rows.map(row=>row?.id).filter(id=>id!=null));
+   sessions.set(key,session);while(sessions.size>4)sessions.delete(sessions.keys().next().value);return true;}};
 }
 api.requestKey=requestKey;api.regionsFor=regionsFor;api.createGenericSearch=createGenericSearch;
 if(typeof module==='object'&&module.exports)module.exports={requestKey,regionsFor,createGenericSearch,bandSeeds};

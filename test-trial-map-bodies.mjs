@@ -57,6 +57,24 @@ test('試用版の金線は従来と同じ位置・時刻・高さを返し、�
  assert.equal(cancelled.length,0);
 });
 
+test('候補の輪郭だけを取得しても、全投影と同じ頂点と順序を返す',()=>{
+ const c=vm.createContext({AstroNotesAstro:Astro,AstroNotesTerrain:Geo,AstroNotesBodies:B,AstroNotesAtmosphere:Atmosphere,
+  AstroNotesTowerModels:A.TOWER_MODELS,AstroNotesCityModels:A.CITY_MODELS});
+ vm.runInContext(readFileSync(new URL('./experiments/moon-map/astronotes-align.js',import.meta.url),'utf8'),c);
+ const next=c.AstroNotesAlign;
+ for(const id of ['skytree','tokyotower','tocho-building','cinderella','tower-terror','tinkerbell','fuji']){
+  const t=A.targetById(id);assert(t,id);
+  for(const [az,km,eyeM]of [[7,.15,1.5],[135,2,21],[259,12,0],[19,90,1.5]]){
+   const p={...Geo.destination(t.latitude,t.longitude,az,km),elevation:25};
+   const full=A.towerOutline(p,t,{eyeM});
+   assert.deepEqual(structuredClone(next.towerOutline(p,t,{eyeM})),full,id);
+   const rings=structuredClone(next.towerOutline(p,t,{eyeM,ringsOnly:true}));
+   if(!full||!full.polygons){assert.deepEqual(rings,full,id);continue;}
+   assert.deepEqual(rings,{polygons:full.polygons,hitPolygons:full.hitPolygons,known:full.known,schematic:full.schematic},id);
+  }
+ }
+});
+
 // private関数の露出はこのVMだけ。配信資産やアプリのglobalには検査用口を追加しない。
 function workspace({body='sirius',bodies=B,align=A}={}){
  const h={session:{body,at:day,eyeM:1.5,partId:'__whole',target,eye:observer,observer},targetOn:true,redraw(){},skyState:(body,at,o)=>B.state(body,at,o,{refraction:false})};

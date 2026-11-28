@@ -23,7 +23,9 @@ const base=process.env.VIEW_FIRST_BASE||'http://127.0.0.1:8992/trial/',tools=['r
    return route.continue();});
   const page=await context.newPage();page.setDefaultTimeout(30000);
   await page.goto(base+'index.html#/explore');
-  await page.waitForFunction(()=>typeof SkyMapUI==='object'&&typeof aimTargetList==='function'&&typeof AstroNotesAssets==='object'&&AstroNotesAssets.modelsReady());
+  await page.waitForFunction(()=>typeof SkyMapUI==='object'&&typeof aimTargetList==='function'&&typeof AstroNotesAssets==='object');
+  const isMapTrial=await page.evaluate(()=>!!document.querySelector('meta[name="astronotes-trial-experiment"]'));
+  if(isMapTrial)assert.equal(await page.evaluate(()=>AstroNotesAssets.modelsReady()),false,'Explore starts with the preview models unloaded');
   await page.evaluate(async()=>{await startupSessionReady;
    const t=aimTargetList().find(x=>x.name==='東京タワー');SkyMapUI.workspaceHost().restoreTarget({target:structuredClone(t),custom:false});
    SkyMapUI.workspaceHost().restoreObserver({latitude:35.66965,longitude:139.76405,elevation:4.3,name:'確認地点',eyeHeightAGL:1.5});
@@ -34,6 +36,7 @@ const base=process.env.VIEW_FIRST_BASE||'http://127.0.0.1:8992/trial/',tools=['r
   await page.locator('#exploreShowResult').click();
   await page.waitForFunction(()=>{const l=document.getElementById('aimLook');return l&&!l.hidden&&l._lookLayers?.stats?.frames>0;},null,{timeout:3500});
   const drawn=Date.now()-t0;
+  assert.equal(await page.evaluate(()=>AstroNotesAssets.modelsReady()),true,'opening the preview loads its own models');
   assert.equal(weatherDone,false,'the view is on screen before the weather answers ('+drawn+' ms)');
   let timer;
   try{

@@ -13,7 +13,7 @@ const hms=at=>new Date(at+9*3600000).toISOString().slice(11,19);
 
 async function prepare(page){
  await page.goto(base+'index.html#/explore');
- await page.waitForFunction(()=>typeof SkyMapUI==='object'&&typeof aimTargetList==='function'&&typeof AstroNotesAssets==='object'&&AstroNotesAssets.modelsReady());
+ await page.waitForFunction(()=>typeof SkyMapUI==='object'&&typeof aimTargetList==='function'&&typeof AstroNotesAssets==='object');
  await page.evaluate(async({observer,at})=>{
   await startupSessionReady;await AstroNotesAssets.ensureModels();
   groundAt=async()=>observer.elevation;aimBuildingDays=async()=>[];
