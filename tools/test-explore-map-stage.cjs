@@ -17,6 +17,7 @@ async function open(browser,width,theme){
  await context.addInitScript(t=>sessionStorage.setItem('sorami.token',JSON.stringify({token:'synthetic-ui',loginId:'map-stage',tools:t})),tools);
  await context.route('**/*',route=>{const u=new URL(route.request().url());
   if(/zekkei-api|localhost:8787/.test(u.origin))return route.fulfill({json:{allowed:true,tool:'skymap',loginId:'map-stage',tools,favorites:[],sightings:[],records:[],rev:1}});
+  if(u.host==='nominatim.openstreetmap.org')return route.fulfill({json:{address:{city:'テスト市',quarter:'選んだ地点'}}});
   if(/open-meteo|cyberjapandata|overpass|openstreetmap|wikidata/.test(u.host))return route.abort();
   return route.continue();});
  const page=await context.newPage();page.setDefaultTimeout(30000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -47,6 +48,38 @@ async function chooseTargetFromMapCard(browser,engine){
   await dialog.waitFor({state:'hidden'});
   assert.equal(await stage(page),'map',engine+': 対象を適用しても地図を表示');
   await page.waitForFunction(()=>SkyMapUI.selectionState()?.target?.id==='tokyotower'&&document.getElementById('skyMapView').hasAttribute('data-explore-dropdown'));
+  assert(await page.locator('#skyMapCanvas').isVisible());
+
+  await page.locator('#skyMapChoose').click();
+  const places=page.locator('#placeSheet[open]');
+  await page.waitForFunction(()=>!pagePop.n);
+  await places.locator('#mapButton').click();
+  const placeMap=page.locator('#mapSheet[open]');
+  await placeMap.waitFor();
+  await page.waitForFunction(()=>!pagePop.n);
+  const point={latitude:35.70,longitude:139.71};
+  await page.evaluate(({latitude,longitude})=>MapPick.setCenter(latitude,longitude),point);
+  await placeMap.locator('#mapPick').click();
+  await placeMap.waitFor({state:'hidden'});
+  await page.waitForFunction(()=>SkyMapUI.selectionState()?.observer?.latitude===35.70);
+  // Map confirmation returns to the shared place picker. Its back button returns to Explore's conditions.
+  await places.locator('.page-back').click();
+  await places.waitFor({state:'hidden'});
+  const selected=()=>page.evaluate(()=>{
+   const {target,observer}=SkyMapUI.selectionState();
+   return {target:target?.id,latitude:observer?.latitude,longitude:observer?.longitude};
+  });
+  assert.deepEqual(await selected(),{target:'tokyotower',...point});
+  assert.equal(await stage(page),'map',engine+': 撮影地点を確定しても地図を表示');
+  assert(await page.locator('#skyMapCanvas').isVisible());
+  await page.locator('#mapWsConfirmConditions').click();
+  await page.reload();
+  await page.waitForFunction(()=>{
+   const view=document.getElementById('skyMapView'),selection=SkyMapUI.selectionState();
+   return view.dataset.exploreStage==='map'&&view.classList.contains('map-ws')&&selection?.observer?.latitude===35.70;
+  });
+  assert.deepEqual(await selected(),{target:'tokyotower',...point});
+  assert(await page.locator('#exploreConditions').isHidden());
   assert(await page.locator('#skyMapCanvas').isVisible());
   assert.deepEqual(errors,[],engine+': page errors');
  }finally{await context.close();}
@@ -145,7 +178,36 @@ async function reopenKeepsSearch(type,engine){
     const shown=await page.evaluate(()=>{const empty=document.getElementById('candidateSearchEmpty');return {stopped:!empty.hidden&&!!empty.offsetParent&&empty.textContent==='地図へ戻ったため候補探しを止めました。もう一度「候補を探す」を押してください。',list:!!document.getElementById('recentCandidates').offsetParent,
      rows:document.querySelectorAll('#candidateUnifiedResults>.list-item:not([hidden])').length,feedback:document.getElementById('candidateSearchFeedback')?.innerText||''};});
     assert(shown.stopped&&!shown.list||!shown.stopped&&shown.list&&shown.rows>0,JSON.stringify(shown));}
-   else{await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2);assert(await page.locator('#candidateUnifiedResults>.list-item').first().isVisible());}
+   else{
+    const view=page.locator('#skyMapView'),canvas=page.locator('#skyMapCanvas');
+    const candidateList=page.locator('#candidateUnifiedResults'),row=candidateList.locator('.list-item:visible').first();
+    await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2);
+    assert(await row.isVisible());
+    const candidates=()=>page.evaluate(()=>({ids:AstroNotesCandidatePicker.visibleRows().map(row=>row.id),loads:dateFixture.loads.length}));
+    const before=await candidates();
+    await page.locator('#mapWsTitle').click();
+    await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-dropdown'));
+    assert(await canvas.isVisible());
+    assert(await page.locator('#skyMapTargetOpen').isVisible());
+    assert(await candidateList.isHidden());
+    await page.locator('#mapWsConfirmConditions').click();
+    await view.locator('#candidateWorkspaceAction').waitFor();
+    assert.equal(await view.getAttribute('data-explore-sheet'),'');
+    assert.deepEqual(await candidates(),before,engine+': 条件パネルを開閉しても探索結果を維持');
+    await row.click();
+    await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='preview');
+    await page.locator('#aimLook').waitFor();
+    await page.locator('#exploreConditions > summary .explore-condition-edit').click();
+    assert(await page.locator('#skyMapTargetOpen').isVisible());
+    assert.equal(await stage(page),'preview',engine+': 見え方の条件はその画面で開く');
+    await page.locator('#exploreShowResult').click();
+    assert.equal(await stage(page),'preview');
+    await page.getByRole('button',{name:'候補へ戻る',exact:true}).click();
+    await row.waitFor();
+    assert.equal(await view.getAttribute('data-explore-sheet'),'');
+    assert(await canvas.isVisible());
+    assert.deepEqual(await candidates(),before,engine+': 候補に戻っても再検索を行わない');
+   }
    assert.deepEqual(errors,[]);
   }finally{await context.close();}
  }}finally{await browser.close();}
@@ -293,15 +355,20 @@ async function reopenKeepsSearch(type,engine){
      await page.screenshot({path:`${out}/${label}-view.png`});
      await page.locator('#exploreBackToCandidates').click();assert.equal(await stage(page),'map');
      assert(await page.evaluate(()=>document.getElementById('skyMapView').classList.contains('map-ws')));
-     // 全画面の撮影条件は、シートの条件帯から。そこでの検索から見え方→戻ると撮影条件。
-     await page.locator('#mapWsNewPlaces').click();await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet'));
-     await page.locator('#mapWsTitle').click();await page.waitForFunction(()=>!document.getElementById('skyMapView').hasAttribute('data-explore-sheet'));assert.equal(await stage(page),'search');
-     const popup=await page.evaluate(()=>{const visible=id=>{const n=document.getElementById(id);return !!(n?.closest('.condition-field')||n)?.offsetParent;};return {back:document.getElementById('exploreBackToMap').getBoundingClientRect().height,mapHidden:!document.getElementById('skyMapCanvas').offsetParent,fields:['skyMapBody','skyMapTarget','skyMapChoose','exploreShowResult','candidateWorkspaceAction','exploreOpportunityLink'].every(visible),overflowX:document.documentElement.scrollWidth>innerWidth+1};});
-     assert(popup.back>=44&&popup.mapHidden&&popup.fields&&!popup.overflowX,label+': '+JSON.stringify(popup));
-     await page.locator('#exploreShowResult').click();assert.equal(await stage(page),'preview');
-     assert.notEqual(await page.locator('#exploreBackToCandidates').getAttribute('aria-label'),'地図へ戻る');
-     await page.locator('#exploreBackToCandidates').click();assert.equal(await stage(page),'search');
-     await page.locator('#exploreBackToMap').click();assert.equal(await stage(page),'map');
+     // 下部シートの上から条件を開いても地図を残し、確定すると同じ下部シートへ戻る。
+     await page.locator('#mapWsNewPlaces').click();
+     await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet'));
+     await page.locator('#mapWsTitle').click();
+     await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-dropdown'));
+     assert(await page.locator('#skyMapCanvas').isVisible(),label+': シートから条件を開いても地図を表示');
+     assert(await page.locator('#skyMapTargetOpen').isVisible()&&await page.locator('#skyMapChoose').isVisible());
+     assert(await page.locator('#exploreShowResult').isHidden(),label+': 地図の条件に旧検索ボタンを表示しない');
+     await page.locator('#mapWsConfirmConditions').click();
+     await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet')&&!document.getElementById('skyMapView').hasAttribute('data-explore-dropdown'));
+     assert.equal(await stage(page),'search');
+     assert(await page.locator('#skyMapCanvas').isVisible());
+     await page.getByRole('button',{name:'閉じる',exact:true}).click();
+     assert.equal(await stage(page),'map');
      // 重なる日・地図の候補など、ポップアップを開かずに選んだ候補も見え方を開き、戻ると地図（選択の受付は地図の段でも有効）。
      await page.evaluate(()=>{document.dispatchEvent(new Event('astronotes-candidate-selecting'));document.dispatchEvent(new CustomEvent('astronotes-candidate-selected',{detail:{}}));});
      assert.equal(await stage(page),'preview',label+': 地図の段で選んだ候補で見え方が開く');
@@ -310,8 +377,10 @@ async function reopenKeepsSearch(type,engine){
      // 地図を動かしてからポップアップを開閉しても、同じ撮影地点と対象なら位置と縮尺は保つ。
      const before=await page.evaluate(()=>{const m=SkyMapUI.workspaceHost().map;m.setView(35.6,139.6,12.5);return {c:m.center(),z:m.zoom()};});
      await page.locator('#mapWsNewPlaces').click();await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet'));
-     await page.locator('#mapWsTitle').click();await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='search'&&!document.getElementById('skyMapView').hasAttribute('data-explore-sheet'));
-     await page.locator('#exploreBackToMap').click();
+     await page.locator('#mapWsTitle').click();await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-dropdown'));
+     await page.locator('#mapWsConfirmConditions').click();
+     await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet'));
+     await page.getByRole('button',{name:'閉じる',exact:true}).click();
      const after=await page.evaluate(()=>{const m=SkyMapUI.workspaceHost().map;return {c:m.center(),z:m.zoom()};});
      assert(Math.abs(after.z-before.z)<1e-6&&Math.abs(after.c.latitude-before.c.latitude)<1e-6&&Math.abs(after.c.longitude-before.c.longitude)<1e-6,label+': '+JSON.stringify({before,after}));
      // ☰はアプリのメニュー（無い利用者はホーム）。

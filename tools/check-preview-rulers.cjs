@@ -1,8 +1,9 @@
+const {showExploreView}=require('./explore-open-conditions.cjs');
 const assert=require('node:assert/strict');
 module.exports=async(p,path)=>{
  const saved=await p.evaluate(()=>({favorites:structuredClone(favorites)}));
  await p.evaluate(async()=>{navigationHistory.pushRoute('#/explore');await SkyMapUI.open();const point={id:'ruler-place',name:'高さ範囲の地点',latitude:35.73874,longitude:139.90204,elevation:5,groundManualM:5,eyeHeightAGL:20,eyeHeightRangeAGL:{min:20,max:150}};favorites=[point];MyPlacesUI.imported();SkyMapUI.setTarget('skytree');SkyMapUI.setObserver(point);SkyMapUI.setTime(Date.parse('2026-11-25T09:02:00+09:00'));});
- await p.locator('#exploreShowResult').click();await p.locator('#previewEyeRuler').waitFor({state:'visible'});await p.waitForFunction(()=>!!document.querySelector('#aimLook [data-look-canvas]')&&!document.getElementById('aimLook').hidden);
+ await showExploreView(p);await p.locator('#previewEyeRuler').waitFor({state:'visible'});await p.waitForFunction(()=>!!document.querySelector('#aimLook [data-look-canvas]')&&!document.getElementById('aimLook').hidden);
  const fillHeight=async value=>{await p.locator('#previewEyeValue').focus();await p.locator('#previewEyeValue').fill(value);await p.locator('#previewEyeValue').press('Enter');};
  await p.evaluate(()=>{window.eyeHideSamples=[];window.eyeHideObserver=new MutationObserver(()=>{if(document.getElementById('aimLook').hidden)eyeHideSamples.push(true);});eyeHideObserver.observe(document.getElementById('aimLook'),{attributes:true,attributeFilter:['hidden']});});
  const atHeight=async h=>p.waitForFunction(h=>Math.abs(SkyMapUI.selectionState().observer.standAglM-h)<.001,h);

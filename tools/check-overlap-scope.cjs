@@ -1,7 +1,7 @@
 // 重ねる対象（個別/全て）の実画面検査。合成アカウント・API writeはstubし、本人データを使わない。
 // UI_PREVIEW_PORT=8992 node tools/serve-ui-preview.cjs を別に起動して実行する。
 require('./no-open-meteo.cjs');
-require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
+const {openExploreFields,showExploreView}=require('./explore-open-conditions.cjs');
 const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs');
 const base=process.env.OVERLAP_BASE||'http://127.0.0.1:8992/trial/index.html',out=process.env.OVERLAP_OUT||'/tmp/astronotes-overlap-scope',grants=['records','tower','diamond','pearl','skymap','multiscene'];
 fs.mkdirSync(out,{recursive:true});
@@ -25,7 +25,7 @@ for(const [engine,type]of [['chrome',chromium],['webkit',webkit]].filter(([e])=>
    await page.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();RecordSync.touched=()=>{};RecordSync.kick=()=>{};accountSync().queuePush=()=>{};accountSync().queuePushAll=()=>{};
     window.overlapCalls=[];const days=aimBuildingDays;aimBuildingDays=(obs,t,body,partId,seq,o)=>{overlapCalls.push([t.id,partId,o?.matchMode]);return days(obs,t,body,partId,seq,o);};
     navigationHistory.pushRoute('#/explore');await SkyMapUI.open();});
-   await page.locator('#exploreShowResult').waitFor({state:'visible'});
+   await openExploreFields(page);
    await pick(page,['fuji']);
    const setBody=value=>page.evaluate(value=>{const input=document.getElementById('skyMapBody');input.value=value;input.dispatchEvent(new Event('change',{bubbles:true}));},value);
    await setBody('sun');
@@ -88,7 +88,7 @@ for(const [engine,type]of [['chrome',chromium],['webkit',webkit]].filter(([e])=>
    // 両方が同じ方向に見える地点。候補日は各対象の全体走査の和。
    await page.evaluate(()=>{overlapCalls.length=0;SkyMapUI.setObserver({name:'重ね試験地点',latitude:35.80,longitude:139.86,elevation:5});});
    await page.waitForFunction(()=>SkyMapUI.selectionState().observer?.name==='重ね試験地点');await shot('search-all');
-   await page.locator('#exploreShowResult').click();await stage(page,'preview');
+   await showExploreView(page);await stage(page,'preview');
    // 候補日（見え方の段階で計算する既存契約）：各対象の全体走査の和。
    await page.waitForFunction(()=>overlapCalls.some(c=>c[0]==='skytree')&&overlapCalls.some(c=>c[0]==='tokyotower'),null,{timeout:90000});
    const calls=await page.evaluate(()=>overlapCalls.slice());assert(calls.every(c=>c[2]==='overlap'),'candidate dates scan every member as 全体');result.dateCalls=calls.length;
@@ -104,9 +104,9 @@ for(const [engine,type]of [['chrome',chromium],['webkit',webkit]].filter(([e])=>
    const rec=await page.evaluate(()=>{const before=MyPlacesUI.load().length;const b=[...document.querySelectorAll('[data-quick-save="place"][data-plan-source="aim"]')][0];b.click();const added=MyPlacesUI.load().slice(before);return {keys:added.map(r=>r.target.key),places:[...new Set(added.map(r=>r.placeId))].length,notice:document.getElementById('quickSaveNoticeText')?.textContent};});
    assert.deepEqual(rec.keys.sort(),['skytree','tokyotower']);assert.equal(rec.places,1);assert.match(rec.notice,/登録しました/);result.record=rec;
    // 個別へ戻すと他の対象は残して描画し、強調は重ねる対象だけ。
-   await page.locator('#exploreBackToCandidates').click();await stage(page,'search');
+   await page.locator('#exploreBackToCandidates').click();await openExploreFields(page);
    await page.locator('#skyMapOverlapTarget').selectOption('tokyotower');assert.equal(await page.evaluate(()=>AstroNotesTrialOverlap.isAll()),false);
-   await page.locator('#exploreShowResult').click();await stage(page,'preview');await page.waitForFunction(()=>AstroNotesTrialOverlap.lastAccent?.mode==='one');
+   await showExploreView(page);await stage(page,'preview');await page.waitForFunction(()=>AstroNotesTrialOverlap.lastAccent?.mode==='one');
    s=await page.evaluate(()=>({accent:AstroNotesTrialOverlap.lastAccent,backdrop:aimSceneBackdrop().map(t=>t.id)}));assert.deepEqual(s.accent.ids,['tokyotower']);assert(s.backdrop.includes('skytree'),'other targets remain drawn');
    await shot('preview-one');
    // 共有の復元：拡張なし→個別、全て→表示集合と全て、受信側に無い対象→基準対象へ。

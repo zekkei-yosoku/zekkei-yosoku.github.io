@@ -17,7 +17,7 @@ const base=process.env.COMPOSE_BASE||'http://127.0.0.1:8992/trial/',tools=['reco
    const p=await context.newPage(),errors=[];p.setDefaultTimeout(30000);p.on('pageerror',e=>errors.push(e.message));
    await p.goto(base+'#/explore');await p.waitForFunction(()=>typeof SkyMapUI==='object'&&typeof AstroNotesCandidatePicker==='object'&&typeof startupSessionReady!=='undefined');
    await p.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>25;aimBuildingDays=async()=>[];navigationHistory.pushRoute('#/explore');SkyMapUI.setTarget('skytree');const b=document.getElementById('skyMapBody');b.value='sun';b.onchange();SkyMapUI.setTime(Date.parse('2026-11-05T12:00:00+09:00'));});
-   await p.waitForTimeout(500);await p.locator('#exploreDiscovery-new').click();await p.locator('#candidateSearchAction').click();
+   await p.waitForTimeout(500);await p.locator('#candidateSearchAction').click();
    await p.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2&&document.getElementById('candidateSearchAction').dataset.state==='idle');
    const loads=await p.evaluate(()=>dateFixture.loads.length);
    await p.locator('#candidateUnifiedResults .list-item:not([hidden])').first().click();

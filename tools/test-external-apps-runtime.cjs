@@ -1,7 +1,7 @@
 // Real trial UI, with only outbound launch/file/share ports captured. No OS app
 // launch, calendar registration, personal records, or forecast requests occur.
 require('./no-open-meteo.cjs');
-require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
+const {showExploreView}=require('./explore-open-conditions.cjs');
 const {chromium,webkit}=require('playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const base=process.env.EXTERNAL_APPS_BASE||'http://127.0.0.1:8997/trial/';
@@ -82,7 +82,7 @@ async function checkLayout(p,id){
    try{
     await p.goto(base+'#/explore');await p.waitForFunction(()=>typeof SkyMapUI==='object'&&!!AstroNotesPlan.externalApps);
     await p.evaluate(async theme=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>83;aimBuildingDays=async()=>[];document.documentElement.dataset.theme=theme;aimAirSettings.mode='standard';AstroNotesAtmosphere.configure('standard',aimAirSettings);SkyMapUI.setObserver({name:'外部連携テスト地点',latitude:35.583465,longitude:139.568839,groundManualM:83,standAglM:4});SkyMapUI.setTarget('skytree');const b=document.getElementById('skyMapBody');b.value='moon';b.onchange();SkyMapUI.setTime(Date.parse('2026-11-05T12:34:56+09:00'));},theme);
-    await p.locator('#exploreShowResult').click();
+    await showExploreView(p);
     await p.waitForFunction(()=>{try{TrialExplore.assertScene();return !!planSnapshot({dataset:{planSource:'aim'}}).payload;}catch{return false;}},null,{timeout:45000});
     assert.equal(await p.evaluate(()=>externalFixture.instances),1);const initialState=await state(p),personal=await stored(p);
     await calendar(p);await fillEvent(p);assert.equal(await p.locator('#planGoogle,#planIcs').count(),0);assert.equal(await p.locator('#planCalendarAdd').count(),1);assert(!(await p.locator('#planCalendar').innerText()).includes('予定ファイルは'));

@@ -1,7 +1,6 @@
 // Real runtime listeners. Chromium uses trusted CDP touch input; WebKit uses
 // DOM touch events because Playwright exposes no WebKit touch-drag API.
 require('./no-open-meteo.cjs');
-require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs');
 const {fixture}=require('./candidate-date-fixture.cjs');
 const base=process.env.PREVIEW_SWIPE_BASE||'http://127.0.0.1:8992/trial/index.html';
@@ -10,11 +9,25 @@ const values=(name,fallback)=>(process.env[name]||fallback).split(',');
 const grants=['records','tower','diamond','pearl','skymap','multiscene'];
 fs.mkdirSync(out,{recursive:true});
 const frames=page=>page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-const state=page=>page.evaluate(()=>({hash:location.hash,stage:document.getElementById('skyMapView').dataset.exploreStage,selection:SkyMapUI.selectionState(),history:history.state,scroll:document.scrollingElement.scrollTop,menu:!document.getElementById('toolsMenu').hidden&&document.getElementById('toolsMenu').classList.contains('on')}));
+const state=page=>page.evaluate(()=>{
+ const view=document.getElementById('skyMapView'),sheet=view.hasAttribute('data-explore-sheet');
+ const scroll=sheet?document.getElementById('exploreConditions').scrollTop:document.scrollingElement.scrollTop;
+ return {hash:location.hash,stage:view.dataset.exploreStage,sheet,selection:SkyMapUI.selectionState(),history:history.state,scroll,
+  menu:!document.getElementById('toolsMenu').hidden&&document.getElementById('toolsMenu').classList.contains('on')};
+});
 const saved=page=>page.evaluate(()=>JSON.stringify({favorites,records:MyPlacesUI.load(),schedule:schedule().list()}));
 // Candidate opportunity is derived from the chosen result, not a search condition.
 const conditions=selection=>{const {candidateOpportunity,...value}=selection;return value;};
 async function readyPreview(page){await page.waitForFunction(()=>{const h=document.getElementById('aimLook'),s=SkyMapUI.selectionState(),scene=document.getElementById('exploreScenePanel');return scene&&!scene.hidden&&!scene.hasAttribute('data-loading')&&!h.hidden&&h._trialCompositionView&&Math.abs(h._lookAt-s.at)<1000;});}
+async function showMapPreview(page){
+ await page.locator('#mapWsCardView').click();
+ await readyPreview(page);
+}
+async function openCandidateSheet(page){
+ await page.locator('#mapWsNewPlaces').click();
+ await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet'));
+ assert(await page.locator('#skyMapCanvas').isVisible(),'new-place search keeps the map visible');
+}
 async function boot(page){
  await page.goto(base+'#/almanac');await page.waitForFunction(()=>typeof SkyMapUI==='object'&&typeof AstroNotesCandidatePicker==='object');
  await page.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>25;aimBuildingDays=async()=>[];navigationHistory.pushRoute('#/explore');});
@@ -38,11 +51,11 @@ async function touchDriver(page,engine){
 async function swipe(page,driver,points,{cancel=false,delay=25}={}){await page.evaluate(()=>previewSwipeTrace=[]);await driver.start([points[0]]);for(const p of points.slice(1)){await page.waitForTimeout(delay);await driver.move([p]);}await driver.end(cancel);await page.waitForTimeout(160);await frames(page);}
 async function edgePoints(page,{x=8,dx=152,dy=0,y}={}){if(y===undefined)y=await page.locator('#aimLook [data-look-canvas]').evaluate(node=>{const r=node.getBoundingClientRect();return Math.min(innerHeight-210,r.top+r.height*.4);});return [0,.25,.5,.75,1].map(t=>({x:x+dx*t,y:y+dy*t}));}
 async function directReturn(page,driver,result,key='direct',editing=false){
- const before=await state(page);await page.locator('#exploreShowResult').click();await readyPreview(page);const preview=await state(page);
+ const before=await state(page);await showMapPreview(page);const preview=await state(page);
  if(editing)await page.locator('#trialCompositionToggle').click();const composition=await page.evaluate(()=>AstroNotesTrialComposition.plan());
  if(editing){result.outerEditingCancelled=[];for(const [name,dx,cancel]of [['tap',0,false],['short',12,false],['cancel',140,true]]){await swipe(page,driver,await edgePoints(page,{x:12,dx}),{cancel});assert.equal((await state(page)).stage,'preview',name+' does not return');assert.deepEqual(await page.evaluate(()=>AstroNotesTrialComposition.plan()),composition,name+' on the outside edge does not change the composition');assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().at),preview.selection.at,name+' on the outside edge does not select a path time');result.outerEditingCancelled.push({name,trace:await page.evaluate(()=>previewSwipeTrace)});}}
  await swipe(page,driver,await edgePoints(page));const after=await state(page),trace=await page.evaluate(()=>previewSwipeTrace);result[key]={before,preview,after,trace};
- assert.equal(after.stage,'search','left-edge swipe returns from preview to search');assert.equal(after.hash,before.hash,'preview return stays on the Explore route');assert(!after.menu,'preview return does not open the drawer');assert.deepEqual(after.selection,before.selection,'direct preview returns to its original search conditions');assert.deepEqual(after.history,before.history,'preview return does not change route history');
+ assert.equal(after.stage,'map','left-edge swipe returns from the map preview to the map');assert.equal(after.hash,before.hash,'preview return stays on the Explore route');assert(!after.menu,'preview return does not open the drawer');assert.deepEqual(after.selection,before.selection,'direct preview returns to its original map conditions');assert.deepEqual(after.history,before.history,'preview return does not change route history');
  assert(trace.find(event=>event.type==='touchstart')?.defaultPrevented,'the outer 8px preview gesture prevents the native back gesture');
  assert.deepEqual(await page.evaluate(()=>AstroNotesTrialComposition.plan()),composition,'an outer-edge swipe does not change the composition');
  if(editing)for(const event of trace)assert.deepEqual(event.composition,composition,'pointerdown before touchstart must not select outside the canvas');
@@ -50,7 +63,7 @@ async function directReturn(page,driver,result,key='direct',editing=false){
 }
 async function expectPreview(page,before,label){const after=await state(page);assert.equal(after.stage,'preview',label+' stays in preview');assert.equal(after.hash,before.hash,label+' keeps the route');assert(!after.menu,label+' does not open the drawer');return after;}
 async function negativeGestures(page,driver,result){
- await page.locator('#exploreShowResult').click();await readyPreview(page);const before=await state(page);result.negative=[];
+ await showMapPreview(page);const before=await state(page);result.negative=[];
  for(const [name,options,gesture]of [['short',{dx:20}],['slow-short',{dx:30},{delay:90}],['vertical',{dx:3,dy:90}],['reverse',{x:24,dx:-20}],['central',{x:80,dx:120}],['cancel',{}, {cancel:true}]]){
   await swipe(page,driver,await edgePoints(page,options),gesture);await expectPreview(page,before,name);result.negative.push({name,trace:await page.evaluate(()=>previewSwipeTrace)});
  }
@@ -88,29 +101,32 @@ async function negativeGestures(page,driver,result){
  const offset=await page.evaluate(()=>[...(document.getElementById('aimLook')._lensOffset||[0,0])]);await page.mouse.move(rect.x+rect.width*.45,rect.y+rect.height*.55);await page.mouse.down();await page.mouse.move(rect.x+rect.width*.45+70,rect.y+rect.height*.55,{steps:8});await page.mouse.up();await frames(page);const moved=await page.evaluate(()=>document.getElementById('aimLook')._lensOffset||[0,0]);assert(Math.abs(moved[0]-offset[0])>.001,'scene pointer drag still pans the drawing');await expectPreview(page,before,'scene-drag');await page.locator('.trial-scene-center').click();result.sceneDragWorks=true;
  await page.locator('#trialRecordSave').click();const dialog=page.locator('#trialRecordSaveSheet');await dialog.waitFor({state:'visible'});await swipe(page,driver,await edgePoints(page));assert(await dialog.isVisible(),'an open modal keeps ownership of edge input');await expectPreview(page,before,'modal');await dialog.locator('[data-record-save-close]').click();await dialog.waitFor({state:'hidden'});result.modalPriority=true;
  await page.locator('#toolsButton').click();await page.waitForFunction(()=>document.getElementById('toolsMenu').classList.contains('on'));await swipe(page,driver,[{x:180,y:180},{x:120,y:180},{x:60,y:180},{x:16,y:180}]);await page.waitForFunction(()=>document.getElementById('toolsMenu').hidden);await expectPreview(page,before,'drawer-close');result.drawerPriority=true;
- await swipe(page,driver,await edgePoints(page));assert.equal((await state(page)).stage,'search');
+ await swipe(page,driver,await edgePoints(page));assert.equal((await state(page)).stage,'map');
 }
 async function candidateReturn(page,driver,result){
- await page.evaluate(()=>SkyMapUI.setTime(Date.parse('2026-11-16T03:58:31+09:00')));await page.locator('#exploreDiscovery-new').click();await page.locator('#candidateSearchAction').click();await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2&&document.getElementById('candidateSearchAction').dataset.state==='idle');
+ await page.evaluate(()=>SkyMapUI.setTime(Date.parse('2026-11-16T03:58:31+09:00')));
+ await openCandidateSheet(page);
+ await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2&&document.getElementById('candidateSearchAction').dataset.state==='idle');
  await page.locator('#candidateRefinement > summary').click();await page.locator('#candidateKindFilter').selectOption('park');await page.locator('#candidateSort').selectOption('name');
  await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===1);const row=page.locator('#candidateUnifiedResults .list-item:visible').first();await row.scrollIntoViewIfNeeded();
- const before=await state(page),loads=await page.evaluate(()=>dateFixture.loads.length),rows=await page.evaluate(()=>AstroNotesCandidatePicker.visibleRows().map(row=>row.id));await row.evaluate(n=>n.addEventListener('pointerdown',()=>{window.swipeCandidateTapScroll=document.scrollingElement.scrollTop;},{once:true}));await row.click();before.scroll=await page.evaluate(()=>swipeCandidateTapScroll);await readyPreview(page);
- await page.locator('#skyMapTimeMore').click();await page.locator('#skyMapLater').click();await page.locator('.sky-map-time-dialog [data-close]').click();await swipe(page,driver,await edgePoints(page));await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='search');await frames(page);try{await page.waitForFunction(scroll=>{const n=document.scrollingElement;return Math.abs(n.scrollTop-Math.min(scroll,n.scrollHeight-n.clientHeight))<2;},before.scroll);}catch(e){result.scrollFailure={before:before.scroll,after:await state(page),geometry:await page.evaluate(()=>({height:document.scrollingElement.scrollHeight,client:document.scrollingElement.clientHeight,tab:document.getElementById('exploreDiscovery-new').getAttribute('aria-selected')}))};throw e;}
- const after=await state(page);assert.deepEqual(conditions(after.selection),conditions(before.selection),'swipe restores original candidate-search conditions and datetime');assert.deepEqual(after.history,before.history);assert(!after.menu);
+ const before=await state(page),loads=await page.evaluate(()=>dateFixture.loads.length),rows=await page.evaluate(()=>AstroNotesCandidatePicker.visibleRows().map(row=>row.id));await row.evaluate(n=>n.addEventListener('pointerdown',()=>{window.swipeCandidateTapScroll=document.getElementById('exploreConditions').scrollTop;},{once:true}));await row.click();before.scroll=await page.evaluate(()=>swipeCandidateTapScroll);await readyPreview(page);
+ await page.locator('#skyMapTimeMore').click();await page.locator('#skyMapLater').click();await page.locator('.sky-map-time-dialog [data-close]').click();await swipe(page,driver,await edgePoints(page));await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet'));await frames(page);try{await page.waitForFunction(scroll=>{const n=document.getElementById('exploreConditions');return Math.abs(n.scrollTop-Math.min(scroll,n.scrollHeight-n.clientHeight))<2;},before.scroll);}catch(e){result.scrollFailure={before:before.scroll,after:await state(page),geometry:await page.evaluate(()=>({height:document.getElementById('exploreConditions').scrollHeight,client:document.getElementById('exploreConditions').clientHeight,tab:document.getElementById('exploreDiscovery-new').getAttribute('aria-selected')}))};throw e;}
+ const after=await state(page);assert(after.sheet&&await page.locator('#skyMapCanvas').isVisible(),'candidate swipe returns to the same sheet over the map');assert.deepEqual(conditions(after.selection),conditions(before.selection),'swipe restores original candidate-search conditions and datetime');assert.deepEqual(after.history,before.history);assert(!after.menu);
  assert(await page.locator('#candidateRefinement').evaluate(n=>n.open));assert.equal(await page.locator('#candidateKindFilter').inputValue(),'park');assert.equal(await page.locator('#candidateSort').inputValue(),'name');
  assert.equal(await page.evaluate(()=>dateFixture.loads.length),loads,'swipe return uses cached candidates');assert.deepEqual(await page.evaluate(()=>AstroNotesCandidatePicker.visibleRows().map(row=>row.id)),rows);
  assert(await page.evaluate(()=>Object.entries(swipeDateNodes).every(([id,node])=>node===document.getElementById(id))));result.candidate={before,after,loads,restoredFilterSortScroll:true,datetimeNodesRetained:true};
+ await page.locator('#exploreBackToMap').click();
 }
 // LinuxのChromeは左端からの横なぞりを自分で「前のページへ戻る」にする（Macでは起きない）。起動時にその機能を切ってある。
-async function searchDrawer(page,driver,result){await page.evaluate(()=>window.scrollTo(0,0));await page.evaluate(()=>{window.drawerLog=[];const at=()=>Math.round(performance.now());for(const type of ['hashchange','popstate'])addEventListener(type,()=>drawerLog.push([at(),type,location.hash]));for(const type of ['click','touchstart','touchend','touchcancel'])document.addEventListener(type,e=>drawerLog.push([at(),type,(e.target.id||e.target.tagName)+'',Math.round(e.clientX??e.changedTouches?.[0]?.clientX??-1),e.defaultPrevented]),true);new MutationObserver(()=>drawerLog.push([at(),'menu',document.getElementById('toolsMenu').className,document.getElementById('toolsMenu').hidden])).observe(document.getElementById('toolsMenu'),{attributes:true,attributeFilter:['class','hidden']});});await swipe(page,driver,await edgePoints(page,{y:140,dx:230}));try{await page.waitForFunction(()=>!document.getElementById('toolsMenu').hidden&&document.getElementById('toolsMenu').classList.contains('on'));}catch(e){console.error('search drawer did not open',driver.kind,JSON.stringify({state:await state(page),log:await page.evaluate(()=>window.drawerLog),trace:await page.evaluate(()=>previewSwipeTrace.map(e=>[e.type,e.target,Math.round(e.x),e.cancelable,e.defaultPrevented])),menu:await page.evaluate(()=>({hidden:document.getElementById('toolsMenu').hidden,cls:document.getElementById('toolsMenu').className,w:innerWidth,scroll:scrollY,open:[...document.querySelectorAll('dialog[open]')].map(d=>d.id)}))}).slice(0,3000));throw e;}assert.equal((await state(page)).stage,'search');await page.locator('#toolsClose').click();await page.waitForFunction(()=>document.getElementById('toolsMenu').hidden);result.searchDrawerPreserved=true;}
+async function searchDrawer(page,driver,result){await openCandidateSheet(page);const sheet=await page.locator('#exploreConditions').boundingBox();assert(sheet);await page.evaluate(()=>{window.drawerLog=[];const at=()=>Math.round(performance.now());for(const type of ['hashchange','popstate'])addEventListener(type,()=>drawerLog.push([at(),type,location.hash]));for(const type of ['click','touchstart','touchend','touchcancel'])document.addEventListener(type,e=>drawerLog.push([at(),type,(e.target.id||e.target.tagName)+'',Math.round(e.clientX??e.changedTouches?.[0]?.clientX??-1),e.defaultPrevented]),true);new MutationObserver(()=>drawerLog.push([at(),'menu',document.getElementById('toolsMenu').className,document.getElementById('toolsMenu').hidden])).observe(document.getElementById('toolsMenu'),{attributes:true,attributeFilter:['class','hidden']});});await swipe(page,driver,await edgePoints(page,{y:sheet.y+26,dx:230}));try{await page.waitForFunction(()=>!document.getElementById('toolsMenu').hidden&&document.getElementById('toolsMenu').classList.contains('on'));}catch(e){console.error('search drawer did not open',driver.kind,JSON.stringify({state:await state(page),log:await page.evaluate(()=>window.drawerLog),trace:await page.evaluate(()=>previewSwipeTrace.map(e=>[e.type,e.target,Math.round(e.x),e.cancelable,e.defaultPrevented])),menu:await page.evaluate(()=>({hidden:document.getElementById('toolsMenu').hidden,cls:document.getElementById('toolsMenu').className,w:innerWidth,scroll:scrollY,open:[...document.querySelectorAll('dialog[open]')].map(d=>d.id)}))}).slice(0,3000));throw e;}assert.equal((await state(page)).stage,'search');await page.locator('#toolsClose').click();await page.waitForFunction(()=>document.getElementById('toolsMenu').hidden);result.searchDrawerPreserved=true;await page.locator('#exploreBackToMap').click();}
 async function staleGestures(page,driver,result){
  result.stale=[];
  for(const kind of ['return-reenter','generation','owner']){
-  await page.locator('#exploreShowResult').click();await readyPreview(page);const points=await edgePoints(page);await page.evaluate(()=>previewSwipeTrace=[]);await driver.start([points[0]]);await page.waitForTimeout(30);await driver.move([points[1]]);
-  if(kind==='return-reenter'){await page.evaluate(()=>document.getElementById('exploreBackToCandidates').click());await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='search');await page.evaluate(()=>document.getElementById('exploreShowResult').click());await readyPreview(page);}
+  await showMapPreview(page);const points=await edgePoints(page);await page.evaluate(()=>previewSwipeTrace=[]);await driver.start([points[0]]);await page.waitForTimeout(30);await driver.move([points[1]]);
+  if(kind==='return-reenter'){await page.evaluate(()=>document.getElementById('exploreBackToCandidates').click());await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='map');await page.evaluate(()=>document.getElementById('mapWsCardView').click());await readyPreview(page);}
   else await page.evaluate(kind=>{if(kind==='generation')accessState.generation++;else auth.loginId='stale-swipe-owner';},kind);
   await driver.move([points.at(-1)]);await driver.end();await page.waitForTimeout(180);await frames(page);const after=await state(page);assert.equal(after.stage,'preview',kind+' invalidates an already-started preview return');assert.equal(after.hash,'#/explore');assert(!after.menu);result.stale.push({kind,after,trace:await page.evaluate(()=>previewSwipeTrace)});
-  if(kind!=='return-reenter')await page.evaluate(()=>TrialExplore.render());else await page.locator('#exploreBackToCandidates').click();await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='search');
+  if(kind!=='return-reenter')await page.evaluate(()=>TrialExplore.render());else await page.locator('#exploreBackToCandidates').click();await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='map');
  }
 }
 (async()=>{

@@ -1,5 +1,5 @@
 require('./no-open-meteo.cjs');
-require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
+const {showExploreView}=require('./explore-open-conditions.cjs');
 const {recordsTabRetired,assertOpportunityEntry}=require('./explore-records-tab.cjs'); // 2026-11-26 段階③: trialの記録は「重なる日」の入口で確認する
 const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs');const {fixture}=require('./candidate-date-fixture.cjs');
 const base=process.env.PREVIEW_LIFECYCLE_BASE||'http://127.0.0.1:8992/trial/index.html',out=process.env.PREVIEW_LIFECYCLE_OUT||'/tmp/astronotes-preview-lifecycle';fs.mkdirSync(out,{recursive:true});const grants=['records','tower','diamond','pearl','skymap','multiscene'];
@@ -33,7 +33,7 @@ if(retired){result.recordEntry=await assertOpportunityEntry(page);result.recordB
 else{await page.waitForFunction(()=>document.getElementById('exploreRecordedResults')&&document.getElementById('exploreRecordedPlaces').getAttribute('aria-busy')==='false');result.recordBefore=await page.locator('#exploreRecordedPlaces').innerText();}
 result.version=await page.locator('meta[name=app-version]').getAttribute('content');result.points=await page.evaluate(()=>MyPlacesUI.discoveryPoints());
 assert(result.points.some(p=>p.place?.name==='鷺沼北公園'),'the recorded-place fixture remains available through the current discovery contract');
-await page.locator('#exploreShowResult').click();await ready(page);if(process.env.PREVIEW_LIFECYCLE_EXPECT==='before')await page.waitForTimeout(6000);else await page.waitForFunction(()=>document.querySelector('#skyMapDates [data-from-day]'));result.first=await measure(page);await page.screenshot({path:out+'/'+engine+'-'+width+'-first.png',fullPage:true});
+await showExploreView(page);await ready(page);if(process.env.PREVIEW_LIFECYCLE_EXPECT==='before')await page.waitForTimeout(6000);else await page.waitForFunction(()=>document.querySelector('#skyMapDates [data-from-day]'));result.first=await measure(page);await page.screenshot({path:out+'/'+engine+'-'+width+'-first.png',fullPage:true});
 if(process.env.PREVIEW_LIFECYCLE_EXPECT!=='before'){
  // 候補日は今日から計算される。固定日の存在に依存せず、実際に表示された別の日を操作する。
  const beforeDay=await page.evaluate(()=>AstroNotesSkyMap.dayStart(SkyMapUI.selectionState().at));
@@ -50,10 +50,10 @@ if(process.env.PREVIEW_LIFECYCLE_EXPECT!=='before'){
  const local=new Date(+chosen.at+32400000).toISOString();assert.equal(result.afterDate.dateInput,local.slice(0,10));assert.equal(result.afterDate.timeInput,local.slice(11,16));
  await page.screenshot({path:out+'/'+engine+'-'+width+'-after-date.png',fullPage:true});
 }
-await page.locator('#exploreBackToCandidates').click();await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='search');await page.locator('#exploreShowResult').click();await ready(page);if(process.env.PREVIEW_LIFECYCLE_EXPECT==='before')await page.waitForTimeout(6000);else await page.waitForFunction(()=>document.querySelector('#skyMapDates [data-from-day]'));result.second=await measure(page);await page.screenshot({path:out+'/'+engine+'-'+width+'-second.png',fullPage:true});if(process.env.PREVIEW_LIFECYCLE_EXPECT!=='before'){
+await page.locator('#exploreBackToCandidates').click();await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='search');await showExploreView(page);await ready(page);if(process.env.PREVIEW_LIFECYCLE_EXPECT==='before')await page.waitForTimeout(6000);else await page.waitForFunction(()=>document.querySelector('#skyMapDates [data-from-day]'));result.second=await measure(page);await page.screenshot({path:out+'/'+engine+'-'+width+'-second.png',fullPage:true});if(process.env.PREVIEW_LIFECYCLE_EXPECT!=='before'){
  await page.locator('#exploreBackToCandidates').click();await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='search');
  await page.evaluate(()=>{const original=aimBuildingDays;original.cache?.clear();window.previewDateHolds=[];let once=true;aimBuildingDays=async(...args)=>{if(once){once=false;await new Promise(resolve=>previewDateHolds.push(resolve));}return original(...args);};});
- await page.locator('#exploreShowResult').click();await ready(page);await page.waitForFunction(()=>previewDateHolds.length===1);
+ await showExploreView(page);await ready(page);await page.waitForFunction(()=>previewDateHolds.length===1);
  await page.evaluate(()=>{document.getElementById('exploreBackToCandidates').click();document.getElementById('exploreShowResult').click();});await ready(page);await page.waitForFunction(()=>!!document.querySelector('#skyMapDates [data-from-day]'));result.quickReentry=await measure(page);await page.evaluate(()=>previewDateHolds.shift()());await page.waitForTimeout(200);result.afterLate=await measure(page);assert.deepEqual(result.afterLate.dates,result.quickReentry.dates,'a cancelled old date job cannot erase the re-entry dates');assert(result.afterLate.visiblePathSegments>0);if(!retired)assert(!(await page.locator('#exploreRecordedResults').textContent()).match(/日中|夜間/),'record rows omit day/night labels while keeping their address and passage information');else assert.match(result.afterLate.recordText,/記録の地点の重なる日/,'re-entry retains the current recorded-place entry');
 }
 Object.assign(result,{writes,errors});

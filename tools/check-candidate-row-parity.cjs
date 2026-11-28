@@ -50,7 +50,7 @@ module.exports=async function checkParity(page,ready,path){
   await page.evaluate(at=>{SkyMapUI.setTarget('skytree');const b=document.getElementById('skyMapBody');b.value='moon';b.dispatchEvent(new Event('change',{bubbles:true}));SkyMapUI.setAlignment('__whole','center','overlap');SkyMapUI.setTime(at);TrialExplore.render();},dayAt);
   // 2026-11-26 trial（段階③）: 探すの記録タブは廃止。記録の地点は重なる日（上の NOTES の行）だけで見るので、行の照合は記録タブがある版だけ。
   const {recordsTabRetired,assertOpportunityEntry}=require('./explore-records-tab.cjs');
-  await require('./explore-open-conditions.cjs').openExploreConditions(page);
+  await require('./explore-open-conditions.cjs').openExploreSheet(page);
   let retired=false;
   if(await recordsTabRetired(page)){retired=true;await assertOpportunityEntry(page);}else{
   await page.locator('#exploreDiscovery-records').click();

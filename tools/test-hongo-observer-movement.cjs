@@ -1,5 +1,5 @@
 require('./no-open-meteo.cjs');
-require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
+const {showExploreView}=require('./explore-open-conditions.cjs');
 const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {fixture}=require('./candidate-date-fixture.cjs');
 const base=process.env.HONGO_MOVE_BASE||'http://127.0.0.1:8996/trial/index.html',out=process.env.HONGO_MOVE_OUT||'/tmp/astro-hongo-move';
@@ -10,7 +10,7 @@ async function prepare(p){
  await p.evaluate(async token=>{await startupSessionReady;await AstroNotesAssets.ensureModels();navigationHistory.pushRoute('#/explore');await SkyMapUI.open();const value=AstroNotesPlan.decode(token),o=value.o,host=SkyMapUI.workspaceHost();
   host.restoreTarget({target:value.t,body:value.body,partId:value.part,limb:value.limb,matchMode:value.matchMode});
   host.restoreObserver({name:o[0],latitude:o[1],longitude:o[2],elevation:o[3],groundManualM:o[3],eyeHeightAGL:o[4],standAglM:o[4]},o[3],null);SkyMapUI.setTime(value.at);
- },token);await p.locator('#exploreShowResult').click();await ready(p);
+ },token);await showExploreView(p);await ready(p);
 }
 (async()=>{fs.mkdirSync(out,{recursive:true});const results=[];
  for(const [engine,type]of[['chrome',chromium],['webkit',webkit]])for(const width of[320,390]){

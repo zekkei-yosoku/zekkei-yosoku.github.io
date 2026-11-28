@@ -1,5 +1,5 @@
 require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
-require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
+const {showExploreView}=require('./explore-open-conditions.cjs');
 // Tower previews keep their foot instead of a floating distant horizon; searches still respect the horizon, and favorites take typed heights.
 const {chromium}=require('playwright'),assert=require('assert/strict');
 const base=process.env.HORIZON_BASE||'http://127.0.0.1:8931/',tools=['records','tower','diamond','pearl','skymap'],shots=process.env.HORIZON_SHOTS;
@@ -15,7 +15,7 @@ const EBISU={name:'恵比寿',latitude:35.6425,longitude:139.7135,groundManualM:
  await p.goto(base);await p.waitForFunction(ready);
  await p.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>30.2;AstroNotesCandidatePicker.hiddenView=async()=>({read:true,note:null});navigationHistory.pushRoute('#/explore');});
  await p.locator('#exploreDatesToggle').waitFor({state:'attached'});
- const show=async(observer,target)=>{await p.evaluate(([o,t])=>{aimAirSettings.mode='standard';AstroNotesAtmosphere.configure('standard',aimAirSettings);SkyMapUI.setObserver(o);SkyMapUI.setTarget(t);const b=document.getElementById('skyMapBody');b.value='moon';b.onchange();SkyMapUI.setTime(Date.parse('2026-11-25T16:58:00+09:00'));},[observer,target]);await p.locator('#exploreShowResult').click();await p.waitForFunction(()=>{const h=document.getElementById('aimLook');return h&&!h.hidden&&h._lookLayers?.stats?.frames>0;});};
+ const show=async(observer,target)=>{await p.evaluate(([o,t])=>{aimAirSettings.mode='standard';AstroNotesAtmosphere.configure('standard',aimAirSettings);SkyMapUI.setObserver(o);SkyMapUI.setTarget(t);const b=document.getElementById('skyMapBody');b.value='moon';b.onchange();SkyMapUI.setTime(Date.parse('2026-11-25T16:58:00+09:00'));},[observer,target]);await showExploreView(p);await p.waitForFunction(()=>{const h=document.getElementById('aimLook');return h&&!h.hidden&&h._lookLayers?.stats?.frames>0;});};
  const land=()=>p.evaluate(()=>{const h=document.getElementById('aimLook'),cv=h.querySelector('[data-look-canvas]'),l=h._lookLayers.buildings,x=l.getContext('2d'),col=Math.round(l.width*.12),rows=x.getImageData(col,0,1,l.height).data,alpha=[];for(let y=0;y<l.height;y++)alpha.push(rows[y*4+3]);const top=alpha.findIndex(a=>a>60),below=alpha.slice(top+6,top+40),dpr=l.width/cv.clientWidth;return {top:top/dpr,filled:below.length>=8&&below.every(a=>a>60),h:l.height/dpr};});
  const waitScene=()=>p.waitForFunction(()=>document.getElementById('aimLook')?._lookLayers?.stats?.buildings>0);
  await show({...EBISU,standAglM:1.5},'tokyotower');await waitScene();

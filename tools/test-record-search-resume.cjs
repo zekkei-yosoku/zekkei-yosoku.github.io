@@ -87,7 +87,7 @@ async function run(browser,engine,screen,signal){
   });
   if(screen==='explore'){
    await page.evaluate(async()=>{navigationHistory.pushRoute('#/explore');await SkyMapUI.open();SkyMapUI.setTarget('skytree');const b=document.getElementById('skyMapBody');b.value='sun';b.onchange();SkyMapUI.setTime(Date.parse('2026-11-07T16:29:00+09:00'));});
-   await page.locator('#exploreShowResult').waitFor({state:'visible'});
+   await page.locator('#skyMapView[data-explore-sheet]').waitFor({state:'visible'});
   }else{
    await page.evaluate(()=>navigationHistory.pushRoute('#/records'));
    await page.locator('#notebookOpportunitiesTab').click();await choose(page,'Body','sun');

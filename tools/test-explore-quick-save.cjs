@@ -1,5 +1,5 @@
 require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
-require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
+const {showExploreView}=require('./explore-open-conditions.cjs');
 const {chromium,webkit}=require('playwright'),assert=require('assert/strict'),fs=require('node:fs');
 const base=process.env.QUICK_BASE||'http://127.0.0.1:8897/';
 const sizes=process.env.QUICK_WIDTH?process.env.QUICK_WIDTH.split(',').map(Number):[320,390,1280];
@@ -16,7 +16,7 @@ async function verifyRecordChooser(p,width,theme){
  await open();assert.equal(await saved(),initial);assert.equal(await calls(),0);await sheet.getByRole('button',{name:'閉じる',exact:true}).click();await sheet.waitFor({state:'hidden'});assert.equal(await p.evaluate(()=>document.activeElement.id),'trialRecordSave');
  await open();await p.keyboard.press('Escape');await sheet.waitFor({state:'hidden'});assert.equal(await saved(),initial);assert.equal(await calls(),0,'all dismiss paths leave the save handler untouched');
  await open();await p.evaluate(()=>navigationHistory.pushRoute('#/almanac'));await p.waitForFunction(()=>!document.getElementById('trialRecordSaveSheet')?.open);assert.equal(await saved(),initial);
- await p.evaluate(()=>navigationHistory.pushRoute('#/explore'));await p.locator('#exploreShowResult').click();await trigger.waitFor({state:'visible'});
+ await p.evaluate(()=>navigationHistory.pushRoute('#/explore'));await showExploreView(p);await trigger.waitFor({state:'visible'});
  assert.equal(await p.locator('#trialRecordSaveSheet').count(),1);await open();assert(await sheet.evaluate(n=>n.matches(':modal')),'returning after a route change opens a real modal again');await p.keyboard.press('Escape');await sheet.waitFor({state:'hidden'});assert.equal(await calls(),0);
  // Existing transaction failure must roll back, with the chooser merely selecting its destination.
  await p.evaluate(()=>{window.quickOriginalSet=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k.startsWith('sorami.observations.v1:'))throw new DOMException('synthetic quota','QuotaExceededError');return quickOriginalSet.call(this,k,v);};});
@@ -50,7 +50,7 @@ async function verifyRecordChooser(p,width,theme){
   });
   await p.locator('#exploreConditions').waitFor();await p.evaluate(()=>{aimAirSettings.mode='standard';AstroNotesAtmosphere.configure('standard',aimAirSettings);SkyMapUI.setObserver({name:'Synthetic',latitude:35.583465,longitude:139.568839,groundManualM:83,standAglM:1.5});SkyMapUI.setTarget('skytree');document.getElementById('skyMapBody').value='moon';document.getElementById('skyMapBody').onchange();const at=AstroNotesAlign.dailyView({latitude:35.583465,longitude:139.568839,elevation:84.5},AstroNotesAlign.targetById('skytree'),'moon',Date.parse('2026-10-03T00:00:00+09:00'),{partId:'tip'})[0].at;SkyMapUI.setTime(at);});
   if(await p.locator('#candidateSearchAction').count()){
-   await p.locator('#exploreShowResult').click();await p.locator('#aimLook').waitFor({state:'visible'});
+   await showExploreView(p);await p.locator('#aimLook').waitFor({state:'visible'});
    await p.locator('#trialRecordSave').waitFor({state:'visible'});
    try{await verifyRecordChooser(p,width,theme);assert.deepEqual(errors,[]);}catch(error){await p.screenshot({path:out+'/'+engine+'-'+width+'-'+theme+'-failure.png'}).catch(()=>{});throw error;}finally{await c.close();}
    console.log(engine,width,theme,'record chooser, cancel, one save, duplicate, denied passed');continue;

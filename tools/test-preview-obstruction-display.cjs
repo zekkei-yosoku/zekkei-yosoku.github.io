@@ -1,6 +1,6 @@
 // R02: public observer/time geometry with synthetic obstruction fixtures, not surveyed visibility evidence.
 require('./no-open-meteo.cjs');
-require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
+const {showExploreView}=require('./explore-open-conditions.cjs');
 const {chromium,webkit}=require('playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const base=process.env.OBSTRUCTION_BASE||'http://127.0.0.1:8992/trial/index.html';
@@ -75,7 +75,7 @@ async function prepare(page,s,mode){
   const b=document.getElementById('skyMapBody');b.value='moon';b.dispatchEvent(new Event('change',{bubbles:true}));
   SkyMapUI.setTime(ms);
  },{s,mode});
- await page.locator('#exploreShowResult').click();
+ await showExploreView(page);
  await page.waitForFunction(({s,mode})=>{const h=document.getElementById('aimLook');return h&&!h.hidden&&h._lookLayers?.stats?.frames>0&&h._trialCompositionView&&Math.abs(h._lookAt-Date.parse(s.at))<1000&&h._lookSpec.eyeM===s.eyeM&&(mode==='mountain'?__obstruction.ridgeCalls>0:__obstruction.hiddenCalls>0&&__obstruction.townCalls>0);},{s,mode});
  if(mode==='mountain'||s.focal){
   // The trial camera sheet owns the visible lens controls; use the renderer's existing change handler

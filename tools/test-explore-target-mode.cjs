@@ -455,7 +455,8 @@ async function newPlaces(type,engine,center){
     await dialog.locator('[data-target-key="skytree"]').click();
     await dialog.locator('[data-target-key="tokyotower"]').click();
     await dialog.getByRole('button',{name:'戻る',exact:true}).click();
-    assert.equal((await view(page)).stage,'search',label+': 対象選択の取り消しで条件に戻る');
+    assert.deepEqual(await view(page),{stage:'map',sheet:false,center:'target'},label+': 対象選択の取り消しで地図に戻る');
+    assert(await page.locator('#skyMapView[data-explore-dropdown] #exploreConditions').isVisible(),label+': 対象選択の取り消しで地図上の条件欄を維持');
     assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().target.id),'skytree',label+': 対象選択の取り消しで元の対象を保持');
     await targetPicker.click();
     await dialog.locator('[data-target-key="skytree"]').click();
@@ -464,7 +465,9 @@ async function newPlaces(type,engine,center){
     await page.waitForFunction(()=>!document.querySelector('#previewTargetDialog[open]')&&document.getElementById('skyMapView').hasAttribute('data-explore-dropdown')&&SkyMapUI.selectionState().target?.id==='tokyotower');
     assert.deepEqual(await view(page),{stage:'map',sheet:false,center:'target'});
     assert(await page.locator('#skyMapCanvas').isVisible(),label+': 候補シート経由でも対象の適用後は地図へ戻る');
-    await page.locator('#mapWsTitle').click();
+    await page.locator('#mapWsConfirmConditions').click();
+    await page.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet'));
+    await page.locator('#exploreBackToMap').click();
     // Simulate availability independently from the real candidate calculation used by the fixture.
     await page.evaluate(()=>{window.originalSearchBand=AstroNotesMapWorkspace.searchBand;
      window.testBandStatus='pending';

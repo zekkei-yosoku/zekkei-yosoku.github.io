@@ -1,7 +1,6 @@
 // Search-design acceptance against the real trial UI, with isolated synthetic IO.
 require('./no-open-meteo.cjs');
-require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
-const {recordsTabRetired,assertOpportunityEntry}=require('./explore-records-tab.cjs'); // 2026-11-26 段階③: 記録タブは trial で廃止
+const {openExploreFields}=require('./explore-open-conditions.cjs');
 const {chromium,webkit}=require('playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const {fixture}=require('./candidate-date-fixture.cjs');
@@ -28,26 +27,45 @@ function emptyProviderFixture(){
 }
 
 async function assertFieldLayout(page){
+ await openExploreFields(page);
  const metrics=await page.evaluate(()=>{
-  const visible=n=>{const r=n.getBoundingClientRect(),s=getComputedStyle(n);return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none';};
+  const visible=n=>!!n?.getClientRects().length&&getComputedStyle(n).visibility!=='hidden';
   const fields=[...document.querySelectorAll('#exploreConditions .condition-field')].filter(visible);
-  const labels=fields.map(field=>{
-   const label=field.querySelector(':scope > .condition-label');if(!label||!visible(label))return null;
+  const labels=fields.flatMap(field=>{
+   const label=field.querySelector(':scope > .condition-label');if(!visible(label))return [];
    const a=label.getBoundingClientRect();
-   const overlaps=[...field.querySelectorAll('button,input,select')].filter(n=>visible(n)&&!label.contains(n)).filter(n=>{const b=n.getBoundingClientRect();return Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1;}).map(n=>n.id||n.className);
-   return {text:label.textContent.trim(),overlaps};
-  }).filter(Boolean);
-  const search=document.getElementById('candidateSearchAction'),direct=document.getElementById('exploreShowResult'),action=document.getElementById('candidateWorkspaceAction'),results=document.getElementById('exploreSearchResults'),feedback=document.getElementById('candidateSearchFeedback'),primary=document.querySelector('#additionalCandidateSearch .candidate-search-primary');
-  const conditions=document.querySelector('.explore-condition-fields'),observer=document.getElementById('skyMapChoose').closest('.aim-say-from'),height=document.getElementById('skyMapObserverDetails'),heading=document.getElementById('candidateWorkspaceHeading'),detail=action.querySelector('#additionalCandidateSearch details');
-  const before=(a,b)=>!!(a.compareDocumentPosition(b)&Node.DOCUMENT_POSITION_FOLLOWING),o=observer.getBoundingClientRect(),f=conditions.getBoundingClientRect(),d=direct.getBoundingClientRect(),h=height.getBoundingClientRect(),a=heading.getBoundingClientRect(),e=detail.getBoundingClientRect(),s=search.getBoundingClientRect(),fieldStyle=getComputedStyle(conditions),primaryStyle=getComputedStyle(direct),secondaryStyle=getComputedStyle(search);
-  const left=f.left+parseFloat(fieldStyle.paddingLeft)+parseFloat(fieldStyle.borderLeftWidth),right=f.right-parseFloat(fieldStyle.paddingRight)-parseFloat(fieldStyle.borderRightWidth);
-  return {labels,overflow:document.documentElement.scrollWidth>innerWidth+1,directInConditions:conditions.contains(direct)&&!height.contains(direct)&&!action.contains(direct),oneDirectAction:document.querySelectorAll('#exploreShowResult').length===1,directFullWidthAndAccessible:Math.abs(left-d.left)<1&&Math.abs(right-d.right)<1&&d.height>=44,directAfterPlaceBeforeAlternative:o.bottom<=d.top+1&&(!visible(height)||h.bottom<=d.top+1)&&d.bottom<=a.top+1&&a.bottom<=e.top+1,shortVisibleLabel:direct.innerText==='検索'&&!!direct.querySelector('svg[aria-hidden=true]')&&direct.getAttribute('aria-label').includes('検索'),alternativeSection:action.tagName==='SECTION'&&action.getAttribute('aria-labelledby')===heading.id&&heading.textContent==='撮影地点を探す'&&action.contains(detail),primaryAndSecondaryDistinct:primaryStyle.backgroundColor!==secondaryStyle.backgroundColor&&parseFloat(secondaryStyle.borderTopWidth)>=1,actionOrder:before(observer,direct)&&(!visible(height)||before(height,direct))&&before(direct,heading)&&before(heading,detail)&&before(detail,search),searchInAction:search.closest('#candidateWorkspaceAction')===action,feedbackInActionStrip:!!primary&&primary.contains(search)&&primary.contains(feedback)&&!results.contains(feedback),resultsAfterActionStrip:!!primary&&before(primary,results)};
+   const overlaps=[...field.querySelectorAll('button,input,select')].filter(n=>visible(n)&&!label.contains(n)).some(n=>{
+    const b=n.getBoundingClientRect();
+    return Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1;
+   });
+   return [{text:label.textContent.trim(),overlaps}];
+  });
+  const confirm=document.getElementById('mapWsConfirmConditions');
+  return {labels,overflow:document.documentElement.scrollWidth>innerWidth+1,confirmLabel:confirm.textContent,
+   confirmHeight:confirm.getBoundingClientRect().height,searchHidden:!visible(document.getElementById('candidateWorkspaceAction')),
+   mapVisible:visible(document.getElementById('skyMapCanvas'))};
  });
- assert(metrics.labels.length>=3,JSON.stringify(metrics));
- assert(metrics.labels.some(l=>l.text.includes('撮影地点')),JSON.stringify(metrics));
- assert(metrics.labels.every(l=>!l.overlaps.length),'labels overlap controls: '+JSON.stringify(metrics));
- assert(!metrics.overflow&&metrics.directInConditions&&metrics.oneDirectAction&&metrics.directFullWidthAndAccessible&&metrics.directAfterPlaceBeforeAlternative&&metrics.shortVisibleLabel&&metrics.alternativeSection&&metrics.actionOrder&&metrics.searchInAction&&metrics.feedbackInActionStrip&&metrics.resultsAfterActionStrip,JSON.stringify(metrics));
+ assert(metrics.labels.length>=3&&metrics.labels.some(l=>l.text.includes('撮影地点')),JSON.stringify(metrics));
+ assert(metrics.labels.every(l=>!l.overlaps),'labels overlap controls: '+JSON.stringify(metrics));
+ assert(!metrics.overflow&&metrics.mapVisible&&metrics.searchHidden&&metrics.confirmLabel==='確定'&&metrics.confirmHeight>=44,JSON.stringify(metrics));
+ await page.locator('#mapWsConfirmConditions').click();
+ await page.locator('#skyMapView[data-explore-sheet] #candidateSearchAction').waitFor({state:'visible'});
  return metrics;
+}
+
+async function assertSearchLayout(page){
+ assert(await page.locator('#skyMapCanvas').isVisible());
+ assert(await page.locator('#skyMapChoose').isHidden());
+ assert(await page.locator('#exploreShowResult').isHidden());
+ const layout=await page.evaluate(()=>{
+  const action=document.getElementById('candidateWorkspaceAction'),heading=document.getElementById('candidateWorkspaceHeading');
+  const primary=action.querySelector('.candidate-search-primary'),results=document.getElementById('exploreSearchResults');
+  const before=(a,b)=>!!(a.compareDocumentPosition(b)&Node.DOCUMENT_POSITION_FOLLOWING);
+  return {heading:heading.textContent,section:action.tagName,sectionLabel:action.getAttribute('aria-labelledby'),
+   ordered:before(heading,primary)&&before(primary,results),
+   sharedControls:primary.contains(document.getElementById('candidateSearchAction'))&&primary.contains(document.getElementById('candidateSearchFeedback'))};
+ });
+ assert.deepEqual(layout,{heading:'撮影地点を探す',section:'SECTION',sectionLabel:'candidateWorkspaceHeading',ordered:true,sharedControls:true});
 }
 
 async function assertTargets(page,selectors){
@@ -104,12 +122,15 @@ async function settled(page,count){
 
 async function assertFooterClearance(page,selector='#candidateUnifiedResults>.list-item'){
  const clearance=await page.evaluate(selector=>{
-  window.scrollTo(0,document.scrollingElement.scrollHeight);
+  const sheet=document.getElementById('exploreConditions');
+  sheet.scrollTop=sheet.scrollHeight;
   const rows=[...document.querySelectorAll(selector)].filter(n=>!n.hidden&&getComputedStyle(n).display!=='none');
   const row=rows.at(-1).getBoundingClientRect(),footer=document.querySelector('.sky-map-footer').getBoundingClientRect();
-  return {lastRowBottom:row.bottom,footerTop:footer.top,footerBottom:footer.bottom,height:innerHeight};
+  return {lastRowBottom:row.bottom,lastRowRight:row.right,footerLeft:footer.left,
+   footerTop:footer.top,footerBottom:footer.bottom,sheetBottom:sheet.getBoundingClientRect().bottom,height:innerHeight};
  },selector);
- assert(clearance.lastRowBottom<=clearance.footerTop+1&&clearance.footerBottom<=clearance.height+1,JSON.stringify(clearance));
+ const clearOfBar=clearance.lastRowRight<=clearance.footerLeft+1||clearance.lastRowBottom<=clearance.footerTop+1;
+ assert(clearOfBar&&clearance.lastRowBottom<=clearance.sheetBottom+1&&clearance.footerBottom<=clearance.height+1,JSON.stringify(clearance));
 }
 
 (async()=>{
@@ -130,12 +151,14 @@ async function assertFooterClearance(page,selector='#candidateUnifiedResults>.li
     await page.goto(base+'#/explore');await page.waitForFunction(()=>typeof SkyMapUI==='object'&&typeof AstroNotesCandidatePicker==='object');
     assert.deepEqual(await page.evaluate(()=>({partId:SkyMapUI.selectionState().partId,matchMode:SkyMapUI.selectionState().matchMode})),{partId:'tip',matchMode:'overlap'},'ordinary old preferences migrate from centre-only to disc passage');
     await page.evaluate(async theme=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>25;aimBuildingDays=async()=>[];document.documentElement.dataset.theme=theme;navigationHistory.pushRoute('#/explore');SkyMapUI.setTarget('skytree');const body=document.getElementById('skyMapBody');body.value='moon';body.onchange();SkyMapUI.setTime(Date.parse('2026-11-05T03:58:31+09:00'));},theme);
-    await page.locator('#exploreDiscovery-new').click();await page.locator('#candidateSearchAction').waitFor();const layout=await assertFieldLayout(page);
+    await page.locator('#skyMapView[data-explore-sheet] #candidateSearchAction').waitFor();
+    const layout=await assertFieldLayout(page);
+    await assertSearchLayout(page);
     await assertNoPicker(page);assert.equal(await page.locator('.explore-search-intro').count(),0);
     assert(await page.locator('.sky-map-footer').isVisible());assert(await page.locator('.sky-map-footer .sky-map-candidates').isHidden());
     assert.equal(await page.locator('#candidateWorkspaceDate,#candidateDateNavigation,#candidateDate').count(),0);
     assert.deepEqual(await page.locator('.sky-map-footer .tool-datetime-row>[data-datetime-slot]').evaluateAll(ns=>ns.map(n=>n.dataset.datetimeSlot)),['previous','date','next','clock','now','play','more']);
-    await assertFooterClearance(page,'#candidateWorkspaceAction');await page.evaluate(()=>window.scrollTo(0,0));
+    await assertFooterClearance(page,'#candidateWorkspaceAction');await page.locator('#exploreConditions').evaluate(sheet=>{sheet.scrollTop=0;});
     await page.screenshot({path:out+'/'+tag+'-initial.png',fullPage:true});
 
     // Changing detail controls must keep the opened editor and keyboard focus.
@@ -158,7 +181,7 @@ async function assertFooterClearance(page,selector='#candidateUnifiedResults>.li
     await page.waitForFunction(()=>dateFixture.holds.length===1&&AstroNotesCandidatePicker.visibleRows().length===2&&document.getElementById('candidateSearchAction')?.dataset.state==='searching');
     await assertSearchingBar(page);await assertCompactPicker(page);
     await captureState(page,out+'/'+tag+'-partial');
-    await page.evaluate(()=>dateFixture.holds.shift().release());await settled(page,2);await assertCompactPicker(page);await assertFieldLayout(page);
+    await page.evaluate(()=>dateFixture.holds.shift().release());await settled(page,2);await assertCompactPicker(page);await assertSearchLayout(page);
     assert(await page.locator('#exploreResultsHeading').isVisible());
     assert(await page.evaluate(()=>document.getElementById('candidateSearchAction')===window.searchDesignAction));
     assert.equal(await page.locator('#candidateSearchFeedback [role=status][data-announcement]').count(),1,'success remains an accessible announcement without a duplicate visual summary');
@@ -190,26 +213,19 @@ async function assertFooterClearance(page,selector='#candidateUnifiedResults>.li
     await page.waitForFunction(()=>document.querySelector('#candidateSearchFeedback [role=status]')?.textContent.includes('取得できなかった範囲があります')&&document.getElementById('candidateSearchAction').textContent==='再試行');
     assert.equal(await page.evaluate(()=>AstroNotesCandidatePicker.visibleRows().length),2,'rows of the current condition stay selectable');assert(await page.locator('#candidateSearchAction').isEnabled());
     await page.evaluate(()=>dateFixture.failAlways=false);await page.locator('#candidateSearchAction').click();await settled(page,2);await assertCompactPicker(page);
-    // Record failures belong to the dedicated record tab, never the new-place panel.
-    // One recorded place so the record tab searches (it runs in the workers since C20; keep it on this page for the stub).
-    await page.evaluate(()=>{globalThis.AstroNotesDiscoveryEngine='page';MyPlacesUI.discoveryPoints=()=>[{place:{id:'registered-failure',name:'登録した地点',latitude:35.692,longitude:139.732,elevation:25,eyeHeightAGL:2},record:{result:'seen'}}];window.registeredFailureCalls=0;MyPlacesUI.discoverySearch=async()=>{registeredFailureCalls++;return {rows:[],failed:1};};MyPlacesUI.imported();});
-    if(await recordsTabRetired(page))await assertOpportunityEntry(page);else{
-    await page.locator('#exploreDiscovery-records').click();const registered=page.locator('#exploreRecordedPlaces');
-    await page.waitForFunction(()=>registeredFailureCalls===1&&document.getElementById('exploreRecordedPlaces').getAttribute('aria-busy')==='false');
-    assert((await registered.innerText()).includes('記録の撮影地点を確認できませんでした'));assert(await registered.getByRole('button',{name:'再試行',exact:true}).isVisible());
-    await page.evaluate(()=>{MyPlacesUI.discoverySearch=async()=>{registeredFailureCalls++;throw Error('synthetic registered failure');};MyPlacesUI.imported();});
-    await page.waitForFunction(()=>registeredFailureCalls===2&&document.getElementById('exploreRecordedPlaces').getAttribute('aria-busy')==='false');
-    assert((await registered.innerText()).includes('記録の撮影地点を確認できませんでした'));assert(await registered.getByRole('button',{name:'再試行',exact:true}).isVisible());
-    }
+    assert(await page.locator('#exploreOpportunityLink').isHidden());
+    assert(await page.locator('#exploreDiscovery-records').isHidden());
     // The summit keeps its ridge contact policy and describes the centre to its left/right.
-    await page.evaluate(()=>SkyMapUI.setTarget('fuji'));await page.locator('#exploreDiscovery-new').click();
-    await page.locator('#candidateSearchAction').click();await settled(page,2);
+    await openExploreFields(page);
+    await page.evaluate(()=>SkyMapUI.setTarget('fuji'));
     assert(await page.locator('#skyMapAlignmentDetails').isHidden());
+    await page.locator('#mapWsConfirmConditions').click();
+    await page.locator('#candidateSearchAction').click();await settled(page,2);
     const mountainPassages=await page.locator('#candidateUnifiedResults>.list-item:visible [data-candidate-passage]').allTextContents();
     assert.deepEqual(mountainPassages.slice().sort(),['山頂の右寄りを通過','山頂の左寄りを通過'].sort());
     await page.screenshot({path:out+'/'+tag+'-mountain-passages.png',fullPage:true});
     assert.equal(writes,0);assert.deepEqual(errors,[]);
-    results.push({engine,width,theme,visibleLabels:layout.labels.map(l=>l.text),sharedDateTimeBar:true,noSeparateDateField:true,footerDoesNotCoverLastResult:true,labelsDoNotOverlap:true,primarySearchInConditions:true,fullWidthAccessibleButton:true,separateAlternativeLocationSection:true,directActionBeforeCandidateDetails:true,actionDomAndVisualOrderMatch:true,initialExplanationsReduced:true,feedbackInActionStrip:true,actionNodeStableDuringSearch:true,accessibleSuccessAnnouncement:true,detailOpenAndFocusPreserved:true,compactPicker:true,singleRefinementDetails:true,compactSortSelectWorks:true,touchTargets44px:true,searchingZeroHidesPicker:true,partialResultsKeepProgress:true,completeZeroHidesPicker:true,emptyFilterResetWithoutSearch:true,failedRecheckKeepsCurrentRows:true,retryWorks:true,redundantRegisteredCountHidden:true,registeredFailuresRemainVisible:true,writes,errors});
+    results.push({engine,width,theme,visibleLabels:layout.labels.map(l=>l.text),sharedDateTimeBar:true,noSeparateDateField:true,footerDoesNotCoverLastResult:true,labelsDoNotOverlap:true,accessibleConditionsConfirm:true,mapBackedSearch:true,searchLayoutPreserved:true,initialExplanationsReduced:true,feedbackInActionStrip:true,actionNodeStableDuringSearch:true,accessibleSuccessAnnouncement:true,detailOpenAndFocusPreserved:true,compactPicker:true,singleRefinementDetails:true,compactSortSelectWorks:true,touchTargets44px:true,searchingZeroHidesPicker:true,partialResultsKeepProgress:true,completeZeroHidesPicker:true,emptyFilterResetWithoutSearch:true,failedRecheckKeepsCurrentRows:true,retryWorks:true,redundantRegisteredCountHidden:true,recordsEntryOutsideSearchSheet:true,writes,errors});
     fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log(tag+' search design passed');
    }catch(error){await page.screenshot({path:out+'/'+tag+'-failure.png',fullPage:true}).catch(()=>{});console.error(tag,errors);throw error;}finally{await context.close();}
   }}finally{await browser.close();}

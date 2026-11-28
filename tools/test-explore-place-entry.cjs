@@ -1,17 +1,20 @@
 // Real trial UI; synthetic account/geocoding only. No production API writes.
 require('./no-open-meteo.cjs');
-require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs');
 const base=process.env.EXPLORE_PLACE_BASE||'http://127.0.0.1:8986/trial/';
 const out=process.env.EXPLORE_PLACE_OUT||'/tmp/astronotes-explore-place-entry';fs.mkdirSync(out,{recursive:true});
 const tools=['records','tower','diamond','pearl','skymap','multiscene'];
-async function assertPrimarySearch(page){
- const layout=await page.evaluate(()=>{
-  const direct=document.getElementById('exploreShowResult'),fields=document.querySelector('.explore-condition-fields'),height=document.getElementById('skyMapObserverDetails'),details=document.getElementById('exploreHeightFields'),heading=document.getElementById('candidateWorkspaceHeading');
-  const d=direct.getBoundingClientRect(),f=fields.getBoundingClientRect(),h=height.getBoundingClientRect(),e=details.getBoundingClientRect(),a=heading.getBoundingClientRect(),style=getComputedStyle(fields),before=(x,y)=>!!(x.compareDocumentPosition(y)&Node.DOCUMENT_POSITION_FOLLOWING);
-  return {count:document.querySelectorAll('#exploreShowResult').length,label:direct.innerText,name:direct.getAttribute('aria-label'),icon:!!direct.querySelector('svg[aria-hidden=true]'),fullWidth:Math.abs(d.left-f.left-parseFloat(style.paddingLeft)-parseFloat(style.borderLeftWidth))<1&&Math.abs(f.right-d.right-parseFloat(style.paddingRight)-parseFloat(style.borderRightWidth))<1,tappable:d.height>=44,afterHeight:(!h.height||h.bottom<=d.top+1)&&(!height.open||e.bottom<=d.top+1),beforeAlternatives:d.bottom<=a.top+1&&before(direct,heading),separateFromHeight:!height.contains(direct)};
- });
- assert.equal(layout.count,1);assert.equal(layout.label,'検索');assert(layout.name.includes('検索')&&layout.icon&&layout.fullWidth&&layout.tappable&&layout.afterHeight&&layout.beforeAlternatives&&layout.separateFromHeight,JSON.stringify(layout));
+async function openFields(page){
+ await page.locator('#mapWsTitle').click();
+ await page.locator('#skyMapView[data-explore-dropdown] #exploreConditions').waitFor({state:'visible'});
+}
+async function assertConditionsLayout(page){
+ const panel=page.locator('#skyMapView[data-explore-dropdown] #exploreConditions');
+ const confirm=panel.getByRole('button',{name:'確定',exact:true});
+ assert.equal(await confirm.count(),1);
+ assert((await confirm.boundingBox()).height>=44);
+ assert(await page.locator('#skyMapCanvas').isVisible());
+ assert(await panel.locator('#candidateWorkspaceAction').isHidden());
 }
 (async()=>{
  const results=[];
@@ -40,17 +43,17 @@ async function assertPrimarySearch(page){
      RecordSync.accepted([RecordSync.item('rec:obs:entry-record')]);MyPlacesUI.imported();
      window.placeEntryNodes=Object.fromEntries(['skyMapCalendarOpen','skyMapRange','skyMapTimeline','skyMapTime'].map(id=>[id,document.getElementById(id)]));
     });
-    await page.locator('#exploreDiscovery-new').click();await page.locator('#candidateSearchAction').waitFor();
+    await openFields(page);
     assert(await page.locator('.sky-map-footer').isVisible());assert.equal(await page.locator('#candidateWorkspaceDate,#candidateDateNavigation,#candidateDate').count(),0);
     const initial=await page.evaluate(()=>({at:SkyMapUI.selectionState().at,body:SkyMapUI.selectionState().body,target:SkyMapUI.selectionState().target.id,saved:JSON.stringify({favorites,records:MyPlacesUI.load(),schedule:schedule().list()})}));
-    assert.equal(await page.locator('#exploreRecordedPlace,.explore-place-actions').count(),0);assert(await page.locator('#exploreShowResult').isVisible());
-    await assertPrimarySearch(page);
+    assert.equal(await page.locator('#exploreRecordedPlace,.explore-place-actions').count(),0);assert(await page.locator('#exploreShowResult').isHidden());
+    await assertConditionsLayout(page);
     await page.evaluate(()=>{const target=document.getElementById('skyMapTarget');target.value='';target.dispatchEvent(new Event('change',{bubbles:true}));});
-    await page.locator('#exploreShowResult').click();await page.locator('#previewTargetDialog').waitFor({state:'visible'});
+    await page.locator('#skyMapTargetOpen').click();await page.locator('#previewTargetDialog').waitFor({state:'visible'});
     await page.keyboard.press('Escape');await page.locator('#previewTargetDialog').waitFor({state:'hidden'});await page.evaluate(()=>SkyMapUI.setTarget('skytree'));
     assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().observer),null);
-    await page.locator('#exploreShowResult').click();await page.locator('#placeSheet').waitFor({state:'visible'});assert(await page.locator('#placeSheet .place-search-tools').isVisible());
-    await page.locator('#placeSheet .page-back').click();await page.waitForFunction(()=>!document.getElementById('placeSheet').open);await assertPrimarySearch(page);
+    await page.locator('#skyMapChoose').click();await page.locator('#placeSheet').waitFor({state:'visible'});assert(await page.locator('#placeSheet .place-search-tools').isVisible());
+    await page.locator('#placeSheet .page-back').click();await page.waitForFunction(()=>!document.getElementById('placeSheet').open);await assertConditionsLayout(page);
     await page.screenshot({path:out+'/'+engine+'-'+width+'-initial.png',fullPage:true});
     await page.locator('#skyMapChoose').click();await page.locator('#searchBox').fill('東京都江東区新木場四丁目');await page.locator('#searchBoxGo').click();
     await page.locator('#searchResults button').first().click();await page.waitForFunction(()=>!document.getElementById('placeSheet').open);
@@ -63,11 +66,11 @@ async function assertPrimarySearch(page){
     await page.waitForFunction(()=>!document.getElementById('placeSheet').open);
     const selected=await page.evaluate(()=>{const s=SkyMapUI.selectionState();return {name:s.observer.name,at:s.at,body:s.body,target:s.target.id};});
     assert.deepEqual(selected,{name:'記録した河川敷',at:initial.at,body:initial.body,target:initial.target});
-    await assertPrimarySearch(page);
-    assert(await page.locator('#skyMapShareRow').isHidden(),'place save/share belongs to the preview, not candidate search');
+    await assertConditionsLayout(page);
+    assert(await page.locator('#mapWsShare').isVisible(),'condition editing keeps the map share control');
     assert(await page.locator('#skyMapObserverFav').isVisible());
     await page.locator('#skyMapObserverDetails > summary').click();
-    await assertPrimarySearch(page);
+    await assertConditionsLayout(page);
     assert(await page.locator('#skyMapObserverDetails').evaluate(n=>{const r=n.getBoundingClientRect(),summary=n.querySelector('summary').getBoundingClientRect(),fields=document.getElementById('exploreHeightFields').getBoundingClientRect();return fields.top>=summary.bottom-1&&fields.width>=r.width-2;}),'expanded height fields keep full width above the primary search');
     await page.locator('#skyMapGroundHeight').fill('42');await page.locator('#skyMapGroundHeight').dispatchEvent('change');
     await page.locator('#skyMapStandHeight').fill('4');await page.locator('#skyMapStandHeight').dispatchEvent('change');
@@ -79,12 +82,15 @@ async function assertPrimarySearch(page){
     for(let visit=0;visit<2;visit++){
      await page.evaluate(()=>navigationHistory.pushRoute('#/records'));await page.waitForFunction(()=>!document.getElementById('candidateSearchAction'));
      assert.equal(await page.locator('#exploreShowResult,.explore-place-tools').count(),0);assert.equal(await page.locator('.aim-observer-card #skyMapObserverDetails').count(),1);
-     await page.evaluate(()=>navigationHistory.pushRoute('#/explore'));await page.locator('#candidateSearchAction').waitFor();
-     assert.equal(await page.locator('#candidateSearchAction').count(),1);assert.equal(await page.locator('#exploreRecordedPlace,.explore-place-actions').count(),0);assert(await page.locator('.sky-map-footer').isVisible());assert(await page.evaluate(()=>Object.entries(placeEntryNodes).every(([id,n])=>n===document.getElementById(id))));
-     await assertPrimarySearch(page);
+     await page.evaluate(()=>navigationHistory.pushRoute('#/explore'));await openFields(page);
+     assert.equal(await page.locator('#exploreConditions').count(),1);assert.equal(await page.locator('#exploreRecordedPlace,.explore-place-actions').count(),0);assert(await page.locator('.sky-map-footer').isVisible());assert(await page.evaluate(()=>Object.entries(placeEntryNodes).every(([id,n])=>n===document.getElementById(id))));
+     await assertConditionsLayout(page);
     }
     assert(await page.locator('#exploreScenePanel').isHidden());
-    await page.locator('#exploreShowResult').click();await page.locator('#aimLook').waitFor({state:'visible'});
+    await page.locator('#mapWsConfirmConditions').click();
+    const center=page.locator('#mapWsCenterToggle');
+    if(await center.getAttribute('data-center')==='target')await center.click();
+    await page.locator('#mapWsCardView').click();await page.locator('#aimLook').waitFor({state:'visible'});
     const recordSave=page.locator('#trialRecordSave'),recordSheet=page.locator('#trialRecordSaveSheet');
     await recordSave.waitFor({state:'visible'});assert(await page.locator('#aimLook [data-plan-action=share]').isVisible());
     assert(await recordSheet.isHidden());assert.equal(await page.locator('#aimLook .trial-scene-toolbar [data-quick-save]:visible').count(),0,'save destinations are hidden until the record chooser opens');
@@ -106,7 +112,7 @@ async function assertPrimarySearch(page){
     await page.mouse.move(timeline.x+timeline.width*.65,timeline.y+timeline.height*.5);await page.mouse.down();await page.mouse.move(timeline.x+timeline.width*.35,timeline.y+timeline.height*.5,{steps:12});await page.mouse.up();
     await page.waitForFunction(old=>SkyMapUI.selectionState().at!==old,oldAt);
     assert.equal(await page.evaluate(()=>JSON.stringify({favorites,records:MyPlacesUI.load(),schedule:schedule().list()})),initial.saved);
-    await page.locator('#exploreBackToCandidates').click();
+    await page.locator('#exploreBackToCandidates').click();await openFields(page);
     await page.locator('#skyMapChoose').click();await page.locator('#placeTab-records').click();
     const observerBefore=await page.evaluate(()=>JSON.stringify(SkyMapUI.selectionState().observer));
     await page.evaluate(()=>{const stale=document.querySelector('[data-recorded-place]').onclick;auth.tools=auth.tools.filter(t=>t!=='records');recentHistory.records();stale();});
@@ -114,7 +120,7 @@ async function assertPrimarySearch(page){
     await page.locator('#placeSheet .page-back').click();
     assert.equal(writes,0);assert.deepEqual(errors,[]);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
     await page.screenshot({path:out+'/'+engine+'-'+width+'-scene.png'});
-    results.push({engine,width,addressInput:true,recordsOnly:true,selectionPreservesConditions:true,primarySearchFullWidth:true,missingTargetAndPlaceOpenExistingPickers:true,heightEditorDoesNotOverlapSearch:true,recordTabInPlacePicker:true,removedRecordShortcut:true,noEmptyPlaceActions:true,remountWithoutDuplicateActions:true,recordChooserWithoutImplicitSave:true,sharedSearchAndPreviewDateTimeBar:true,existingCalendarAndTimebar:true,calendarAndTimelineOperable:true,revokedPermissionRefusesStaleSelection:true,savedDataUnchanged:true,writes});
+    results.push({engine,width,addressInput:true,recordsOnly:true,selectionPreservesConditions:true,mapConditionsConfirmation:true,targetAndPlaceOpenExistingPickers:true,heightEditorDoesNotOverlapConfirmation:true,recordTabInPlacePicker:true,removedRecordShortcut:true,noEmptyPlaceActions:true,remountWithoutDuplicateActions:true,recordChooserWithoutImplicitSave:true,sharedSearchAndPreviewDateTimeBar:true,existingCalendarAndTimebar:true,calendarAndTimelineOperable:true,revokedPermissionRefusesStaleSelection:true,savedDataUnchanged:true,writes});
     fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log(engine,width,'place entry passed');
    }catch(e){console.error('page errors',errors);await page.screenshot({path:out+'/'+engine+'-'+width+'-failure.png'}).catch(()=>{});console.error(await page.locator('dialog[open]').evaluateAll(ns=>ns.map(n=>({label:n.getAttribute('aria-label'),year:n.querySelector('[data-year]')?.value,month:n.querySelector('[data-month]')?.value}))).catch(()=>[]));throw e;}finally{await context.close();}
   }}finally{await browser.close();}

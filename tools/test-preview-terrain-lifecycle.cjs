@@ -1,7 +1,7 @@
 // Synthetic read-only scene lifecycle. Real terrain/profile math, fixed heights;
 // all external requests are intercepted and no surveyed visibility is asserted.
 require('./no-open-meteo.cjs');
-require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
+const {showExploreView}=require('./explore-open-conditions.cjs');
 const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs');
 const base=process.env.PREVIEW_TERRAIN_BASE||'http://127.0.0.1:8992/trial/';
 const out=process.env.PREVIEW_TERRAIN_OUT||'/tmp/astronotes-preview-terrain-lifecycle';
@@ -10,7 +10,7 @@ const at=Date.parse('2026-11-25T16:52:07+09:00');
 const observer={latitude:35.58386,longitude:139.56853,elevation:87.2,eyeHeightAGL:1.5,standAglM:1.5,name:'合成読取・地形寿命の確認地点'};
 const settle=p=>p.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
 async function visible(page){await page.waitForFunction(at=>{const h=document.getElementById('aimLook');return h.getClientRects().length&&h._uiTime&&h._lookAt===at;},at);await settle(page);}
-async function reenter(page){await page.evaluate(()=>location.hash='#/explore');await page.locator('#exploreShowResult').click();}
+async function reenter(page){await page.evaluate(()=>location.hash='#/explore');await showExploreView(page);}
 async function jobAfter(page,work){const before=await page.evaluate(()=>terrainFixture.jobs.length);await work();await page.waitForFunction(before=>terrainFixture.jobs.length>before,before);return before;}
 const inspect=page=>page.evaluate(()=>{const f=terrainFixture,h=document.getElementById('aimLook');return {render:f.render,jobs:f.jobs.map(({release,...r})=>r),angles:f.angles,seq:h._lookSeq,at:h._lookAt,refresh:h._lookNeedsRefresh,rects:h.getClientRects().length,active:TrialExplore.active(),cache:{ridge:aimRidgeCache.size,front:aimFrontCache.size,beyond:aimBeyondCache.size}};});
 const release=page=>page.evaluate(()=>{for(const j of terrainFixture.jobs)j.release?.();});
@@ -45,7 +45,7 @@ const release=page=>page.evaluate(()=>{for(const j of terrainFixture.jobs)j.rele
     SkyMapUI.workspaceHost().restoreObserver(structuredClone(observer));
     const body=document.getElementById('skyMapBody');body.value='moon';body.dispatchEvent(new Event('change',{bubbles:true}));SkyMapUI.setTime(at);
    },{observer,at});
-   await page.locator('#exploreShowResult').click();await visible(page);await page.waitForTimeout(180);
+   await showExploreView(page);await visible(page);await page.waitForTimeout(180);
    const initial=await inspect(page);rows.push({step:'initial',...initial});
    await page.evaluate(()=>location.hash='#/almanac');await page.waitForTimeout(100);const hidden=await inspect(page);
    await page.setViewportSize({width:420,height:844});await page.waitForTimeout(250);

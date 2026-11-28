@@ -1,7 +1,7 @@
 // 2026-11-11 ユーザー「まだ計算が遅いよ」「戻るボタンがなんかダサい」「てかこの重ね方って何」:
 // the view is drawn before the weather answers and stays on screen when it arrives; the back control is a bare
 // chevron; the 重ね方 heading icon keeps its small size in the preview too.
-require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
+const {showExploreView}=require('./explore-open-conditions.cjs');
 const {chromium}=require('playwright'),assert=require('node:assert/strict');
 const base=process.env.VIEW_FIRST_BASE||'http://127.0.0.1:8992/trial/',tools=['records','tower','diamond','pearl','skymap','multiscene'];
 (async()=>{
@@ -33,7 +33,7 @@ const base=process.env.VIEW_FIRST_BASE||'http://127.0.0.1:8992/trial/',tools=['r
    await new Promise(r=>setTimeout(r,400));
    const l=document.getElementById('aimLook'),H=globalThis.__hidden=[];new MutationObserver(()=>H.push(l.hidden)).observe(l,{attributes:true,attributeFilter:['hidden']});});
   const t0=Date.now();
-  await page.locator('#exploreShowResult').click();
+  await showExploreView(page);
   await page.waitForFunction(()=>{const l=document.getElementById('aimLook');return l&&!l.hidden&&l._lookLayers?.stats?.frames>0;},null,{timeout:3500});
   const drawn=Date.now()-t0;
   assert.equal(await page.evaluate(()=>AstroNotesAssets.modelsReady()),true,'opening the preview loads its own models');

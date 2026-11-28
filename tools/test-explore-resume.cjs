@@ -1,5 +1,4 @@
 require('./no-open-meteo.cjs');
-require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 // 2026-11-25 ユーザー「重なる日時の候補を押してもボタンが効いてない」「別のAppに飛んで戻ると一覧に移動してる」
 // 「一覧に移動すると条件変わってないのに毎回検索始める」:
 // 1) the view loads weather (気象予報) after the dates were found; the date buttons still move the time.
@@ -16,13 +15,28 @@ const day=Date.parse('2026-11-25T16:52:00+09:00');
    const context=await browser.newContext({viewport:{width,height:844},locale:'ja-JP',timezoneId:'Asia/Tokyo',reducedMotion:'reduce'});
    await context.addInitScript(fixture,tools);
    await context.addInitScript(d=>{window.__days=[{at:d,side:'rise',illuminated:.99,sunAltitude:-1},{at:d+27*86400000,side:'rise',illuminated:.97,sunAltitude:-1}];},day);
-   await context.route('**/*',r=>{const u=new URL(r.request().url());if(u.origin===new URL(base).origin)return r.continue();if(/zekkei-api|localhost:8787/.test(u.origin))return r.fulfill({json:{allowed:true,tool:'skymap',loginId:'date-test',tools,favorites:[],sightings:[],records:[],rev:1}});return r.abort();});
+   // The resume scenario uses an offline elevation service so reloading a direct
+   // preview never depends on WebKit's handling of aborted cross-origin terrain tiles.
+   await context.addInitScript(()=>{
+    const fetch=window.fetch.bind(window);
+    window.fetch=(input,options)=>{
+     const url=new URL(input instanceof Request?input.url:input,location.href);
+     if(url.hostname==='cyberjapandata2.gsi.go.jp')return Promise.resolve(Response.json({elevation:25,hsrc:'DEM5A'}));
+     if(url.hostname==='cyberjapandata.gsi.go.jp')return Promise.resolve(new Response(null,{status:404}));
+     return fetch(input,options);
+    };
+   });
+   await context.route('**/*',r=>{const u=new URL(r.request().url());if(u.origin===new URL(base).origin)return r.continue();if(u.hostname==='cyberjapandata.gsi.go.jp')return r.fulfill({status:404,headers:{'access-control-allow-origin':'*'},body:''});if(/zekkei-api|localhost:8787/.test(u.origin))return r.fulfill({json:{allowed:true,tool:'skymap',loginId:'date-test',tools,favorites:[],sightings:[],records:[],rev:1}});return r.abort();});
    const p=await context.newPage(),errors=[];p.setDefaultTimeout(30000);p.on('pageerror',e=>errors.push(e.message));
    const boot=async()=>{await p.waitForFunction(()=>typeof SkyMapUI==='object'&&typeof AstroNotesCandidatePicker==='object'&&typeof startupSessionReady!=='undefined');
     await p.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>25;aimBuildingDays=async()=>window.__days;});};
    await p.goto(base+'#/explore');await boot();
    await p.evaluate(d=>{navigationHistory.pushRoute('#/explore');SkyMapUI.setTarget('skytree');const b=document.getElementById('skyMapBody');b.value='moon';b.onchange();SkyMapUI.setTime(d);},day);
-   await p.waitForTimeout(500);await p.locator('#exploreDiscovery-new').click();await p.locator('#candidateSearchAction').click();
+   await p.waitForFunction(()=>document.getElementById('skyMapView').classList.contains('map-ws')&&SkyMapUI.workspaceHost());
+   await p.evaluate(()=>SkyMapUI.workspaceHost().restoreObserver(null));
+   await p.waitForFunction(()=>document.getElementById('skyMapView').dataset.mapCenter==='target'&&document.getElementById('mapWsCardView')?.dataset.action==='search');
+   await p.locator('#mapWsCardView').click();
+   await p.locator('#skyMapView[data-explore-sheet] #skyMapCanvas').waitFor({state:'visible'});
    await p.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2&&document.getElementById('candidateSearchAction').dataset.state==='idle');
    await p.locator('#candidateUnifiedResults .list-item:not([hidden])').first().click();
    await p.waitForFunction(()=>{const h=document.getElementById('aimLook');return !h.hidden&&h._lookLayers?.stats?.frames>0&&h._compose&&!h._compose.apply;});
@@ -39,14 +53,15 @@ const day=Date.parse('2026-11-25T16:52:00+09:00');
    await p.reload();await boot();
    await p.waitForFunction(({at,id})=>document.getElementById('skyMapView').dataset.exploreStage==='preview'&&SkyMapUI.selectionState()?.at===at&&SkyMapUI.selectionState()?.candidateOpportunity?.id===id,{at:second,id});
    assert.equal(await p.evaluate(()=>dateFixture.loads.length),0,'the view comes back without searching');
-   await p.locator('#exploreBackToCandidates').click();await p.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='search');
+   await p.locator('#exploreBackToCandidates').click();await p.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet'));
    await p.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2);
    await p.waitForTimeout(800);assert.equal(await p.evaluate(()=>dateFixture.loads.length),0,'the list comes back without searching');
+   assert(await p.locator('#skyMapView[data-explore-sheet] #skyMapCanvas').isVisible(),'the restored list stays over the map');
    assert.equal(await p.evaluate(()=>document.getElementById('candidateSearchAction').dataset.state),'idle');
    // A reload on the list keeps the list too.
    await p.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});
    await p.reload();await boot();
-   await p.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='search'&&AstroNotesCandidatePicker.visibleRows().length===2);
+   await p.waitForFunction(()=>document.getElementById('skyMapView').hasAttribute('data-explore-sheet')&&AstroNotesCandidatePicker.visibleRows().length===2);
    assert.equal(await p.evaluate(()=>dateFixture.loads.length),0);
    // 3) The confirmed rows of a large unfinished search survive reload and
    // continue through the real button, keeping the old entries exactly once.
@@ -75,6 +90,29 @@ const day=Date.parse('2026-11-25T16:52:00+09:00');
    assert.deepEqual(after.slice(0,before.length),before);
    assert.equal(new Set(after.map(row=>row.id)).size,3);
    assert.deepEqual(await p.evaluate(()=>dateFixture.loads.map(load=>load.cursor)),[0]);
+   // Closing the sheet preserves its cache without opening the sheet on a reload.
+   await p.locator('#exploreBackToMap').click();
+   await p.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='map');
+   await p.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});
+   assert.equal(await p.evaluate(()=>JSON.parse(localStorage.getItem('astronotes.exploreResume')).stage),'map');
+   await p.reload();await boot();
+   await p.locator('#skyMapView[data-explore-stage="map"] #skyMapCanvas').waitFor({state:'visible'});
+   await p.waitForFunction(()=>AstroNotesCandidatePicker.exportSearch()?.result.rows.length===3);
+   assert.equal(await p.locator('#skyMapView').getAttribute('data-explore-sheet'),null);
+   assert.equal(await p.evaluate(()=>dateFixture.loads.length),0);
+   // A preview opened by the map card restores directly and goes back to the map.
+   await p.evaluate(()=>{SkyMapUI.setObserver({name:'復元検査地点',latitude:35.7119,longitude:139.8089,groundManualM:25,standAglM:1.5});});
+   const center=p.locator('#mapWsCenterToggle');
+   if(await center.getAttribute('data-center')==='target')await center.click();
+   await p.getByRole('button',{name:'見え方を開く',exact:true}).click();
+   await p.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='preview');
+   await p.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});
+   assert.equal(await p.evaluate(()=>JSON.parse(localStorage.getItem('astronotes.exploreResume')).from),'map');
+   await p.reload();await boot();
+   await p.getByRole('button',{name:'地図へ戻る',exact:true}).waitFor({state:'visible'});
+   await p.getByRole('button',{name:'地図へ戻る',exact:true}).click();
+   await p.locator('#skyMapView[data-explore-stage="map"] #skyMapCanvas').waitFor({state:'visible'});
+   assert.equal(await p.locator('#skyMapView').getAttribute('data-explore-sheet'),null);
    assert.deepEqual(errors,[]);console.log('PASS',engine,width);
    await context.close();
   }finally{await browser.close();}

@@ -94,7 +94,8 @@ module.exports = async function checkOpportunityBack(page, engine, ready) {
   await page.waitForFunction(() => location.hash === '#/records');
   await ready(page);
   await swipe();
-  await page.waitForFunction(() => location.hash === '#/explore' && TrialExplore.active());
+  await page.waitForFunction(() => location.hash === '#/explore' && TrialExplore.active() && !!SkyMapUI.workspaceHost());
+  await page.locator('#skyMapCanvas').waitFor({state: 'visible'});
   assert.equal(await openMenu.count(), 0);
   assert.equal(await page.evaluate(() => SkyMapUI.selectionState().target?.id), 'skytree');
   await page.evaluate(() => navigationHistory.pushRoute('#/records'));

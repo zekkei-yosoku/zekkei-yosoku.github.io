@@ -160,8 +160,19 @@ async function cancelBeforeRulerSettles(p,dayValue){
     await p.evaluate(()=>{document.getElementById('skyMapNext').click();document.getElementById('skyMapPrev').click();});await searchNow(p);await settled(p,'2026-11-12');assert.equal(await p.locator('.candidate-wait').count(),0,'retired busy job must not leave a waiting character');
     await p.evaluate(()=>dateFixture.holds.shift().release());await p.waitForTimeout(100);await settled(p,'2026-11-12');assert.equal(offset((await current(p)).at),timeOfDay);
     // Current rows disappear from both list/map and cannot select the previous date.
-    await p.locator('#candidateMapToggle').click();assert(await p.locator('#candidateMapPanel').isVisible());await p.locator('#skyMapNext').click();assert(await p.locator('#candidateMapPanel').isHidden());await searchNow(p);await settled(p,'2026-11-13');
-    const metrics=await p.locator('.sky-map-footer .tool-datetime-row').evaluate(n=>({overflow:n.scrollWidth>n.clientWidth+1,bodyOverflow:document.documentElement.scrollWidth>innerWidth+1,count:document.querySelectorAll('.sky-map-footer .tool-datetime-row').length}));assert(!metrics.overflow&&!metrics.bodyOverflow);assert.equal(metrics.count,1);await p.locator('.sky-map-footer .tool-datetime-row').scrollIntoViewIfNeeded();await p.screenshot({path:out+'/'+engine+'-'+width+'-'+theme+'.png'});
+    const map=p.locator('#skyMapCanvas'),fit=p.locator('#candidateMapToggle');
+    const pinCount=count=>p.waitForFunction(count=>AstroNotesMapWorkspace.targetState().newPins===count,count);
+    await fit.click();await pinCount(1);
+    await p.locator('#skyMapNext').click();await pinCount(0);
+    assert(await map.isVisible(),'date changes clear former candidates while keeping the map visible');
+    assert.equal(await p.evaluate(()=>AstroNotesCandidatePicker.visibleRows().length),0);
+    await searchNow(p);await settled(p,'2026-11-13');
+    const metrics=await p.locator('.sky-map-footer .tool-datetime-row').evaluate(row=>({
+     overflow:row.scrollWidth>row.clientWidth+1,bodyOverflow:document.documentElement.scrollWidth>innerWidth+1,
+     count:document.querySelectorAll('.sky-map-footer .tool-datetime-row').length,
+     rowWidth:row.clientWidth,contentWidth:row.scrollWidth,grid:getComputedStyle(row).gridTemplateColumns,
+     right:row.getBoundingClientRect().right,lastRight:row.lastElementChild.getBoundingClientRect().right,
+    }));assert(!metrics.overflow&&!metrics.bodyOverflow,JSON.stringify(metrics));assert.equal(metrics.count,1);await p.locator('.sky-map-footer .tool-datetime-row').scrollIntoViewIfNeeded();await p.screenshot({path:out+'/'+engine+'-'+width+'-'+theme+'.png'});
     // Changing the calendar date preserves fixed-time and cross-midnight window intent.
     await openRefinement(p);await p.locator('#candidateTimeFilter').selectOption('all');await p.evaluate(()=>{const m=document.getElementById('candidateSearchMode');m.value='instant';m.onchange();});await p.locator('#candidateSearchAction').click();await settled(p,'2026-11-13');
     const instantAt=(await current(p)).at;await p.locator('#skyMapTimeline').focus();await p.locator('#skyMapTimeline').press('ArrowLeft');
@@ -179,8 +190,18 @@ async function cancelBeforeRulerSettles(p,dayValue){
     const retained=await p.evaluate(()=>structuredClone(AstroNotesCandidatePicker.visibleRows())),retainedLoads=(await current(p)).loads;
     await p.locator('#candidateUnifiedResults .list-item:not([hidden])').click();await appearance(p,retained[0]);await open(p);await settled(p,'2026-11-15');
     assert.deepEqual(await p.evaluate(()=>structuredClone(AstroNotesCandidatePicker.visibleRows())),retained);assert.equal((await current(p)).loads,retainedLoads);assert.equal(await p.locator('#candidateKindFilter').inputValue(),'park');assert.equal(await p.locator('#candidateTimeFilter').inputValue(),'all');assert.equal(await p.locator('#candidateSort').inputValue(),'time-desc');
-    await p.locator('#candidateMapToggle').click();await p.locator('#candidateMapUse').click();await appearance(p,retained[0]);await open(p);await settled(p,'2026-11-15');await p.locator('#candidateMapPanel').waitFor({state:'visible'});assert.equal((await current(p)).loads,retainedLoads);assert.equal(await p.locator('#candidateMapChoice').inputValue(),await p.locator('#candidateMapChoice option').first().getAttribute('value'));
-    await p.locator('#candidateMapToggle').click();await p.locator('.sky-map-footer .tool-datetime-row').scrollIntoViewIfNeeded();await p.screenshot({path:out+'/'+engine+'-'+width+'-'+theme+'-restored.png'});
+    await fit.click();await pinCount(1);
+    const pin=await map.evaluate((canvas,place)=>{
+     const [x,y]=SkyMapUI.workspaceHost().map.project(place.latitude,place.longitude),rect=canvas.getBoundingClientRect();
+     return {x:rect.left+x,y:rect.top+y};
+    },retained[0].place);
+    await p.mouse.click(pin.x,pin.y);
+    const row=p.locator('#candidateUnifiedResults [data-map-candidate-selected]');
+    await row.waitFor({state:'visible'});
+    assert.equal(await row.getAttribute('data-candidate-id'),await p.evaluate(row=>AstroNotesCandidatePicker.candidateKey(row),retained[0]));
+    await row.click();await appearance(p,retained[0]);await open(p);await settled(p,'2026-11-15');
+    assert(await map.isVisible());await pinCount(1);assert.equal((await current(p)).loads,retainedLoads);
+    await p.locator('.sky-map-footer .tool-datetime-row').scrollIntoViewIfNeeded();await p.screenshot({path:out+'/'+engine+'-'+width+'-'+theme+'-restored.png'});
     await p.evaluate(()=>navigationHistory.pushRoute('#/records'));await open(p);await settled(p,'2026-11-15');await p.waitForTimeout(50);assert.equal((await current(p)).open,true);assert.equal((await current(p)).loads,retainedLoads);
     await p.locator('#skyMapCalendarOpen').click();await calendar.getByRole('button',{name:'次の月',exact:true}).click();
     const calendarText=await calendar.locator('select').evaluateAll(ns=>ns.map(n=>{const cs=getComputedStyle(n),c=document.createElement('canvas').getContext('2d');c.font=cs.font||`${cs.fontSize} ${cs.fontFamily}`;return {text:n.selectedOptions[0].textContent,width:c.measureText(n.selectedOptions[0].textContent).width,available:n.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight)};}));assert(calendarText.every(v=>v.width<=v.available+1),JSON.stringify(calendarText));

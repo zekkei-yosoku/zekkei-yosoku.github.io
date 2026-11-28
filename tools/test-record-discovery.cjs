@@ -1,6 +1,6 @@
 require('./no-open-meteo.cjs');
 require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
-const {recordsTabRetired,assertOpportunityEntry}=require('./explore-records-tab.cjs'); // 2026-11-26 段階③: 記録タブは trial で廃止
+const {recordsTabRetired,revealOpportunityEntry}=require('./explore-records-tab.cjs'); // 2026-11-26 段階③: 記録タブは trial で廃止
 const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs');
 const {fixture}=require('./candidate-date-fixture.cjs');
 const base=process.env.RECORD_DISCOVERY_BASE||'http://127.0.0.1:8992/trial/index.html',out=process.env.RECORD_DISCOVERY_OUT||'/tmp/astronotes-record-discovery-20261106';fs.mkdirSync(out,{recursive:true});
@@ -14,14 +14,14 @@ await page.evaluate(()=>{favorites=[{id:'saginuma',name:'鷺沼公園',latitude:
 // 撮影地点を探すにあり、押すと天体・対象・日を今の条件で絞った重なる日（地点はすべて）が開くことを確かめ、記録タブの検査は行わない。
 if(await recordsTabRetired(page)){
  await page.evaluate(()=>{SkyMapUI.setTarget('skytree');const b=document.getElementById('skyMapBody');b.value='moon';b.dispatchEvent(new Event('change',{bubbles:true}));SkyMapUI.setTime(Date.parse('2026-11-25T16:52:00+09:00'));});
- // 記録が別の対象だけなら、入口は押せず理由を出す（重なる日で「対象を選び直して」に行き止まらない）
- await page.waitForFunction(()=>/記録はまだありません/.test(document.getElementById('exploreOpportunityLink')?.textContent||''));assert(await page.locator('#exploreOpportunityLink').isDisabled(),'記録のない対象では押せない');
+ const entry=await revealOpportunityEntry(page);
+ assert(await entry.isDisabled(),'記録のない対象では押せない');
  await page.evaluate(()=>{const key=AstroNotesLibrary.keys(auth.loginId).observations,records=[...store.get(key),{id:'test-skytree',placeId:'saginuma',target:{key:'skytree',name:'東京スカイツリー',latitude:35.710063,longitude:139.8107},observer:{latitude:35.58386,longitude:139.56853,elevation:87.2,eyeHeightAGL:1.5},result:'seen',registration:true,date:'',note:'',createdAt:2,updatedAt:2}];
   const touched=RecordSync.touched;RecordSync.touched=()=>{};store.set(key,records);const hash=v=>{const t=JSON.stringify(v);let h=2166136261;for(let i=0;i<t.length;i++)h=Math.imul(h^t.charCodeAt(i),16777619);return (h>>>0).toString(36)+t.length.toString(36);};
   localStorage.setItem('sorami.recordSync.v1:'+encodeURIComponent(auth.loginId),JSON.stringify({obs:Object.fromEntries(records.map(r=>[r.id,hash(r)])),shape:{},plan:{},receiving:{}}));RecordSync.touched=touched;MyPlacesUI.imported();});
- await page.waitForFunction(()=>!document.getElementById('exploreOpportunityLink')?.disabled);
- const entry=await assertOpportunityEntry(page);assert.match(entry.text,/月・東京スカイツリー・11\/25から/);
- await page.locator('#exploreOpportunityLink').click();await page.waitForFunction(()=>location.hash==='#/records'&&!!document.getElementById('recordOpportunityBody'));
+ await page.waitForFunction(()=>document.querySelector('#mapWsCardSecond[data-action="list"]:enabled'));
+ assert.match(await entry.getAttribute('aria-label'),/記録の地点の重なる日/);
+ await entry.click();await page.waitForFunction(()=>location.hash==='#/records'&&!!document.getElementById('recordOpportunityBody'));
  const filters=await page.evaluate(()=>({body:document.getElementById('recordOpportunityBody').textContent,target:document.getElementById('recordOpportunityTarget').textContent,place:document.getElementById('recordOpportunityPlace')?.textContent,date:document.getElementById('recordOpportunityDate').value}));
  assert.equal(filters.body,'月');assert.equal(filters.target,'東京スカイツリー');assert.equal(filters.date,'2026-11-25');assert.equal(filters.place,'すべて');
  assert.deepEqual(errors,[]);results.push({engine,width,retired:true,filters});console.log('PASS retired-records-tab',engine,width,JSON.stringify(filters));await context.close();continue;

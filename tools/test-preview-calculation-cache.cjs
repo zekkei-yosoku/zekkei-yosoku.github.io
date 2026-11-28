@@ -1,7 +1,7 @@
 // Exact preview reuse through the normal lens change handler. Synthetic read-only
 // ports isolate calculation/rendering; no surveyed visibility claim is made.
 require('./no-open-meteo.cjs');
-require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
+const {showExploreView}=require('./explore-open-conditions.cjs');
 const {chromium,webkit}=require('playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const base=process.env.PREVIEW_CACHE_BASE||'http://127.0.0.1:8997/trial/';
@@ -54,7 +54,7 @@ async function prepare(page){
   const body=document.getElementById('skyMapBody');body.value='moon';body.dispatchEvent(new Event('change',{bubbles:true}));
   SkyMapUI.setTime(at);
  },{observer:initialObserver,at:initialAt});
- await page.locator('#exploreShowResult').click();await ready(page,0,initialAt);
+ await showExploreView(page);await ready(page,0,initialAt);
  assert.equal(await page.evaluate(()=>previewCacheFixture.hiddenMapRenders),0,'the combined search and scene must not start hidden legacy map or candidate work');
 }
 
@@ -105,6 +105,9 @@ async function measure(page,label,at){
 }
 
 async function scrubMinutes(page,at,offsets=[5,30],changeWeather=false){
+ const scale=page.locator('#skyMapScrubMode');
+ for(let step=0;step<3&&await scale.getAttribute('data-mode')!=='time';step++)await scale.click();
+ assert.equal(await scale.getAttribute('data-mode'),'time');
  const mapRenders=await page.evaluate(()=>{
   const look=document.getElementById('aimLook');
   previewCacheFixture.retained={lookSeq:look._lookSeq,layers:look._lookLayers,buildings:look._lookLayers.stats.buildings};

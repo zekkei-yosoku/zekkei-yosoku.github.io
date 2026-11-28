@@ -1,5 +1,5 @@
 require('./no-open-meteo.cjs');
-require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
+const {showExploreView}=require('./explore-open-conditions.cjs');
 const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs');
 const {fixture}=require('./candidate-date-fixture.cjs');
 const base=process.env.POSITION_NAV_BASE||'http://127.0.0.1:8998/trial/',out=process.env.POSITION_NAV_OUT||'/tmp/astro-position-navigation';fs.mkdirSync(out,{recursive:true});
@@ -16,7 +16,7 @@ const ready=page=>page.waitForFunction(()=>{const h=document.getElementById('aim
    await page.goto(base+'#/explore');await page.waitForFunction(()=>typeof SkyMapUI==='object'&&typeof AstroNotesCandidatePicker==='object');
    await page.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>25;aimBuildingDays=async()=>[];navigationHistory.pushRoute('#/explore');SkyMapUI.setTarget('skytree');const b=document.getElementById('skyMapBody');b.value='moon';b.onchange();SkyMapUI.setTime(Date.parse('2026-11-19T09:59:00+09:00'));});
    const stored=await page.evaluate(()=>JSON.stringify({favorites,records:MyPlacesUI.load(),plans:schedule().list()}));
-   await page.locator('#exploreDiscovery-new').click();await page.locator('#candidateSearchAction').click();
+   await page.locator('#candidateSearchAction').click();
    const rows=page.locator('#candidateUnifiedResults>.list-item:visible');await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===1&&document.getElementById('candidateSearchAction').dataset.state==='idle');
    assert.equal(await rows.count(),1);const loads=await page.evaluate(()=>dateFixture.loads.length);
    await rows.first().click();await ready(page);await page.locator('#exploreCandidatePositions').waitFor({state:'visible'});
@@ -32,7 +32,7 @@ const ready=page=>page.waitForFunction(()=>{const h=document.getElementById('aim
    await page.locator('#exploreConditions > summary .explore-condition-edit').click();await page.waitForFunction(()=>document.getElementById('exploreConditions').open);
    assert.equal(await page.locator('#skyMapView').getAttribute('data-explore-stage'),'preview');assert(await page.locator('#exploreScenePanel').isVisible());assert(await page.locator('#exploreFindPlaces').isVisible());assert((await page.locator('#exploreFindPlaces').boundingBox()).height>=44);assert.equal(await page.evaluate(()=>dateFixture.loads.length),loads);
    await page.screenshot({path:out+'/'+engine+'-'+width+'-conditions.png',fullPage:true});
-   await page.locator('#exploreShowResult').click();await ready(page);assert.equal(await page.locator('#exploreConditions').getAttribute('open'),null);
+   await showExploreView(page);await ready(page);assert.equal(await page.locator('#exploreConditions').getAttribute('open'),null);
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:out+'/'+engine+'-'+width+'-navigation.png',fullPage:true});
    await page.locator('#exploreBackToCandidates').click();await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===1);assert.equal(await rows.count(),1);assert.equal(await page.evaluate(()=>dateFixture.loads.length),loads);
    assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().at),original.s.at===changed.at?original.s.at:AstroTime('2026-11-19T09:59:00+09:00'));

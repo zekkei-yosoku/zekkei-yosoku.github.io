@@ -1,10 +1,5 @@
-// 2026-11-26 trial 探すの全画面地図（段階①）: 探すは地図の段で始まり、撮影条件・撮影地点を探す・候補は
-// 上部の条件帯から開くポップアップ（検索の段）にある。従来の検索の段を確かめる検査は先頭でこれを require する。
-// 起動したブラウザの全コンテキストへ初期化スクリプトを足し、探すに入って地図の段で始まるたびに（離れると段が消える）
-// 条件帯と同じ合図（astronotes-explore-open-conditions）を送る。ポップアップ→地図へ、見え方→地図へ戻る時は開かない。
-// これは従来の「探すは検索の段で始まる」検査を保つためで、地図の段から始まる導線（重なる日・復元を含む）は
-// tools/test-explore-map-stage.cjs が受け持つ。
-// 地図の段そのものの受入は tools/test-explore-map-stage.cjs（これを読まない）が持つ。
+// Functional Explore fixtures start with the candidate sheet on its real map.
+// Reopening the map after a preview or after closing the sheet does not reopen it.
 const playwright=require('playwright');
 function openOnEntry(){
  let last=null,tries=0;
@@ -12,7 +7,12 @@ function openOnEntry(){
   const view=document.getElementById('skyMapView'),stage=view?.dataset.exploreStage||null;
   if(stage===last)return;const entered=stage==='map'&&last===null;last=stage;
   if(!entered)return;tries=0;
-  const open=()=>{const v=document.getElementById('skyMapView');if(v?.dataset.exploreStage!=='map'||tries++>40)return;document.dispatchEvent(new Event('astronotes-explore-open-conditions'));setTimeout(open,50);};
+  const open=()=>{
+   const v=document.getElementById('skyMapView');
+   if(v?.dataset.exploreStage!=='map'||v.hasAttribute('data-explore-dropdown')||tries++>40)return;
+   document.dispatchEvent(new CustomEvent('astronotes-explore-open-sheet'));
+   setTimeout(open,50);
+  };
   setTimeout(open,0);
  };
  const start=()=>{new MutationObserver(check).observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['data-explore-stage']});check();};
@@ -32,12 +32,27 @@ for(const type of [playwright.chromium,playwright.webkit]){
  const persistent=type.launchPersistentContext?.bind(type);if(persistent)type.launchPersistentContext=async(...args)=>add(await persistent(...args));
  type.__exploreConditions=true;
 }
-// 検査の途中で明示的に開きたいとき（地図の段へ戻した後など）。
-async function openExploreConditions(page,{timeout=15000}={}){
- await page.waitForFunction(()=>{const v=document.getElementById('skyMapView');return !!v?.dataset.exploreStage&&!v.hidden;},null,{timeout});
+async function openExploreSheet(page,{timeout=15000}={}){
+ await page.waitForFunction(()=>{
+  const view=document.getElementById('skyMapView');
+  return !view?.hidden&&view?.dataset.exploreStage;
+ },null,{timeout});
  if(await page.evaluate(()=>document.getElementById('skyMapView').dataset.exploreStage)!=='map')return false;
- await page.evaluate(()=>document.dispatchEvent(new Event('astronotes-explore-open-conditions')));
- await page.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='search',null,{timeout});
+ await page.evaluate(()=>document.dispatchEvent(new CustomEvent('astronotes-explore-open-sheet')));
+ await page.locator('#skyMapView[data-explore-sheet]').waitFor({state:'visible',timeout});
  return true;
 }
-module.exports={openExploreConditions};
+
+async function openExploreFields(page){
+ const dropdown=page.locator('#skyMapView[data-explore-dropdown] #exploreConditions');
+ if(!await dropdown.isVisible())await page.locator('#mapWsTitle').click();
+ await dropdown.waitFor({state:'visible'});
+}
+
+// Functional checks can reach the shared result handler with the candidate sheet
+// open. Map interaction and layout tests use the visible map buttons directly.
+async function showExploreView(page){
+ await page.locator('#exploreShowResult').evaluate(button=>button.click());
+}
+
+module.exports={openExploreSheet,openExploreFields,showExploreView};

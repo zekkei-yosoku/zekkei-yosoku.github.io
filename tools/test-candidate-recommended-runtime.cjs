@@ -1,6 +1,6 @@
 // Real UI/owners, synthetic public geometry and empty account; no external IO.
 require('./no-open-meteo.cjs');
-require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
+require('./explore-open-conditions.cjs');
 const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs');
 const base=process.env.CANDIDATE_RECOMMENDED_BASE||'http://127.0.0.1:8992/trial/';
 const out=process.env.CANDIDATE_RECOMMENDED_OUT||'/tmp/astronotes-practical-search-20261123/ui/browser';fs.mkdirSync(out,{recursive:true});
@@ -39,22 +39,23 @@ async function rendered(page,count){await page.waitForFunction(n=>AstroNotesCand
 async function ready(page){await page.waitForFunction(()=>document.getElementById('candidateSearchAction')?.dataset.state==='idle'&&!document.getElementById('candidateSearchAction').disabled);}
 (async()=>{
  const results=[];
- for(const [name,type]of [['chrome',chromium],['webkit',webkit]]){
+ for(const [name,type]of [['chrome',chromium],['webkit',webkit]].filter(([name])=>(process.env.CANDIDATE_RECOMMENDED_ENGINES||'chrome,webkit').split(',').includes(name))){
   const browser=await type.launch(name==='chrome'?{channel:'chrome',headless:true}:{headless:true});
-  try{for(const theme of ['light','dark']){
+  try{for(const theme of (process.env.CANDIDATE_RECOMMENDED_THEMES||'light,dark').split(',')){
    const context=await browser.newContext({viewport:{width:390,height:844},colorScheme:theme,reducedMotion:'reduce'});let writes=0,external=0;const errors=[];
    await context.addInitScript(install);
    await context.route('**/*',route=>{const request=route.request(),url=new URL(request.url());if(url.origin===new URL(base).origin)return route.continue();
     if(/zekkei-api|localhost:8787/.test(url.origin)){if(!['GET','OPTIONS'].includes(request.method()))writes++;return route.fulfill({status:200,json:{allowed:true,tool:'skymap',loginId:'recommended-test',tools:['records','tower','diamond','pearl','skymap','multiscene'],credentials:[],hasPassword:true,recoveryCodes:10,favorites:[],sightings:[],records:[],rev:1}});}
     external++;return route.abort();
    });
-   const page=await context.newPage();page.setDefaultTimeout(15000);page.on('pageerror',error=>errors.push(error.message));
+   const page=await context.newPage();page.setDefaultTimeout(15000);page.on('pageerror',error=>errors.push(error.stack||error.message));
    try{
     await page.goto(base+'#/explore',{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>typeof AstroNotesCandidatePicker==='object'&&typeof SkyMapUI==='object');
     await page.evaluate(async theme=>{await startupSessionReady;groundAt=async()=>30;aimBuildingDays=async()=>[];await AstroNotesAssets.ensureModels();await AstroNotesBodies.ensure('moon');
      navigationHistory.pushRoute('#/explore');document.documentElement.dataset.theme=theme;SkyMapUI.setTarget('skytree');const body=document.getElementById('skyMapBody');body.value='moon';body.onchange();SkyMapUI.setTime(Date.parse('2026-11-21T12:00:00+09:00'));
     },theme);
-    await page.locator('#exploreDiscovery-new').click();await ready(page);
+    await page.locator('#skyMapView[data-explore-sheet] #candidateSearchAction').waitFor({state:'visible'});
+    await ready(page);
     assert.equal(await page.locator('#candidateIncludeRoads').isChecked(),false,'roads are opt-in without persistent state');
     await page.evaluate(()=>{MyPlacesUI.savedPlaces=()=>roundFixture.savedPlaces();roundFixture.budget=700;});
     const before=await page.evaluate(()=>JSON.stringify({favorites,records:MyPlacesUI.load()}));
@@ -111,10 +112,16 @@ async function ready(page){await page.waitForFunction(()=>document.getElementByI
      const n=document.querySelector('#candidateUnifiedResults button[data-candidate-id]'),r=n.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;
      return r.width>=44&&r.height>=44&&y>22&&y<innerHeight-22&&[-21,0,21].every(dx=>[-21,0,21].every(dy=>{const hit=document.elementFromPoint(x+dx,y+dy);return hit===n||n.contains(hit);}));});
     assert(usefulHit,'after ordinary scrolling, the new candidate has an unobscured 44px tap square');
+    const fit=page.locator('#candidateMapToggle');
+    assert.equal(await fit.getAttribute('aria-controls'),'skyMapCanvas');
+    await fit.click();
+    await page.waitForFunction(()=>AstroNotesMapWorkspace.targetState().newPins===10);
+    assert(await page.locator('#skyMapCanvas').isVisible());
+    assert.equal(await page.locator('#candidateUnifiedResults .list-item:visible').count(),10);
     await page.screenshot({path:out+'/'+name+'-'+theme+'-first-useful.png'});
     assert.equal(await page.evaluate(()=>JSON.stringify({favorites,records:MyPlacesUI.load()})),before);assert.equal(writes,0);assert.deepEqual(errors,[]);
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
-    results.push({engine:name,theme,width:390,firstNewBeforeBatch:true,deadlinePause:true,additionalQuota:10,distinctNew:23,pendingPreserved:true,slowPointDoesNotStarve:true,zeroIsNotExhausted:true,recordPriorityRestores:true,riverbankStandard:true,roadScopeOptIn:true,firstUsefulBeyond160InOneAction:true,firstUsefulHitReady:true,writes,externalBlocked:external,errors,version:await page.locator('meta[name="app-version"]').getAttribute('content').catch(()=>null)});
+    results.push({engine:name,theme,width:390,firstNewBeforeBatch:true,deadlinePause:true,additionalQuota:10,distinctNew:23,pendingPreserved:true,slowPointDoesNotStarve:true,zeroIsNotExhausted:true,recordPriorityRestores:true,riverbankStandard:true,roadScopeOptIn:true,firstUsefulBeyond160InOneAction:true,firstUsefulHitReady:true,firstUsefulPinsReady:true,writes,externalBlocked:external,errors,version:await page.locator('meta[name="app-version"]').getAttribute('content').catch(()=>null)});
    }catch(error){await page.screenshot({path:out+'/'+name+'-'+theme+'-failure.png'}).catch(()=>{});fs.writeFileSync(out+'/'+name+'-'+theme+'-failure.json',JSON.stringify(await page.evaluate(()=>({fixture:roundFixture,status:document.querySelector('#candidateSearchFeedback')?.innerText})).catch(()=>({})),null,2));throw error;}
    finally{await context.close();}
   }}finally{await browser.close();}

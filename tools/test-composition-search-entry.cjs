@@ -1,6 +1,6 @@
 // R04: real selection, surface picking and search UI; synthetic engine completion and account, no external writes.
 require('./no-open-meteo.cjs');
-require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
+const {openExploreFields,showExploreView}=require('./explore-open-conditions.cjs');
 const {recordsTabRetired,assertOpportunityEntry}=require('./explore-records-tab.cjs'); // 2026-11-26 段階③: 記録タブは trial で廃止
 const {chromium,webkit}=require('playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs');
@@ -52,7 +52,7 @@ const saved=page=>page.evaluate(()=>JSON.stringify({favorites,records:MyPlacesUI
 async function readyPreview(page){
  await page.waitForFunction(()=>{const h=document.getElementById('aimLook'),s=SkyMapUI.selectionState();return document.getElementById('skyMapView').dataset.exploreStage==='preview'&&!document.getElementById('exploreScenePanel').hasAttribute('data-loading')&&h&&!h.hidden&&h._trialCompositionView&&Math.abs(h._lookAt-s.at)<1000;});
 }
-async function preview(page){await page.locator('#exploreShowResult').click();await readyPreview(page);}
+async function preview(page){await showExploreView(page);await readyPreview(page);}
 async function pickSurface(page){
  await page.getByRole('button',{name:'重ねる位置を選ぶ',exact:true}).click();
  assert.equal(await page.locator('#trialComposition,#trialCompositionAdjust').count(),0,'duplicate numeric/limb dialog is absent');
@@ -143,7 +143,7 @@ async function complete(page,kind){
     await page.locator('#exploreDiscovery-records').click();await page.waitForFunction(()=>document.getElementById('exploreRecordedPlaces').textContent.trim().length>0);
     result.recordsText=await page.locator('#exploreRecordedPlaces').innerText();assert.match(result.recordsText,/記録の撮影地点/);await page.screenshot({path:prefix+'-records.png',fullPage:true});}
     stage('new-places-idle');
-    await page.locator('#exploreDiscovery-new').click();await page.locator('#candidateSearchAction').waitFor({state:'visible'});assert(await page.locator('#candidateSearchAction').isEnabled());
+    await page.locator('#candidateSearchAction').waitFor({state:'visible'});assert(await page.locator('#candidateSearchAction').isEnabled());
     assert.equal(await page.evaluate(()=>compositionEntryFixture.searches.length),0,'opening conditions never starts a search by itself');
     await page.screenshot({path:prefix+'-new.png',fullPage:true});
 
@@ -183,11 +183,13 @@ async function complete(page,kind){
     // Leaving the Explore route may clear its transient composition. Make a fresh selection before testing its explicit clear action.
     stage('new-selection-after-route-return');
     await preview(page);await pickSurface(page);await page.getByRole('button',{name:'確定して撮影地点を探す',exact:true}).click();await waitSearch(page,4);await complete(page,'empty');
+    await openExploreFields(page);
     const selectedHeight=page.locator('#exploreCompositionSelection');await selectedHeight.waitFor({state:'visible'});
     const heightText=await page.evaluate(()=>{const s=SkyMapUI.selectionState(),c=AstroNotesTrialComposition.plan().composition;return '高さ '+(c.heightM-(s.target.groundM??0)).toFixed(1)+' m';});
     assert((await selectedHeight.innerText()).includes(heightText),'the search conditions show the selected height above ground');await page.screenshot({path:prefix+'-selected-height.png',fullPage:true});
     stage('clear-selection');
     await page.locator('#exploreCompositionClear').click();assert.equal(await page.evaluate(()=>AstroNotesTrialComposition.plan().composition),null);assert(await selectedHeight.isHidden());
+    await page.locator('#mapWsConfirmConditions').click();
     stage('missing-time-focus-and-explicit-retry');
     const timeDetails=page.locator('#additionalCandidateSearch details');
     if(!await timeDetails.evaluate(el=>el.open))await timeDetails.locator('summary').click();

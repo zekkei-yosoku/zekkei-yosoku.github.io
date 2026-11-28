@@ -1,5 +1,4 @@
 require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
-require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
 // Synthetic search windows; real app date adoption/drawing and visibility resume.
 const{chromium}=require('playwright'),fs=require('fs'),assert=require('assert/strict');
 const base=process.env.CANDIDATE_BASE||'http://127.0.0.1:8863/trial/index.html',out=process.env.CANDIDATE_OUT||'/tmp/astronotes-candidate-continuation';fs.mkdirSync(out,{recursive:true});
@@ -10,9 +9,11 @@ await c.route('**/*',r=>new URL(r.request().url()).origin===new URL(base).origin
 await c.route(/zekkei-api\.okayu-sorami\.workers\.dev|localhost:8787/,r=>{const path=new URL(r.request().url()).pathname;return r.fulfill({status:path.startsWith('/prediction')?503:200,json:path==='/me'?{loginId:'continuation-test',role:'user',tools}:path==='/sync'?{favorites:[],sightings:[],rev:0}:path.includes('/access')?{allowed:true,tool:'skymap',tools}:{}});});
 const p=await c.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));p.setDefaultTimeout(12000);await p.goto(base);await p.waitForFunction(()=>typeof auth!=='undefined'&&auth?.loginId==='continuation-test');
 await p.evaluate(()=>{window.__searchCalls=[];window.__empty=true;window.__fail=false;aimBuildingDays=async(o,t,b,part,seq,opt)=>{window.__searchCalls.push({from:opt.from,days:opt.days});opt.onScanned(opt.from+(window.__empty?(opt.days??400):1)*86400000);if(window.__fail)throw Error('synthetic solver failure');return window.__empty?[]:[{at:opt.from+12*3600000,side:'set',intersects:true,sunAltitude:0}];};aimAirSettings.mode='standard';AstroNotesAtmosphere.configure('standard',aimAirSettings);navigationHistory.pushRoute('#/explore');});
-await p.locator('#skyMapContent').waitFor({state:'visible'});await p.evaluate(()=>{SkyMapUI.setObserver({name:'継続検索の合成地点',latitude:35.72,longitude:139.84,groundManualM:31,standAglM:1.5});SkyMapUI.setTarget('skytree');});
+await p.locator('#skyMapCanvas').waitFor({state:'visible'});await p.evaluate(()=>{SkyMapUI.setObserver({name:'継続検索の合成地点',latitude:35.72,longitude:139.84,groundManualM:31,standAglM:1.5});SkyMapUI.setTarget('skytree');});
 // 2026-11-11 重なる日時は「探す」の結果（見え方）側にある。
-await p.locator('#exploreShowResult').click();await p.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='preview');
+const showPreview=p.locator('#mapWsCardView');
+await showPreview.click();
+await p.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='preview');
 const button=p.locator('#skyMapDates [data-from-more]');await button.waitFor();const labels=[];
 for(let i=0;i<3;i++){await button.click();await p.waitForFunction(()=>!document.querySelector('#skyMapDates [data-from-more]').disabled);labels.push(await p.locator('#skyMapDates [role=status]').innerText());}
 const calls=await p.evaluate(()=>__searchCalls);assert(calls.at(-1).from>Date.parse('2030-01-01T00:00:00+09:00'));assert.equal(new Set(labels).size,3);assert(!labels.at(-1).includes('2年'));
@@ -39,6 +40,10 @@ await dialog.getByRole('tab',{name:'タイムラプス',exact:true}).press('Home
 await dialog.getByRole('tab',{name:'画角',exact:true}).press('End');await dialog.locator('[name=count]').fill('1');assert.match(await dialog.locator('[data-tl-summary]').innerText(),/2〜10000/);assert.equal(await p.evaluate(()=>$('aimLook')._timelapseConfig),null);await dialog.locator('[name=count]').fill('120');await dialog.getByRole('switch',{name:'タイムラプス表示'}).click();
 await dialog.locator('[data-camera-close]').click();await p.waitForFunction(()=>$('previewCameraPanel').open===false&&pagePop.n===0);
 assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);assert.deepEqual(errors,[]);
-await p.reload();await p.locator('#exploreShowResult').click();await p.waitForFunction(()=>document.querySelector('#aimLook [data-camera-settings]')&&!$('aimLook').hidden);await p.locator('#aimLook [data-camera-settings]').click();await p.locator('#previewCameraPanel').waitFor({state:'visible'});assert.equal(await p.locator('#previewCameraPanel').getByRole('tab',{name:'タイムラプス',exact:true}).getAttribute('aria-selected'),'true','last tab survives reload');await p.locator('#previewCameraPanel [data-camera-close]').click();await p.waitForFunction(()=>$('previewCameraPanel').open===false&&pagePop.n===0);
+await p.reload();
+const camera=p.locator('#aimLook [data-camera-settings]');
+await p.locator('#mapWsCardView:visible, #aimLook [data-camera-settings]:visible').first().waitFor();
+if(await showPreview.isVisible())await showPreview.click();
+await camera.click();await p.locator('#previewCameraPanel').waitFor({state:'visible'});assert.equal(await p.locator('#previewCameraPanel').getByRole('tab',{name:'タイムラプス',exact:true}).getAttribute('aria-selected'),'true','last tab survives reload');await p.locator('#previewCameraPanel [data-camera-close]').click();await p.waitForFunction(()=>$('previewCameraPanel').open===false&&pagePop.n===0);
 await p.screenshot({path:out+'/'+width+'-'+theme+'.png',fullPage:true});results.push({width,layout,theme,labels,calls,selected,visibilityResume:true,errors});console.log('PASS continuation',width,theme,new Date(selected).toISOString());await c.close();}
 await b.close();fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));})().catch(e=>{console.error(e);process.exit(1)});

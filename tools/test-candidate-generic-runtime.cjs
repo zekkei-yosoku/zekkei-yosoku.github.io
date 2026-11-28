@@ -2,7 +2,7 @@
 // presentation, freshness and exact (position,time,height) selection; this is not
 // a celestial/LOS accuracy test. No personal API writes or forecast requests.
 require('./no-open-meteo.cjs');
-require('./explore-open-conditions.cjs'); // 2026-11-26 探すは地図の段で始まる。検索の段を確かめるため入口で撮影条件を開く
+require('./explore-open-conditions.cjs');
 const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs');
 const base=process.env.CANDIDATE_GENERIC_BASE||'http://127.0.0.1:8997/trial/';
 const out=process.env.CANDIDATE_GENERIC_OUT||'/tmp/astronotes-generic-runtime';fs.mkdirSync(out,{recursive:true});
@@ -44,9 +44,9 @@ function installFixture(granted){
 const state=p=>p.evaluate(()=>{const s=SkyMapUI.selectionState(),o=s.observer,eye=o?aimObserverAt(o,SkyMapUI.workspaceHost().session.ground):null;return {body:s.body,target:s.target?.id,observer:o&&{name:o.name,latitude:o.latitude,longitude:o.longitude},at:s.at,ground:eye?.elevation,eyeM:eye?.eyeM,partId:s.partId,limb:s.limb};});
 const saved=p=>p.evaluate(()=>JSON.stringify({favorites,records:MyPlacesUI.load(),schedule:schedule().list()}));
 async function openCandidates(p){
- // 2026-11-11 新しい撮影地点は「探す」の検索画面のタブ（見え方からは戻るボタンで戻る）。
+ // 見え方で選んだ候補から、地図付きの検索シートへ戻る。
  if(await p.locator('#exploreBackToCandidates').isVisible())await p.locator('#exploreBackToCandidates').click();
- await p.locator('#exploreDiscovery-new').click();await p.waitForFunction(()=>{const button=document.getElementById('candidateSearchAction');return button?.dataset.state==='idle'&&!button.disabled&&button.getBoundingClientRect().width>0;});
+ await p.waitForFunction(()=>{const button=document.getElementById('candidateSearchAction');return document.getElementById('skyMapView').hasAttribute('data-explore-sheet')&&button?.dataset.state==='idle'&&!button.disabled&&button.getBoundingClientRect().width>0;});
 }
 async function search(p,visibleCount=3,checkFirst=false,releaseLabels=null){
  if(checkFirst)await p.evaluate(()=>{candidateFixture.holdSecond=true;});
@@ -64,6 +64,34 @@ async function search(p,visibleCount=3,checkFirst=false,releaseLabels=null){
  }
  await p.waitForFunction(n=>document.querySelector('#candidateSearchFeedback [role=status]')?.textContent.includes(n+'か所の新たな撮影地点の候補があります'),visibleCount);
  await p.waitForFunction(n=>AstroNotesCandidatePicker.visibleRows().length===n&&document.getElementById('candidateSearchAction')?.dataset.state==='idle'&&document.getElementById('additionalCandidateResults')?.getAttribute('aria-busy')==='false',visibleCount);
+}
+async function fitCandidatePins(page,expected){
+ const fit=page.locator('#candidateMapToggle');
+ assert.equal(await fit.getAttribute('aria-controls'),'skyMapCanvas');
+ assert.match(await fit.innerText(),/ピンに合わせる/);
+ await fit.click();
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ await page.waitForFunction(n=>AstroNotesMapWorkspace.targetState().newPins===n,expected);
+ assert(await page.locator('#skyMapCanvas').isVisible());
+}
+async function focusCandidatePin(page,row){
+ const pin=await page.evaluate(row=>{
+  const canvas=document.getElementById('skyMapCanvas'),rect=canvas.getBoundingClientRect();
+  const [x,y]=SkyMapUI.workspaceHost().map.project(row.place.latitude,row.place.longitude);
+  const screenX=rect.left+x,screenY=rect.top+y;
+  return {x:screenX,y:screenY,hit:document.elementFromPoint(screenX,screenY)===canvas,id:AstroNotesCandidatePicker.candidateKey(row)};
+ },row);
+ assert(pin.hit,'the visible pin is on the shared map');
+ const focused=page.locator('#candidateUnifiedResults [data-map-candidate-selected]');
+ // Two observation heights at identical coordinates have separate candidates and tapped pins cycle between them.
+ for(let i=0;i<2;i++){
+  if(i)await page.waitForTimeout(520); // A second separate tap must not be interpreted as double-click zoom.
+  await page.mouse.click(pin.x,pin.y);
+  await focused.waitFor({state:'visible'});
+  if(await focused.getAttribute('data-candidate-id')===pin.id)return focused;
+ }
+ assert.equal(await focused.getAttribute('data-candidate-id'),pin.id);
+ return focused;
 }
 async function prepare(p,body){
  // 戻るボタンは選ぶ前の検索条件へ戻すので、条件を変える前に検索画面へ戻る。
@@ -120,18 +148,23 @@ async function assertSelected(p,row,before,body,target='custom'){
      const metrics=await p.locator('#candidateListControls').evaluate(n=>({overflow:n.scrollWidth>n.clientWidth+1,bodyOverflow:document.documentElement.scrollWidth>innerWidth+1}));assert(!metrics.overflow&&!metrics.bodyOverflow,JSON.stringify(metrics));
      if(index===0)await p.screenshot({path:out+'/'+engine+'-'+width+'-'+theme+'-list.png'});
      const selectedIndex=index%3,row=await p.evaluate(i=>structuredClone(AstroNotesCandidatePicker.visibleRows()[i]),selectedIndex),selectionBefore=await state(p);
-     await p.locator('#candidateMapToggle').click();await p.locator('#candidateMapCanvas').waitFor();assert.deepEqual(await state(p),selectionBefore,'map preview must not alter session');
-     const option=await p.locator('#candidateMapChoice option').nth(selectedIndex).getAttribute('value');await p.locator('#candidateMapChoice').selectOption(option);
-     assert((await p.locator('#candidateMapDetail').innerText()).includes((row.assumedObserver.elevation+row.assumedObserver.eyeM).toFixed(1)+'m'));
+     if(index===0){
+      await p.evaluate(()=>{const h=SkyMapUI.workspaceHost();h.map.setView(34.7,135.5,14);h.redraw();});
+      await p.waitForFunction(()=>AstroNotesMapWorkspace.targetState().newPins===0);
+     }
+     await fitCandidatePins(p,3);
+     const selected=await focusCandidatePin(p,row);
+     assert(await selected.getByText(row.place.name,{exact:true}).isVisible());
+     assert.deepEqual(await state(p),selectionBefore,'focusing a pin does not alter the Explore conditions');
      if(index===0)await p.screenshot({path:out+'/'+engine+'-'+width+'-'+theme+'-map.png'});
-     await p.locator('#candidateMapUse').click();await assertSelected(p,row,before,body);
+     await selected.click();await assertSelected(p,row,before,body);
      if(index===2)await p.screenshot({path:out+'/'+engine+'-'+width+'-'+theme+'-appearance.png'});
     }
-    // 記録の撮影地点は「記録の撮影地点」タブの別一覧（test-candidate-workspace-flow.cjs）。
     // Capture the original row callback and call it immediately after a changed
     // request, before a DOM watcher can remove the old row.
     await prepare(p,'moon');await openCandidates(p);
-    await p.evaluate(()=>{const d=document.querySelector('#additionalCandidateSearch details');d.open=true;const mode=document.getElementById('candidateSearchMode');mode.value='instant';mode.onchange();});await search(p);
+    if(!await p.locator('#additionalCandidateSearch details').evaluate(d=>d.open))await p.locator('#additionalCandidateSearch details > summary').click();
+    await p.locator('#candidateSearchMode').selectOption('instant');await search(p);
     const instant=await state(p);await p.evaluate(()=>{const click=document.querySelector('#candidateUnifiedResults .list-item').onclick;SkyMapUI.setTime(SkyMapUI.selectionState().at+60000);click();});
     assert.equal((await state(p)).at,instant.at+60000);assert.equal(await p.evaluate(()=>document.getElementById('skyMapView').dataset.exploreStage),'search','old instant candidate refused');
     await p.waitForFunction(()=>{const button=document.getElementById('candidateSearchAction');return button?.dataset.state==='idle'&&!button.disabled;});await search(p);
@@ -153,30 +186,28 @@ async function assertSelected(p,row,before,body,target='custom'){
     const namedRiver='新中川沿いの歩道',town='東京都葛飾区奥戸九丁目',riverCoords='35.73522, 139.87078',unnamedCoords='35.59000, 140.02000';
     const rows=p.locator('#candidateUnifiedResults .list-item');
     const named=rows.filter({hasText:namedRiver}),unnamed=rows.filter({hasText:'河川沿いの歩道'});
-    const choices=p.locator('#candidateMapChoice'),riverChoice=choices.locator('option').filter({hasText:namedRiver});
-    const detail=p.locator('#candidateMapDetail'),mapToggle=p.locator('#candidateMapToggle');
+    const candidateByName=name=>p.evaluate(name=>structuredClone(AstroNotesCandidatePicker.visibleRows().find(r=>r.place.name===name)),name);
     let labelledBefore;
+    const focused=p.locator('#candidateUnifiedResults [data-map-candidate-selected]');
     try{
      await Promise.all([p.waitForRequest(townShard),search(p,2)]);
      assert.equal(await named.locator('[data-candidate-address]').innerText(),riverCoords,'search completes and lists the river while its town file waits');
      assert.equal(await unnamed.locator('[data-candidate-address]').innerText(),unnamedCoords);
-     labelledBefore=await state(p);await mapToggle.click();await choices.selectOption(await riverChoice.getAttribute('value'));
-     assert((await detail.innerText()).includes(riverCoords),'map works while the town file waits');
+     labelledBefore=await state(p);
+     await fitCandidatePins(p,2);
+     await focusCandidatePin(p,await candidateByName(namedRiver));
+     assert.equal(await focused.locator('[data-candidate-address]').innerText(),riverCoords,'the river pin focuses the row while the town file waits');
     }finally{releaseTown();}
-    await p.waitForFunction(town=>document.querySelector('#candidateMapDetail')?.textContent.includes(town),town);
-    await mapToggle.click();await named.getByText(town,{exact:true}).waitFor();
+    await focused.getByText(town,{exact:true}).waitFor();
     assert.equal(await named.locator('[data-candidate-address]').innerText(),town);
     assert.equal(await unnamed.locator('[data-candidate-address]').innerText(),unnamedCoords);
     const labelledMetrics=await p.locator('#candidateListControls').evaluate(n=>({overflow:n.scrollWidth>n.clientWidth+1,bodyOverflow:document.documentElement.scrollWidth>innerWidth+1}));assert(!labelledMetrics.overflow&&!labelledMetrics.bodyOverflow,JSON.stringify(labelledMetrics));
-    const labelled=await p.evaluate(name=>structuredClone(AstroNotesCandidatePicker.visibleRows().find(r=>r.place.name===name)),namedRiver);
-    await mapToggle.click();await choices.selectOption(await riverChoice.getAttribute('value'));
-    assert((await p.locator('#candidateMapDetail').innerText()).includes(town));
-    const unnamedChoice=choices.locator('option').filter({hasText:'河川沿いの歩道'});
-    await choices.selectOption(await unnamedChoice.getAttribute('value'));
-    assert((await detail.innerText()).includes(unnamedCoords));
-    assert.deepEqual(await state(p),labelledBefore,'river labels do not change the selected place or time');
-    await choices.selectOption(await riverChoice.getAttribute('value'));
-    await p.locator('#candidateMapUse').click();await assertSelected(p,labelled,before,'moon');
+    const labelled=await candidateByName(namedRiver);
+    await focusCandidatePin(p,await candidateByName('河川沿いの歩道'));
+    assert.equal(await focused.locator('[data-candidate-address]').innerText(),unnamedCoords);
+    assert.deepEqual(await state(p),labelledBefore,'river labels and pin focus do not change the selected place or time');
+    await focusCandidatePin(p,labelled);
+    await focused.click();await assertSelected(p,labelled,before,'moon');
     assert.equal(await saved(p),before);assert.equal(writes,0,'no API writes');assert.deepEqual(errors,[]);
     results.push({engine,width,theme,bodies:bodies.length,arbitraryTarget:true,distinctHeights:[2,4,101.5],exactMapToAppearance:true,placeKindsOnly:true,staleInstantRangeRefusedLensKept:true,riverAndTownLabels:true,personalDataUnchanged:true,writes,externalBlocked:external});console.log(engine,width,theme,'passed');
    }catch(e){await p.screenshot({path:out+'/'+engine+'-'+width+'-'+theme+'-failure.png'}).catch(()=>{});console.error('fixture failure',engine,width,theme,await p.evaluate(()=>({status:document.querySelector('#candidateSearchFeedback [role=status]')?.textContent,rows:globalThis.AstroNotesCandidatePicker?.visibleRows?.().length,fixture:globalThis.candidateFixture,selection:typeof SkyMapUI==='object'?SkyMapUI.selectionState():null})).catch(()=>null));throw e;}
