@@ -95,19 +95,25 @@ import {UI_ICONS} from '../../ui/visual-primitives.js';
  function draw(ctx,{project,width,height}){
   if(!hasAccess()||!session)return;
   try{window.MyPlacesUI?.skyDraw(ctx,{project,width,height},session,pickMode);}catch{/* trial */}
-  const workspace=globalThis.AstroNotesMapWorkspace?.drawing()||null;
+  const workspace=globalThis.AstroNotesMapWorkspace?.drawing()||null,centerEye=workspace?.mapSkyPoint?.();
   // 2026-11-26 trial（段階②）: 目標物が中心の表示は、目標物の方位リング・重なる範囲・中心が先端に来る線・記録と新規の地点を全画面地図が描く
-  if(workspace&&globalThis.AstroNotesMapWorkspace.targetMode?.()){globalThis.AstroNotesMapWorkspace.drawTarget(ctx,{project,width,height});return;}
-  if(!validPoint(session.observer)&&!pickMode){if(targetOn&&validPoint(session.target)){const mark=AstroNotesAlign.partTarget(session.target,session.partId),q=project(mark.latitude,mark.longitude);drawPin(ctx,...q,'#c876ff');
+  if(workspace&&!centerEye&&globalThis.AstroNotesMapWorkspace.targetMode?.()){globalThis.AstroNotesMapWorkspace.drawTarget(ctx,{project,width,height});return;}
+  if(!validPoint(session.observer)&&!pickMode&&!centerEye){if(targetOn&&validPoint(session.target)){const mark=AstroNotesAlign.partTarget(session.target,session.partId),q=project(mark.latitude,mark.longitude);drawPin(ctx,...q,'#c876ff');
   mapLabel(ctx,q[0],q[1]-25,session.target.name,'#fff',width,height,'center');}workspace?.overlay(ctx,0,0,0);
   if(workspace)globalThis.AstroNotesMapWorkspace.drawCandidatePins?.(ctx,{project,width,height});return;}
-  const [x,y]=pickMode?[width/2,height/2]:project(session.observer.latitude,session.observer.longitude),r=workspace?workspace.radius(width,height):Math.min(width,height)*.36;
+  const [x,y]=pickMode||centerEye?[width/2,height/2]:project(session.observer.latitude,session.observer.longitude),r=workspace?workspace.radius(width,height):Math.min(width,height)*.36;
   ctx.save();ctx.font='12px system-ui';ctx.textAlign='left';ctx.lineWidth=1;ctx.strokeStyle='rgba(0,0,0,.45)';ctx.fillStyle='#fff';
   ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.strokeStyle='rgba(0,0,0,.85)';ctx.lineWidth=4;ctx.stroke();ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=1.8;ctx.stroke();
 ctx.lineWidth=1;
   for(const az of [0,90,180,270]){const a=(az-(workspace?map.rotation():0))*Math.PI/180;ctx.beginPath();ctx.moveTo(x+Math.sin(a)*(r-4),y-Math.cos(a)*(r-4));ctx.lineTo(x+Math.sin(a)*(r+4),y-Math.cos(a)*(r+4));ctx.stroke();}
-  if(!pickMode&&session.eye&&session.eye.latitude===session.observer.latitude&&session.eye.longitude===session.observer.longitude)for(const body of shownBodies().reverse())if(session.dailies?.[body]||body==='sun'||body==='moon'||AstroNotesBodies.ready())(workspace?workspace.body:drawBody)(ctx,body,
-  session.dailies?.[body]||AstroNotesSkyMap.daily(body,AstroNotesSkyMap.dayStart(session.at),session.eye,skyState),x,y,r,width,height);
+  const eye=centerEye||session.eye;
+  if(!pickMode&&eye&&(centerEye||eye.latitude===session.observer?.latitude&&eye.longitude===session.observer?.longitude)){
+   for(const body of shownBodies().reverse()){
+    const daily=!centerEye&&session.dailies?.[body];
+    if(daily||body==='sun'||body==='moon'||AstroNotesBodies.ready())(workspace?workspace.body:drawBody)(ctx,body,
+     daily||AstroNotesSkyMap.daily(body,AstroNotesSkyMap.dayStart(session.at),eye,skyState),x,y,r,width,height,centerEye);
+   }
+  }
   if(pickMode==='target')for(const candidate of mapTargets().filter(validPoint)){const q=project(candidate.latitude,candidate.longitude);if(q[0]<0||q[0]>width||q[1]<0||q[1]>height||candidate.id===session.target?.id)continue;drawPin(ctx,...q,'#c876ff');
   mapLabel(ctx,q[0],q[1]-24,candidate.name,'#fff',width,height,'center');}
   const t=session.target;
@@ -119,7 +125,7 @@ ctx.lineWidth=1;
   }
   workspace?.overlay(ctx,x,y,r);
   if(workspace){globalThis.AstroNotesMapWorkspace.drawObsRecords?.(ctx,{project,width,height});globalThis.AstroNotesMapWorkspace.drawCandidatePins?.(ctx,{project,width,height});}
-  if(workspace)workspace.center(ctx,x,y);else{
+  if(workspace){if(!centerEye)workspace.center(ctx,x,y);}else{
   ctx.lineWidth=3;ctx.strokeStyle='#111';ctx.beginPath();ctx.moveTo(x-8,y);ctx.lineTo(x-2,y);ctx.moveTo(x+2,y);ctx.lineTo(x+8,y);ctx.moveTo(x,y-8);ctx.lineTo(x,y-2);ctx.moveTo(x,y+2);ctx.lineTo(x,y+8);ctx.stroke();ctx.lineWidth=1;ctx.strokeStyle='#fff';ctx.stroke();ctx.beginPath();
   ctx.arc(x,y,1,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();mapLabel(ctx,x,y+20,pickMode==='target'?'対象':'撮影地点','#fff',width,height,'center');
   }  for(const [name,az] of [['北',0],['東',90],['南',180],['西',270]]){const a=(az-(workspace?map.rotation():0))*Math.PI/180,edge=workspace?r:r+10,tx=x+Math.sin(a)*edge,ty=y-Math.cos(a)*edge;ctx.save();ctx.font='bold 14px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
@@ -313,7 +319,16 @@ ctx.lineWidth=1;
  async function refresh(timeOnly=false){
   if(!hasAccess()||!session)return;
   normalizeWholeAlignment();
-  if(!validPoint(session.observer)){seq.cancel();session.eye=null;session.daily=null;session.dailies=null;session.ground=null;session.timelinePending=false;session.passError=false;el('skyMapEvents').replaceChildren();el('skyMapStatus').textContent='';el('skyMapRetry').hidden=true;render();return;}
+  if(!validPoint(session.observer)){
+   const request=seq.next(),body=session.body;
+   session.eye=null;session.daily=null;session.dailies=null;session.ground=null;session.timelinePending=false;session.passError=false;
+   el('skyMapEvents').replaceChildren();el('skyMapStatus').textContent='';el('skyMapRetry').hidden=true;render();
+   if(body==='sun'||body==='moon'||AstroNotesBodies.ready())return;
+   try{await AstroNotesBodies.ensure(body);}
+   catch{if(seq.current(request)&&hasAccess()&&active())session.passError=true;}
+   if(seq.current(request)&&hasAccess()&&active())render();
+   return;
+  }
   const request=seq.next();session.timelinePending=false;session.passError=false;session.daily=null;session.dailies=null;for(const button of el('skyMapEvents').children)if(button.type==='button')button.disabled=true;el('skyMapStatus').textContent='天体の位置を計算しています…';el('skyMapRetry').hidden=true;
   render(timeOnly);
   try{
@@ -405,8 +420,8 @@ ctx.lineWidth=1;
  const renderMinutes=()=>view.dataset.exploreStage==='preview'&&view.dataset.exploreMode==='scene';
  const skyTimeline=AstroNotesScrollTimeline.mount({root:el('skyMapTimeline'),renderMinutes,annotations:mode=>globalThis.AstroNotesMapWorkspace?.annotations(mode),
  feedbackEvents:(from,to)=>{
-  const s=session,targetPoint=globalThis.AstroNotesMapWorkspace?.targetSkyPoint?.(),eye=targetPoint||s?.eye;
-  if(!eye||(!s.daily&&s.body!=="moon"&&s.body!=="sun"&&!(targetPoint&&AstroNotesBodies.ready())))return [];
+  const s=session,preview=globalThis.AstroNotesMapWorkspace?.previewSkyPoint?.(),eye=preview||s?.eye;
+  if(!eye||(!s.daily&&s.body!=="moon"&&s.body!=="sun"&&!(preview&&AstroNotesBodies.ready())))return [];
   return AstroNotesScrollTimeline.feedbackEventsBetween(from,to,AstroNotesSkyMap.dayStart,day=>[
    ...AstroNotesSkyMap.daily(s.body,day,eye,skyState).events.map(event=>event.at),
    ...(globalThis.AstroNotesMapWorkspace?.feedbackEvents(day)||[])
@@ -430,7 +445,7 @@ ctx.lineWidth=1;
    }
   }else render(session.scrubMode==='time');
  },onBlend:b=>{if(!session)return;session.blend=b;map.redraw();},onSettle:settleSkyScrub,
- format:(at,mode)=>mode==='date'?dateAt(at).slice(5).replace('-','/'):textAt(at),getObserver:()=>session?.observer||globalThis.AstroNotesMapWorkspace?.targetSkyPoint?.(),sun:(at,o)=>AstroNotesAstro.sun(at,o),describe:(at,mode)=>ToolDateTimeBar.label(at)+(mode!=='date'?' '+textAt(at):'')});
+ format:(at,mode)=>mode==='date'?dateAt(at).slice(5).replace('-','/'):textAt(at),getObserver:()=>session?.observer||globalThis.AstroNotesMapWorkspace?.previewSkyPoint?.(),sun:(at,o)=>AstroNotesAstro.sun(at,o),describe:(at,mode)=>ToolDateTimeBar.label(at)+(mode!=='date'?' '+textAt(at):'')});
  let lastPlaybackDetail=0;
  const skyPlayback=ToolDateTimeBar.playback({row:el('skyMapPrev').parentElement,footer:skyFooter,getAt:()=>session?.at,enabled:()=>hasAccess()&&!!session&&active(),onStart:()=>{globalThis.AstroNotesCameraUI?.stop(el('aimLook'));stopSkyScrub(true);if(session)session.blend=null;
  },onStop:()=>{if(hasAccess()&&session&&active())render();},setAt:at=>{
@@ -440,7 +455,7 @@ ctx.lineWidth=1;
   if(changed){refresh();return;}
   const text=textAt(at);if(document.activeElement!==el('skyMapTime')&&el('skyMapTime').value!==text)el('skyMapTime').value=text;
   skyTimeline.follow(at,session.scrubMode);
-  if(globalThis.TrialExplore?.active()&&el('skyMapView').dataset.exploreMode==='scene')globalThis.TrialExplore.sync();else if((session.eye&&session.dailies)||globalThis.AstroNotesMapWorkspace?.targetSkyPoint?.())map.redraw();
+  if(globalThis.TrialExplore?.active()&&el('skyMapView').dataset.exploreMode==='scene')globalThis.TrialExplore.sync();else if((session.eye&&session.dailies)||globalThis.AstroNotesMapWorkspace?.previewSkyPoint?.())map.redraw();
   if(skyTimeDialog.open&&at-lastPlaybackDetail>=1000){lastPlaybackDetail=at;const state=currentState();if(state)el('skyMapAngles').textContent=`${bodyName(session.body)} 方位 ${state.azimuth.toFixed(1)}°・高度 ${state.altitude.toFixed(2)}°`;}
  }});
  function stopSkyScrub(commit=false){
@@ -624,7 +639,7 @@ ctx.lineWidth=1;
  restoreTarget:b=>{Object.assign(session,b);targetOn=validPoint(b.target);const sel=el('skyMapTarget'),custom=[...sel.options].find(o=>o.value==='custom');if(custom){if(b.custom)custom.textContent=b.custom.name;
  else custom.remove();}sel.value=b.target?.id||'';syncBodies();refresh();},setTargetHeight:height=>{const c=session.custom;if(session.target?.id!=='custom'||!c||!Number.isFinite(c.groundM)||!AstroNotesLibrary.height(height))return false;
  session.custom={...c,heightM:height,topM:c.groundM+height,heightAuto:false};session.target={...session.target,...session.custom,parts:[{id:'tip',name:'てっぺん',m:c.groundM+height}]};session.customTarget=session.target;refresh();return true;
- },redraw:()=>map.redraw(),bodyState:body=>{const b=session.blend;return b?blendBodyState(skyState(body,b.from,session.eye),skyState(body,b.to,session.eye),b.f):skyState(body,session.at,session.eye);
+ },redraw:()=>map.redraw(),bodyState:(body,eye=session.eye)=>{const b=session.blend;return b?blendBodyState(skyState(body,b.from,eye),skyState(body,b.to,eye),b.f):skyState(body,session.at,eye);
  }}:null,selectionState:()=>session&&({...AstroNotesShooting.conditions(session),body:session.body,target:session.target,observer:session.observer,candidateOpportunity:session.candidateOpportunity}),renderState:()=>{
  if(!hasAccess()||!active()||!session?.observer||!session?.target?.parts?.length||!session?.eye||pickMode)throw Error('見え方の条件を準備中');return {...AstroNotesShooting.conditions(session),ground:session.ground,eyeM:aimObserverAt(session.observer,session.ground).eyeM};
  },shareState:()=>{if(!hasAccess()||!active()||!session?.observer||!session?.target||!session?.target?.parts?.length||!session?.daily||!session?.eye||timelineMoving||session.timelinePending||pickMode)throw Error("撮影地点・対象・日時を選び、計算が終わってから開いてください。");

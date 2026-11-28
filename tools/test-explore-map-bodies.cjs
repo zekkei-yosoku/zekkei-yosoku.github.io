@@ -9,7 +9,7 @@ const realTiles=process.env.MAP_BODIES_REAL_TILES==='1';
 const engines=(process.env.MAP_BODIES_ENGINES||'chrome,webkit').split(',');
 const widths=(process.env.MAP_BODIES_WIDTHS||'320,390').split(',').map(Number);
 const themes=(process.env.MAP_BODIES_THEMES||'light,dark').split(',');
-const checks=(process.env.MAP_BODIES_CHECKS||'matrix,engine,night,line,card,terrain,vicinity,date-lines,projection,horizon-rays').split(',');
+const checks=(process.env.MAP_BODIES_CHECKS||'matrix,engine,night,line,card,terrain,vicinity,date-lines,projection,horizon-rays,map-center').split(',');
 const tools=['records','tower','diamond','pearl','skymap','multiscene'];
 const bodies=['moon','sun','sirius','venus','mercury','mars','jupiter','saturn'];
 const names={moon:'月',sun:'太陽',sirius:'シリウス',venus:'金星',mercury:'水星',mars:'火星',jupiter:'木星',saturn:'土星'};
@@ -274,6 +274,96 @@ async function targetVicinity(browser,engine){
  }finally{await f.context.close();}
 }
 
+
+async function mapCenterOrbit(browser,engine){
+ const f=await open(browser,390,'dark'),p=f.page;
+ try{
+  await p.evaluate(()=>{
+   SkyMapUI.workspaceHost().restoreObserver(null);
+   SkyMapUI.setTime(Date.parse('2026-11-28T09:00:00+09:00'));
+  });
+  await p.waitForFunction(()=>document.querySelector('#wsBody small').textContent.includes('対象付近'));
+  await p.evaluate(()=>SkyMapUI.workspaceHost().restoreTarget({target:null,custom:false}));
+  await p.waitForFunction(()=>document.querySelector('#wsBody small').textContent==='月 · 地図中央');
+  const orbit=p.getByRole('button',{name:'天体の軌道'});
+  assert(await orbit.isEnabled());
+  assert.equal(await orbit.getAttribute('aria-pressed'),'true');
+
+  const capture=()=>p.evaluate(async()=>{
+   const api=AstroNotesMapWorkspace,original=api.drawing,h=SkyMapUI.workspaceHost();
+   let frame=null;
+   api.drawing=()=>{
+    const drawing=original();
+    return {...drawing,body(ctx,body,data,x,y,r,w,ht,eye){
+     const stroke=ctx.stroke;
+     const drawn={body,eye,x,y,w,ht,day:data.points[0].at,orbit:false};
+     ctx.stroke=function(...args){if(Math.abs(this.lineWidth-3.4)<.001)drawn.orbit=true;return stroke.apply(this,args);};
+     try{drawing.body(ctx,body,data,x,y,r,w,ht,eye);drawn.complete=true;}
+     finally{ctx.stroke=stroke;frame=drawn;}
+    }};
+   };
+   try{h.redraw();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return frame;}
+   finally{api.drawing=original;}
+  });
+  const centerMatch=frame=>assert(frame?.complete&&frame.x===frame.w/2&&frame.y===frame.ht/2,JSON.stringify(frame));
+  const first=await capture();
+  centerMatch(first);
+  assert(first.orbit);
+  assert(first.eye&&Number.isFinite(first.eye.latitude));
+
+  await orbit.click();
+  assert.equal(await orbit.getAttribute('aria-pressed'),'false');
+  assert(!(await capture()).orbit);
+  await orbit.click();
+  assert((await capture()).orbit);
+
+  const canvas=await p.locator('#skyMapCanvas').boundingBox();
+  await p.mouse.move(canvas.x+48,canvas.y+canvas.height/2);
+  await p.mouse.down();
+  await p.mouse.move(canvas.x+142,canvas.y+canvas.height/2+30,{steps:8});
+  await p.mouse.up();
+  await p.waitForFunction(first=>{
+   const h=SkyMapUI.workspaceHost(),point=h.map.center(),sky=AstroNotesMapWorkspace.previewSkyPoint();
+   return Math.abs(point.longitude-first.longitude)>.001&&sky.latitude===point.latitude&&sky.longitude===point.longitude;
+  },first.eye);
+  const moved=await capture();
+  centerMatch(moved);
+  assert.notEqual(moved.eye.longitude,first.eye.longitude);
+  assert.deepEqual(await p.evaluate(()=>{
+   const h=SkyMapUI.workspaceHost(),s=h.session,eye=AstroNotesMapWorkspace.previewSkyPoint(),st=h.skyState(s.body,s.at,eye);
+   return {observer:s.observer,target:s.target,eye:s.eye,azimuth:document.querySelector('#wsBody b').textContent===st.azimuth.toFixed(1)+'°'};
+  }),{observer:null,target:null,eye:null,azimuth:true});
+  await p.locator('#skyMapNext').click();
+  const next=await capture();
+  centerMatch(next);
+  assert.equal(next.day,first.day+86400000);
+  await selectMap(p,'sirius');
+  await p.waitForFunction(()=>document.querySelector('#wsBody small').textContent==='シリウス · 地図中央'&&document.querySelector('#wsBody b').textContent!=='—');
+  const sirius=await capture();
+  centerMatch(sirius);
+  assert.equal(sirius.body,'sirius');
+  assert(sirius.orbit);
+  const band=await p.locator('#skyMapTimeline .sky-timeline-annotations').evaluate(canvas=>!canvas.hidden&&canvas.width>0);
+  assert(band);
+  await selectMap(p,'sun');
+  await p.waitForFunction(()=>document.querySelector('#wsBody small').textContent==='太陽 · 地図中央'&&document.querySelector('#wsBody b').textContent!=='—');
+  assert((await capture()).orbit);
+  await p.screenshot({path:out+'/'+engine+'-map-center.png'});
+  await p.evaluate(observer=>SkyMapUI.workspaceHost().restoreObserver(observer),observer);
+  await ready(p,'sun');
+  await p.waitForFunction(()=>AstroNotesMapWorkspace.centerMode()==='obs'&&document.querySelector('#wsBody small').textContent==='太陽');
+  const restored=await capture();
+  assert(restored?.complete&&restored.orbit&&!restored.eye,JSON.stringify(restored));
+  await p.evaluate(()=>SkyMapUI.workspaceHost().restoreObserver(null));
+  await p.waitForFunction(()=>document.querySelector('#wsBody small').textContent==='太陽 · 地図中央');
+  const clearedAgain=await capture();
+  centerMatch(clearedAgain);
+  assert(clearedAgain.orbit);
+  assert.deepEqual(f.errors,[]);
+  return {label:engine+'-map-center',centered:true,pan:true,day:true,pointBody:true,restored:true};
+ }finally{await f.context.close();}
+}
+
 async function horizonRays(browser,engine){
  const f=await open(browser,390,'dark'),p=f.page;
  try{
@@ -492,6 +582,7 @@ async function terrainErrorLayout(browser,engine,theme){
    if(checks.includes('line'))results.push(await lineSelection(browser,engine));
    if(checks.includes('card'))results.push(await cardEdges(browser,engine));
    if(checks.includes('vicinity'))results.push(await targetVicinity(browser,engine));
+   if(checks.includes('map-center')){const result=await mapCenterOrbit(browser,engine);results.push(result);console.log('PASS '+result.label);}
    if(checks.includes('horizon-rays')){const result=await horizonRays(browser,engine);results.push(result);console.log('PASS '+result.label);}
    if(checks.includes('date-lines'))results.push(await dateLineReuse(browser,engine));
    if(checks.includes('projection'))results.push(await mapProjection(browser,engine));

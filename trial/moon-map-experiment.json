@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "20261124-moon-route-map",
-  "revision": 42,
+  "revision": 43,
   "baselineCommit": "f4f35b61359ba5ec8f9da057cf3026902a0402a4",
   "productionSha256": {
     "index.html": "feb5e6c31bbb6014c66615a414cca2477296b89ab8e6a95ba1e98c07907a29c3",
@@ -53,8 +53,8 @@
     "src/features/framing/scene/render.js": "6af9fe3e6225565942c09668056549f68966838befb548d7a2ab93848a677ed9",
     "src/features/framing/presentation.js": "fbf34bab6ed237f28a7cc09532c9147191775b2580117612e2fd1fd802ab0e92",
     "src/features/explore/controller.js": "a130a0b534fd37ea5d284459caa8b7c22189644950ed457d5b14a041bb4e6361",
-    "src/features/explore/map-presentation.js": "891e73b0da9daa33164eb6ae5beee7270bc591019e0aeec0972e5b70046395b6",
-    "astronotes-map-workspace.js": "eb1da8794998ca5b142d4fedf80e1db24ae2071247669cc604693843c4a2ab40",
+    "src/features/explore/map-presentation.js": "7da1e82314afc0ba110847f6b12da46729ebf700fd158706b7b6e12ac4c78dfe",
+    "astronotes-map-workspace.js": "b517a693498f9cffa126818b0d2a5ea38dbd295b1080b1169a36001094d5f724",
     "astronotes-map-workspace.css": "171f3fd7cadb04b770074d87f7f4541f29ccb5177891f97eb825206cb1dbda2b",
     "src/features/candidates/ui.js": "d7586f1ab428700d9ce5022abaddb4f25b51e60327aa151cf449a52e9c1eb552",
     "src/features/candidates/generic-search.js": "0f78f4fe1e6924997dd96edf4787e4612e1721f3ede20522fe05bce2b21be727",
@@ -84,7 +84,7 @@
     "astronotes-routes.js": "fc099255874d597c8ee2146d8ac611cb5f3613c20c6621d223be6422365bb000",
     "astronotes-datetime-ui.css": "12bdf08dc975d4ab6d7d80dd77a423068cfb5c79c2af99e974cb59b8caf17fde",
     "astronotes-myplaces.js": "c7677863d4966df3d06b7d8d46a4abb9ff84d3aa6c11976194e52a7134e91343",
-    "astronotes-map-workspace.js": "eb1da8794998ca5b142d4fedf80e1db24ae2071247669cc604693843c4a2ab40",
+    "astronotes-map-workspace.js": "b517a693498f9cffa126818b0d2a5ea38dbd295b1080b1169a36001094d5f724",
     "astronotes-map-workspace.css": "171f3fd7cadb04b770074d87f7f4541f29ccb5177891f97eb825206cb1dbda2b",
     "astronotes-shooting.js": "69ed04693c74005445a7755f4beb7d3f181efd81db3baad9ab9b5a4505572509",
     "astronotes-target-ui.js": "02f8516f9802b4ffa2e8b5f4ae9eb2e9d23c24fed0ad21158011b25a7e9519a8",
@@ -92,7 +92,7 @@
     "astronotes-iss.js": "7c864a204182a42de1a248d3a965dfc157e6a76e737c2745ce573a48fbc6f3a7",
     "astronotes-explore-simple.js": "21c2977f019bc8a8b2217b68f4e7c975c559e959ce8bba7460c27ba7f23d9def",
     "astronotes-candidate-search.js": "21ff089c72cb6b0a63251306ad150010e2b9d1bd63189a773b3b7f04351b3a97",
-    "index.html": "c334d89ca69c2d42b6b2cd481f9698396cd78734cbaf38a6e73a5b795196d870",
-    "app-version.txt": "b41c6438b1c25ba3e363f08a221ffee5af0fd21dc571d029c04800389084e479"
+    "index.html": "a9c5cebe134fcfa1b7a2a0d567b60852c8bdb6a74963b041561ebf9c7a738c38",
+    "app-version.txt": "8bd4e55abc2634fdd1c8380d630740375819cb6dedd3cb4950bc2805080c67f0"
   }
 }
