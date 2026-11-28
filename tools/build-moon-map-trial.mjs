@@ -33,6 +33,7 @@ const allowed=new Map([
  ['src/features/framing/observer.js',false],
  ['src/features/candidates/entry.inc',false],
  ['src/features/candidates/generic-evaluator.js',false],
+ ['src/features/candidates/composition-ui.js',false],
  ['src/features/candidates/place-provider.js',false],
  ['astronotes-terrain.js',false],
  ['src/features/candidates/building-model.js',false],

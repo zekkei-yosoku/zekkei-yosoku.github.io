@@ -1,9 +1,10 @@
 {
   "schemaVersion": 1,
   "id": "20261124-moon-route-map",
-  "revision": 46,
+  "revision": 47,
   "baselineCommit": "f4f35b61359ba5ec8f9da057cf3026902a0402a4",
   "baselineSha256": {
+    "src/features/candidates/composition-ui.js": "9e128ff7999d706cbcb4100139938372e255edfc05f4e0bf34864725444fd83c",
     "astronotes-terrain.js": "b6cbf16a08dc33f8c01d83e49797d2459655c65f5f73efa5c426406e76a3665d",
     "src/features/candidates/generic-evaluator.js": "abcd9f08c2bc3c2a02a44ed2219aa299bd68007c757ee628d0c5813ea0437aac",
     "src/features/candidates/place-provider.js": "3bf4cfcfafd5eab6087ff4bf53c7252206b2c5bddca95e2f8c2b43b180ea175f",
@@ -49,6 +50,10 @@
     "src/features/plans/controller.js": "c19310c109a4b8b0612a8fc6b93693c45176f6b641a411b20d56ac50a43c70be"
   },
   "overlays": [
+    {
+      "path": "src/features/candidates/composition-ui.js",
+      "required": false
+    },
     {
       "path": "astronotes-terrain.js",
       "required": false

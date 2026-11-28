@@ -139,19 +139,19 @@ const stamp=plan.stamp,baseStamp=plan.baseStamp,snapshot=plan.snapshot,invalidat
 function placePins(){const row=$('skyMapShareRow'),all=[...document.querySelectorAll('#shootingPins')],t=all.find(x=>x.parentNode!==row)||all[0];if(!t)return;for(const x of all)if(x!==t)x.remove();if(layout.mounted){if(row&&t.parentNode!==row)row.prepend(t);
 }else{const head=$('mySkyPlaces')?.querySelector('.my-head');if(head&&t.parentNode!==head)head.append(t);}}
 new MutationObserver(()=>{if(layout.mounted)placePins();}).observe(mapView,{childList:true,subtree:true});
-function conditionText(s){
+function conditionText(s,composition){
  const body=AstroNotesBodies.definition(s?.body)?.name||'天体を選ぶ',target=s?.target?.name||'対象を選ぶ',extras=s?.target?aimSceneExtraTargets(s.target.id).length:0;
  const part=s?.target?.parts?.find(p=>p.id===s.partId)||s?.target?.parts?.[0];
  const alignment=s?.matchMode==='overlap'?(s.partId&&s.partId!=='__whole'?(part?.name||'指定位置')+'を通過':'全体に重なる'):s?.partId==='__whole'?(s.target?.wholeLabel||'建物全体に重なる'):`${part?.name||'対象'}・${AstroNotesAlign.limbById(s?.limb||'center').name}`;
  const height=s?.observer?$('skyMapObserverSummary')?.textContent?.trim().replace(/^高さ\s*[:：]?\s*/,''):'';
  return {title:body+' × '+target+(extras?'ほか'+extras+'件':''),
  detail:(s?.observer?.name||'撮影地点を選ぶ')+(height?' · '+height:'')+(s?.target?' · '+(s.candidateOpportunity?.at===s.at&&s.candidateOpportunity?.targetId===s.target?.id&&s.candidateOpportunity?.relation==='near'?'候補の時刻':globalThis.AstroNotesTrialOverlap?.label?.(s)||
- globalThis.AstroNotesTrialComposition?.label?.(s)||alignment):'')};
+ composition||alignment):'')};
 }
 function updateConditions(){
- if(!layout.mounted||!layout.conditions)return;const s=SkyMapUI.selectionState(),text=conditionText(s);
+ if(!layout.mounted||!layout.conditions)return;const s=SkyMapUI.selectionState(),composition=globalThis.AstroNotesTrialComposition?.label?.(s),text=conditionText(s,composition);
  for(const [id,value] of [['exploreConditionTitle',text.title],['exploreConditionDetail',text.detail]])if($(id).textContent!==value)$(id).textContent=value;
- const composition=globalThis.AstroNotesTrialComposition?.label?.(s),selection=$('exploreCompositionSelection');
+ const selection=$('exploreCompositionSelection');
  if(selection){selection.hidden=!composition;const value=composition?'図で指定：'+composition:'';if($('exploreCompositionLabel').textContent!==value)$('exploreCompositionLabel').textContent=value;}
  syncWorkspace();const confirm=$('exploreShowResult');confirm.disabled=false;
  if(!confirm.firstElementChild)confirm.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><span>検索</span>';

@@ -4139,7 +4139,8 @@ function firstKeyboardPick(st,choose){
 function cancelEdit(st){config=structuredClone(st.beforeEdit||config);st.beforeEdit=null;st.active=st.dragging=false;st.invalid=false;st.error='';editing=null;notify();st.button.focus({preventScroll:true});}
 const statesList=new Set();
 function plan(s=current()){syncContext(s);return structuredClone(config);}
-function label(s=current()){syncContext(s);const c=config.composition;return c?`${selectedHeight(s,c)}・${c.limb==='upper'?'天体の上の縁':c.limb==='lower'?'天体の下の縁':'天体の中心'}`:null;}
+// The condition summary shows the committed selection. Draft feedback stays within the drawing.
+function label(s=current()){syncContext(s);const c=(editing?.beforeEdit??config).composition;return c?`${selectedHeight(s,c)}・${c.limb==='upper'?'天体の上の縁':c.limb==='lower'?'天体の下の縁':'天体の中心'}`:null;}
 function clear(){syncContext();config={composition:null,timeWindow:{kind:'none'},compositionInvalid:false,invalidDraft:null};editing=null;
  for(const st of statesList){st.beforeEdit=null;st.active=st.dragging=st.invalid=false;st.error='';}notify();}
 function capabilities(s,obs){

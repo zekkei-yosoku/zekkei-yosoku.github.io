@@ -88,7 +88,7 @@ async function waitSearch(page,count){
  assert.equal(await page.locator('#skyMapView').getAttribute('data-explore-stage'),'search');
  assert.equal(await page.locator('#exploreDiscovery-new').getAttribute('aria-selected'),'true');
  assert(await page.locator('#candidateSearchFeedback').isVisible());
- assert.match(await page.locator('#candidateSearchFeedback').innerText(),/構図と見通しを確認中/);
+ assert.equal(await page.locator('#candidateSearchFeedback').getByRole('status').innerText(),'撮影候補を確認しています…');
  await feedbackVisible(page);
 }
 async function feedbackVisible(page){
