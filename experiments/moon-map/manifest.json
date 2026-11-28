@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "20261124-moon-route-map",
-  "revision": 45,
+  "revision": 46,
   "baselineCommit": "f4f35b61359ba5ec8f9da057cf3026902a0402a4",
   "baselineSha256": {
     "astronotes-terrain.js": "b6cbf16a08dc33f8c01d83e49797d2459655c65f5f73efa5c426406e76a3665d",

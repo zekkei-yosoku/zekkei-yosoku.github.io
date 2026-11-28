@@ -645,7 +645,7 @@ function tapObsRecord(pixel){
  const h=host();if(!h)return false;clearStaleObsSelection(h);if(!targetReady(h)||obsDrawKey!==obsKey(h))return false;
  let best=null,dist=22;for(const hit of obsRecordHits){const d=Math.hypot(hit.x-pixel.x,hit.y-pixel.y);if(d<dist){dist=d;best=hit;}}
  if(!best)return false;
- const p=best.place;targetSel={kind:'record',key:targetKey(h),obs:obsKey(h),latitude:p.latitude,longitude:p.longitude,name:p.name,place:p,window:{...best.window},windows:best.row.windows?.map(w=>({...w}))||[]};h.redraw();schedule();return true;
+ const p=best.place;targetSel={kind:'record',key:targetKey(h),obs:obsKey(h),latitude:p.latitude,longitude:p.longitude,name:p.name,place:p,window:{...best.window},windows:best.row.windows?.map(w=>({...w}))||[]};updateTargetCard(h);h.redraw();schedule();return true;
 }
 // 目標物が中心の時のタップ: 地点のピン→その地点、線の近く（26px）→線上の点に吸着、それ以外→選択を外す。
 function tapTarget(pixel){
@@ -658,7 +658,8 @@ function tapTarget(pixel){
  else{let snap=null,sd=26;for(const hit of tapHits){if(hit.kind!=='segment')continue;const [ax,ay]=hit.a,[bx,by]=hit.b,dx=bx-ax,dy=by-ay,l2=dx*dx+dy*dy,f=l2?Math.max(0,Math.min(1,((pixel.x-ax)*dx+(pixel.y-ay)*dy)/l2)):0,d=Math.hypot(ax+dx*f-pixel.x,ay+dy*f-pixel.y);
   if(d<sd){sd=d;snap={kind:'line',key:selKey,latitude:hit.pa.latitude+(hit.pb.latitude-hit.pa.latitude)*f,longitude:hit.pa.longitude+(hit.pb.longitude-hit.pa.longitude)*f,at:hit.pa.at+(hit.pb.at-hit.pa.at)*f,side:hit.side,name:'線上の地点'};}}
   targetSel=snap;}
- host()?.redraw();schedule();return true;
+ // Keep the selected map point and its action in sync on the same tap.
+ updateTargetCard(h);h.redraw();schedule();return true;
 }
 // 選んだ点を撮影地点にして、撮影地点が中心へ切り替える。
 function useSelectionAsObserver(){
